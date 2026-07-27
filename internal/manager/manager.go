@@ -474,7 +474,14 @@ func (m *Manager) GetTpl(id int) (*models.Template, error) {
 // TemplateFuncs returns the template functions to be applied into
 // compiled campaign templates.
 func (m *Manager) TemplateFuncs(c *models.Campaign) template.FuncMap {
-	urls := m.urlsFor(c.TenantID)
+	// c is nil when compiling/validating a template body outside the context
+	// of an actual campaign (eg: template create/update). Fall back to the
+	// default (tenant 1) URLs in that case, since they're not used for sending.
+	tenantID := 1
+	if c != nil {
+		tenantID = c.TenantID
+	}
+	urls := m.urlsFor(tenantID)
 
 	f := template.FuncMap{
 		"TrackLink": func(url string, msg *CampaignMessage) string {

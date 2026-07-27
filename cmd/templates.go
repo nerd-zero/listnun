@@ -170,7 +170,7 @@ func (a *App) CreateTemplate(c echo.Context) error {
 	var funcs template.FuncMap
 	if o.Type == models.TemplateTypeCampaign || o.Type == models.TemplateTypeCampaignVisual {
 		o.Subject = ""
-		funcs = a.manager.TemplateFuncs(nil)
+		funcs = a.manager.TemplateFuncs(&models.Campaign{TenantID: tenantID(c)})
 	} else {
 		funcs = a.manager.GenericTemplateFuncs()
 	}
@@ -222,7 +222,7 @@ func (a *App) UpdateTemplate(c echo.Context) error {
 	var funcs template.FuncMap
 	if o.Type == models.TemplateTypeCampaign || o.Type == models.TemplateTypeCampaignVisual {
 		o.Subject = ""
-		funcs = a.manager.TemplateFuncs(nil)
+		funcs = a.manager.TemplateFuncs(&models.Campaign{TenantID: tenantID(c)})
 	} else {
 		funcs = a.manager.GenericTemplateFuncs()
 	}
