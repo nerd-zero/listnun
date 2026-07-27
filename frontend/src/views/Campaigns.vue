@@ -465,7 +465,6 @@ onUnmounted(() => { clearInterval(pollID.value); });
 }
 .stats-label { font-size: 0.76rem; color: var(--lm-text-muted); white-space: nowrap; min-width: 52px; display: flex; align-items: center; gap: 0.2rem; }
 
-// Row actions
-
-:deep(tr.running) .row-actions { opacity: 1; }
+// Row actions always visible, not just on row hover.
+:deep(.row-actions) { opacity: 1; }
 </style>
