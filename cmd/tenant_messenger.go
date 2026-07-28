@@ -17,12 +17,11 @@ import (
 // manager.New(); it holds a reference to Core rather than a snapshot of
 // settings, so it always resolves against the DB.
 //
-// The cache is never invalidated within a process's lifetime - this
-// matches the existing behavior of the process-global messenger set
-// (built once at boot) and the fact that settings updates already require
-// a full process restart to take effect (cmd/settings.go's
-// handleSettingsRestart -> syscall.Exec). Live invalidation without a
-// restart is out of scope here; see issue #41.
+// A cache entry is evicted (see Invalidate) whenever the owning tenant
+// saves SMTP settings, so it's rebuilt from the DB on next use instead of
+// requiring the full process restart the rest of cmd/settings.go's
+// handleSettingsRestart still uses for settings groups outside this,
+// tenantMedia's, and internal/auth's OIDC cache.
 type tenantMessengers struct {
 	core *core.Core
 
@@ -35,6 +34,16 @@ func newTenantMessengers(co *core.Core) *tenantMessengers {
 		core:  co,
 		cache: make(map[int]map[string]manager.Messenger),
 	}
+}
+
+// Invalidate evicts the given tenant's cached messengers, forcing the next
+// GetMessenger call to rebuild them from that tenant's current settings
+// instead of requiring a full process restart (cmd/settings.go's
+// handleSettingsRestart).
+func (t *tenantMessengers) Invalidate(tenantID int) {
+	t.mu.Lock()
+	delete(t.cache, tenantID)
+	t.mu.Unlock()
 }
 
 // GetMessenger implements manager.MessengerResolver.

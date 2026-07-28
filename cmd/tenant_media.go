@@ -27,11 +27,11 @@ type tenantMediaStore struct {
 // SMTP. Constructed once and held by *App and cmd/manager_store.go's
 // *store; always resolves against the DB rather than a settings snapshot.
 //
-// The cache is never invalidated within a process's lifetime - matches
-// the existing behavior of the process-global media.Store (built once at
-// boot) and the fact that settings updates already require a full process
-// restart to take effect (cmd/settings.go's handleSettingsRestart ->
-// syscall.Exec).
+// A cache entry is evicted (see Invalidate) whenever the owning tenant
+// saves upload/media settings, so it's rebuilt from the DB on next use
+// instead of requiring the full process restart the rest of
+// cmd/settings.go's handleSettingsRestart still uses for settings groups
+// outside this, tenantMessengers', and internal/auth's OIDC cache.
 type tenantMedia struct {
 	core *core.Core
 
@@ -44,6 +44,16 @@ func newTenantMedia(co *core.Core) *tenantMedia {
 		core:  co,
 		cache: make(map[int]tenantMediaStore),
 	}
+}
+
+// Invalidate evicts the given tenant's cached media.Store, forcing the
+// next Get call to rebuild it from that tenant's current settings instead
+// of requiring a full process restart (cmd/settings.go's
+// handleSettingsRestart).
+func (t *tenantMedia) Invalidate(tenantID int) {
+	t.mu.Lock()
+	delete(t.cache, tenantID)
+	t.mu.Unlock()
 }
 
 // Get returns the tenant's media.Store and the settings it was built from,

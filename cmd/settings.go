@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -347,7 +348,18 @@ func (a *App) UpdateSettings(c echo.Context) error {
 		return err
 	}
 
-	return a.handleSettingsRestart(c)
+	// SMTP/upload/OIDC settings can be applied by invalidating that
+	// tenant's cached resolver (cmd/tenant_messenger.go, cmd/tenant_media.go,
+	// internal/auth's OIDC cache) instead of the full-process restart every
+	// other settings group still needs - a full restart affects every
+	// tenant on the process, not just the one saving.
+	changes := diffSettingsGroups(cur, set)
+	if changes.other {
+		return a.handleSettingsRestart(c)
+	}
+	a.invalidateTenantCaches(tenantID(c), changes)
+
+	return c.JSON(http.StatusOK, okResp{true})
 }
 
 // UpdateSettingsByKey updates a single setting key-value in the DB.
@@ -379,7 +391,101 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		return err
 	}
 
-	return a.handleSettingsRestart(c)
+	// Every settings row is keyed by one of models.Settings' top-level JSON
+	// tags (schema.sql's `settings` seed rows, one row per key) - so the
+	// key alone says which per-tenant cache to invalidate, same groups as
+	// diffSettingsGroups. Anything outside those still needs the full
+	// restart.
+	switch {
+	case key == "smtp":
+		a.tenantMsgrs.Invalidate(tenantID(c))
+	case strings.HasPrefix(key, "upload."):
+		a.media.Invalidate(tenantID(c))
+	case key == "security.oidc":
+		a.auth.InvalidateOIDC(tenantID(c))
+	default:
+		return a.handleSettingsRestart(c)
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// tenantCacheChanges describes which process-lifetime per-tenant caches
+// (cmd/tenant_messenger.go, cmd/tenant_media.go, internal/auth's OIDC
+// cache) are stale after a settings save, and whether anything outside
+// those three groups also changed.
+type tenantCacheChanges struct {
+	smtp  bool
+	media bool
+	oidc  bool
+	other bool
+}
+
+// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC fields so the
+// remainder can be compared to detect changes outside those groups.
+func withoutTenantCachedGroups(s models.Settings) models.Settings {
+	var zero models.Settings
+	s.SMTP = nil
+	s.OIDC = zero.OIDC
+	s.UploadProvider = ""
+	s.UploadExtensions = nil
+	s.UploadFilesystemUploadPath = ""
+	s.UploadFilesystemUploadURI = ""
+	s.UploadS3URL = ""
+	s.UploadS3PublicURL = ""
+	s.UploadS3AwsAccessKeyID = ""
+	s.UploadS3AwsDefaultRegion = ""
+	s.UploadS3AwsSecretAccessKey = ""
+	s.UploadS3Bucket = ""
+	s.UploadS3BucketDomain = ""
+	s.UploadS3BucketPath = ""
+	s.UploadS3BucketType = ""
+	s.UploadS3Expiry = ""
+	return s
+}
+
+// diffSettingsGroups compares settings before and after a save to work out
+// which per-tenant caches need invalidating. "other" is deliberately a
+// diff of everything *except* the three known groups (rather than a list
+// of every other field) so that any field added to models.Settings in the
+// future safely falls into "other" (triggering the existing full-restart
+// fallback) instead of silently being ignored by this optimization.
+func diffSettingsGroups(cur, set models.Settings) tenantCacheChanges {
+	return tenantCacheChanges{
+		smtp: !reflect.DeepEqual(cur.SMTP, set.SMTP),
+		media: cur.UploadProvider != set.UploadProvider ||
+			!reflect.DeepEqual(cur.UploadExtensions, set.UploadExtensions) ||
+			cur.UploadFilesystemUploadPath != set.UploadFilesystemUploadPath ||
+			cur.UploadFilesystemUploadURI != set.UploadFilesystemUploadURI ||
+			cur.UploadS3URL != set.UploadS3URL ||
+			cur.UploadS3PublicURL != set.UploadS3PublicURL ||
+			cur.UploadS3AwsAccessKeyID != set.UploadS3AwsAccessKeyID ||
+			cur.UploadS3AwsDefaultRegion != set.UploadS3AwsDefaultRegion ||
+			cur.UploadS3AwsSecretAccessKey != set.UploadS3AwsSecretAccessKey ||
+			cur.UploadS3Bucket != set.UploadS3Bucket ||
+			cur.UploadS3BucketDomain != set.UploadS3BucketDomain ||
+			cur.UploadS3BucketPath != set.UploadS3BucketPath ||
+			cur.UploadS3BucketType != set.UploadS3BucketType ||
+			cur.UploadS3Expiry != set.UploadS3Expiry,
+		oidc:  !reflect.DeepEqual(cur.OIDC, set.OIDC),
+		other: !reflect.DeepEqual(withoutTenantCachedGroups(cur), withoutTenantCachedGroups(set)),
+	}
+}
+
+// invalidateTenantCaches evicts the given tenant's cached SMTP messengers,
+// media store, and/or OIDC config so the next request rebuilds them from
+// this tenant's just-saved settings, in place of the full-process restart
+// handleSettingsRestart still uses for changes outside these groups.
+func (a *App) invalidateTenantCaches(tenantID int, c tenantCacheChanges) {
+	if c.smtp {
+		a.tenantMsgrs.Invalidate(tenantID)
+	}
+	if c.media {
+		a.media.Invalidate(tenantID)
+	}
+	if c.oidc {
+		a.auth.InvalidateOIDC(tenantID)
+	}
 }
 
 // handleSettingsRestart checks for running campaigns and either triggers an
