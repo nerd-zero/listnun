@@ -604,12 +604,16 @@ func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), 
 	})
 }
 
-// initCampaignManager initializes the campaign manager.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, i *i18n.I18n, ko *koanf.Koanf) *manager.Manager {
+// initCampaignManager initializes the campaign manager. Also returns the
+// tenantMessengers resolver it wires in, so callers can invalidate a
+// tenant's cached SMTP messengers after a settings save (cmd/settings.go's
+// handleSettingsRestart) without needing a full process restart.
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
 
+	tm := newTenantMessengers(co)
 	mgr := manager.New(manager.Config{
 		BatchSize:             ko.Int("app.batch_size"),
 		Concurrency:           ko.Int("app.concurrency"),
@@ -631,14 +635,14 @@ func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlCon
 		SlidingWindowRate:     ko.Int("app.message_sliding_window_rate"),
 		ScanInterval:          time.Second * 5,
 		ScanCampaigns:         !ko.Bool("passive"),
-	}, newManagerStore(q, co, md), newTenantMessengers(co), i, lo)
+	}, newManagerStore(q, co, md), tm, i, lo)
 
 	// Attach all messengers to the campaign manager.
 	for _, m := range msgrs {
 		mgr.AddMessenger(m)
 	}
 
-	return mgr
+	return mgr, tm
 }
 
 // initTxTemplates initializes and compiles the transactional templates of
@@ -666,7 +670,6 @@ func initTxTemplates(m *manager.Manager, co *core.Core) {
 		}
 	}
 }
-
 
 // initSMTPMessenger initializes the combined and individual SMTP messengers.
 // initSMTPMessengers builds SMTP messengers from the given koanf instance's
