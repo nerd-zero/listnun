@@ -134,7 +134,7 @@ function onChangeVisualEditor({ source, body }: any) {
 onMounted(() => {
   Object.assign(form, props.data);
   if (form.body === null || form.body === undefined) { form.body = ''; }
-  nextTick(() => { focusEl.value?.focus(); });
+  nextTick(() => { focusEl.value?.$el?.focus(); });
   window.addEventListener('keydown', onPreviewShortcut);
 });
 

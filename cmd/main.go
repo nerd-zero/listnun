@@ -41,26 +41,27 @@ import (
 
 // App contains the "global" shared components, controllers and fields.
 type App struct {
-	cfg        *Config
-	urlCfg     *UrlConfig
-	fs         stuffbin.FileSystem
-	db         *sqlx.DB
-	queries    *models.Queries
-	core       *core.Core
-	manager    *manager.Manager
-	messengers []manager.Messenger
-	emailMsgr  manager.Messenger
-	importers  *tenantImporters
-	auth       *auth.Auth
-	media      *tenantMedia
-	operator   *operatorStore
-	bounce     *bounce.Manager
-	captcha    *captcha.Captcha
-	i18n       *i18n.I18n
-	pg         *paginator.Paginator
-	events     *events.Events
-	log        *log.Logger
-	bufLog     *buflog.BufLog
+	cfg         *Config
+	urlCfg      *UrlConfig
+	fs          stuffbin.FileSystem
+	db          *sqlx.DB
+	queries     *models.Queries
+	core        *core.Core
+	manager     *manager.Manager
+	messengers  []manager.Messenger
+	tenantMsgrs *tenantMessengers
+	emailMsgr   manager.Messenger
+	importers   *tenantImporters
+	auth        *auth.Auth
+	media       *tenantMedia
+	operator    *operatorStore
+	bounce      *bounce.Manager
+	captcha     *captcha.Captcha
+	i18n        *i18n.I18n
+	pg          *paginator.Paginator
+	events      *events.Events
+	log         *log.Logger
+	bufLog      *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
@@ -237,7 +238,7 @@ func main() {
 		msgrs = append(smtpMsgrs, initPostbackMessengers(ko)...)
 
 		// Campaign manager.
-		mgr = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
 		importers = newTenantImporters(queries, db, core, i18n)
@@ -293,25 +294,26 @@ func main() {
 	// =========================================================================
 	// Initialize the App{} with all the global shared components, controllers and fields.
 	app := &App{
-		cfg:        cfg,
-		urlCfg:     urlCfg,
-		fs:         fs,
-		db:         db,
-		queries:    queries,
-		core:       core,
-		manager:    mgr,
-		messengers: msgrs,
-		emailMsgr:  emailMsgr,
-		importers:  importers,
-		auth:       auth,
-		media:      mediaResolver,
-		operator:   opStore,
-		bounce:     bounce,
-		captcha:    initCaptcha(),
-		i18n:       i18n,
-		log:        lo,
-		events:     evStream,
-		bufLog:     bufLog,
+		cfg:         cfg,
+		urlCfg:      urlCfg,
+		fs:          fs,
+		db:          db,
+		queries:     queries,
+		core:        core,
+		manager:     mgr,
+		messengers:  msgrs,
+		tenantMsgrs: tenantMsgrs,
+		emailMsgr:   emailMsgr,
+		importers:   importers,
+		auth:        auth,
+		media:       mediaResolver,
+		operator:    opStore,
+		bounce:      bounce,
+		captcha:     initCaptcha(),
+		i18n:        i18n,
+		log:         lo,
+		events:      evStream,
+		bufLog:      bufLog,
 
 		pg: paginator.New(paginator.Opt{
 			DefaultPerPage: 20,

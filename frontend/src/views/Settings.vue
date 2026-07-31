@@ -76,7 +76,7 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import {
-  getSettings, updateSettings, getServerConfig,
+  getSettings, updateSettings, getServerConfig, getHealth,
 } from '../api';
 import AppearanceSettings from './settings/appearance.vue';
 import ScrubSettings from './settings/scrub.vue';
@@ -135,6 +135,32 @@ function fetchSettings() {
   });
 }
 
+// Saving settings (when no campaigns are running) makes the backend restart
+// itself ~500ms later to apply the change (cmd/settings.go's
+// handleSettingsRestart -> syscall.Exec in cmd/init.go). Fetching data right
+// after the save races that restart window: the request can land while the
+// listener is closed or the process is mid-exec, which a proxy in front of
+// the app (e.g. Cloudflare) surfaces as a gateway error. Wait for the health
+// endpoint to come back before making any further requests.
+function waitForServer(timeoutMs = 30000) {
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const poll = setInterval(() => {
+        getHealth().then(() => {
+          clearInterval(poll);
+          resolve(true);
+        }).catch(() => {
+          if (Date.now() - start > timeoutMs) {
+            clearInterval(poll);
+            reject(new Error('timed out waiting for the server to restart'));
+          }
+        });
+      }, 500);
+    }, 1500);
+  });
+}
+
 async function onSubmit() {
   const f = JSON.parse(JSON.stringify(form.value));
   let hasDummyField = '';
@@ -187,9 +213,24 @@ async function onSubmit() {
 
   isLoading.value = true;
   try {
-    await updateSettings(f);
-    await getServerConfig();
-    fetchSettings();
+    const result: any = await updateSettings(f);
+
+    // Campaigns are running: the app wasn't auto-restarted, settings are
+    // saved but need a manual restart (banner + flow in App.vue).
+    if (result && typeof result === 'object' && result.needsRestart) {
+      await getServerConfig();
+      fetchSettings();
+      return;
+    }
+
+    $utils.toast(t('settings.savedApplying'));
+    try {
+      await waitForServer();
+      await getServerConfig();
+      fetchSettings();
+    } catch {
+      $utils.toast(t('settings.applyTimeout'), 'is-danger');
+    }
   } finally {
     isLoading.value = false;
   }

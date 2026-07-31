@@ -66,9 +66,9 @@ type Callbacks struct {
 }
 
 // tenantOIDC holds one tenant's resolved OIDC provider/verifier/OAuth
-// config, built lazily on first use and cached for the process's lifetime
-// (matches every other per-tenant resolver in cmd/ - settings updates
-// require a full restart to take effect today).
+// config, built lazily on first use and cached until evicted by
+// InvalidateOIDC (called when that tenant saves OIDC settings - see
+// cmd/settings.go's handleSettingsRestart) or the process restarts.
 type tenantOIDC struct {
 	cfg      OIDCConfig
 	provider *oidc.Provider
@@ -212,6 +212,15 @@ func (o *Auth) getTenantOIDC(tenantID int) (*tenantOIDC, error) {
 		return t, nil
 	}
 	return o.initOIDC(tenantID)
+}
+
+// InvalidateOIDC evicts the given tenant's cached OIDC provider/verifier/
+// OAuth config, forcing it to be rebuilt (including a fresh IdP metadata
+// discovery) on next use.
+func (o *Auth) InvalidateOIDC(tenantID int) {
+	o.Lock()
+	delete(o.oidcCache, tenantID)
+	o.Unlock()
 }
 
 // GetOIDCAuthURL returns the given tenant's OIDC provider auth URL to redirect to.

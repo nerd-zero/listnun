@@ -591,7 +591,7 @@ onMounted(() => {
     form.messenger = 'email';
   }
 
-  nextTick(() => { focusEl.value?.focus(); });
+  nextTick(() => { focusEl.value?.$el?.focus(); });
   $events.$on('campaign.update', () => { onSubmit('update'); });
 });
 
