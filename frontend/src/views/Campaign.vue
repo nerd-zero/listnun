@@ -7,7 +7,10 @@
           <template v-else>{{ $t('campaigns.newCampaign') }}</template>
         </h1>
         <div v-if="isEditing && data.status" class="header-meta">
-          <PvTag :class="data.status" :value="$t(`campaigns.status.${data.status}`)" />
+          <PvTag
+            :class="data.status" :value="$t(`campaigns.status.${data.status}`)"
+            v-tooltip.bottom="data.pauseReason ? $t(`campaigns.pauseReason.${data.pauseReason}`) : null"
+          />
           <PvTag v-if="data.type === 'optin'" :class="data.type" :value="$t('lists.optin')" />
           <span class="id-meta" :data-campaign-id="data.id">
             {{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" />

@@ -400,6 +400,37 @@ func (c *Core) InsertSubscriber(ctx context.Context, tenantID int, sub models.Su
 	return out, hasOptin, nil
 }
 
+// SetSubscriberScrubStatus records the outcome of a validate-on-add Scrub
+// check against a subscriber -- a standalone follow-up call rather than a
+// param threaded through InsertSubscriber, which is shared by callers
+// (CreateSubscriber, processSubForm) that would otherwise all need
+// reshaping. Errors here are expected to be logged and swallowed by
+// callers -- this is a secondary side effect of a subscriber add, not a
+// reason to fail the add itself.
+func (c *Core) SetSubscriberScrubStatus(ctx context.Context, tenantID int, subscriberID int, status string) error {
+	return c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.q.SetSubscriberScrubStatus).Exec(subscriberID, status, tenantID)
+		return err
+	})
+}
+
+// GetRiskySubscriberIDs returns which of the given subscriber IDs are
+// currently flagged scrub_status='risky'. Used by ManageSubscriberLists'
+// "add" action, which links existing subscribers to a list and so never
+// calls Scrub itself -- it just needs to know if any of them are already
+// known-risky before deciding whether to auto-pause a running campaign.
+func (c *Core) GetRiskySubscriberIDs(ctx context.Context, tenantID int, subscriberIDs []int) ([]int, error) {
+	var ids []int
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetRiskySubscriberIDs).Select(&ids, tenantID, pq.Array(subscriberIDs))
+	})
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscriber}", "error", pqErrMsg(err)))
+	}
+	return ids, nil
+}
+
 // UpdateSubscriber updates a subscriber's properties.
 func (c *Core) UpdateSubscriber(ctx context.Context, tenantID int, id int, sub models.Subscriber) (models.Subscriber, error) {
 	// Format raw JSON attributes.

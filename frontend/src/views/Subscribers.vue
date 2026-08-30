@@ -127,6 +127,9 @@
               </a>
               <PvTag v-if="data.status !== 'enabled'" severity="danger" size="small" data-cy="blocklisted"
                 :value="$t(`subscribers.status.${data.status}`)" />
+              <PvTag v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
+                severity="warn" size="small" data-cy="scrub-status"
+                :value="$t(`subscribers.scrubStatus.${data.scrubStatus}`)" />
             </div>
             <div v-if="data.lists?.length" class="list-tags">
               <router-link v-for="l in data.lists" :key="l.id" :to="`/subscribers/lists/${l.id}`">

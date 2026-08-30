@@ -11,6 +11,7 @@ import (
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	null "gopkg.in/volatiletech/null.v6"
 )
 
 const (
@@ -328,6 +329,75 @@ func (c *Core) UpdateCampaignStatus(ctx context.Context, tenantID int, id int, s
 
 	cm.Status = status
 	return cm, nil
+}
+
+// SetCampaignPauseReason records why a campaign was auto-paused (not
+// user-triggered) -- a standalone follow-up to UpdateCampaignStatus
+// rather than a param on it, since that's a shared statement with
+// call sites (manual pause/cancel/finish) that have no reason to pass.
+// Only takes effect if the campaign is currently paused with no reason
+// already set -- see set-campaign-pause-reason's doc comment for why.
+func (c *Core) SetCampaignPauseReason(ctx context.Context, tenantID int, id int, reason string) error {
+	return c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.q.SetCampaignPauseReason).Exec(id, reason)
+		return err
+	})
+}
+
+// ClearCampaignPauseReason clears a campaign's pause reason -- called
+// whenever its status changes to anything other than paused (resume,
+// cancel, finish) so a stale reason doesn't linger.
+func (c *Core) ClearCampaignPauseReason(ctx context.Context, tenantID int, id int) error {
+	return c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.q.ClearCampaignPauseReason).Exec(id)
+		return err
+	})
+}
+
+// RunningCampaign is a minimal projection used by GetRunningCampaignsByList.
+type RunningCampaign struct {
+	ID   int    `db:"id"`
+	Name string `db:"name"`
+}
+
+// GetRunningCampaignsByList returns every running campaign that targets
+// any of the given list IDs -- backs the Scrub risky-subscriber
+// auto-pause path. The opposite direction from CampaignHasLists (which
+// answers "does this one campaign have these lists").
+func (c *Core) GetRunningCampaignsByList(ctx context.Context, tenantID int, listIDs []int) ([]RunningCampaign, error) {
+	var out []RunningCampaign
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetRunningCampaignsByList).Select(&out, tenantID, pq.Array(listIDs))
+	})
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.campaign}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// AutoPausedCampaign is a minimal projection used by GetAutoPausedCampaigns.
+type AutoPausedCampaign struct {
+	ID          int         `db:"id" json:"id"`
+	Name        string      `db:"name" json:"name"`
+	PauseReason null.String `db:"pause_reason" json:"pause_reason"`
+}
+
+// GetAutoPausedCampaigns returns currently auto-paused campaigns for the
+// dashboard widget. Deliberately a live query, not routed through
+// mat_dashboard_counts -- that view's refresh is a no-op under
+// CacheSlowQueries, and this is the one signal whose entire purpose is
+// prompt visibility right after the pause event.
+func (c *Core) GetAutoPausedCampaigns(ctx context.Context, tenantID int) ([]AutoPausedCampaign, error) {
+	var out []AutoPausedCampaign
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetAutoPausedCampaigns).Select(&out, tenantID)
+	})
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.campaign}", "error", pqErrMsg(err)))
+	}
+	return out, nil
 }
 
 // UpdateCampaignArchive updates a campaign's archive properties.

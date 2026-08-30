@@ -240,7 +240,7 @@ func main() {
 		mgr = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
-		importers = newTenantImporters(queries, db, core, i18n)
+		importers = newTenantImporters(queries, db, core, mgr, i18n)
 
 		// Initialize the auth manager.
 		auth = initAuth(core, db.DB, ko)

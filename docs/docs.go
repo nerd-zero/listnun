@@ -491,6 +491,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/auto-paused": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get currently auto-paused campaigns",
+                "operationId": "getAutoPausedCampaigns",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/running/stats": {
             "get": {
                 "produces": [
@@ -4926,6 +4955,14 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -5060,6 +5097,14 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -5144,6 +5189,17 @@ const docTemplate = `{
                 "preconfirm_subscriptions": {
                     "type": "boolean"
                 },
+                "scrub_checked_at": {
+                    "type": "string"
+                },
+                "scrub_status": {
+                    "description": "Set by validate-on-add/import Scrub email validation. ScrubStatus is\none of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,\nor unset (Scrub not configured for this tenant / a legacy row).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -5174,6 +5230,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "risky": {
+                    "description": "Risky is how many imported rows Scrub flagged risky (deliverable/\nundeliverable/invalid_syntax aren't separately counted here --\nundeliverable/invalid_syntax rows are skipped like any other\nValidateFields failure, visible in the existing log stream).",
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -6201,6 +6261,17 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "scrub_checked_at": {
+                    "type": "string"
+                },
+                "scrub_status": {
+                    "description": "Set by validate-on-add/import Scrub email validation. ScrubStatus is\none of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,\nor unset (Scrub not configured for this tenant / a legacy row).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -6411,6 +6482,14 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -6556,6 +6635,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {}
+            }
+        },
+        "github_com_knadh_listmonk_internal_core.AutoPausedCampaign": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pause_reason": {
+                    "$ref": "#/definitions/null.String"
+                }
             }
         },
         "models.Tenant": {

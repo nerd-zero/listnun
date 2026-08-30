@@ -126,6 +126,9 @@
         {{ status.status }}
       </p>
       <p class="import-count">{{ $t('import.recordsCount', { num: status.imported, total: status.total }) }}</p>
+      <p v-if="status.risky" class="import-count import-count--risky">
+        {{ $t('import.riskyCount', { num: status.risky }) }}
+      </p>
       <PvButton @click="onStopImport" :loading="isProcessing" icon="pi pi-upload" severity="primary"
         :label="isDone() ? $t('import.importDone') : $t('import.stopImport')" />
       <div class="import-logs">
@@ -419,5 +422,6 @@ onMounted(() => {
 .import-status-text--success { color: #16a34a; }
 .import-status-text--danger { color: #dc2626; }
 .import-count { font-size: 0.875rem; color: var(--lm-text-muted); margin: 0; }
+.import-count--risky { color: #b91c1c; }
 .import-logs { width: 100%; }
 </style>

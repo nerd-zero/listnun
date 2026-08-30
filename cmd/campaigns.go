@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/knadh/listmonk/internal/auth"
+	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/notifs"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
@@ -497,6 +498,17 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 		a.manager.StopCampaign(id)
 	}
 
+	// A stale auto-pause reason (Scrub risky subscriber, too many errors)
+	// shouldn't linger once the campaign moves to any other status --
+	// only the auto-pause paths themselves ever set one.
+	if req.Status != models.CampaignStatusPaused {
+		if err := a.core.ClearCampaignPauseReason(c.Request().Context(), tenantID(c), id); err != nil {
+			a.log.Printf("error clearing pause reason on campaign %d: %v", id, err)
+		} else {
+			out.PauseReason.Valid = false
+		}
+	}
+
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
@@ -675,6 +687,39 @@ func (a *App) GetRunningCampaignStats(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetAutoPausedCampaigns returns campaigns currently paused automatically
+// (Scrub-flagged risky subscriber, too many send errors) rather than by a
+// user -- backs the dashboard widget. Deliberately a live query, not
+// routed through the cached dashboard-counts materialized view, since
+// this is the one signal whose entire purpose is prompt visibility right
+// after the pause event -- see core.GetAutoPausedCampaigns's doc comment.
+//
+//	@ID			getAutoPausedCampaigns
+//	@Summary		Get currently auto-paused campaigns
+//	@Tags			campaigns
+//	@Produce		json
+//	@Success		200	{object}	[]core.AutoPausedCampaign
+//	@Failure		500	{object}	echo.HTTPError
+//	@Router			/api/campaigns/auto-paused [get]
+func (a *App) GetAutoPausedCampaigns(c echo.Context) error {
+	out, err := a.getAutoPausedCampaigns(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if len(out) == 0 {
+		return c.JSON(http.StatusOK, okResp{[]struct{}{}})
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// getAutoPausedCampaigns is a thin, explicitly-typed wrapper around
+// a.core.GetAutoPausedCampaigns -- swag's doc-comment type resolution
+// needs core.AutoPausedCampaign used as a real Go identifier somewhere in
+// this file, not just named in a comment string.
+func (a *App) getAutoPausedCampaigns(ctx context.Context, tenantID int) ([]core.AutoPausedCampaign, error) {
+	return a.core.GetAutoPausedCampaigns(ctx, tenantID)
 }
 
 // TestCampaign handles the sending of a campaign message to
