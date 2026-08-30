@@ -46,6 +46,7 @@ type operatorQueries struct {
 	SetTenantRootURL       *sqlx.Stmt `query:"operator-set-tenant-root-url"`
 	SetTenantCustomDomain  *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP          *sqlx.Stmt `query:"operator-set-tenant-smtp"`
+	SetTenantScrub         *sqlx.Stmt `query:"operator-set-tenant-scrub"`
 	GetTenant              *sqlx.Stmt `query:"operator-get-tenant"`
 	GetTenants             *sqlx.Stmt `query:"operator-get-tenants"`
 	UpdateTenantStatus     *sqlx.Stmt `query:"operator-update-tenant-status"`
@@ -424,6 +425,38 @@ func (s *operatorStore) SetTenantSMTP(tenantID int, entry operatorSMTPEntry) err
 	}
 
 	_, err = s.q.SetTenantSMTP.Exec(tenantID, b)
+	return err
+}
+
+// operatorScrubEntry mirrors models.Settings.Scrub for JSON marshaling
+// from an external provisioner (listnun) that owns the actual Scrub
+// integration -- this endpoint only ever writes whatever it's given,
+// listmonk has no Scrub-provider knowledge of its own. ManagedByPlatform
+// is always forced true by SetTenantScrub below, not taken from the
+// caller, so a request body can't accidentally unlock a tenant.
+type operatorScrubEntry struct {
+	Enabled       bool   `json:"enabled"`
+	URL           string `json:"url"`
+	APIKey        string `json:"api_key"`
+	IntegrationID string `json:"integration_id"`
+} // @name OperatorScrubEntry
+
+// SetTenantScrub replaces a tenant's scrub setting with a single real
+// entry pushed by the calling provisioner (e.g. listnun's console-toggle
+// action), always locking it (managed_by_platform: true) -- see
+// models.Settings.Scrub's doc comment and internal/core.UpdateSettings/
+// UpdateSettingsByKey, which refuse to let a tenant admin's own settings
+// save change a locked row.
+func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) error {
+	b, err := json.Marshal(struct {
+		operatorScrubEntry
+		ManagedByPlatform bool `json:"managed_by_platform"`
+	}{operatorScrubEntry: entry, ManagedByPlatform: true})
+	if err != nil {
+		return err
+	}
+
+	_, err = s.q.SetTenantScrub.Exec(tenantID, b)
 	return err
 }
 
@@ -935,6 +968,31 @@ func (a *App) SetOperatorTenantSMTP(c echo.Context) error {
 	if err := a.operator.SetTenantSMTP(id, req); err != nil {
 		a.log.Printf("error setting tenant SMTP: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant SMTP")
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// SetOperatorTenantScrub replaces a tenant's scrub setting with a
+// platform-pushed, locked entry -- see operatorStore.SetTenantScrub.
+func (a *App) SetOperatorTenantScrub(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req operatorScrubEntry
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.Enabled && (req.URL == "" || req.APIKey == "" || req.IntegrationID == "") {
+		return echo.NewHTTPError(http.StatusBadRequest, "url, api_key, and integration_id are required to enable")
+	}
+
+	if err := a.operator.SetTenantScrub(id, req); err != nil {
+		a.log.Printf("error setting tenant scrub: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant scrub")
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})

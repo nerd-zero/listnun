@@ -167,9 +167,20 @@ type Settings struct {
 	PublicCustomJS  string `json:"appearance.public.custom_js"`
 
 	Scrub struct {
-		Enabled       bool   `json:"enabled"`
-		URL           string `json:"url"`
-		APIKey        string `json:"api_key"`
-		IntegrationID int    `json:"integration_id"`
+		Enabled bool   `json:"enabled"`
+		URL     string `json:"url"`
+		APIKey  string `json:"api_key"`
+		// IntegrationID is a Scrub integration UUID (as a string), not a
+		// number -- Scrub's integrations table moved from a SERIAL/int PK
+		// to a native UUID PK (see v6.17.0 migration doc comment for the
+		// existing-row coercion this required).
+		IntegrationID string `json:"integration_id"`
+		// ManagedByPlatform is true once a listnun-console operator push
+		// (PUT /api/operator/tenants/{id}/scrub) has set this tenant's
+		// Scrub config -- while true, every other field on this struct is
+		// locked: internal/core.UpdateSettings/UpdateSettingsByKey refuse
+		// to let a tenant admin's own settings save change them, and the
+		// Settings > Mail Validation UI greys the whole section out.
+		ManagedByPlatform bool `json:"managed_by_platform"`
 	} `json:"scrub"`
 } // @name Settings

@@ -73,6 +73,15 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-scrub
+-- Replaces the tenant's scrub setting with a platform-pushed entry - see
+-- cmd/operator.go's SetTenantScrub. Always writes managed_by_platform:
+-- true (the caller sets it, not the tenant's prior value) so a
+-- platform-initiated disable still locks the tenant's own toggle,
+-- distinct from a tenant that was never platform-managed at all.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'scrub', $2::JSONB)
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
+
 -- name: operator-get-tenant
 SELECT t.*,
     (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) AS user_count,

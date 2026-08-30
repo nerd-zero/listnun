@@ -881,7 +881,21 @@ definitions:
           enabled:
             type: boolean
           integration_id:
-            type: integer
+            description: |-
+              IntegrationID is a Scrub integration UUID (as a string), not a
+              number -- Scrub's integrations table moved from a SERIAL/int PK
+              to a native UUID PK (see v6.17.0 migration doc comment for the
+              existing-row coercion this required).
+            type: string
+          managed_by_platform:
+            description: |-
+              ManagedByPlatform is true once a listnun-console operator push
+              (PUT /api/operator/tenants/{id}/scrub) has set this tenant's
+              Scrub config -- while true, every other field on this struct is
+              locked: internal/core.UpdateSettings/UpdateSettingsByKey refuse
+              to let a tenant admin's own settings save change them, and the
+              Settings > Mail Validation UI greys the whole section out.
+            type: boolean
           url:
             type: string
         type: object

@@ -6034,7 +6034,12 @@
                             "type": "boolean"
                         },
                         "integration_id": {
-                            "type": "integer"
+                            "description": "IntegrationID is a Scrub integration UUID (as a string), not a\nnumber -- Scrub's integrations table moved from a SERIAL/int PK\nto a native UUID PK (see v6.17.0 migration doc comment for the\nexisting-row coercion this required).",
+                            "type": "string"
+                        },
+                        "managed_by_platform": {
+                            "description": "ManagedByPlatform is true once a listnun-console operator push\n(PUT /api/operator/tenants/{id}/scrub) has set this tenant's\nScrub config -- while true, every other field on this struct is\nlocked: internal/core.UpdateSettings/UpdateSettingsByKey refuse\nto let a tenant admin's own settings save change them, and the\nSettings \u003e Mail Validation UI greys the whole section out.",
+                            "type": "boolean"
                         },
                         "url": {
                             "type": "string"
