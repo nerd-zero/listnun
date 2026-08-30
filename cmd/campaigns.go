@@ -1086,7 +1086,7 @@ func canEditCampaign(status string) bool {
 // when Scrub is not configured or unreachable.
 func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaignID int) (bool, string, error) {
 	s, err := a.core.GetSettings(ctx, tenantID)
-	if err != nil || !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == 0 {
+	if err != nil || !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
 		return false, "", nil
 	}
 
@@ -1110,7 +1110,7 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 
 	// Query Scrub API for lists with active jobs.
 	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/listmonk/integrations/%d/lists", scrubURL, s.Scrub.IntegrationID)
+	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists", scrubURL, s.Scrub.IntegrationID)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return false, "", nil

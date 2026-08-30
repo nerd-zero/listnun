@@ -373,7 +373,7 @@ INSERT INTO settings (key, value) VALUES
     ('appearance.public.custom_css', '""'),
     ('appearance.public.custom_js', '""'),
     ('maintenance.db', '{"vacuum": false, "vacuum_cron_interval": "0 2 * * *"}'),
-    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": 0}');
+    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}');
 
 -- bounces
 DROP TABLE IF EXISTS bounces CASCADE;

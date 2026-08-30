@@ -667,12 +667,12 @@ func (a *App) GetScrubListStatus(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == 0 {
+	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
 	}
 
 	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/listmonk/integrations/%d/lists", scrubURL, s.Scrub.IntegrationID)
+	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists", scrubURL, s.Scrub.IntegrationID)
 	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, apiURL, nil)
 	if err != nil {
 		return err
@@ -716,12 +716,12 @@ func (a *App) ScrubList(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == 0 {
+	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
 	}
 
 	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/listmonk/integrations/%d/lists/%d/validate", scrubURL, s.Scrub.IntegrationID, id)
+	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists/%d/validate", scrubURL, s.Scrub.IntegrationID, id)
 	body := bytes.NewBufferString(`{"scan_mode":"full"}`)
 	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodPost, apiURL, body)
 	if err != nil {
@@ -750,6 +750,12 @@ func (a *App) ScrubList(c echo.Context) error {
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
+
+	// Scrub gives no async signal back when a job actually starts (no
+	// webhook/callback field on Settings.Scrub) -- this is the only hook
+	// point, so pause inline right after a confirmed-successful trigger.
+	pauseCampaignsForRiskySubscriberWith(c.Request().Context(), a.core, a.manager, tenantID(c), []int{id}, "scrub_job_started")
+
 	return c.JSON(http.StatusOK, okResp{out})
 }
 

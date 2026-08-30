@@ -87,7 +87,7 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		TenantID:           tenantID,
 		SetScrubStatusStmt: t.q.SetSubscribersScrubStatusByEmail.Stmt,
 		OnRiskySubscriber: func(listIDs []int) error {
-			pauseCampaignsForRiskySubscriberWith(context.Background(), t.core, t.manager, tenantID, listIDs)
+			pauseCampaignsForRiskySubscriberWith(context.Background(), t.core, t.manager, tenantID, listIDs, "scrub_risky_subscriber")
 			return nil
 		},
 
