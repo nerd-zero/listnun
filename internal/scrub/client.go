@@ -1,7 +1,7 @@
 // Package scrub is a thin client for Scrub's generic per-email validation
 // API (POST /v1/validate/single, POST /v1/validate/bulk) -- distinct from
-// the Listmonk-specific list-hygiene-job endpoints (/listmonk/integrations/
-// {id}/lists/...) already called ad hoc from cmd/campaigns.go and
+// the Listmonk-specific list-hygiene-job endpoints (/v1/integrations/{id}/
+// lists/...) already called ad hoc from cmd/campaigns.go and
 // cmd/settings.go. Those trigger an async, list-wide re-scan; this
 // package validates only the specific email(s) handed to it, synchronously,
 // for use at the moment a subscriber is actually added.
