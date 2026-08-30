@@ -570,6 +570,23 @@ definitions:
       user_count:
         type: integer
     type: object
+  OperatorTenantScrubUsage:
+    properties:
+      deliverable:
+        type: integer
+      invalid_syntax:
+        type: integer
+      risky:
+        type: integer
+      total_subscribers:
+        type: integer
+      unchecked:
+        type: integer
+      unchecked_error:
+        type: integer
+      undeliverable:
+        type: integer
+    type: object
   OperatorUpdateTenantStatusReq:
     properties:
       status:
@@ -2950,6 +2967,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Set or clear a tenant's custom domain (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/scrub/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantScrubUsage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorTenantScrubUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's Scrub validation usage (Operator API)
       tags:
       - operator
   /api/operator/tenants/{id}/setup-link:

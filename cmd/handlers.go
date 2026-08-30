@@ -258,6 +258,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/tenants/:id/setup-link", hasID(a.CreateOperatorSetupLink))
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
+		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
 
