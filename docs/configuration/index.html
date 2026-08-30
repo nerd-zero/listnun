@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2004,34 +2004,34 @@
 <p>And under <code>https://listmonk.mysite.com/admin/settings</code> you put <code>/listmonk/uploads</code>. </p>
 <h4 id="using-volumes">Using volumes<a class="headerlink" href="#using-volumes" title="Permanent link">&para;</a></h4>
 <p>Using <code>docker volumes</code>, you can specify the name of volume and destination for the files to be uploaded inside the container.</p>
-<div class="highlight"><pre><span></span><code>app:
-    volumes:
-      - type: volume
-        source: listmonk-uploads
-        target: /listmonk/uploads
+<div class="highlight"><pre><span></span><code><span class="nt">app</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">volume</span>
+<span class="w">        </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">listmonk-uploads</span>
+<span class="w">        </span><span class="nt">target</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/listmonk/uploads</span>
 
-volumes:
-  listmonk-uploads:
+<span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">listmonk-uploads</span><span class="p">:</span>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This volume is managed by <code>docker</code> itself, and you can see find the host path with <code>docker volume inspect listmonk_listmonk-uploads</code>.</p>
 </div>
 <h4 id="using-bind-mounts">Using bind mounts<a class="headerlink" href="#using-bind-mounts" title="Permanent link">&para;</a></h4>
-<p><div class="highlight"><pre><span></span><code>  app:
-    volumes:
-      - ./path/on/your/host/:/path/inside/container
+<p><div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./path/on/your/host/:/path/inside/container</span>
 </code></pre></div>
 Eg:
-<div class="highlight"><pre><span></span><code>  app:
-    volumes:
-      - ./data/uploads:/listmonk/uploads
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data/uploads:/listmonk/uploads</span>
 </code></pre></div>
 The files will be available inside <code>/data/uploads</code> directory on the host machine.</p>
 <p>To use the default <code>uploads</code> folder:
-<div class="highlight"><pre><span></span><code>  app:
-    volumes:
-      - ./uploads:/listmonk/uploads
+<div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./uploads:/listmonk/uploads</span>
 </code></pre></div></p>
 <h2 id="logs">Logs<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
 <h3 id="docker">Docker<a class="headerlink" href="#docker" title="Permanent link">&para;</a></h3>
@@ -2117,7 +2117,7 @@ with any Timezone listed <a href="https://en.wikipedia.org/wiki/List_of_tz_datab
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
