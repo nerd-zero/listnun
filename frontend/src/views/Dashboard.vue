@@ -77,20 +77,20 @@
         </div>
       </div>
 
-      <div v-if="(serverConfig as any).scrubEnabled" class="stat-card" data-cy="scrub-risky">
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="scrub-risky">
         <div class="stat-icon stat-icon--red">
           <i class="pi pi-shield" />
         </div>
         <div class="stat-body">
           <div class="stat-number">
             <PvProgressSpinner v-if="isCountsLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
-            <span v-else>{{ $utils.niceNumber(counts.scrub?.riskySubscribers || 0) }}</span>
+            <span v-else>{{ $utils.niceNumber(counts.scrub?.risky_subscribers || 0) }}</span>
           </div>
           <div class="stat-label">{{ $t('dashboard.riskySubscribers') }}</div>
         </div>
       </div>
 
-      <div v-if="(serverConfig as any).scrubEnabled" class="stat-card" data-cy="auto-paused">
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="auto-paused">
         <div class="stat-icon stat-icon--red">
           <i class="pi pi-exclamation-triangle" />
         </div>
@@ -105,7 +105,7 @@
               {{ $t('dashboard.noAutoPausedCampaigns') }}
             </span>
             <span v-for="c in autoPaused" :key="c.id">
-              {{ c.name }} &mdash; {{ $t(`campaigns.pauseReason.${c.pauseReason}`) }}
+              {{ c.name }} &mdash; {{ $t(`campaigns.pauseReason.${c.pause_reason}`) }}
             </span>
           </div>
         </div>
@@ -225,7 +225,7 @@ function fetchData() {
     campaignClicks.value = makeChart(data.linkClicks);
   });
 
-  if ((serverConfig.value as any).scrubEnabled) {
+  if ((serverConfig.value as any).scrub_enabled) {
     isAutoPausedLoading.value = true;
     getAutoPausedCampaigns().then((data: any) => {
       autoPaused.value = data || [];
