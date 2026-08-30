@@ -2421,6 +2421,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/operator/tenants/{id}/scrub/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's Scrub validation usage (Operator API)",
+                "operationId": "getOperatorTenantScrubUsage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorTenantScrubUsage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/setup-link": {
             "post": {
                 "security": [
@@ -5564,6 +5611,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OperatorTenantScrubUsage": {
+            "type": "object",
+            "properties": {
+                "deliverable": {
+                    "type": "integer"
+                },
+                "invalid_syntax": {
+                    "type": "integer"
+                },
+                "risky": {
+                    "type": "integer"
+                },
+                "total_subscribers": {
+                    "type": "integer"
+                },
+                "unchecked": {
+                    "type": "integer"
+                },
+                "unchecked_error": {
+                    "type": "integer"
+                },
+                "undeliverable": {
                     "type": "integer"
                 }
             }

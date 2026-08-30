@@ -82,6 +82,22 @@ ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'scrub', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-get-tenant-scrub-usage
+-- Ground truth for the console's per-instance usage display -- Scrub
+-- itself has no per-integration usage endpoint (only account-scoped
+-- /usage/*, and raw paginated /history with no aggregate), so this
+-- reads the same local subscribers.scrub_status data the tenant's own
+-- dashboard widget already uses (see internal/migrations/v6.16.0.go).
+SELECT
+    COUNT(*) FILTER (WHERE scrub_status = 'deliverable') AS deliverable,
+    COUNT(*) FILTER (WHERE scrub_status = 'undeliverable') AS undeliverable,
+    COUNT(*) FILTER (WHERE scrub_status = 'invalid_syntax') AS invalid_syntax,
+    COUNT(*) FILTER (WHERE scrub_status = 'risky') AS risky,
+    COUNT(*) FILTER (WHERE scrub_status = 'unchecked_error') AS unchecked_error,
+    COUNT(*) FILTER (WHERE scrub_status IS NULL) AS unchecked,
+    COUNT(*) AS total_subscribers
+FROM subscribers WHERE tenant_id = $1;
+
 -- name: operator-get-tenant
 SELECT t.*,
     (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) AS user_count,

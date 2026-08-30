@@ -47,6 +47,7 @@ type operatorQueries struct {
 	SetTenantCustomDomain  *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP          *sqlx.Stmt `query:"operator-set-tenant-smtp"`
 	SetTenantScrub         *sqlx.Stmt `query:"operator-set-tenant-scrub"`
+	GetTenantScrubUsage    *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
 	GetTenant              *sqlx.Stmt `query:"operator-get-tenant"`
 	GetTenants             *sqlx.Stmt `query:"operator-get-tenants"`
 	UpdateTenantStatus     *sqlx.Stmt `query:"operator-update-tenant-status"`
@@ -60,6 +61,21 @@ type operatorTenant struct {
 	UserCount       int `db:"user_count" json:"user_count"`
 	SubscriberCount int `db:"subscriber_count" json:"subscriber_count"`
 } // @name OperatorTenant
+
+// operatorTenantScrubUsage is a tenant's subscriber validation status
+// breakdown (subscribers.scrub_status), the same local data the
+// tenant's own dashboard widget reads -- exposed cross-tenant here so
+// the console can show per-instance usage without needing Scrub's
+// account-scoped usage API (which has no per-integration breakdown).
+type operatorTenantScrubUsage struct {
+	Deliverable      int `db:"deliverable" json:"deliverable"`
+	Undeliverable    int `db:"undeliverable" json:"undeliverable"`
+	InvalidSyntax    int `db:"invalid_syntax" json:"invalid_syntax"`
+	Risky            int `db:"risky" json:"risky"`
+	UncheckedError   int `db:"unchecked_error" json:"unchecked_error"`
+	Unchecked        int `db:"unchecked" json:"unchecked"`
+	TotalSubscribers int `db:"total_subscribers" json:"total_subscribers"`
+} // @name OperatorTenantScrubUsage
 
 // operatorOrganization is an organization row augmented with a
 // cross-tenant tenant count, only obtainable via the BYPASSRLS operator
@@ -176,6 +192,14 @@ func (s *operatorStore) GetTenants() ([]operatorTenant, error) {
 func (s *operatorStore) GetTenant(id int) (operatorTenant, error) {
 	var out operatorTenant
 	if err := s.q.GetTenant.Get(&out, id); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantScrubUsage(id int) (operatorTenantScrubUsage, error) {
+	var out operatorTenantScrubUsage
+	if err := s.q.GetTenantScrubUsage.Get(&out, id); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -687,6 +711,40 @@ func (a *App) GetOperatorTenant(c echo.Context) error {
 	out, err := a.operator.GetTenant(id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorTenantScrubUsage returns a tenant's subscriber validation
+// status breakdown -- the same subscribers.scrub_status data the
+// tenant's own dashboard widget reads locally, exposed cross-tenant so
+// a console can show per-instance usage. Scrub itself has no
+// per-integration usage endpoint (only account-scoped /usage/* and raw
+// paginated /history with no aggregate), so this is computed here
+// instead of proxying to Scrub's API.
+//
+//	@ID			getOperatorTenantScrubUsage
+//	@Summary		Get a tenant's Scrub validation usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	operatorTenantScrubUsage
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/scrub/usage [get]
+func (a *App) GetOperatorTenantScrubUsage(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	out, err := a.operator.GetTenantScrubUsage(id)
+	if err != nil {
+		a.log.Printf("error getting tenant scrub usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant scrub usage")
 	}
 	return c.JSON(http.StatusOK, okResp{out})
 }
