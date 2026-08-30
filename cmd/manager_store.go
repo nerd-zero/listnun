@@ -94,6 +94,14 @@ func (s *store) UpdateCampaignStatus(campID int, status string) error {
 	return err
 }
 
+// SetCampaignPauseReason records why a campaign was auto-paused. Only
+// takes effect if the campaign is currently paused with no reason
+// already set -- see set-campaign-pause-reason's doc comment.
+func (s *store) SetCampaignPauseReason(campID int, reason string) error {
+	_, err := s.queries.SetCampaignPauseReason.Exec(campID, reason)
+	return err
+}
+
 // UpdateCampaignCounts updates a campaign's status.
 func (s *store) UpdateCampaignCounts(campID int, toSend int, sent int, lastSubID int) error {
 	_, err := s.queries.UpdateCampaignCounts.Exec(campID, toSend, sent, lastSubID)

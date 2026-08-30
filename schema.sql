@@ -58,6 +58,13 @@ CREATE TABLE subscribers (
     attribs         JSONB NOT NULL DEFAULT '{}',
     status          subscriber_status NOT NULL DEFAULT 'enabled',
 
+    -- Set by validate-on-add/import Scrub email validation (see v6.16.0
+    -- migration doc comment). NULL = never checked (legacy row or Scrub
+    -- not configured for this tenant); unchecked_error is a distinct
+    -- sentinel from NULL so a Scrub outage is observable.
+    scrub_status      TEXT NULL,
+    scrub_checked_at  TIMESTAMP WITH TIME ZONE NULL,
+
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
@@ -69,6 +76,7 @@ DROP INDEX IF EXISTS idx_subs_id_status; CREATE INDEX idx_subs_id_status ON subs
 DROP INDEX IF EXISTS idx_subs_created_at; CREATE INDEX idx_subs_created_at ON subscribers(created_at);
 DROP INDEX IF EXISTS idx_subs_updated_at; CREATE INDEX idx_subs_updated_at ON subscribers(updated_at);
 DROP INDEX IF EXISTS idx_subscribers_tenant; CREATE INDEX idx_subscribers_tenant ON subscribers(tenant_id);
+DROP INDEX IF EXISTS idx_subscribers_scrub_status; CREATE INDEX idx_subscribers_scrub_status ON subscribers(tenant_id, scrub_status);
 
 -- lists
 DROP TABLE IF EXISTS lists CASCADE;
@@ -149,6 +157,12 @@ CREATE TABLE campaigns (
     headers          JSONB NOT NULL DEFAULT '[]',
     attribs          JSONB NOT NULL DEFAULT '{}',
     status           campaign_status NOT NULL DEFAULT 'draft',
+    -- Set only when status='paused' was set automatically (not by a user)
+    -- -- e.g. a Scrub-flagged risky subscriber landing on a target list,
+    -- or internal/manager/pipe.go's pre-existing too-many-errors
+    -- auto-pause. Cleared on any manual status change. NULL for a
+    -- manually-paused campaign.
+    pause_reason     TEXT NULL,
     tags             VARCHAR(100)[],
 
     -- The subscription statuses of subscribers to which a campaign will be sent.
@@ -522,7 +536,15 @@ CREATE MATERIALIZED VIEW mat_dashboard_counts AS
                     (SELECT status, COUNT(*) AS num FROM campaigns WHERE tenant_id = t.id GROUP BY status) r
                 )
             ),
-            'messages', (SELECT COALESCE(SUM(sent), 0) FROM campaigns WHERE tenant_id = t.id)
+            'messages', (SELECT COALESCE(SUM(sent), 0) FROM campaigns WHERE tenant_id = t.id),
+            -- Casual/non-urgent count, fine to be eventually-consistent
+            -- via this cached matview -- unlike auto-paused campaigns
+            -- (get-auto-paused-campaigns), which is a live query since
+            -- its whole purpose is prompt visibility right after the
+            -- event that causes it.
+            'scrub', JSON_BUILD_OBJECT(
+                'risky_subscribers', (SELECT COUNT(*) FROM subscribers WHERE tenant_id = t.id AND scrub_status = 'risky')
+            )
         ) AS data
     FROM tenants t;
 DROP INDEX IF EXISTS mat_dashboard_stats_idx; CREATE UNIQUE INDEX mat_dashboard_stats_idx ON mat_dashboard_counts (tenant_id);

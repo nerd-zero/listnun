@@ -76,6 +76,40 @@
           <div class="stat-label">{{ $t('dashboard.messagesSent') }}</div>
         </div>
       </div>
+
+      <div v-if="(serverConfig as any).scrubEnabled" class="stat-card" data-cy="scrub-risky">
+        <div class="stat-icon stat-icon--red">
+          <i class="pi pi-shield" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isCountsLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(counts.scrub?.riskySubscribers || 0) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.riskySubscribers') }}</div>
+        </div>
+      </div>
+
+      <div v-if="(serverConfig as any).scrubEnabled" class="stat-card" data-cy="auto-paused">
+        <div class="stat-icon stat-icon--red">
+          <i class="pi pi-exclamation-triangle" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isAutoPausedLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(autoPaused.length) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.autoPausedCampaigns') }}</div>
+          <div class="stat-breakdown">
+            <span v-if="!isAutoPausedLoading && autoPaused.length === 0">
+              {{ $t('dashboard.noAutoPausedCampaigns') }}
+            </span>
+            <span v-for="c in autoPaused" :key="c.id">
+              {{ c.name }} &mdash; {{ $t(`campaigns.pauseReason.${c.pauseReason}`) }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -132,14 +166,20 @@ import { useMainStore } from '../store';
 import { colors } from '../constants';
 import Chart from '../components/Chart.vue';
 import { getDashboard } from '../api/generated/endpoints/dashboard/dashboard';
+import { getCampaigns } from '../api/generated/endpoints/campaigns/campaigns';
 
 const { getDashboardCounts, getDashboardCharts } = getDashboard();
-const { refreshTick, settings, profile } = storeToRefs(useMainStore());
+const { getAutoPausedCampaigns } = getCampaigns();
+const {
+  refreshTick, settings, profile, serverConfig,
+} = storeToRefs(useMainStore());
 
 const isChartsLoading = ref(true);
 const isCountsLoading = ref(true);
+const isAutoPausedLoading = ref(true);
 const campaignViews = ref<any>(null);
 const campaignClicks = ref<any>(null);
+const autoPaused = ref<any[]>([]);
 const counts = ref<any>({
   lists: {},
   subscribers: {},
@@ -184,6 +224,14 @@ function fetchData() {
     campaignViews.value = makeChart(data.campaignViews);
     campaignClicks.value = makeChart(data.linkClicks);
   });
+
+  if ((serverConfig.value as any).scrubEnabled) {
+    isAutoPausedLoading.value = true;
+    getAutoPausedCampaigns().then((data: any) => {
+      autoPaused.value = data || [];
+      isAutoPausedLoading.value = false;
+    }).catch(() => { isAutoPausedLoading.value = false; });
+  }
 }
 
 watch(() => refreshTick.value, () => { fetchData(); });
@@ -260,6 +308,7 @@ onMounted(() => {
   &--green  { background: var(--lm-success-bg); color: #16a34a; }
   &--purple { background: #f5f3ff; color: #7c3aed; }
   &--orange { background: #fff7ed; color: #ea580c; }
+  &--red    { background: #fee2e2; color: #b91c1c; }
 }
 
 .stat-body {

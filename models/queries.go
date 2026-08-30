@@ -36,6 +36,10 @@ type Queries struct {
 	ExportSubscriberData            *sqlx.Stmt `query:"export-subscriber-data"`
 	GetSubscriberActivity           *sqlx.Stmt `query:"get-subscriber-activity"`
 
+	SetSubscriberScrubStatus         *sqlx.Stmt `query:"set-subscriber-scrub-status"`
+	SetSubscribersScrubStatusByEmail *sqlx.Stmt `query:"set-subscribers-scrub-status-by-email"`
+	GetRiskySubscriberIDs            *sqlx.Stmt `query:"get-risky-subscriber-ids"`
+
 	// Non-prepared arbitrary subscriber queries.
 	QuerySubscribers                       string     `query:"query-subscribers"`
 	QuerySubscribersCount                  string     `query:"query-subscribers-count"`
@@ -48,14 +52,15 @@ type Queries struct {
 	DeleteSubscriptionsByQuery             string     `query:"delete-subscriptions-by-query"`
 	UnsubscribeSubscribersFromListsByQuery string     `query:"unsubscribe-subscribers-from-lists-by-query"`
 
-	CreateList      *sqlx.Stmt `query:"create-list"`
-	QueryLists      string     `query:"query-lists"`
-	GetLists        *sqlx.Stmt `query:"get-lists"`
-	GetListsByOptin *sqlx.Stmt `query:"get-lists-by-optin"`
-	GetListTypes    *sqlx.Stmt `query:"get-list-types"`
-	UpdateList      *sqlx.Stmt `query:"update-list"`
-	UpdateListsDate *sqlx.Stmt `query:"update-lists-date"`
-	DeleteLists     *sqlx.Stmt `query:"delete-lists"`
+	CreateList        *sqlx.Stmt `query:"create-list"`
+	QueryLists        string     `query:"query-lists"`
+	GetLists          *sqlx.Stmt `query:"get-lists"`
+	GetListsByOptin   *sqlx.Stmt `query:"get-lists-by-optin"`
+	GetListTypes      *sqlx.Stmt `query:"get-list-types"`
+	GetListIDsByUUIDs *sqlx.Stmt `query:"get-list-ids-by-uuids"`
+	UpdateList        *sqlx.Stmt `query:"update-list"`
+	UpdateListsDate   *sqlx.Stmt `query:"update-lists-date"`
+	DeleteLists       *sqlx.Stmt `query:"delete-lists"`
 
 	CreateCampaign        *sqlx.Stmt `query:"create-campaign"`
 	QueryCampaigns        string     `query:"query-campaigns"`
@@ -78,17 +83,21 @@ type Queries struct {
 	ExportCampaignViews        *sqlx.Stmt `query:"export-campaign-views"`
 	ExportCampaignLinkClicks   *sqlx.Stmt `query:"export-campaign-link-clicks"`
 
-	NextCampaigns            *sqlx.Stmt `query:"next-campaigns"`
-	GetRunningCampaign       *sqlx.Stmt `query:"get-running-campaign"`
-	NextCampaignSubscribers  *sqlx.Stmt `query:"next-campaign-subscribers"`
-	GetOneCampaignSubscriber *sqlx.Stmt `query:"get-one-campaign-subscriber"`
-	UpdateCampaign           *sqlx.Stmt `query:"update-campaign"`
-	UpdateCampaignStatus     *sqlx.Stmt `query:"update-campaign-status"`
-	UpdateCampaignCounts     *sqlx.Stmt `query:"update-campaign-counts"`
-	UpdateCampaignArchive    *sqlx.Stmt `query:"update-campaign-archive"`
-	RegisterCampaignView     *sqlx.Stmt `query:"register-campaign-view"`
-	DeleteCampaign           *sqlx.Stmt `query:"delete-campaign"`
-	DeleteCampaigns          *sqlx.Stmt `query:"delete-campaigns"`
+	NextCampaigns             *sqlx.Stmt `query:"next-campaigns"`
+	GetRunningCampaign        *sqlx.Stmt `query:"get-running-campaign"`
+	NextCampaignSubscribers   *sqlx.Stmt `query:"next-campaign-subscribers"`
+	GetOneCampaignSubscriber  *sqlx.Stmt `query:"get-one-campaign-subscriber"`
+	UpdateCampaign            *sqlx.Stmt `query:"update-campaign"`
+	UpdateCampaignStatus      *sqlx.Stmt `query:"update-campaign-status"`
+	SetCampaignPauseReason    *sqlx.Stmt `query:"set-campaign-pause-reason"`
+	ClearCampaignPauseReason  *sqlx.Stmt `query:"clear-campaign-pause-reason"`
+	GetRunningCampaignsByList *sqlx.Stmt `query:"get-running-campaigns-by-list"`
+	GetAutoPausedCampaigns    *sqlx.Stmt `query:"get-auto-paused-campaigns"`
+	UpdateCampaignCounts      *sqlx.Stmt `query:"update-campaign-counts"`
+	UpdateCampaignArchive     *sqlx.Stmt `query:"update-campaign-archive"`
+	RegisterCampaignView      *sqlx.Stmt `query:"register-campaign-view"`
+	DeleteCampaign            *sqlx.Stmt `query:"delete-campaign"`
+	DeleteCampaigns           *sqlx.Stmt `query:"delete-campaigns"`
 
 	InsertMedia *sqlx.Stmt `query:"insert-media"`
 	GetMedia    *sqlx.Stmt `query:"get-media"`

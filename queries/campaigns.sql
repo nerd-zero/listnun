@@ -458,6 +458,43 @@ UPDATE campaigns SET
     updated_at=NOW()
 WHERE id = $1;
 
+-- name: set-campaign-pause-reason
+-- Follow-up to update-campaign-status, called only by the two auto-pause
+-- paths (Scrub risky-subscriber, pipe.go's too-many-errors) -- kept
+-- separate from update-campaign-status itself since that's a shared
+-- statement with 4 call sites (including plain manual pause/cancel/finish,
+-- which have no reason to pass). The "status='paused' AND pause_reason IS
+-- NULL" guard is a check-then-act race guard: update-campaign-status has
+-- no compare-and-swap of its own, so two near-simultaneous auto-pause
+-- triggers (or an auto-pause racing a manual one) could otherwise let
+-- whichever call lands second silently overwrite the first's reason.
+UPDATE campaigns SET pause_reason = $2
+WHERE id = $1 AND status = 'paused' AND pause_reason IS NULL;
+
+-- name: clear-campaign-pause-reason
+-- Called whenever a campaign's status is changed to anything other than
+-- 'paused' (resume, cancel, finish) so a stale reason doesn't linger.
+UPDATE campaigns SET pause_reason = NULL WHERE id = $1;
+
+-- name: get-running-campaigns-by-list
+-- Which running campaigns target any of the given list IDs -- the
+-- opposite direction from campaign-has-lists (that answers "does this one
+-- campaign have these lists", this answers "which running campaigns have
+-- any of these lists"). Backs the Scrub risky-subscriber auto-pause path.
+SELECT DISTINCT campaigns.id, campaigns.name FROM campaigns
+JOIN campaign_lists ON campaign_lists.campaign_id = campaigns.id
+WHERE campaigns.tenant_id = $1 AND campaigns.status = 'running' AND campaign_lists.list_id = ANY($2::INT[]);
+
+-- name: get-auto-paused-campaigns
+-- Live (not matview-cached) lookup of currently auto-paused campaigns for
+-- the dashboard widget -- deliberately not folded into
+-- mat_dashboard_counts, since that view's refresh is a no-op under
+-- CacheSlowQueries and this is the one signal whose entire purpose is
+-- prompt visibility right after the pause event.
+SELECT id, name, pause_reason FROM campaigns
+WHERE tenant_id = $1 AND status = 'paused' AND pause_reason IS NOT NULL
+ORDER BY updated_at DESC LIMIT 10;
+
 -- name: update-campaign-archive
 UPDATE campaigns SET
     archive=$2,

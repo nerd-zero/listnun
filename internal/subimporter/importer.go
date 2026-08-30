@@ -9,6 +9,7 @@ package subimporter
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/knadh/listmonk/internal/i18n"
+	"github.com/knadh/listmonk/internal/scrub"
 	"github.com/knadh/listmonk/internal/utils"
 	"github.com/knadh/listmonk/models"
 	"github.com/lib/pq"
@@ -77,6 +79,24 @@ type Options struct {
 
 	DomainBlocklist []string
 	DomainAllowlist []string
+
+	// Scrub validate-on-import. Baked in at Importer construction time
+	// (tenantImporters.Get, cmd/tenant_importer.go) from tenant settings,
+	// same "requires a process restart to pick up a settings change"
+	// precedent DomainBlocklist/DomainAllowlist above already have in
+	// this per-tenant-cached importer.
+	ScrubEnabled       bool
+	ScrubBaseURL       string
+	ScrubAPIKey        string
+	TenantID           int
+	SetScrubStatusStmt *sql.Stmt
+
+	// OnRiskySubscriber is called once after an import finishes if any
+	// row was flagged scrub_status=risky, scoped to the import's target
+	// list IDs. Deliberately separate from PostCB, which is wired purely
+	// for admin notifications/matview refresh -- mixing pause logic into
+	// it would conflate two different concerns.
+	OnRiskySubscriber func(listIDs []int) error
 }
 
 // Session represents a single import session.
@@ -86,6 +106,9 @@ type Session struct {
 	log      *log.Logger
 
 	opt SessionOpt
+
+	scrubClient *scrub.Client // nil unless ScrubEnabled and mode is subscribe
+	riskyFound  bool
 }
 
 // SessionOpt represents the options for an importer session.
@@ -112,8 +135,13 @@ type Status struct {
 	Name     string `json:"name"`
 	Total    int    `json:"total"`
 	Imported int    `json:"imported"`
-	Status   string `json:"status"`
-	logBuf   *bytes.Buffer
+	// Risky is how many imported rows Scrub flagged risky (deliverable/
+	// undeliverable/invalid_syntax aren't separately counted here --
+	// undeliverable/invalid_syntax rows are skipped like any other
+	// ValidateFields failure, visible in the existing log stream).
+	Risky  int    `json:"risky"`
+	Status string `json:"status"`
+	logBuf *bytes.Buffer
 } // @name ImportStatus
 
 // SubReq is a wrapper over the Subscriber model.
@@ -122,6 +150,12 @@ type SubReq struct {
 	Lists          []int    `json:"lists"`
 	ListUUIDs      []string `json:"list_uuids"`
 	PreconfirmSubs bool     `json:"preconfirm_subscriptions"`
+
+	// ScrubStatus is set by LoadCSV's windowed Scrub validation, consumed
+	// by Start() to batch-persist onto the inserted row. Distinct from
+	// models.Subscriber.ScrubStatus (a null.String meant for the API/DB
+	// layer) since this package works via raw database/sql, not sqlx/Core.
+	ScrubStatus string `json:"-"`
 } // @name CreateSubscriberReq
 
 type importStatusTpl struct {
@@ -199,6 +233,13 @@ func (im *Importer) NewSession(opt SessionOpt) (*Session, error) {
 		opt:      opt,
 	}
 
+	// Blocklist-mode rows are never sent to, so validating them against
+	// Scrub burns quota for no benefit -- skip building a client for that
+	// mode entirely.
+	if im.opt.ScrubEnabled && opt.Mode == ModeSubscribe {
+		s.scrubClient = scrub.New(im.opt.ScrubBaseURL, im.opt.ScrubAPIKey)
+	}
+
 	s.log.Printf("processing '%s'", opt.Filename)
 	return s, nil
 }
@@ -213,6 +254,7 @@ func (im *Importer) GetStats() Status {
 		Status:   im.status.Status,
 		Total:    im.status.Total,
 		Imported: im.status.Imported,
+		Risky:    im.status.Risky,
 	}
 }
 
@@ -258,6 +300,13 @@ func (im *Importer) incrementImportCount(n int) {
 	im.Unlock()
 }
 
+// incrementRiskyCount sets the Importer's "risky" counter.
+func (im *Importer) incrementRiskyCount(n int) {
+	im.Lock()
+	im.status.Risky += n
+	im.Unlock()
+}
+
 // sendNotif sends admin notifications for import completions.
 func (im *Importer) sendNotif(status string) error {
 	var (
@@ -283,6 +332,11 @@ func (s *Session) Start() {
 		err   error
 		total = 0
 		cur   = 0
+
+		// emails accumulated per scrub_status for the current commit
+		// batch, flushed as a follow-up UPDATE right after each
+		// successful tx.Commit() (see s.persistScrubStatuses).
+		batchByStatus = map[string][]string{}
 	)
 
 	listIDs := make([]int, len(s.opt.ListIDs))
@@ -322,6 +376,9 @@ func (s *Session) Start() {
 			tx.Rollback()
 			break
 		}
+		if sub.ScrubStatus != "" {
+			batchByStatus[sub.ScrubStatus] = append(batchByStatus[sub.ScrubStatus], sub.Email)
+		}
 		cur++
 		total++
 
@@ -333,8 +390,10 @@ func (s *Session) Start() {
 			} else {
 				s.im.incrementImportCount(cur)
 				s.log.Printf("imported %d", total)
+				s.persistScrubStatuses(batchByStatus)
 			}
 
+			batchByStatus = map[string][]string{}
 			cur = 0
 		}
 	}
@@ -347,6 +406,7 @@ func (s *Session) Start() {
 			s.log.Printf("error updating lists date: %v", err)
 		}
 		s.im.sendNotif(StatusFinished)
+		s.notifyIfRisky(listIDs)
 		return
 	}
 
@@ -358,6 +418,7 @@ func (s *Session) Start() {
 		s.im.sendNotif(StatusFailed)
 		return
 	}
+	s.persistScrubStatuses(batchByStatus)
 
 	s.im.incrementImportCount(cur)
 	s.im.setStatus(StatusFinished)
@@ -367,6 +428,35 @@ func (s *Session) Start() {
 	}
 
 	s.im.sendNotif(StatusFinished)
+	s.notifyIfRisky(listIDs)
+}
+
+// persistScrubStatuses batch-writes one commit batch's Scrub validation
+// results, grouped by distinct status value present in the batch rather
+// than one UPDATE per row.
+func (s *Session) persistScrubStatuses(batchByStatus map[string][]string) {
+	if s.im.opt.SetScrubStatusStmt == nil {
+		return
+	}
+	for status, emails := range batchByStatus {
+		if _, err := s.im.opt.SetScrubStatusStmt.Exec(s.opt.TenantID, status, pq.Array(emails)); err != nil {
+			s.log.Printf("error setting scrub status for %d subscriber(s): %v", len(emails), err)
+		}
+		if status == scrub.StatusRisky {
+			s.im.incrementRiskyCount(len(emails))
+			s.riskyFound = true
+		}
+	}
+}
+
+// notifyIfRisky calls the OnRiskySubscriber hook once if any row in this
+// import was flagged risky.
+func (s *Session) notifyIfRisky(listIDs []int) {
+	if s.riskyFound && s.im.opt.OnRiskySubscriber != nil {
+		if err := s.im.opt.OnRiskySubscriber(listIDs); err != nil {
+			s.log.Printf("error handling risky subscriber(s) from import: %v", err)
+		}
+	}
 }
 
 // Stop stops an active import session.
@@ -499,6 +589,16 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 	var (
 		lnHdr = len(hdrKeys)
 		i     = 0
+
+		// window buffers up to commitBatchSize syntactically-valid rows
+		// so Scrub can be called once per window (bulk) rather than once
+		// per row -- keeps memory bounded and progress reporting
+		// (status.Total below) at the same granularity as before, and
+		// limits a transient Scrub error's blast radius to one window
+		// rather than the whole file. Rows only reach the window after
+		// the existing per-row syntax/domain check (ValidateFields)
+		// already passed, same as before this change.
+		window []windowRow
 	)
 	for {
 		i++
@@ -506,6 +606,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		// Check for the stop signal.
 		select {
 		case <-s.im.stop:
+			s.flushWindow(window)
 			failed = false
 			close(s.subQueue)
 			s.log.Println("stop request received")
@@ -558,8 +659,11 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			}
 		}
 
-		// Send the subscriber to the queue.
-		s.subQueue <- sub
+		window = append(window, windowRow{sub: sub, line: i})
+		if len(window) >= commitBatchSize {
+			s.flushWindow(window)
+			window = window[:0]
+		}
 
 		if i%commitBatchSize == 0 {
 			s.im.Lock()
@@ -567,6 +671,8 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			s.im.Unlock()
 		}
 	}
+
+	s.flushWindow(window)
 
 	s.im.Lock()
 	s.im.status.Total = i
@@ -576,6 +682,68 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 	failed = false
 
 	return nil
+}
+
+// windowRow pairs a syntactically-valid SubReq with its source line
+// number, for logging when Scrub subsequently flags/rejects it.
+type windowRow struct {
+	sub  SubReq
+	line int
+}
+
+// flushWindow Scrub-validates a window of rows in one bulk call (if this
+// session has a scrub client -- see NewSession), then pushes each row
+// onto subQueue for Start() to insert, skipping invalid_syntax/
+// undeliverable rows the same way a ValidateFields failure is skipped.
+// A Scrub error fails the whole window open: every row is tagged
+// scrub.StatusUncheckedError and still queued, rather than rejecting up
+// to commitBatchSize legitimate rows over one transient error.
+func (s *Session) flushWindow(window []windowRow) {
+	if len(window) == 0 {
+		return
+	}
+
+	if s.scrubClient == nil {
+		for _, w := range window {
+			s.subQueue <- w.sub
+		}
+		return
+	}
+
+	emails := make([]string, len(window))
+	for i, w := range window {
+		emails[i] = w.sub.Email
+	}
+
+	statusByEmail := map[string]string{}
+	res, err := s.scrubClient.ValidateBulk(context.Background(), emails)
+	if err != nil {
+		s.log.Printf("error validating batch against scrub, allowing through unchecked: %v", err)
+	} else {
+		for _, r := range res.Results {
+			statusByEmail[strings.ToLower(strings.TrimSpace(r.Email))] = r.Status
+		}
+	}
+
+	for _, w := range window {
+		status, checked := statusByEmail[strings.ToLower(strings.TrimSpace(w.sub.Email))]
+		if err != nil || !checked {
+			w.sub.ScrubStatus = scrub.StatusUncheckedError
+			s.subQueue <- w.sub
+			continue
+		}
+
+		switch status {
+		case scrub.StatusInvalidSyntax, scrub.StatusUndeliverable:
+			s.log.Printf("skipping line %d: scrub flagged %s: %s", w.line, status, w.sub.Email)
+			continue
+		case scrub.StatusRisky:
+			w.sub.ScrubStatus = scrub.StatusRisky
+		default:
+			w.sub.ScrubStatus = scrub.StatusDeliverable
+		}
+		s.subQueue <- w.sub
+	}
 }
 
 // Stop sends a signal to stop the existing import.

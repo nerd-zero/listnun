@@ -52,6 +52,12 @@ SELECT id, uuid, type FROM lists WHERE
           WHEN $2::UUID[] IS NOT NULL THEN uuid = ANY($2::UUID[])
     END);
 
+-- name: get-list-ids-by-uuids
+-- Resolves list UUIDs to IDs, tenant-scoped -- used by processSubForm
+-- (public.go), which works in UUIDs throughout, to get the int list IDs
+-- the Scrub risky-subscriber auto-pause path needs.
+SELECT id FROM lists WHERE tenant_id = $1 AND uuid = ANY($2::UUID[]);
+
 -- name: create-list
 INSERT INTO lists (uuid, name, type, optin, status, tags, description, tenant_id) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id;
 

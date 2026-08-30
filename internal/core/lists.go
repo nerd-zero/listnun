@@ -162,6 +162,21 @@ func (c *Core) GetListTypes(ctx context.Context, tenantID int, ids []int, uuids 
 	return out, nil
 }
 
+// GetListIDsByUUIDs resolves list UUIDs to IDs, tenant-scoped -- used by
+// processSubForm (public.go), which works in UUIDs throughout, to get the
+// int list IDs the Scrub risky-subscriber auto-pause path needs.
+func (c *Core) GetListIDsByUUIDs(ctx context.Context, tenantID int, uuids []string) ([]int, error) {
+	var ids []int
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetListIDsByUUIDs).Select(&ids, tenantID, pq.StringArray(uuids))
+	})
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.list}", "error", pqErrMsg(err)))
+	}
+	return ids, nil
+}
+
 // CreateList creates a new list.
 func (c *Core) CreateList(ctx context.Context, tenantID int, l models.List) (models.List, error) {
 	uu, err := uuid.NewV4()

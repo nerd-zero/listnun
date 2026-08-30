@@ -63,7 +63,10 @@
         <PvColumn field="status" :header="$t('globals.fields.status')" header-class="cy-status" style="width:11%" sortable>
           <template #body="{ data }">
             <router-link :to="{ name: 'campaign', params: { id: data.id } }" class="status-link">
-              <PvTag :severity="statusSeverity(data.status)" :value="$t(`campaigns.status.${data.status}`)" />
+              <PvTag
+                :severity="statusSeverity(data.status)" :value="$t(`campaigns.status.${data.status}`)"
+                v-tooltip.bottom="data.pauseReason ? $t(`campaigns.pauseReason.${data.pauseReason}`) : null"
+              />
               <PvProgressSpinner v-if="isRunning(data.id)" style="width:1rem;height:1rem" />
             </router-link>
             <div v-if="isSheduled(data)" class="scheduled-info">

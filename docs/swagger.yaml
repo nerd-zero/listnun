@@ -155,6 +155,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -248,6 +254,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -304,6 +316,15 @@ definitions:
         type: string
       preconfirm_subscriptions:
         type: boolean
+      scrub_checked_at:
+        type: string
+      scrub_status:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set by validate-on-add/import Scrub email validation. ScrubStatus is
+          one of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,
+          or unset (Scrub not configured for this tenant / a legacy row).
       status:
         type: string
       updated_at:
@@ -324,6 +345,13 @@ definitions:
         type: integer
       name:
         type: string
+      risky:
+        description: |-
+          Risky is how many imported rows Scrub flagged risky (deliverable/
+          undeliverable/invalid_syntax aren't separately counted here --
+          undeliverable/invalid_syntax rows are skipped like any other
+          ValidateFields failure, visible in the existing log stream).
+        type: integer
       status:
         type: string
       total:
@@ -997,6 +1025,15 @@ definitions:
         type: array
       name:
         type: string
+      scrub_checked_at:
+        type: string
+      scrub_status:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set by validate-on-add/import Scrub email validation. ScrubStatus is
+          one of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,
+          or unset (Scrub not configured for this tenant / a legacy row).
       status:
         type: string
       updated_at:
@@ -1141,6 +1178,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -1238,6 +1281,15 @@ definitions:
   echo.HTTPError:
     properties:
       message: {}
+    type: object
+  github_com_knadh_listmonk_internal_core.AutoPausedCampaign:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      pause_reason:
+        $ref: '#/definitions/null.String'
     type: object
   models.Tenant:
     properties:
@@ -1904,6 +1956,25 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get campaign analytics
+      tags:
+      - campaigns
+  /api/campaigns/auto-paused:
+    get:
+      operationId: getAutoPausedCampaigns
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get currently auto-paused campaigns
       tags:
       - campaigns
   /api/campaigns/running/stats:

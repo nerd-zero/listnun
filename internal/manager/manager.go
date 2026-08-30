@@ -55,6 +55,7 @@ type Store interface {
 	GetAttachment(ctx context.Context, tenantID int, mediaID int) (models.Attachment, error)
 	GetInlineAttachmentByFilename(ctx context.Context, tenantID int, filename string) (models.Attachment, string, error)
 	UpdateCampaignStatus(campID int, status string) error
+	SetCampaignPauseReason(campID int, reason string) error
 	UpdateCampaignCounts(campID int, toSend int, sent int, lastSubID int) error
 	CreateLink(ctx context.Context, tenantID int, url string) (string, error)
 	BlocklistSubscriber(id int64) error
