@@ -97,6 +97,12 @@
                 </small>
               </div>
 
+              <div v-if="(serverConfig as any).scrubEnabled && form.lists.length > 0"
+                class="field" data-cy="scrub-history">
+                <label class="field-label">{{ $t('settings.scrub.history') }}</label>
+                <scrub-history-list />
+              </div>
+
               <div class="form-row">
                 <div class="field">
                   <label class="field-label">{{ $t('globals.terms.messenger') }}</label>
@@ -308,6 +314,7 @@ import CampaignPreview from '../components/CampaignPreview.vue';
 import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
+import ScrubHistoryList from '../components/ScrubHistoryList.vue';
 import Media from './Media.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 

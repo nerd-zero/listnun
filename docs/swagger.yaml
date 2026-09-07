@@ -2412,6 +2412,36 @@ paths:
       summary: Get Scrub list validation status
       tags:
       - settings
+  /api/lists/scrub/history:
+    get:
+      operationId: getScrubHistory
+      parameters:
+      - description: Only return invalid results
+        in: query
+        name: invalid_only
+        type: boolean
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Continue a previous page's next_cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get Scrub validation history
+      tags:
+      - settings
   /api/logout:
     post:
       operationId: logout

@@ -759,6 +759,72 @@ func (a *App) ScrubList(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetScrubHistory proxies Scrub's GET /v1/history for this tenant's
+// integration -- the actual per-email validation log, distinct from
+// GetScrubListStatus's per-list job/last-result summary above. Scrub's
+// history API has no per-list filter, so this is the tenant's whole
+// integration-wide log; invalid_only/limit/cursor pass straight through
+// to page it.
+//
+//	@ID			getScrubHistory
+//	@Summary	Get Scrub validation history
+//	@Tags		settings
+//	@Produce	json
+//	@Param		invalid_only	query		bool	false	"Only return invalid results"
+//	@Param		limit			query		int		false	"Page size"
+//	@Param		cursor			query		string	false	"Continue a previous page's next_cursor"
+//	@Success	200	{object}	object
+//	@Failure	400	{object}	echo.HTTPError
+//	@Router		/api/lists/scrub/history [get]
+func (a *App) GetScrubHistory(c echo.Context) error {
+	s, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
+	}
+
+	q := url.Values{}
+	q.Set("integration_id", s.Scrub.IntegrationID)
+	if v := c.QueryParam("invalid_only"); v != "" {
+		q.Set("invalid_only", v)
+	}
+	if v := c.QueryParam("limit"); v != "" {
+		q.Set("limit", v)
+	}
+	if v := c.QueryParam("cursor"); v != "" {
+		q.Set("cursor", v)
+	}
+
+	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
+	apiURL := fmt.Sprintf("%s/v1/history?%s", scrubURL, q.Encode())
+	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, apiURL, nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadGateway,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return echo.NewHTTPError(http.StatusBadGateway,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", resp.Status))
+	}
+
+	var out interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetAboutInfo returns version, build, system, and host information about the app.
 //
 //	@ID				getAboutInfo

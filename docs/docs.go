@@ -1441,6 +1441,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/lists/scrub/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get Scrub validation history",
+                "operationId": "getScrubHistory",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Only return invalid results",
+                        "name": "invalid_only",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Continue a previous page's next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/lists/{id}": {
             "get": {
                 "produces": [
