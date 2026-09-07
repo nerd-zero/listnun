@@ -87,9 +87,15 @@
                 <div class="flex flex-column gap-2">
                   <div v-for="l in campaignScrubLists" :key="l.id" class="flex align-items-center gap-2">
                     <span style="font-size:0.9rem">{{ l.name }}</span>
-                    <PvTag v-if="l.scrub.activeJobRequestId" severity="warn" :value="$t('settings.scrub.validating')" />
-                    <PvTag v-else-if="l.scrub.lastResult" severity="secondary"
+                    <PvTag v-if="l.scrub?.activeJobRequestId" severity="warn" :value="$t('settings.scrub.validating')" />
+                    <PvTag v-else-if="l.scrub?.lastResult" severity="secondary"
                       :value="`${$t('settings.scrub.lastValidated')}: ${$utils.niceDate(l.scrub.lastResult.completedAt)}`" />
+                    <PvButton
+                      v-if="$can('settings:manage')"
+                      severity="secondary" outlined size="small"
+                      :disabled="!!l.scrub?.activeJobRequestId" :label="$t('settings.scrub.scrubList')"
+                      @click="$utils.confirm($t('settings.scrub.scrubListConfirm', { name: l.name }), () => onScrubValidateList(l.id))"
+                    />
                   </div>
                 </div>
                 <small v-if="hasActiveScrubJob" class="block mt-1 text-color-secondary">
@@ -318,7 +324,7 @@ import ScrubHistoryList from '../components/ScrubHistoryList.vue';
 import Media from './Media.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 
-const { getScrubListStatus } = settingsApi();
+const { getScrubListStatus, scrubList } = settingsApi();
 const {
   $api, $utils, $can, $events,
 } = useGlobal();
@@ -380,16 +386,17 @@ const canEdit = computed(() => isNew.value || data.value.status === 'draft' || d
 // campaignScrubLists pairs each of the campaign's target lists with its
 // Scrub status (scrubListStatus, fetched tenant-wide the same way
 // Lists.vue's own scrub widget does -- Scrub has no per-list status
-// endpoint) -- only lists actually being/having been validated show up,
-// same "just don't render" convention as Lists.vue's own tags.
+// endpoint) -- includes every target list regardless of whether it's
+// ever been validated, so the widget can offer a trigger even for one
+// with no status yet, not just render tags for lists that already have
+// some.
 const campaignScrubLists = computed(() => (form.lists as any[])
-  .map((l: any) => ({ ...l, scrub: scrubListStatus.value[l.id] }))
-  .filter((l: any) => l.scrub && (l.scrub.activeJobRequestId || l.scrub.lastResult)));
+  .map((l: any) => ({ ...l, scrub: scrubListStatus.value[l.id] })));
 // hasActiveScrubJob mirrors cmd/campaigns.go's checkScrubJobOnCampaign
 // server-side block on the client, so Start/Schedule visibly disable
 // instead of round-tripping into the same 400 -- the backend check
 // remains authoritative (this can go stale between fetches).
-const hasActiveScrubJob = computed(() => campaignScrubLists.value.some((l: any) => l.scrub.activeJobRequestId));
+const hasActiveScrubJob = computed(() => campaignScrubLists.value.some((l: any) => l.scrub?.activeJobRequestId));
 const canSchedule = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && form.sendLater && form.sendAtDate && !hasActiveScrubJob.value);
 const canUnSchedule = computed(() => data.value.status === 'scheduled');
 const canStart = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && !form.sendLater && !hasActiveScrubJob.value);
@@ -416,6 +423,17 @@ function fetchScrubListStatus() {
     });
     scrubListStatus.value = m;
   }).catch(() => {});
+}
+
+// onScrubValidateList mirrors Lists.vue's own onScrubList -- lets the
+// campaign page trigger a validation run on one of its target lists
+// directly, instead of the status widget here being read-only and
+// forcing a trip to the Lists page just to kick one off.
+function onScrubValidateList(listId: number) {
+  scrubList(listId).then(() => {
+    $utils.toast(t('settings.scrub.scrubJobStarted'));
+    fetchScrubListStatus();
+  });
 }
 
 function isUnsaved() {
