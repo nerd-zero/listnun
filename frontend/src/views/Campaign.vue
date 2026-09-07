@@ -81,6 +81,28 @@
                   :label="$t('globals.terms.lists')" :placeholder="$t('campaigns.sendToLists')" />
               </div>
 
+              <div v-if="(serverConfig as any).scrubEnabled && campaignScrubLists.length > 0"
+                class="field" data-cy="scrub-status">
+                <label class="field-label">{{ $t('settings.scrub.name') }}</label>
+                <div class="flex flex-column gap-2">
+                  <div v-for="l in campaignScrubLists" :key="l.id" class="flex align-items-center gap-2">
+                    <span style="font-size:0.9rem">{{ l.name }}</span>
+                    <PvTag v-if="l.scrub.activeJobRequestId" severity="warn" :value="$t('settings.scrub.validating')" />
+                    <PvTag v-else-if="l.scrub.lastResult" severity="secondary"
+                      :value="`${$t('settings.scrub.lastValidated')}: ${$utils.niceDate(l.scrub.lastResult.completedAt)}`" />
+                  </div>
+                </div>
+                <small v-if="hasActiveScrubJob" class="block mt-1 text-color-secondary">
+                  {{ $t('campaigns.scrubValidationInProgressHelp') }}
+                </small>
+              </div>
+
+              <div v-if="(serverConfig as any).scrubEnabled && form.lists.length > 0"
+                class="field" data-cy="scrub-history">
+                <label class="field-label">{{ $t('settings.scrub.history') }}</label>
+                <scrub-history-list />
+              </div>
+
               <div class="form-row">
                 <div class="field">
                   <label class="field-label">{{ $t('globals.terms.messenger') }}</label>
@@ -292,8 +314,11 @@ import CampaignPreview from '../components/CampaignPreview.vue';
 import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
+import ScrubHistoryList from '../components/ScrubHistoryList.vue';
 import Media from './Media.vue';
+import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 
+const { getScrubListStatus } = settingsApi();
 const {
   $api, $utils, $can, $events,
 } = useGlobal();
@@ -314,6 +339,7 @@ const isPreviewingArchive = ref(false);
 const activeTab = ref('campaign');
 const data = ref<any>({});
 const selListIDs = ref<number[]>([]);
+const scrubListStatus = ref<Record<number, any>>({});
 
 const form = reactive<any>({
   archiveSlug: null,
@@ -351,9 +377,22 @@ const contentTypes = computed(() => Object.freeze({
 const canManage = computed(() => $can('campaigns:manage_all', 'campaigns:manage'));
 const canSend = computed(() => $can('campaigns:send'));
 const canEdit = computed(() => isNew.value || data.value.status === 'draft' || data.value.status === 'scheduled' || data.value.status === 'paused');
-const canSchedule = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && form.sendLater && form.sendAtDate);
+// campaignScrubLists pairs each of the campaign's target lists with its
+// Scrub status (scrubListStatus, fetched tenant-wide the same way
+// Lists.vue's own scrub widget does -- Scrub has no per-list status
+// endpoint) -- only lists actually being/having been validated show up,
+// same "just don't render" convention as Lists.vue's own tags.
+const campaignScrubLists = computed(() => (form.lists as any[])
+  .map((l: any) => ({ ...l, scrub: scrubListStatus.value[l.id] }))
+  .filter((l: any) => l.scrub && (l.scrub.activeJobRequestId || l.scrub.lastResult)));
+// hasActiveScrubJob mirrors cmd/campaigns.go's checkScrubJobOnCampaign
+// server-side block on the client, so Start/Schedule visibly disable
+// instead of round-tripping into the same 400 -- the backend check
+// remains authoritative (this can go stale between fetches).
+const hasActiveScrubJob = computed(() => campaignScrubLists.value.some((l: any) => l.scrub.activeJobRequestId));
+const canSchedule = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && form.sendLater && form.sendAtDate && !hasActiveScrubJob.value);
 const canUnSchedule = computed(() => data.value.status === 'scheduled');
-const canStart = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && !form.sendLater);
+const canStart = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && !form.sendLater && !hasActiveScrubJob.value);
 const canArchive = computed(() => data.value.status !== 'cancelled' && data.value.type !== 'optin');
 const selectedLists = computed(() => {
   if (selListIDs.value.length === 0 || !(lists.value as any).results) return [];
@@ -367,6 +406,17 @@ const allMessengers = computed(() => {
 });
 const contentTypeOptions = computed(() => Object.entries(contentTypes.value).map(([value, label]) => ({ value, label })));
 const campaignTemplates = computed(() => ((templates.value as any[]) || []).filter((tpl: any) => tpl.type === 'campaign'));
+
+function fetchScrubListStatus() {
+  if (!(serverConfig.value as any).scrubEnabled) return;
+  getScrubListStatus().then((res: any) => {
+    const m: Record<number, any> = {};
+    (Array.isArray(res) ? res : []).forEach((l: any) => {
+      m[l.id] = { activeJobRequestId: l.activeJobRequestId, lastResult: l.lastResult };
+    });
+    scrubListStatus.value = m;
+  }).catch(() => {});
+}
 
 function isUnsaved() {
   if (isNew.value) {
@@ -549,6 +599,7 @@ function unscheduleCampaign() {
 }
 
 watch(selectedLists, (v) => { form.lists = v; });
+watch(() => form.lists, fetchScrubListStatus);
 watch(() => data.value.sendAt, (v) => {
   if (v !== null) { form.sendLater = true; form.sendAtDate = dayjs(v).toDate(); } else { form.sendLater = false; form.sendAtDate = null; }
 });
