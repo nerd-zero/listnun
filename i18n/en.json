@@ -110,6 +110,7 @@
     "campaigns.unSchedule": "Unschedule",
     "campaigns.views": "Views",
     "campaigns.scrubJobRunning": "A mail validation job is running on list \"{list}\". Please wait for it to finish before starting or scheduling campaigns.",
+    "campaigns.scrubValidationInProgressHelp": "Starting or scheduling is disabled until validation finishes on the list(s) above.",
     "campaigns.importRunning": "A subscriber import is in progress. Please wait for it to finish before starting or scheduling campaigns.",
     "dashboard.autoPausedCampaigns": "Auto-paused campaigns",
     "dashboard.campaignViews": "Campaign views",
