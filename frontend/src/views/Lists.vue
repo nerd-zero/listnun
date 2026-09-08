@@ -184,7 +184,7 @@
 </button>
 
               <button
-                v-if="serverConfig.scrubEnabled && $can('settings:manage')"
+                v-if="serverConfig.scrub_enabled && $can('settings:manage')"
                 type="button"
                 class="row-action-btn"
                 :class="{ 'row-action-btn--active': scrubStatus[data.id]?.activeJobRequestId }"
@@ -341,7 +341,7 @@ function fetchLists() {
     order: queryParams.order as any,
     status: queryParams.status as any,
   }).then((resp: any) => { lists.value = resp; });
-  if ((serverConfig.value as any).scrubEnabled) fetchScrubStatus();
+  if ((serverConfig.value as any).scrub_enabled) fetchScrubStatus();
 }
 
 function onScrubList(list: any) {

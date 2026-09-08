@@ -1,5 +1,5 @@
 <template>
-  <div v-if="(serverConfig as any).scrubEnabled" class="scrub-history">
+  <div v-if="(serverConfig as any).scrub_enabled" class="scrub-history">
     <div class="scrub-history__toolbar">
       <label class="scrub-history__filter">
         {{ $t('settings.scrub.invalidOnly') }}
@@ -71,7 +71,7 @@ const nextCursor = ref<string | undefined>(undefined);
 const cursors = ref<(string | undefined)[]>([undefined]);
 
 function fetchPage() {
-  if (!(serverConfig.value as any).scrubEnabled) return;
+  if (!(serverConfig.value as any).scrub_enabled) return;
   loading.value = true;
   getScrubHistory({
     invalid_only: invalidOnly.value,
