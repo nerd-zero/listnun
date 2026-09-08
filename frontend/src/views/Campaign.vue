@@ -81,7 +81,7 @@
                   :label="$t('globals.terms.lists')" :placeholder="$t('campaigns.sendToLists')" />
               </div>
 
-              <div v-if="(serverConfig as any).scrubEnabled && campaignScrubLists.length > 0"
+              <div v-if="(serverConfig as any).scrub_enabled && campaignScrubLists.length > 0"
                 class="field" data-cy="scrub-status">
                 <label class="field-label">{{ $t('settings.scrub.name') }}</label>
                 <div class="flex flex-column gap-2">
@@ -103,7 +103,7 @@
                 </small>
               </div>
 
-              <div v-if="(serverConfig as any).scrubEnabled && form.lists.length > 0"
+              <div v-if="(serverConfig as any).scrub_enabled && form.lists.length > 0"
                 class="field" data-cy="scrub-history">
                 <label class="field-label">{{ $t('settings.scrub.history') }}</label>
                 <scrub-history-list />
@@ -415,7 +415,7 @@ const contentTypeOptions = computed(() => Object.entries(contentTypes.value).map
 const campaignTemplates = computed(() => ((templates.value as any[]) || []).filter((tpl: any) => tpl.type === 'campaign'));
 
 function fetchScrubListStatus() {
-  if (!(serverConfig.value as any).scrubEnabled) return;
+  if (!(serverConfig.value as any).scrub_enabled) return;
   getScrubListStatus().then((res: any) => {
     const m: Record<number, any> = {};
     (Array.isArray(res) ? res : []).forEach((l: any) => {
