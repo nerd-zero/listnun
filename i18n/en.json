@@ -542,6 +542,7 @@
     "settings.scrub.scrubListConfirm": "This will validate all email addresses in \"{name}\" and block invalid ones. Continue?",
     "settings.scrub.scrubJobStarted": "Email validation job started.",
     "settings.scrub.tooManyJobs": "Too many validation jobs are running. Please wait for one to finish.",
+    "settings.scrub.noSubscribers": "This list has no subscribers to validate.",
     "settings.scrub.validating": "Validating…",
     "settings.scrub.validatingProgress": "Validating… {count} checked so far",
     "settings.scrub.lastValidated": "Last validated",

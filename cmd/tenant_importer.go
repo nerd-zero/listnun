@@ -85,7 +85,8 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		// come back later via /webhooks/scrub/batch (cmd/scrub_batch.go),
 		// not synchronously here.
 		ScrubSubmitFunc: func(listIDs []int, emails []string) error {
-			return submitScrubBatch(context.Background(), t.q, tenantID, settings, listIDs, emails)
+			_, err := submitScrubBatch(context.Background(), t.q, tenantID, settings, listIDs, emails, "")
+			return err
 		},
 
 		// Hook for triggering admin notifications and refreshing stats

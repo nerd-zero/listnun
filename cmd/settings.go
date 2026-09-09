@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -652,8 +654,13 @@ func (a *App) TestScrubSettings(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
-// GetScrubListStatus proxies the Scrub integration lists endpoint, which returns
-// each list along with its active job request_id and last validation result.
+// GetScrubListStatus returns every list's Scrub validation status --
+// whether an active list-validate job is running (active_job_request_id,
+// really a scrub_validation_jobs id) and, once one has finished, the
+// last result (last_result). Both are local now (lists.scrub_last_*
+// columns, scrub_validation_jobs), not proxied from Scrub -- see
+// cmd/scrub_batch.go's submitScrubListValidation/reconcileScrubJob, which
+// replaced this handler's old GET /v1/integrations/{id}/lists proxy.
 //
 //	@ID			getScrubListStatus
 //	@Summary	Get Scrub list validation status
@@ -663,7 +670,9 @@ func (a *App) TestScrubSettings(c echo.Context) error {
 //	@Failure	400	{object}	echo.HTTPError
 //	@Router		/api/lists/scrub [get]
 func (a *App) GetScrubListStatus(c echo.Context) error {
-	s, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	tID := tenantID(c)
+
+	s, err := a.core.GetSettings(c.Request().Context(), tID)
 	if err != nil {
 		return err
 	}
@@ -671,35 +680,59 @@ func (a *App) GetScrubListStatus(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
 	}
 
-	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists", scrubURL, s.Scrub.IntegrationID)
-	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, apiURL, nil)
-	if err != nil {
-		return err
+	var statuses []models.ListScrubStatus
+	if err := a.queries.GetListScrubStatus.Select(&statuses, tID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.lists}", "error", err.Error()))
 	}
-	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadGateway,
+	var jobs []models.ScrubValidationJob
+	if err := a.queries.GetActiveScrubJobsForTenant.Select(&jobs, tID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError,
 			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return echo.NewHTTPError(http.StatusBadGateway,
-			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", resp.Status))
+	activeJobByList := make(map[int]string, len(jobs))
+	for _, j := range jobs {
+		for _, id := range j.ListIDs {
+			activeJobByList[int(id)] = j.JobID
+		}
 	}
 
-	var out interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	type lastResult struct {
+		CompletedAt  time.Time `json:"completed_at"`
+		ValidCount   int       `json:"valid_count"`
+		InvalidCount int       `json:"invalid_count"`
 	}
+	type listStatus struct {
+		ID                 int         `json:"id"`
+		ActiveJobRequestID string      `json:"active_job_request_id,omitempty"`
+		LastResult         *lastResult `json:"last_result,omitempty"`
+	}
+
+	out := make([]listStatus, 0, len(statuses))
+	for _, st := range statuses {
+		ls := listStatus{ID: st.ID, ActiveJobRequestID: activeJobByList[st.ID]}
+		if st.ScrubLastValidatedAt.Valid {
+			ls.LastResult = &lastResult{
+				CompletedAt:  st.ScrubLastValidatedAt.Time,
+				ValidCount:   st.ScrubLastValidCount.Int,
+				InvalidCount: st.ScrubLastInvalidCount.Int,
+			}
+		}
+		out = append(out, ls)
+	}
+
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
-// ScrubList triggers a Scrub email validation job on a subscriber list.
+// ScrubList triggers a Scrub email validation job on a subscriber list --
+// fetches the list's own subscriber emails (everyone except those already
+// unsubscribed from it) and submits them directly via
+// submitScrubListValidation, the same async batch pipeline CSV import
+// uses, chunked as needed for lists over Scrub's 30,000-email cap. This
+// replaced the old call into Scrub's own list-sync endpoint (which
+// required Scrub to call back into listmonk using per-tenant reverse
+// credentials) since that path was unreliable in production.
 //
 //	@ID			scrubList
 //	@Summary	Trigger Scrub validation on a list
@@ -711,59 +744,58 @@ func (a *App) GetScrubListStatus(c echo.Context) error {
 //	@Router		/api/lists/{id}/scrub [post]
 func (a *App) ScrubList(c echo.Context) error {
 	id := getID(c)
+	tID := tenantID(c)
+	ctx := c.Request().Context()
 
-	s, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	s, err := a.core.GetSettings(ctx, tID)
 	if err != nil {
 		return err
 	}
 	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
 	}
-
-	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists/%d/validate", scrubURL, s.Scrub.IntegrationID, id)
-	body := bytes.NewBufferString(`{"scan_mode":"full"}`)
-	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodPost, apiURL, body)
-	if err != nil {
-		return err
+	if strings.TrimRight(strings.TrimSpace(s.AppRootURL), "/") == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
 	}
-	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
-	httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadGateway,
-			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusTooManyRequests {
+	var active models.ScrubValidationJob
+	if err := a.queries.GetActiveScrubJobForList.Get(&active, tID, id); err == nil {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.tooManyJobs"))
-	}
-	if resp.StatusCode >= 400 {
-		return echo.NewHTTPError(http.StatusBadGateway,
-			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", resp.Status))
-	}
-
-	var out interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	// Scrub gives no async signal back when a job actually starts (no
-	// webhook/callback field on Settings.Scrub) -- this is the only hook
-	// point, so pause inline right after a confirmed-successful trigger.
-	pauseCampaignsForRiskySubscriberWith(c.Request().Context(), a.core, a.manager, tenantID(c), []int{id}, "scrub_job_started")
+	var emails []string
+	if err := a.queries.GetListSubscriberEmails.Select(&emails, id, tID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", err.Error()))
+	}
+	if len(emails) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.noSubscribers"))
+	}
 
-	return c.JSON(http.StatusOK, okResp{out})
+	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, id, emails)
+	if err != nil {
+		a.log.Printf("error submitting scrub list validation (list %d, tenant %d): %v", id, tID, err)
+		return echo.NewHTTPError(http.StatusBadGateway,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
+	}
+
+	// Scrub gives no synchronous signal back beyond this handler's own
+	// successful submission -- this is the hook point, so pause inline
+	// right after.
+	pauseCampaignsForRiskySubscriberWith(ctx, a.core, a.manager, tID, []int{id}, "scrub_job_started")
+
+	return c.JSON(http.StatusOK, okResp{map[string]string{"job_id": jobID, "request_id": jobID}})
 }
 
-// GetScrubListProgress proxies Scrub's per-list validation-job progress
-// endpoint -- how many subscribers have been validated so far for a
-// request_id ScrubList returned. Distinct from GetScrubListStatus's
-// last_result, which only appears once a job finishes; the frontend
-// polls this one while a job is still running (activeJobRequestId set).
+// GetScrubListProgress returns how many subscribers have been validated
+// so far for a running list-validate job (request_id is really a
+// scrub_validation_jobs id ScrubList returned). Distinct from
+// GetScrubListStatus's last_result, which only appears once a job
+// finishes; the frontend polls this one while a job is still running
+// (activeJobRequestId set). Local now (scrub_validation_jobs), not
+// proxied from Scrub -- see this file's ScrubList doc comment.
 //
 //	@ID			getScrubListProgress
 //	@Summary	Get progress for a running Scrub validation job
@@ -777,41 +809,30 @@ func (a *App) ScrubList(c echo.Context) error {
 func (a *App) GetScrubListProgress(c echo.Context) error {
 	id := getID(c)
 	requestID := c.Param("request_id")
+	tID := tenantID(c)
 
-	s, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
-	if err != nil {
-		return err
-	}
-	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
-	}
-
-	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists/%d/progress/%s", scrubURL, s.Scrub.IntegrationID, id, url.PathEscape(requestID))
-	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, apiURL, nil)
-	if err != nil {
-		return err
-	}
-	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadGateway,
-			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return echo.NewHTTPError(http.StatusBadGateway,
-			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", resp.Status))
-	}
-
-	var out interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	var job models.ScrubValidationJob
+	if err := a.queries.GetScrubValidationJob.Get(&job, requestID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return echo.NewHTTPError(http.StatusNotFound, "job not found")
+		}
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
-	return c.JSON(http.StatusOK, okResp{out})
+	if job.TenantID != tID {
+		return echo.NewHTTPError(http.StatusNotFound, "job not found")
+	}
+	found := false
+	for _, lid := range job.ListIDs {
+		if int(lid) == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return echo.NewHTTPError(http.StatusNotFound, "job not found")
+	}
+
+	return c.JSON(http.StatusOK, okResp{map[string]int{"validated": job.ValidatedCount}})
 }
 
 // GetScrubHistory proxies Scrub's GET /v1/history for this tenant's

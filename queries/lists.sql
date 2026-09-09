@@ -82,6 +82,21 @@ SELECT COUNT(*) FROM l, c;
 -- name: update-lists-date
 UPDATE lists SET updated_at=NOW() WHERE id = ANY($1);
 
+-- name: get-list-scrub-status
+-- Lightweight per-list Scrub summary for GetScrubListStatus -- deliberately
+-- not the full get-lists/query-lists shape (subscriber counts etc.),
+-- which that handler doesn't need.
+SELECT id, scrub_last_validated_at, scrub_last_valid_count, scrub_last_invalid_count
+FROM lists WHERE tenant_id = $1;
+
+-- name: update-list-scrub-result
+-- Written once a Scrub validation batch/job targeting this list finishes
+-- (cmd/scrub_batch.go's reconcileScrubBatch/reconcileScrubJob) -- the
+-- persistent home for GetScrubListStatus's "last_result", now that
+-- Scrub's own list-tracking is no longer consulted.
+UPDATE lists SET scrub_last_validated_at = NOW(), scrub_last_valid_count = $2, scrub_last_invalid_count = $3
+WHERE id = $1;
+
 -- name: delete-lists
 DELETE FROM lists
 WHERE CASE

@@ -91,6 +91,14 @@ CREATE TABLE lists (
     tags            VARCHAR(100)[],
     description     TEXT NOT NULL DEFAULT '',
 
+    -- Set by cmd/scrub_batch.go once a Scrub validation batch/job
+    -- targeting this list finishes (see scrub_validation_jobs/
+    -- scrub_validation_batches) -- the UI's "last validated" summary,
+    -- now that Scrub's own list-tracking is no longer consulted.
+    scrub_last_validated_at   TIMESTAMP WITH TIME ZONE NULL,
+    scrub_last_valid_count    INTEGER NULL,
+    scrub_last_invalid_count  INTEGER NULL,
+
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -375,8 +383,31 @@ INSERT INTO settings (key, value) VALUES
     ('maintenance.db', '{"vacuum": false, "vacuum_cron_interval": "0 2 * * *"}'),
     ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}');
 
+-- scrub_validation_jobs
+-- One row per list-validate action (cmd/settings.go's ScrubList), which
+-- may fan out into multiple scrub_validation_batches rows below (chunked
+-- at Scrub's 30,000-email per-request cap) -- see
+-- cmd/scrub_batch.go's submitScrubListValidation/reconcileScrubJob. A
+-- standalone CSV-import batch has no job (scrub_validation_batches.job_id
+-- NULL) since it never needs more than one batch per commit-window.
+DROP TABLE IF EXISTS scrub_validation_jobs CASCADE;
+CREATE TABLE scrub_validation_jobs (
+    job_id            UUID PRIMARY KEY,
+    tenant_id         INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    list_ids          INTEGER[] NOT NULL DEFAULT '{}',
+    total_batches     INTEGER NOT NULL,
+    completed_batches INTEGER NOT NULL DEFAULT 0,
+    submitted_count   INTEGER NOT NULL DEFAULT 0,
+    validated_count   INTEGER NOT NULL DEFAULT 0,
+    invalid_count     INTEGER NOT NULL DEFAULT 0,
+    status            TEXT NOT NULL DEFAULT 'processing',
+    created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_scrub_validation_jobs_tenant; CREATE INDEX idx_scrub_validation_jobs_tenant ON scrub_validation_jobs(tenant_id);
+
 -- scrub_validation_batches
--- One row per CSV-import batch submitted to Scrub's async
+-- One row per batch submitted to Scrub's async
 -- POST /v1/validate/integration, looked up by batch_id from the
 -- /webhooks/scrub/batch callback (which carries no tenant context of its
 -- own) -- see cmd/scrub_batch.go. That callback is authenticated by
@@ -387,14 +418,17 @@ DROP TABLE IF EXISTS scrub_validation_batches CASCADE;
 CREATE TABLE scrub_validation_batches (
     batch_id        UUID PRIMARY KEY,
     tenant_id       INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    job_id          UUID NULL REFERENCES scrub_validation_jobs(job_id) ON DELETE CASCADE,
     list_ids        INTEGER[] NOT NULL DEFAULT '{}',
     status          TEXT NOT NULL DEFAULT 'pending',
     submitted_count INTEGER NOT NULL DEFAULT 0,
+    validated_count INTEGER NOT NULL DEFAULT 0,
     invalid_count   INTEGER NOT NULL DEFAULT 0,
     created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_scrub_validation_batches_tenant; CREATE INDEX idx_scrub_validation_batches_tenant ON scrub_validation_batches(tenant_id);
+DROP INDEX IF EXISTS idx_scrub_validation_batches_job; CREATE INDEX idx_scrub_validation_batches_job ON scrub_validation_batches(job_id) WHERE job_id IS NOT NULL;
 
 -- bounces
 DROP TABLE IF EXISTS bounces CASCADE;
@@ -486,6 +520,7 @@ ALTER TABLE campaign_views   ENABLE ROW LEVEL SECURITY; ALTER TABLE campaign_vie
 ALTER TABLE campaign_media   ENABLE ROW LEVEL SECURITY; ALTER TABLE campaign_media   FORCE ROW LEVEL SECURITY;
 ALTER TABLE link_clicks      ENABLE ROW LEVEL SECURITY; ALTER TABLE link_clicks      FORCE ROW LEVEL SECURITY;
 ALTER TABLE settings         ENABLE ROW LEVEL SECURITY; ALTER TABLE settings         FORCE ROW LEVEL SECURITY;
+ALTER TABLE scrub_validation_jobs ENABLE ROW LEVEL SECURITY; ALTER TABLE scrub_validation_jobs FORCE ROW LEVEL SECURITY;
 ALTER TABLE scrub_validation_batches ENABLE ROW LEVEL SECURITY; ALTER TABLE scrub_validation_batches FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS tenant_isolation ON subscribers;
@@ -518,6 +553,8 @@ DROP POLICY IF EXISTS tenant_isolation ON link_clicks;
 CREATE POLICY tenant_isolation ON link_clicks USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 DROP POLICY IF EXISTS tenant_isolation ON settings;
 CREATE POLICY tenant_isolation ON settings USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_jobs;
+CREATE POLICY tenant_isolation ON scrub_validation_jobs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_batches;
 CREATE POLICY tenant_isolation ON scrub_validation_batches USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
