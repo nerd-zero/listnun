@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -489,8 +488,8 @@ func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) e
 // back into a tenant (GET /api/lists, /api/subscribers, blocklisting) --
 // the reverse direction of SetTenantScrub above, which only pushes
 // settings the other way (this tenant calling out to Scrub). Fixed
-// rather than generated so CreateTenantScrubAPIUser can detect "already
-// provisioned" by a simple username lookup.
+// rather than generated so CreateTenantScrubAPIUser can find (and
+// rotate) any previous one by a simple username lookup.
 const scrubIntegrationUsername = "scrub-integration"
 
 // scrubIntegrationRoleName names the least-privilege role
@@ -502,18 +501,22 @@ const scrubIntegrationRoleName = "Scrub Integration"
 
 var scrubIntegrationPermissions = []string{"lists:get_all", "subscribers:get_all", "subscribers:manage"}
 
-// errScrubAPIUserExists is returned by CreateTenantScrubAPIUser when
-// scrubIntegrationUsername already exists for the tenant -- the token
-// was already shown once (CreateUser's normal one-time-reveal semantics)
-// and can't be recovered, so a retry can't silently succeed with a new
-// token without orphaning the one Scrub already has on file.
-var errScrubAPIUserExists = errors.New("scrub API user already exists for this tenant")
-
-// CreateTenantScrubAPIUser provisions, at most once, the dedicated API
-// user (and its supporting role, created on first use) that Scrub
-// authenticates as when calling back into this tenant. Returns the
-// username and the one-time plaintext token -- see CreateUser's own doc
-// comment on why the token can only ever be read at creation time.
+// CreateTenantScrubAPIUser provisions the dedicated API user (and its
+// supporting role, created on first use) that Scrub authenticates as
+// when calling back into this tenant. Returns the username and a fresh
+// one-time plaintext token -- see CreateUser's own doc comment on why
+// the token can only ever be read at creation time.
+//
+// Create-or-rotate, not create-once: if scrubIntegrationUsername already
+// exists (a previous call already ran, or the caller lost track of the
+// token it was shown), the old user is deleted and a new one created
+// rather than erroring. This is what listnun's periodic healing sweep
+// (provisioning.HealScrubIntegrations) relies on to recover an
+// integration whose credentials went bad for any reason -- there's no
+// way to verify or recover an existing API user's plaintext token to
+// confirm it still matches what Scrub has on file, so treating "already
+// exists" as "needs a fresh one" is the only option that's actually
+// self-healing.
 func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID int) (string, string, error) {
 	users, err := s.co.GetUsers(ctx, tenantID)
 	if err != nil {
@@ -521,7 +524,10 @@ func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID i
 	}
 	for _, u := range users {
 		if u.Username == scrubIntegrationUsername {
-			return "", "", errScrubAPIUserExists
+			if err := s.co.DeleteUsers(ctx, tenantID, []int{u.ID}); err != nil {
+				return "", "", err
+			}
+			break
 		}
 	}
 
@@ -1145,16 +1151,17 @@ type operatorScrubAPIUserResp struct {
 	APIToken string `json:"api_token"`
 } // @name OperatorScrubAPIUserResp
 
-// CreateOperatorTenantScrubAPIUser provisions the dedicated API user
-// Scrub's own listnun/listmonk-provider integration authenticates as
-// when calling back into this tenant -- see
-// operatorStore.CreateTenantScrubAPIUser. The caller (listnun) is
-// responsible for immediately pushing the returned credentials into
-// Scrub's integration config; there is no way to retrieve the token
-// again afterward.
+// CreateOperatorTenantScrubAPIUser provisions (or rotates, if one
+// already exists) the dedicated API user Scrub's own
+// listnun/listmonk-provider integration authenticates as when calling
+// back into this tenant -- see operatorStore.CreateTenantScrubAPIUser,
+// including why this rotates rather than erroring on a repeat call. The
+// caller (listnun) is responsible for immediately pushing the returned
+// credentials into Scrub's integration config; there is no way to
+// retrieve the token again afterward.
 //
 //	@ID			createOperatorTenantScrubAPIUser
-//	@Summary		Create the Scrub integration API user for a tenant (Operator API)
+//	@Summary		Create or rotate the Scrub integration API user for a tenant (Operator API)
 //	@Tags			operator
 //	@Produce		json
 //	@Security		BearerAuth
@@ -1162,7 +1169,6 @@ type operatorScrubAPIUserResp struct {
 //	@Success		200	{object}	operatorScrubAPIUserResp
 //	@Failure		401	{object}	echo.HTTPError
 //	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
-//	@Failure		409	{object}	echo.HTTPError	"API user already exists for this tenant"
 //	@Router			/api/operator/tenants/{id}/scrub/api-user [post]
 func (a *App) CreateOperatorTenantScrubAPIUser(c echo.Context) error {
 	id := getID(c)
@@ -1173,9 +1179,6 @@ func (a *App) CreateOperatorTenantScrubAPIUser(c echo.Context) error {
 
 	username, token, err := a.operator.CreateTenantScrubAPIUser(c.Request().Context(), id)
 	if err != nil {
-		if errors.Is(err, errScrubAPIUserExists) {
-			return echo.NewHTTPError(http.StatusConflict, err.Error())
-		}
 		a.log.Printf("error creating tenant scrub API user: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error creating scrub API user")
 	}
