@@ -90,9 +90,20 @@
           <template #body="{ data }">
             <a class="row-name" :href="`/lists/${data.id}`" @click.prevent="showEditForm(data)">{{ data.name }}</a>
             <div class="row-tags">
-              <PvTag v-if="scrubStatus[data.id]?.activeJobRequestId" severity="warn" :value="$t('settings.scrub.validating')" />
-              <PvTag v-else-if="scrubStatus[data.id]?.lastResult" severity="secondary"
-                :value="`${$t('settings.scrub.lastValidated')}: ${$utils.niceDate(scrubStatus[data.id].lastResult.completedAt)}`" />
+              <PvTag
+                v-if="scrubStatus[data.id]?.activeJobRequestId"
+                severity="warn"
+                :value="$t('settings.scrub.validatingProgress', { count: $utils.niceNumber(scrubProgress[data.id] || 0) })"
+              />
+              <PvTag
+                v-else-if="scrubStatus[data.id]?.lastResult"
+                severity="secondary"
+                :value="$t('settings.scrub.lastValidatedCounts', {
+                  date: $utils.niceDate(scrubStatus[data.id].lastResult.completedAt),
+                  valid: $utils.niceNumber(scrubStatus[data.id].lastResult.validCount || 0),
+                  invalid: $utils.niceNumber(scrubStatus[data.id].lastResult.invalidCount || 0),
+                })"
+              />
               <PvTag v-for="t in data.tags" :key="t" :value="t" severity="secondary" />
             </div>
           </template>
@@ -242,7 +253,7 @@
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, watch, onMounted,
+  ref, reactive, computed, watch, onMounted, onUnmounted,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -260,7 +271,7 @@ const {
   listLists, getList, deleteList, deleteLists,
 } = listsApi();
 const { createCampaign } = campaignsApi();
-const { getScrubListStatus, scrubList } = settingsApi();
+const { getScrubListStatus, getScrubListProgress, scrubList } = settingsApi();
 const { t, tc } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -273,6 +284,8 @@ const isEditing = ref(false);
 const isFormVisible = ref(false);
 const lists = ref<any>([]);
 const scrubStatus = ref<Record<number, any>>({});
+const scrubProgress = ref<Record<number, number>>({});
+let scrubPollTimer: ReturnType<typeof setTimeout> | null = null;
 const bulk = reactive({ checked: [] as any[], all: false });
 
 const queryParams = reactive({
@@ -323,6 +336,11 @@ function filterStatuses(list: any) {
   return out;
 }
 
+// Polls GetScrubListStatus (list-level active-job-id / last-result) and,
+// for any list with a job still running, GetScrubListProgress (live
+// "n validated so far" count) -- self-scheduling via setTimeout rather
+// than setInterval so overlapping requests can't pile up, and stopping
+// itself the moment nothing is active anymore.
 function fetchScrubStatus() {
   getScrubListStatus().then((data: any) => {
     const m: Record<number, any> = {};
@@ -330,6 +348,16 @@ function fetchScrubStatus() {
       m[l.id] = { activeJobRequestId: l.activeJobRequestId, lastResult: l.lastResult };
     });
     scrubStatus.value = m;
+
+    const active = Object.entries(m).filter(([, v]: any) => v.activeJobRequestId);
+    active.forEach(([id, v]: any) => {
+      getScrubListProgress(Number(id), v.activeJobRequestId)
+        .then((p: any) => { scrubProgress.value[Number(id)] = p?.validated || 0; })
+        .catch(() => {});
+    });
+
+    if (scrubPollTimer) clearTimeout(scrubPollTimer);
+    scrubPollTimer = active.length > 0 ? setTimeout(fetchScrubStatus, 4000) : null;
   }).catch(() => {});
 }
 
@@ -412,6 +440,10 @@ onMounted(() => {
   } else {
     fetchLists();
   }
+});
+
+onUnmounted(() => {
+  if (scrubPollTimer) clearTimeout(scrubPollTimer);
 });
 </script>
 

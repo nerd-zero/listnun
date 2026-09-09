@@ -438,6 +438,11 @@ export const getScrubListStatus = async () => http.get('/api/lists/scrub', { dis
 
 export const scrubList = async (id) => http.post(`/api/lists/${id}/scrub`);
 
+export const getScrubListProgress = async (id, requestId) => http.get(
+  `/api/lists/${id}/scrub/progress/${requestId}`,
+  { disableToast: true },
+);
+
 export const getLogs = async () => http.get(
   '/api/logs',
   { loading: models.logs, camelCase: false },

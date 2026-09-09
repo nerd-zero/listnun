@@ -110,6 +110,24 @@
           </div>
         </div>
       </div>
+
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="scrub-jobs">
+        <div class="stat-icon stat-icon--green">
+          <i class="pi pi-verified" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isScrubJobsLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(scrubValidated + scrubInvalid) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.scrubEmailsValidated') }}</div>
+          <div class="stat-breakdown">
+            <span>{{ $utils.niceNumber(scrubValidated) }} {{ $t('settings.scrub.historyStatus.valid') }}</span>
+            <span>{{ $utils.niceNumber(scrubInvalid) }} {{ $t('settings.scrub.historyStatus.invalid') }}</span>
+            <span v-if="scrubActiveJobs > 0">{{ $t('dashboard.scrubJobsRunning', { count: scrubActiveJobs }) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -167,9 +185,11 @@ import { colors } from '../constants';
 import Chart from '../components/Chart.vue';
 import { getDashboard } from '../api/generated/endpoints/dashboard/dashboard';
 import { getCampaigns } from '../api/generated/endpoints/campaigns/campaigns';
+import { getSettings } from '../api/generated/endpoints/settings/settings';
 
 const { getDashboardCounts, getDashboardCharts } = getDashboard();
 const { getAutoPausedCampaigns } = getCampaigns();
+const { getScrubListStatus } = getSettings();
 const {
   refreshTick, settings, profile, serverConfig,
 } = storeToRefs(useMainStore());
@@ -177,9 +197,13 @@ const {
 const isChartsLoading = ref(true);
 const isCountsLoading = ref(true);
 const isAutoPausedLoading = ref(true);
+const isScrubJobsLoading = ref(true);
 const campaignViews = ref<any>(null);
 const campaignClicks = ref<any>(null);
 const autoPaused = ref<any[]>([]);
+const scrubValidated = ref(0);
+const scrubInvalid = ref(0);
+const scrubActiveJobs = ref(0);
 const counts = ref<any>({
   lists: {},
   subscribers: {},
@@ -231,6 +255,22 @@ function fetchData() {
       autoPaused.value = data || [];
       isAutoPausedLoading.value = false;
     }).catch(() => { isAutoPausedLoading.value = false; });
+
+    // Aggregates GetScrubListStatus's per-list last_result across every
+    // list in this tenant -- there's no dedicated tenant-wide Scrub
+    // stats endpoint, and Scrub's own account-scoped job endpoints
+    // (/v1/jobs/active, /v1/jobs/recent) can't be used here since one
+    // Scrub account is shared across every listnun tenant; they'd leak
+    // other tenants' jobs. This stays scoped to just this tenant's own
+    // integration.
+    isScrubJobsLoading.value = true;
+    getScrubListStatus().then((data: any) => {
+      const lists = Array.isArray(data) ? data : [];
+      scrubValidated.value = lists.reduce((n: number, l: any) => n + (l.lastResult?.validCount || 0), 0);
+      scrubInvalid.value = lists.reduce((n: number, l: any) => n + (l.lastResult?.invalidCount || 0), 0);
+      scrubActiveJobs.value = lists.filter((l: any) => l.activeJobRequestId).length;
+      isScrubJobsLoading.value = false;
+    }).catch(() => { isScrubJobsLoading.value = false; });
   }
 }
 
