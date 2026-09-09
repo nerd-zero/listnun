@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -17,38 +18,63 @@ import (
 	"github.com/lib/pq"
 )
 
-// submitScrubBatch submits one CSV-import commit-batch window's emails to
-// Scrub's async POST /v1/validate/integration and records a
-// scrub_validation_batches row so the /webhooks/scrub/batch callback
-// below -- which carries no tenant context of its own, just a batch_id --
-// can later look up which tenant/lists the batch belongs to.
+// scrubBatchMaxEmails is Scrub's documented hard cap per POST
+// /v1/validate/integration call (confirmed against Scrub's own
+// MAX_BATCH_EMAILS in modules/validation/schemas.py, shared across
+// bulk/CSV/integration requests alike). subimporter's CSV-import windows
+// (commitBatchSize, 10,000) stay safely under this without needing to
+// chunk; submitScrubListValidation below does chunk, since a list can
+// have arbitrarily many subscribers.
+const scrubBatchMaxEmails = 30000
+
+// submitScrubBatch submits one batch of emails to Scrub's async
+// POST /v1/validate/integration and records a scrub_validation_batches
+// row so the /webhooks/scrub/batch callback below -- which carries no
+// tenant context of its own, just a batch_id -- can later look up which
+// tenant/lists/parent job the batch belongs to. jobID is "" for a
+// standalone CSV-import batch (internal/subimporter's ScrubSubmitFunc,
+// via cmd/tenant_importer.go) and a scrub_validation_jobs id for one
+// chunk of a list-validate job (submitScrubListValidation below).
 //
 // Package-level (not an *App method) so cmd/tenant_importer.go's
 // per-tenant ScrubSubmitFunc closure can call it without needing a full
 // *App reference, same reasoning as pauseCampaignsForRiskySubscriberWith
-// in cmd/scrub_validation.go. Fails open -- logs and returns nil on any
-// error -- matching every other Scrub touchpoint in this codebase.
-func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s models.Settings, listIDs []int, emails []string) error {
+// in cmd/scrub_validation.go.
+//
+// Returns ("", nil) when Scrub isn't configured for tenantID at all --
+// deliberately not an error, since CSV import's caller (flushWindow)
+// would otherwise log a spurious "error" on every commit-window for
+// every tenant that simply doesn't use Scrub. Any other returned error is
+// a genuine failure; callers that need "fail open, just log" (CSV import)
+// get that from the caller side (subimporter's flushWindow already logs
+// and continues on a returned error), while submitScrubListValidation
+// below treats one being non-nil as reason to fail the whole job.
+func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s models.Settings, listIDs []int, emails []string, jobID string) (batchID string, err error) {
 	if !scrubValidationEnabled(s) || s.Scrub.IntegrationID == "" {
-		return nil
+		return "", nil
 	}
 
 	root := strings.TrimRight(strings.TrimSpace(s.AppRootURL), "/")
 	if root == "" {
 		log.Printf("scrub: tenant %d has no app.root_url configured, skipping batch submission (%d emails will remain unchecked)", tenantID, len(emails))
-		return nil
+		return "", nil
 	}
 
 	batchUUID, err := uuid.NewV4()
 	if err != nil {
-		log.Printf("scrub: error generating batch id: %v", err)
-		return nil
+		return "", fmt.Errorf("generating batch id: %w", err)
 	}
-	batchID := batchUUID.String()
+	batchID = batchUUID.String()
 
-	if _, err := q.InsertScrubValidationBatch.Exec(batchID, tenantID, pq.Array(listIDs), len(emails)); err != nil {
-		log.Printf("scrub: error recording validation batch: %v", err)
-		return nil
+	// job_id is a UUID column -- pass a real nil for a standalone
+	// CSV-import batch (jobID == ""), not the empty string, which isn't
+	// valid UUID syntax and would fail the insert outright.
+	var jobIDArg any
+	if jobID != "" {
+		jobIDArg = jobID
+	}
+	if _, err := q.InsertScrubValidationBatch.Exec(batchID, tenantID, jobIDArg, pq.Array(listIDs), len(emails)); err != nil {
+		return "", fmt.Errorf("recording validation batch: %w", err)
 	}
 
 	eventCallback := root + "/webhooks/scrub/batch"
@@ -56,15 +82,56 @@ func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s mo
 	c := scrub.New(s.Scrub.URL, s.Scrub.APIKey)
 	sub, err := c.SubmitBatch(ctx, s.Scrub.IntegrationID, batchID, eventCallback, emails)
 	if err != nil {
-		log.Printf("scrub: error submitting validation batch: %v", err)
-		return nil
+		// Scrub never accepted this batch -- no webhook will ever arrive
+		// for it, so the row would otherwise linger forever.
+		if _, delErr := q.DeleteScrubValidationBatch.Exec(batchID); delErr != nil {
+			log.Printf("scrub: error cleaning up unsubmitted batch %s: %v", batchID, delErr)
+		}
+		return "", fmt.Errorf("submitting validation batch: %w", err)
 	}
 
-	if _, err := q.UpdateScrubValidationBatchProgress.Exec(batchID, models.ScrubBatchStatusPending, sub.SubmittedCount, 0); err != nil {
+	if _, err := q.UpdateScrubValidationBatchProgress.Exec(batchID, models.ScrubBatchStatusPending, sub.SubmittedCount, 0, 0); err != nil {
 		log.Printf("scrub: error updating validation batch progress: %v", err)
 	}
 
-	return nil
+	return batchID, nil
+}
+
+// submitScrubListValidation is cmd/settings.go's ScrubList: fetches
+// listID's own subscriber emails and submits them to Scrub directly
+// (chunked at scrubBatchMaxEmails), tracked as one scrub_validation_jobs
+// row so the UI can poll a single activeJobRequestId regardless of how
+// many chunks it took. Unlike submitScrubBatch's fail-open CSV-import
+// convention, a submission failure here fails the whole job immediately
+// -- this is a user-initiated, foreground action the caller can just
+// retry, rather than a background job left showing stuck partial
+// progress forever.
+func submitScrubListValidation(ctx context.Context, q *models.Queries, tenantID int, s models.Settings, listID int, emails []string) (jobID string, err error) {
+	jobUUID, err := uuid.NewV4()
+	if err != nil {
+		return "", fmt.Errorf("generating job id: %w", err)
+	}
+	jobID = jobUUID.String()
+
+	chunks := scrub.ChunkEmails(emails, scrubBatchMaxEmails)
+
+	if _, err := q.InsertScrubValidationJob.Exec(jobID, tenantID, pq.Array([]int{listID}), len(chunks), len(emails)); err != nil {
+		return "", fmt.Errorf("recording validation job: %w", err)
+	}
+
+	for _, chunk := range chunks {
+		if _, err := submitScrubBatch(ctx, q, tenantID, s, []int{listID}, chunk, jobID); err != nil {
+			// Cascades to delete any chunks that succeeded before this
+			// one failed (scrub_validation_batches.job_id FK, ON DELETE
+			// CASCADE).
+			if _, delErr := q.DeleteScrubValidationJob.Exec(jobID); delErr != nil {
+				log.Printf("scrub: error cleaning up failed validation job %s: %v", jobID, delErr)
+			}
+			return "", fmt.Errorf("submitting batch: %w", err)
+		}
+	}
+
+	return jobID, nil
 }
 
 // ScrubBatchWebhook receives Scrub's async validation-progress callback
@@ -136,9 +203,18 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 	}
 
 	if _, err := a.queries.UpdateScrubValidationBatchProgress.Exec(
-		batch.BatchID, progress.Status, progress.SubmittedTotalCount, progress.InvalidTotalCount,
+		batch.BatchID, progress.Status, progress.SubmittedTotalCount, progress.ValidatedTotalCount, progress.InvalidTotalCount,
 	); err != nil {
 		a.log.Printf("scrub: error updating validation batch %s: %v", batch.BatchID, err)
+	}
+
+	// A job-linked chunk (list-validate) is aggregated into its parent
+	// job rather than reconciled/deleted in isolation here -- the job,
+	// not any one chunk, is the unit the UI polls and reconciliation
+	// runs against once every chunk has terminated.
+	if batch.JobID.Valid {
+		a.updateScrubJobProgress(c.Request().Context(), batch.JobID.String)
+		return c.JSON(http.StatusOK, okResp{true})
 	}
 
 	switch progress.Status {
@@ -169,28 +245,111 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
-// reconcileScrubBatch runs once a batch reaches status "completed". The
-// callback payload itself only carries cumulative counts, not per-email
-// detail, so this fetches the batch's full record set via GetHistory
-// (paging /v1/history and matching batch_id client-side, since that
-// endpoint has no server-side batch filter) and tags subscribers
-// accordingly.
+// updateScrubJobProgress aggregates every chunk's progress under jobID
+// into its scrub_validation_jobs row, and triggers reconcileScrubJob once
+// every chunk has reached a terminal status (completed or failed).
+func (a *App) updateScrubJobProgress(ctx context.Context, jobID string) {
+	var job models.ScrubValidationJob
+	if err := a.queries.GetScrubValidationJob.Get(&job, jobID); err != nil {
+		a.log.Printf("scrub: error loading validation job %s: %v", jobID, err)
+		return
+	}
+
+	var batches []models.ScrubValidationBatch
+	if err := a.queries.GetScrubValidationBatchesByJob.Select(&batches, jobID); err != nil {
+		a.log.Printf("scrub: error listing batches for job %s: %v", jobID, err)
+		return
+	}
+
+	completed, submitted, validated, invalid, done := scrub.AggregateBatches(job.TotalBatches, batches)
+	status := models.ScrubBatchStatusProcessing
+	if done {
+		status = models.ScrubBatchStatusCompleted
+	}
+
+	if _, err := a.queries.UpdateScrubValidationJobProgress.Exec(jobID, completed, submitted, validated, invalid, status); err != nil {
+		a.log.Printf("scrub: error updating validation job %s: %v", jobID, err)
+	}
+	if !done {
+		return
+	}
+
+	go a.reconcileScrubJob(context.Background(), job)
+}
+
+// classifyHistoryResults splits Scrub GET /v1/history results into
+// deliverable (valid) and undeliverable (invalid) email lists -- shared
+// by reconcileScrubBatch (one Scrub batch_id) and reconcileScrubJob
+// (merged across every chunk's batch_id).
+func classifyHistoryResults(results []scrub.HistoryResult) (deliverable, undeliverable []string) {
+	for _, r := range results {
+		if r.Status == scrub.HistoryStatusValid {
+			deliverable = append(deliverable, r.Email)
+		} else {
+			undeliverable = append(undeliverable, r.Email)
+		}
+	}
+	return deliverable, undeliverable
+}
+
+// applyScrubResults tags subscribers.scrub_status for deliverable/
+// undeliverable emails and unsubscribes the undeliverable ones from
+// listIDs, non-destructively -- they were already inserted/already on
+// the list by the time Scrub's verdict comes back. The convergence point
+// both reconcileScrubBatch (CSV import) and reconcileScrubJob
+// (list-validate) reach once they've each gathered their own full result
+// set.
 //
 // Confirmed against Scrub's real /v1/history response shape: each record
 // is only ever HistoryStatusValid or HistoryStatusInvalid (with an
 // optional error_code on invalid ones) -- there is no risky tier here,
-// unlike POST /v1/validate/single's synchronous response. So unlike the
-// old (incorrect, never-real) synchronous ValidateBulk path this
-// implementation replaces, bulk-imported subscribers can never be tagged
-// scrub_status=risky or trigger pauseCampaignsForRiskySubscriberWith --
-// that auto-pause-on-risky behavior now only exists for single add/signup
-// validation (cmd/scrub_validation.go's validateEmailForAdd). Valid
-// records map to StatusDeliverable; invalid ones to StatusUndeliverable
-// (the closer of the two existing buckets -- error_code isn't a
-// documented enum, so there's no reliable way to split invalid_syntax
-// out). Invalid emails are unsubscribed from the batch's target lists,
-// non-destructively -- they were already inserted by the time Scrub's
-// verdict comes back, unlike the old pre-insert skip.
+// unlike POST /v1/validate/single's synchronous response. So neither
+// caller can ever tag scrub_status=risky or trigger
+// pauseCampaignsForRiskySubscriberWith -- that auto-pause-on-risky
+// behavior only exists for single add/signup validation
+// (cmd/scrub_validation.go's validateEmailForAdd). Valid records map to
+// StatusDeliverable; invalid ones to StatusUndeliverable (the closer of
+// the two existing buckets -- error_code isn't a documented enum, so
+// there's no reliable way to split invalid_syntax out).
+func (a *App) applyScrubResults(ctx context.Context, tenantID int, listIDs []int, deliverable, undeliverable []string) {
+	if len(deliverable) > 0 {
+		if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusDeliverable, pq.Array(deliverable)); err != nil {
+			a.log.Printf("scrub: error setting scrub status (tenant %d): %v", tenantID, err)
+		}
+	}
+	if len(undeliverable) == 0 {
+		return
+	}
+	if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusUndeliverable, pq.Array(undeliverable)); err != nil {
+		a.log.Printf("scrub: error setting scrub status (tenant %d): %v", tenantID, err)
+	}
+	if len(listIDs) == 0 {
+		return
+	}
+	subs, err := a.core.GetSubscribersByEmail(ctx, tenantID, undeliverable)
+	if err != nil {
+		a.log.Printf("scrub: error resolving invalid subscribers (tenant %d): %v", tenantID, err)
+		return
+	}
+	if len(subs) == 0 {
+		return
+	}
+	subIDs := make([]int, len(subs))
+	for i, sub := range subs {
+		subIDs[i] = sub.ID
+	}
+	if err := a.core.UnsubscribeLists(ctx, tenantID, subIDs, listIDs, nil); err != nil {
+		a.log.Printf("scrub: error unsubscribing invalid subscribers (tenant %d): %v", tenantID, err)
+	}
+}
+
+// reconcileScrubBatch runs once a standalone (job-less, i.e. CSV-import)
+// batch reaches status "completed". The callback payload itself only
+// carries cumulative counts, not per-email detail, so this fetches the
+// batch's full record set via GetHistory (paging /v1/history and matching
+// batch_id client-side, since that endpoint has no server-side batch
+// filter) and tags subscribers accordingly -- see applyScrubResults for
+// what happens with the result.
 func (a *App) reconcileScrubBatch(ctx context.Context, batch models.ScrubValidationBatch) {
 	// Runs on every exit path (including the early-return guards below) --
 	// this batch is done either way, and leaving the row behind would
@@ -223,43 +382,79 @@ func (a *App) reconcileScrubBatch(ctx context.Context, batch models.ScrubValidat
 		return
 	}
 
-	var deliverable, undeliverable []string
-	for _, r := range results {
-		if r.Status == scrub.HistoryStatusValid {
-			deliverable = append(deliverable, r.Email)
-		} else {
-			undeliverable = append(undeliverable, r.Email)
+	deliverable, undeliverable := classifyHistoryResults(results)
+	a.applyScrubResults(ctx, batch.TenantID, listIDs, deliverable, undeliverable)
+	for _, listID := range listIDs {
+		if _, err := a.queries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
+			a.log.Printf("scrub: error updating list %d scrub result for batch %s: %v", listID, batch.BatchID, err)
 		}
 	}
+}
 
-	if len(deliverable) > 0 {
-		if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(batch.TenantID, scrub.StatusDeliverable, pq.Array(deliverable)); err != nil {
-			a.log.Printf("scrub: error setting scrub status for batch %s: %v", batch.BatchID, err)
+// reconcileScrubJob runs once every chunk of a list-validate job
+// (cmd/settings.go's ScrubList, via submitScrubListValidation) has
+// reached a terminal status. Mirrors reconcileScrubBatch, merged across
+// every chunk's Scrub-side batch_id before tagging/unsubscribing once for
+// the whole job. A chunk that itself failed outright is skipped -- there's
+// nothing to fetch for it, and its emails simply stay scrub_status=NULL,
+// the same gap reconcileScrubBatch accepts for a fully-failed batch.
+func (a *App) reconcileScrubJob(ctx context.Context, job models.ScrubValidationJob) {
+	defer func() {
+		if _, err := a.queries.DeleteScrubValidationJob.Exec(job.JobID); err != nil {
+			a.log.Printf("scrub: error deleting validation job %s: %v", job.JobID, err)
 		}
-	}
-	if len(undeliverable) == 0 {
-		return
-	}
-	if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(batch.TenantID, scrub.StatusUndeliverable, pq.Array(undeliverable)); err != nil {
-		a.log.Printf("scrub: error setting scrub status for batch %s: %v", batch.BatchID, err)
-	}
+	}()
 
-	if len(listIDs) == 0 {
-		return
-	}
-	subs, err := a.core.GetSubscribersByEmail(ctx, batch.TenantID, undeliverable)
+	s, err := a.core.GetSettings(ctx, job.TenantID)
 	if err != nil {
-		a.log.Printf("scrub: error resolving invalid subscribers for batch %s: %v", batch.BatchID, err)
+		a.log.Printf("scrub: error getting settings to reconcile job %s (tenant %d): %v", job.JobID, job.TenantID, err)
 		return
 	}
-	if len(subs) == 0 {
+	if !scrubValidationEnabled(s) || s.Scrub.IntegrationID == "" {
 		return
 	}
-	subIDs := make([]int, len(subs))
-	for i, sub := range subs {
-		subIDs[i] = sub.ID
+
+	var batches []models.ScrubValidationBatch
+	if err := a.queries.GetScrubValidationBatchesByJob.Select(&batches, job.JobID); err != nil {
+		a.log.Printf("scrub: error listing batches for job %s: %v", job.JobID, err)
+		return
 	}
-	if err := a.core.UnsubscribeLists(ctx, batch.TenantID, subIDs, listIDs, nil); err != nil {
-		a.log.Printf("scrub: error unsubscribing invalid subscribers for batch %s: %v", batch.BatchID, err)
+
+	listIDs := make([]int, len(job.ListIDs))
+	for i, id := range job.ListIDs {
+		listIDs[i] = int(id)
+	}
+
+	c := scrub.New(s.Scrub.URL, s.Scrub.APIKey)
+	var deliverable, undeliverable []string
+	anyCompleted := false
+	for _, b := range batches {
+		if b.Status != models.ScrubBatchStatusCompleted {
+			continue
+		}
+		anyCompleted = true
+		results, err := c.GetHistory(ctx, s.Scrub.IntegrationID, b.BatchID, b.SubmittedCount)
+		if err != nil {
+			a.log.Printf("scrub: error fetching history for job %s batch %s: %v", job.JobID, b.BatchID, err)
+			continue
+		}
+		d, u := classifyHistoryResults(results)
+		deliverable = append(deliverable, d...)
+		undeliverable = append(undeliverable, u...)
+	}
+
+	a.applyScrubResults(ctx, job.TenantID, listIDs, deliverable, undeliverable)
+
+	// Only refresh the list's "last validated" summary if at least one
+	// chunk actually completed -- a job where every chunk failed outright
+	// has nothing genuine to report, and 0/0 counts would misleadingly
+	// read as "validated, found nothing" rather than "never ran".
+	if !anyCompleted {
+		return
+	}
+	for _, listID := range listIDs {
+		if _, err := a.queries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
+			a.log.Printf("scrub: error updating list %d scrub result for job %s: %v", listID, job.JobID, err)
+		}
 	}
 }
