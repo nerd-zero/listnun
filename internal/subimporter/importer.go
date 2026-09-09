@@ -9,7 +9,6 @@ package subimporter
 import (
 	"archive/zip"
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
@@ -25,7 +24,6 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/internal/scrub"
 	"github.com/knadh/listmonk/internal/utils"
 	"github.com/knadh/listmonk/models"
 	"github.com/lib/pq"
@@ -80,23 +78,28 @@ type Options struct {
 	DomainBlocklist []string
 	DomainAllowlist []string
 
-	// Scrub validate-on-import. Baked in at Importer construction time
+	TenantID int
+
+	// ScrubSubmitFunc, if set, is called once per commit-batch window
+	// (see flushWindow) with that session's target list IDs and the
+	// window's emails, submitting them to Scrub for asynchronous
+	// validation -- baked in at Importer construction time
 	// (tenantImporters.Get, cmd/tenant_importer.go) from tenant settings,
 	// same "requires a process restart to pick up a settings change"
 	// precedent DomainBlocklist/DomainAllowlist above already have in
-	// this per-tenant-cached importer.
-	ScrubEnabled       bool
-	ScrubBaseURL       string
-	ScrubAPIKey        string
-	TenantID           int
-	SetScrubStatusStmt *sql.Stmt
-
-	// OnRiskySubscriber is called once after an import finishes if any
-	// row was flagged scrub_status=risky, scoped to the import's target
-	// list IDs. Deliberately separate from PostCB, which is wired purely
-	// for admin notifications/matview refresh -- mixing pause logic into
-	// it would conflate two different concerns.
-	OnRiskySubscriber func(listIDs []int) error
+	// this per-tenant-cached importer. listIDs travels through here
+	// (rather than being baked into the closure) because it's a
+	// per-session value (SessionOpt.ListIDs), not known at Importer
+	// construction time, but is needed by the eventual callback to know
+	// which lists to unsubscribe invalid emails from / pause campaigns
+	// on -- see cmd/scrub_batch.go's scrub_validation_batches.list_ids.
+	// Results aren't known synchronously: Scrub reports back later via
+	// the /webhooks/scrub/batch callback, which sets scrub_status and
+	// handles risky/invalid rows directly -- this package only fires the
+	// submission, it never sees the outcome. Never called for
+	// ModeBlocklist rows (flushWindow gates on Mode), since those rows
+	// are never sent to and validating them burns quota for no benefit.
+	ScrubSubmitFunc func(listIDs []int, emails []string) error
 }
 
 // Session represents a single import session.
@@ -106,9 +109,6 @@ type Session struct {
 	log      *log.Logger
 
 	opt SessionOpt
-
-	scrubClient *scrub.Client // nil unless ScrubEnabled and mode is subscribe
-	riskyFound  bool
 }
 
 // SessionOpt represents the options for an importer session.
@@ -135,10 +135,11 @@ type Status struct {
 	Name     string `json:"name"`
 	Total    int    `json:"total"`
 	Imported int    `json:"imported"`
-	// Risky is how many imported rows Scrub flagged risky (deliverable/
-	// undeliverable/invalid_syntax aren't separately counted here --
-	// undeliverable/invalid_syntax rows are skipped like any other
-	// ValidateFields failure, visible in the existing log stream).
+	// Risky always reads 0 during the import itself: Scrub validation is
+	// asynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky
+	// included -- aren't known until the /webhooks/scrub/batch callback
+	// resolves each submitted batch, well after this Status stops being
+	// polled. Kept for API/frontend type stability rather than removed.
 	Risky  int    `json:"risky"`
 	Status string `json:"status"`
 	logBuf *bytes.Buffer
@@ -150,12 +151,6 @@ type SubReq struct {
 	Lists          []int    `json:"lists"`
 	ListUUIDs      []string `json:"list_uuids"`
 	PreconfirmSubs bool     `json:"preconfirm_subscriptions"`
-
-	// ScrubStatus is set by LoadCSV's windowed Scrub validation, consumed
-	// by Start() to batch-persist onto the inserted row. Distinct from
-	// models.Subscriber.ScrubStatus (a null.String meant for the API/DB
-	// layer) since this package works via raw database/sql, not sqlx/Core.
-	ScrubStatus string `json:"-"`
 } // @name CreateSubscriberReq
 
 type importStatusTpl struct {
@@ -233,13 +228,6 @@ func (im *Importer) NewSession(opt SessionOpt) (*Session, error) {
 		opt:      opt,
 	}
 
-	// Blocklist-mode rows are never sent to, so validating them against
-	// Scrub burns quota for no benefit -- skip building a client for that
-	// mode entirely.
-	if im.opt.ScrubEnabled && opt.Mode == ModeSubscribe {
-		s.scrubClient = scrub.New(im.opt.ScrubBaseURL, im.opt.ScrubAPIKey)
-	}
-
 	s.log.Printf("processing '%s'", opt.Filename)
 	return s, nil
 }
@@ -300,13 +288,6 @@ func (im *Importer) incrementImportCount(n int) {
 	im.Unlock()
 }
 
-// incrementRiskyCount sets the Importer's "risky" counter.
-func (im *Importer) incrementRiskyCount(n int) {
-	im.Lock()
-	im.status.Risky += n
-	im.Unlock()
-}
-
 // sendNotif sends admin notifications for import completions.
 func (im *Importer) sendNotif(status string) error {
 	var (
@@ -332,11 +313,6 @@ func (s *Session) Start() {
 		err   error
 		total = 0
 		cur   = 0
-
-		// emails accumulated per scrub_status for the current commit
-		// batch, flushed as a follow-up UPDATE right after each
-		// successful tx.Commit() (see s.persistScrubStatuses).
-		batchByStatus = map[string][]string{}
 	)
 
 	listIDs := make([]int, len(s.opt.ListIDs))
@@ -376,9 +352,6 @@ func (s *Session) Start() {
 			tx.Rollback()
 			break
 		}
-		if sub.ScrubStatus != "" {
-			batchByStatus[sub.ScrubStatus] = append(batchByStatus[sub.ScrubStatus], sub.Email)
-		}
 		cur++
 		total++
 
@@ -390,10 +363,8 @@ func (s *Session) Start() {
 			} else {
 				s.im.incrementImportCount(cur)
 				s.log.Printf("imported %d", total)
-				s.persistScrubStatuses(batchByStatus)
 			}
 
-			batchByStatus = map[string][]string{}
 			cur = 0
 		}
 	}
@@ -406,7 +377,6 @@ func (s *Session) Start() {
 			s.log.Printf("error updating lists date: %v", err)
 		}
 		s.im.sendNotif(StatusFinished)
-		s.notifyIfRisky(listIDs)
 		return
 	}
 
@@ -418,7 +388,6 @@ func (s *Session) Start() {
 		s.im.sendNotif(StatusFailed)
 		return
 	}
-	s.persistScrubStatuses(batchByStatus)
 
 	s.im.incrementImportCount(cur)
 	s.im.setStatus(StatusFinished)
@@ -428,35 +397,6 @@ func (s *Session) Start() {
 	}
 
 	s.im.sendNotif(StatusFinished)
-	s.notifyIfRisky(listIDs)
-}
-
-// persistScrubStatuses batch-writes one commit batch's Scrub validation
-// results, grouped by distinct status value present in the batch rather
-// than one UPDATE per row.
-func (s *Session) persistScrubStatuses(batchByStatus map[string][]string) {
-	if s.im.opt.SetScrubStatusStmt == nil {
-		return
-	}
-	for status, emails := range batchByStatus {
-		if _, err := s.im.opt.SetScrubStatusStmt.Exec(s.opt.TenantID, status, pq.Array(emails)); err != nil {
-			s.log.Printf("error setting scrub status for %d subscriber(s): %v", len(emails), err)
-		}
-		if status == scrub.StatusRisky {
-			s.im.incrementRiskyCount(len(emails))
-			s.riskyFound = true
-		}
-	}
-}
-
-// notifyIfRisky calls the OnRiskySubscriber hook once if any row in this
-// import was flagged risky.
-func (s *Session) notifyIfRisky(listIDs []int) {
-	if s.riskyFound && s.im.opt.OnRiskySubscriber != nil {
-		if err := s.im.opt.OnRiskySubscriber(listIDs); err != nil {
-			s.log.Printf("error handling risky subscriber(s) from import: %v", err)
-		}
-	}
 }
 
 // Stop stops an active import session.
@@ -691,22 +631,29 @@ type windowRow struct {
 	line int
 }
 
-// flushWindow Scrub-validates a window of rows in one bulk call (if this
-// session has a scrub client -- see NewSession), then pushes each row
-// onto subQueue for Start() to insert, skipping invalid_syntax/
-// undeliverable rows the same way a ValidateFields failure is skipped.
-// A Scrub error fails the whole window open: every row is tagged
-// scrub.StatusUncheckedError and still queued, rather than rejecting up
-// to commitBatchSize legitimate rows over one transient error.
+// flushWindow pushes every row in the window onto subQueue for Start() to
+// insert, then -- if this session has Scrub validation wired (see
+// NewSession) -- asynchronously submits the window's emails to Scrub for
+// validation. Unlike the old synchronous ValidateBulk, results are no
+// longer known at flush time: Scrub validates out-of-band and reports
+// back later via the /webhooks/scrub/batch callback (see
+// cmd/scrub_batch.go), which is what actually sets scrub_status and
+// unsubscribes/tags rows Scrub flags invalid. So every syntactically-valid
+// row reaches the DB immediately with scrub_status left unset (pending),
+// rather than invalid_syntax/undeliverable rows being skipped
+// pre-insert as they were when validation was synchronous.
 func (s *Session) flushWindow(window []windowRow) {
 	if len(window) == 0 {
 		return
 	}
 
-	if s.scrubClient == nil {
-		for _, w := range window {
-			s.subQueue <- w.sub
-		}
+	for _, w := range window {
+		s.subQueue <- w.sub
+	}
+
+	// Blocklist-mode rows are never sent to, so validating them against
+	// Scrub burns quota for no benefit.
+	if s.im.opt.ScrubSubmitFunc == nil || s.opt.Mode != ModeSubscribe {
 		return
 	}
 
@@ -714,35 +661,8 @@ func (s *Session) flushWindow(window []windowRow) {
 	for i, w := range window {
 		emails[i] = w.sub.Email
 	}
-
-	statusByEmail := map[string]string{}
-	res, err := s.scrubClient.ValidateBulk(context.Background(), emails)
-	if err != nil {
-		s.log.Printf("error validating batch against scrub, allowing through unchecked: %v", err)
-	} else {
-		for _, r := range res.Results {
-			statusByEmail[strings.ToLower(strings.TrimSpace(r.Email))] = r.Status
-		}
-	}
-
-	for _, w := range window {
-		status, checked := statusByEmail[strings.ToLower(strings.TrimSpace(w.sub.Email))]
-		if err != nil || !checked {
-			w.sub.ScrubStatus = scrub.StatusUncheckedError
-			s.subQueue <- w.sub
-			continue
-		}
-
-		switch status {
-		case scrub.StatusInvalidSyntax, scrub.StatusUndeliverable:
-			s.log.Printf("skipping line %d: scrub flagged %s: %s", w.line, status, w.sub.Email)
-			continue
-		case scrub.StatusRisky:
-			w.sub.ScrubStatus = scrub.StatusRisky
-		default:
-			w.sub.ScrubStatus = scrub.StatusDeliverable
-		}
-		s.subQueue <- w.sub
+	if err := s.im.opt.ScrubSubmitFunc(s.opt.ListIDs, emails); err != nil {
+		s.log.Printf("error submitting batch to scrub, subscribers will remain unchecked: %v", err)
 	}
 }
 
