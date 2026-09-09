@@ -276,6 +276,13 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 			g.POST("/webhooks/service/:service", a.BounceWebhook)
 		}
 
+		// Scrub batch validation progress callback -- no global enable
+		// flag like BounceWebhooksEnabled since Scrub is a per-tenant
+		// setting, not server config; authenticated per-request by
+		// verifying Scrub's HMAC signature instead (see
+		// cmd/scrub_batch.go's ScrubBatchWebhook).
+		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
+
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {
 			return c.Render(http.StatusOK, "home", publicTpl{Title: "listmonk"})

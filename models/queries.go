@@ -40,6 +40,11 @@ type Queries struct {
 	SetSubscribersScrubStatusByEmail *sqlx.Stmt `query:"set-subscribers-scrub-status-by-email"`
 	GetRiskySubscriberIDs            *sqlx.Stmt `query:"get-risky-subscriber-ids"`
 
+	InsertScrubValidationBatch         *sqlx.Stmt `query:"insert-scrub-validation-batch"`
+	GetScrubValidationBatch            *sqlx.Stmt `query:"get-scrub-validation-batch"`
+	UpdateScrubValidationBatchProgress *sqlx.Stmt `query:"update-scrub-validation-batch-progress"`
+	DeleteScrubValidationBatch         *sqlx.Stmt `query:"delete-scrub-validation-batch"`
+
 	// Non-prepared arbitrary subscriber queries.
 	QuerySubscribers                       string     `query:"query-subscribers"`
 	QuerySubscribersCount                  string     `query:"query-subscribers-count"`

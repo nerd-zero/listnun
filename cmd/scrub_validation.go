@@ -34,10 +34,15 @@ func (a *App) pauseCampaignsForRiskySubscriber(ctx context.Context, tenantID int
 // subscriber landed on the list, "scrub_job_started" -- a validation job
 // was just triggered on the list via ScrubList). Errors are logged and
 // swallowed -- callers treat this as a secondary side effect, never a
-// reason to fail the request that triggered it. A package-level function
-// (not an *App method) so cmd/tenant_importer.go's per-tenant
-// OnRiskySubscriber callback can call it too, without needing a full *App
-// reference.
+// reason to fail the request that triggered it. Only ever invoked for
+// single add/signup validation now (this file's own
+// pauseCampaignsForRiskySubscriber wrapper, called from cmd/public.go and
+// cmd/subscribers.go) and cmd/settings.go's ScrubList -- bulk CSV import
+// can no longer trigger it, since Scrub's real batch/history API has no
+// risky tier to detect in the first place (see cmd/scrub_batch.go's
+// reconcileScrubBatch doc comment). Kept package-level (not an *App
+// method) rather than reshaping its remaining call sites to route
+// through *App.
 func pauseCampaignsForRiskySubscriberWith(ctx context.Context, co *core.Core, mgr *manager.Manager, tenantID int, listIDs []int, reason string) {
 	if len(listIDs) == 0 {
 		return

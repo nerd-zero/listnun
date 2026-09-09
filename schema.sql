@@ -375,6 +375,27 @@ INSERT INTO settings (key, value) VALUES
     ('maintenance.db', '{"vacuum": false, "vacuum_cron_interval": "0 2 * * *"}'),
     ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}');
 
+-- scrub_validation_batches
+-- One row per CSV-import batch submitted to Scrub's async
+-- POST /v1/validate/integration, looked up by batch_id from the
+-- /webhooks/scrub/batch callback (which carries no tenant context of its
+-- own) -- see cmd/scrub_batch.go. That callback is authenticated by
+-- verifying Scrub's HMAC signature (internal/scrub.VerifyWebhook) against
+-- the resolved tenant's own Settings.Scrub.APIKey, not a value on this
+-- row.
+DROP TABLE IF EXISTS scrub_validation_batches CASCADE;
+CREATE TABLE scrub_validation_batches (
+    batch_id        UUID PRIMARY KEY,
+    tenant_id       INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    list_ids        INTEGER[] NOT NULL DEFAULT '{}',
+    status          TEXT NOT NULL DEFAULT 'pending',
+    submitted_count INTEGER NOT NULL DEFAULT 0,
+    invalid_count   INTEGER NOT NULL DEFAULT 0,
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_scrub_validation_batches_tenant; CREATE INDEX idx_scrub_validation_batches_tenant ON scrub_validation_batches(tenant_id);
+
 -- bounces
 DROP TABLE IF EXISTS bounces CASCADE;
 CREATE TABLE bounces (
@@ -465,6 +486,7 @@ ALTER TABLE campaign_views   ENABLE ROW LEVEL SECURITY; ALTER TABLE campaign_vie
 ALTER TABLE campaign_media   ENABLE ROW LEVEL SECURITY; ALTER TABLE campaign_media   FORCE ROW LEVEL SECURITY;
 ALTER TABLE link_clicks      ENABLE ROW LEVEL SECURITY; ALTER TABLE link_clicks      FORCE ROW LEVEL SECURITY;
 ALTER TABLE settings         ENABLE ROW LEVEL SECURITY; ALTER TABLE settings         FORCE ROW LEVEL SECURITY;
+ALTER TABLE scrub_validation_batches ENABLE ROW LEVEL SECURITY; ALTER TABLE scrub_validation_batches FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS tenant_isolation ON subscribers;
 CREATE POLICY tenant_isolation ON subscribers USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
@@ -496,6 +518,8 @@ DROP POLICY IF EXISTS tenant_isolation ON link_clicks;
 CREATE POLICY tenant_isolation ON link_clicks USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 DROP POLICY IF EXISTS tenant_isolation ON settings;
 CREATE POLICY tenant_isolation ON settings USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_batches;
+CREATE POLICY tenant_isolation ON scrub_validation_batches USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
 -- user sessions
 DROP TABLE IF EXISTS sessions CASCADE;

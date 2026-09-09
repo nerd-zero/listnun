@@ -75,20 +75,17 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		UpsertStmt:         t.q.UpsertSubscriber.Stmt,
 		BlocklistStmt:      t.q.UpsertBlocklistSubscriber.Stmt,
 		UpdateListDateStmt: t.q.UpdateListsDate.Stmt,
+		TenantID:           tenantID,
 
 		// Scrub validate-on-import -- baked in from this tenant's settings
 		// at first use, same "requires a process restart to pick up a
 		// settings change" precedent as DomainBlocklist/DomainAllowlist
 		// above (this whole importer is cached per-tenant for the
-		// process's lifetime).
-		ScrubEnabled:       settings.Scrub.Enabled && settings.Scrub.URL != "" && settings.Scrub.APIKey != "",
-		ScrubBaseURL:       settings.Scrub.URL,
-		ScrubAPIKey:        settings.Scrub.APIKey,
-		TenantID:           tenantID,
-		SetScrubStatusStmt: t.q.SetSubscribersScrubStatusByEmail.Stmt,
-		OnRiskySubscriber: func(listIDs []int) error {
-			pauseCampaignsForRiskySubscriberWith(context.Background(), t.core, t.manager, tenantID, listIDs, "scrub_risky_subscriber")
-			return nil
+		// process's lifetime). Submission is fire-and-forget: results
+		// come back later via /webhooks/scrub/batch (cmd/scrub_batch.go),
+		// not synchronously here.
+		ScrubSubmitFunc: func(listIDs []int, emails []string) error {
+			return submitScrubBatch(context.Background(), t.q, tenantID, settings, listIDs, emails)
 		},
 
 		// Hook for triggering admin notifications and refreshing stats
