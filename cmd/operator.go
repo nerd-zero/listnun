@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -57,8 +58,9 @@ type operatorQueries struct {
 // obtainable via the BYPASSRLS operator connection.
 type operatorTenant struct {
 	models.Tenant
-	UserCount       int `db:"user_count" json:"user_count"`
-	SubscriberCount int `db:"subscriber_count" json:"subscriber_count"`
+	UserCount       int         `db:"user_count" json:"user_count"`
+	SubscriberCount int         `db:"subscriber_count" json:"subscriber_count"`
+	RootURL         null.String `db:"root_url" json:"root_url"`
 } // @name OperatorTenant
 
 // operatorTenantScrubUsage is a tenant's subscriber validation status
@@ -483,14 +485,26 @@ func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) e
 	return err
 }
 
-// scrubIntegrationUsername is the reserved API username Scrub's own
+// scrubIntegrationUsername returns the reserved API username Scrub's own
 // listnun/listmonk-provider integration authenticates as when it calls
 // back into a tenant (GET /api/lists, /api/subscribers, blocklisting) --
 // the reverse direction of SetTenantScrub above, which only pushes
-// settings the other way (this tenant calling out to Scrub). Fixed
-// rather than generated so CreateTenantScrubAPIUser can find (and
-// rotate) any previous one by a simple username lookup.
-const scrubIntegrationUsername = "scrub-integration"
+// settings the other way (this tenant calling out to Scrub).
+//
+// Includes the tenant id rather than being one fixed literal across
+// every tenant -- found live: internal/auth.Auth's apiUsers cache
+// (auth.go) is a single process-wide map keyed by bare username, not by
+// tenant, because Basic Auth resolves the tenant from the Host header
+// separately (internal/tenant.Middleware) before this cache is ever
+// consulted. A literal "scrub-integration" username shared by every
+// tenant would collide in that one map -- only the most recently cached
+// tenant's copy survives, silently 403ing every other tenant's
+// otherwise-correct credentials via tenantMismatch. Deterministic
+// (not random) so CreateTenantScrubAPIUser can still find and rotate a
+// previous one by a simple username lookup.
+func scrubIntegrationUsername(tenantID int) string {
+	return fmt.Sprintf("scrub-integration-%d", tenantID)
+}
 
 // scrubIntegrationRoleName names the least-privilege role
 // getOrCreateScrubIntegrationRole creates for scrubIntegrationUsername --
@@ -522,8 +536,9 @@ func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID i
 	if err != nil {
 		return "", "", err
 	}
+	username := scrubIntegrationUsername(tenantID)
 	for _, u := range users {
-		if u.Username == scrubIntegrationUsername {
+		if u.Username == username {
 			if err := s.co.DeleteUsers(ctx, tenantID, []int{u.ID}); err != nil {
 				return "", "", err
 			}
@@ -538,7 +553,7 @@ func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID i
 
 	out, err := s.co.CreateUser(ctx, tenantID, auth.User{
 		Type:       auth.UserTypeAPI,
-		Username:   scrubIntegrationUsername,
+		Username:   username,
 		Name:       scrubIntegrationRoleName,
 		UserRoleID: roleID,
 		Status:     auth.UserStatusEnabled,
@@ -1181,6 +1196,17 @@ func (a *App) CreateOperatorTenantScrubAPIUser(c echo.Context) error {
 	if err != nil {
 		a.log.Printf("error creating tenant scrub API user: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error creating scrub API user")
+	}
+
+	// Basic Auth is served from internal/auth.Auth's in-memory apiUsers
+	// cache, not a live DB read (see auth.go's GetAPIToken) -- without
+	// this refresh, the user this just created/rotated in the DB can't
+	// actually authenticate until the process happens to restart for
+	// some unrelated reason. Same refresh cmd/users.go's own CreateUser
+	// handler already does after the admin UI creates an API user.
+	if _, err := cacheUsers(a.core, a.auth); err != nil {
+		a.log.Printf("error refreshing API user cache: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error refreshing API user cache")
 	}
 
 	return c.JSON(http.StatusOK, okResp{operatorScrubAPIUserResp{Username: username, APIToken: token}})
