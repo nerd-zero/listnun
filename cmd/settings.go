@@ -759,6 +759,61 @@ func (a *App) ScrubList(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetScrubListProgress proxies Scrub's per-list validation-job progress
+// endpoint -- how many subscribers have been validated so far for a
+// request_id ScrubList returned. Distinct from GetScrubListStatus's
+// last_result, which only appears once a job finishes; the frontend
+// polls this one while a job is still running (activeJobRequestId set).
+//
+//	@ID			getScrubListProgress
+//	@Summary	Get progress for a running Scrub validation job
+//	@Tags		settings
+//	@Produce	json
+//	@Param		id			path		int		true	"List ID"
+//	@Param		request_id	path		string	true	"Validation job request ID (from ScrubList's response)"
+//	@Success	200	{object}	object
+//	@Failure	400	{object}	echo.HTTPError
+//	@Router		/api/lists/{id}/scrub/progress/{request_id} [get]
+func (a *App) GetScrubListProgress(c echo.Context) error {
+	id := getID(c)
+	requestID := c.Param("request_id")
+
+	s, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.notConfigured"))
+	}
+
+	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
+	apiURL := fmt.Sprintf("%s/v1/integrations/%s/lists/%d/progress/%s", scrubURL, s.Scrub.IntegrationID, id, url.PathEscape(requestID))
+	httpReq, err := http.NewRequestWithContext(c.Request().Context(), http.MethodGet, apiURL, nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadGateway,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return echo.NewHTTPError(http.StatusBadGateway,
+			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", resp.Status))
+	}
+
+	var out interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetScrubHistory proxies Scrub's GET /v1/history for this tenant's
 // integration -- the actual per-email validation log, distinct from
 // GetScrubListStatus's per-list job/last-result summary above. Scrub's

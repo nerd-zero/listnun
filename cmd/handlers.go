@@ -163,6 +163,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/lists/scrub", pm(a.GetScrubListStatus, "settings:manage"))
 		g.GET("/api/lists/scrub/history", pm(a.GetScrubHistory, "settings:manage"))
 		g.POST("/api/lists/:id/scrub", hasID(pm(a.ScrubList, "settings:manage")))
+		g.GET("/api/lists/:id/scrub/progress/:request_id", hasID(pm(a.GetScrubListProgress, "settings:manage")))
 		g.GET("/api/lists/:id", hasID(a.GetList))
 		g.POST("/api/lists", pm(a.CreateList, "lists:manage_all"))
 		g.PUT("/api/lists/:id", hasID(a.UpdateList))
