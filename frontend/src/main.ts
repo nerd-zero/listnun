@@ -58,20 +58,24 @@ import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
 
-const GoldPreset = definePreset(Aura, {
+// Matches listnun-console's own design tokens (web/src/index.css)
+// exactly: ink is primary, paper/warm-tan are the light tints, and
+// dark mode's primary flips to the light "ece9e1" foreground since
+// ink has no contrast against a dark background.
+const ConsoleMatchedPreset = definePreset(Aura, {
   semantic: {
     primary: {
-      50: '#F9F7F3',
-      100: '#F3EDE5',
-      200: '#E7DDCD',
-      300: '#D7C5AA',
-      400: '#C3A980',
-      500: '#B08D57',
-      600: '#977747',
-      700: '#7B613A',
-      800: '#614D2E',
-      900: '#473821',
-      950: '#2D2415',
+      50: '#f6f3ec',
+      100: '#efebe1',
+      200: '#dedad0',
+      300: '#c7c3ba',
+      400: '#ece9e1',
+      500: '#1b1e24',
+      600: '#2b2f36',
+      700: '#1b1e24',
+      800: '#1b1e24',
+      900: '#1b1e24',
+      950: '#1b1e24',
     },
   },
 });
@@ -93,7 +97,7 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: GoldPreset,
+    preset: ConsoleMatchedPreset,
     options: { darkModeSelector: '.app-dark' },
   },
   ripple: true,

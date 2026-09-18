@@ -78,7 +78,7 @@
         }
       },
       "props": {
-        "buttonBackgroundColor": "#b08d57",
+        "buttonBackgroundColor": "#1b1e24",
         "text": "This is a button",
         "url": "https://listnun.app"
       }

@@ -7,18 +7,18 @@ html, body {
   min-width: 320px;
 }
 body {
-  background: #f1f5f9;
+  background: #f6f3ec;
   font-family: "Inter", "Open Sans", "Helvetica Neue", sans-serif;
   font-size: 16px;
   line-height: 26px;
-  color: #111;
+  color: #1b1e24;
 }
 a {
-  color: #b08d57;
-  text-decoration-color: #d7c5aa;
+  color: #1b1e24;
+  text-decoration-color: #dedad0;
 }
 a:hover {
-  color: #7b613a;
+  color: #2b2f36;
 }
 label {
   cursor: pointer;
@@ -43,13 +43,13 @@ input[type="text"], input[type="email"], input[type="password"], select {
   width: 100%;
   font-size: 1em;
   background: #fff;
-  color: #111;
+  color: #1b1e24;
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
 }
 input:focus, select:focus {
-  border-color: #b08d57;
-  box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.15);
+  border-color: #d97d3d;
+  box-shadow: 0 0 0 3px rgba(217, 125, 61, 0.2);
 }
 
 input:focus::placeholder {
@@ -70,10 +70,10 @@ input[disabled] {
   font-size: 0.875em;
 }
 .error {
-  color: #dc2626;
+  color: #c1503b;
 }
 .button {
-  background: #b08d57;
+  background: #1b1e24;
   padding: 11px 24px;
   border-radius: 8px;
   border: 0;
@@ -91,11 +91,11 @@ input[disabled] {
   transition: background 0.15s, box-shadow 0.15s;
 }
 .button:hover {
-  background: #977747;
+  background: #2b2f36;
   color: #fff;
 }
 .button:active {
-  background: #7b613a;
+  background: #1b1e24;
 }
 .button.button-outline {
   background: #fff;
@@ -103,9 +103,9 @@ input[disabled] {
   color: #374151;
 }
 .button.button-outline:hover {
-  border-color: #b08d57;
-  color: #b08d57;
-  background: #f3ede5;
+  border-color: #1b1e24;
+  color: #1b1e24;
+  background: #efebe1;
 }
 
 .container {
@@ -139,14 +139,14 @@ input[disabled] {
   font-size: 1.35em;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #111;
+  color: #1b1e24;
 }
 
 /* ── Login page ─────────────────────────────────────── */
 .login h2 {
   margin: 0 0 6px 0;
   font-size: 1.35em;
-  color: #111827;
+  color: #1b1e24;
 }
 
 .login-subtitle {
@@ -187,7 +187,7 @@ input[disabled] {
   transition: color 0.15s;
 }
 .password-toggle:hover {
-  color: #b08d57;
+  color: #1b1e24;
 }
 .eye-icon {
   width: 18px;
@@ -212,9 +212,9 @@ input[disabled] {
 }
 
 .form-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: #f3ddd6;
+  border: 1px solid #e6c0b5;
+  color: #c1503b;
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.875em;
@@ -242,7 +242,7 @@ input[disabled] {
   color: #9ca3af;
 }
 .forgot-link a {
-  color: #b08d57;
+  color: #1b1e24;
 }
 
 /* ── Other public pages ─────────────────────────────── */
@@ -326,7 +326,7 @@ footer.container {
     text-decoration: none;
   }
   footer a:hover {
-    color: #b08d57;
+    color: #1b1e24;
   }
 
 @media screen and (max-width: 520px) {
