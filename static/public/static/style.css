@@ -125,10 +125,21 @@ input[disabled] {
   padding-bottom: 20px;
   margin-bottom: 28px;
 }
+.header .logo a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
 .header .logo img {
   width: auto;
   max-width: 140px;
-  max-height: 48px;
+  max-height: 32px;
+}
+.header .logo .logo-text {
+  font-size: 1.35em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111;
 }
 
 /* ── Login page ─────────────────────────────────────── */
