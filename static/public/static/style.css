@@ -14,11 +14,11 @@ body {
   color: #111;
 }
 a {
-  color: #b08d57;
-  text-decoration-color: #d7c5aa;
+  color: #000000;
+  text-decoration-color: #d8d0c0;
 }
 a:hover {
-  color: #7b613a;
+  color: #262626;
 }
 label {
   cursor: pointer;
@@ -48,8 +48,8 @@ input[type="text"], input[type="email"], input[type="password"], select {
   outline: none;
 }
 input:focus, select:focus {
-  border-color: #b08d57;
-  box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.15);
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15);
 }
 
 input:focus::placeholder {
@@ -73,7 +73,7 @@ input[disabled] {
   color: #dc2626;
 }
 .button {
-  background: #b08d57;
+  background: #000000;
   padding: 11px 24px;
   border-radius: 8px;
   border: 0;
@@ -91,11 +91,11 @@ input[disabled] {
   transition: background 0.15s, box-shadow 0.15s;
 }
 .button:hover {
-  background: #977747;
+  background: #262626;
   color: #fff;
 }
 .button:active {
-  background: #7b613a;
+  background: #000000;
 }
 .button.button-outline {
   background: #fff;
@@ -103,9 +103,9 @@ input[disabled] {
   color: #374151;
 }
 .button.button-outline:hover {
-  border-color: #b08d57;
-  color: #b08d57;
-  background: #f3ede5;
+  border-color: #000000;
+  color: #000000;
+  background: #f5f0e6;
 }
 
 .container {
@@ -187,7 +187,7 @@ input[disabled] {
   transition: color 0.15s;
 }
 .password-toggle:hover {
-  color: #b08d57;
+  color: #000000;
 }
 .eye-icon {
   width: 18px;
@@ -242,7 +242,7 @@ input[disabled] {
   color: #9ca3af;
 }
 .forgot-link a {
-  color: #b08d57;
+  color: #000000;
 }
 
 /* ── Other public pages ─────────────────────────────── */
@@ -326,7 +326,7 @@ footer.container {
     text-decoration: none;
   }
   footer a:hover {
-    color: #b08d57;
+    color: #000000;
   }
 
 @media screen and (max-width: 520px) {

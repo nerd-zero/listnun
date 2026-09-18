@@ -3,7 +3,7 @@ import {
 } from '@mui/material/styles';
 
 const BRAND_NAVY = '#212443';
-const BRAND_BLUE = '#B08D57';
+const BRAND_BLUE = '#000000';
 const BRAND_GREEN = '#1F8466';
 const BRAND_RED = '#E81212';
 const BRAND_YELLOW = '#F6DC9F';

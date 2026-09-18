@@ -58,20 +58,25 @@ import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
 
-const GoldPreset = definePreset(Aura, {
+const BlackOnBeigePreset = definePreset(Aura, {
   semantic: {
     primary: {
-      50: '#F9F7F3',
-      100: '#F3EDE5',
-      200: '#E7DDCD',
-      300: '#D7C5AA',
-      400: '#C3A980',
-      500: '#B08D57',
-      600: '#977747',
-      700: '#7B613A',
-      800: '#614D2E',
-      900: '#473821',
-      950: '#2D2415',
+      // 50-300: cream/beige light tints (hover backgrounds, badges).
+      // 400: beige again, used as dark mode's primary color since pure
+      // black has no contrast against a dark background. 500+: black,
+      // the actual light-mode primary -- 600 lightens slightly for
+      // hover since black itself has nowhere darker to go.
+      50: '#FAF8F3',
+      100: '#F5F0E6',
+      200: '#EDE3D0',
+      300: '#D8D0C0',
+      400: '#D8D0C0',
+      500: '#000000',
+      600: '#262626',
+      700: '#000000',
+      800: '#000000',
+      900: '#000000',
+      950: '#000000',
     },
   },
 });
@@ -93,7 +98,7 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: GoldPreset,
+    preset: BlackOnBeigePreset,
     options: { darkModeSelector: '.app-dark' },
   },
   ripple: true,

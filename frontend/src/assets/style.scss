@@ -6,16 +6,15 @@
 // ============================================================
 :root {
   --deep-navy:          #1b1e24;
-  --antique-gold:       #b08d57;
-  --burnished-gold:     #977747;
-  --soft-linen:         #d7c5aa;
-  --warm-ivory:         #f3ede5;
+  --ink-black:          #000000;
+  --warm-beige:         #d8d0c0;
+  --soft-cream:         #f5f0e6;
 
-  --lm-primary:         #b08d57;
-  --lm-primary-hover:   #977747;
-  --lm-primary-light:   #f3ede5;
-  --lm-primary-border:  #d7c5aa;
-  --lm-primary-text:    #473821;
+  --lm-primary:         #000000;
+  --lm-primary-hover:   #262626;
+  --lm-primary-light:   #f5f0e6;
+  --lm-primary-border:  #d8d0c0;
+  --lm-primary-text:    #000000;
 
   --lm-text:            #0f172a;
   --lm-text-secondary:  #334155;
@@ -51,7 +50,7 @@ $grey-light:   #b5b5b5;
 $grey:         #7a7a7a;
 $grey-dark:    #4a4a4a;
 $black:        #363636;
-$primary:      #b08d57;
+$primary:      #000000;
 $green:        #36995b;
 $red:          #FF5722;
 $body-family:  "DM Sans", "Inter", "Helvetica Neue", sans-serif;
@@ -573,12 +572,12 @@ $sidebar-w:      260px;
 $topbar-h:       56px;
 $sidebar-bg:     #ffffff;
 $sidebar-border: #e2e8f0;
-$sidebar-hover:  #f3ede5;           // warm-ivory tint
-$sidebar-active: #e7ddcd;           // soft gold tint
+$sidebar-hover:  #f5f0e6;           // soft-cream tint
+$sidebar-active: #d8d0c0;           // warm-beige
 $nav-text:       #64748b;
 $nav-text-hover: #1b1e24;           // deep-navy
-$nav-text-active:#7b613a;           // dark gold
-$nav-active-bar: #b08d57;           // antique-gold
+$nav-text-active:#000000;           // ink-black
+$nav-active-bar: #000000;           // ink-black
 $nav-label:      #94a3b8;
 $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -1781,11 +1780,11 @@ th.role-toggle-select a { font-weight: normal; }
   color: var(--lm-text);
   body { color: var(--lm-text); background: var(--lm-bg); }
 
-  --lm-primary:         #c3a980;
-  --lm-primary-hover:   #d7c5aa;
-  --lm-primary-light:   #2d2415;
-  --lm-primary-border:  #614d2e;
-  --lm-primary-text:    #f3ede5;
+  --lm-primary:         #d8d0c0;
+  --lm-primary-hover:   #f5f0e6;
+  --lm-primary-light:   #2b303a;
+  --lm-primary-border:  #464e5e;
+  --lm-primary-text:    #f5f0e6;
 
   --lm-text:            #e2e8f0;
   --lm-text-secondary:  #cbd5e1;
