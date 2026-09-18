@@ -4,38 +4,43 @@
 // ============================================================
 // CSS Custom Properties (design tokens)
 // ============================================================
+// Ported to match listnun-console's own design tokens exactly
+// (web/src/index.css's warm paper/ink palette) rather than an
+// independently-derived scheme -- ink is primary, paper/tan are the
+// light tints, amber is the one accent (used for focus rings), status
+// colors match console's --status-* one-for-one.
 :root {
-  --deep-navy:          #1b1e24;
-  --ink-black:          #000000;
-  --warm-beige:         #d8d0c0;
-  --soft-cream:         #f5f0e6;
+  --ink:                #1b1e24;
+  --paper:              #f6f3ec;
+  --warm-tan:           #efebe1;
+  --amber-accent:       #d97d3d;
 
-  --lm-primary:         #000000;
-  --lm-primary-hover:   #262626;
-  --lm-primary-light:   #f5f0e6;
-  --lm-primary-border:  #d8d0c0;
-  --lm-primary-text:    #000000;
+  --lm-primary:         #1b1e24;
+  --lm-primary-hover:   #2b2f36;
+  --lm-primary-light:   #efebe1;
+  --lm-primary-border:  #dedad0;
+  --lm-primary-text:    #1b1e24;
 
-  --lm-text:            #0f172a;
-  --lm-text-secondary:  #334155;
-  --lm-text-muted:      #64748b;
-  --lm-text-subtle:     #94a3b8;
+  --lm-text:            #1b1e24;
+  --lm-text-secondary:  #4a4e56;
+  --lm-text-muted:      #6b6f76;
+  --lm-text-subtle:     #9599a0;
 
-  --lm-border:          #e2e8f0;
-  --lm-border-light:    #f1f5f9;
-  --lm-bg:              #f8fafc;
-  --lm-bg-subtle:       #f1f5f9;
+  --lm-border:          #dedad0;
+  --lm-border-light:    #efebe1;
+  --lm-bg:              #f6f3ec;
+  --lm-bg-subtle:       #efebe1;
   --lm-surface:         #ffffff;
 
-  --lm-danger:          #ef4444;
-  --lm-danger-bg:       #fef2f2;
-  --lm-danger-border:   #fecaca;
-  --lm-warn:            #f59e0b;
-  --lm-warn-bg:         #fffbeb;
-  --lm-warn-border:     #fde68a;
-  --lm-success:         #22c55e;
-  --lm-success-bg:      #f0fdf4;
-  --lm-success-border:  #bbf7d0;
+  --lm-danger:          #c1503b;
+  --lm-danger-bg:       #f3ddd6;
+  --lm-danger-border:   #e6c0b5;
+  --lm-warn:            #d97d3d;
+  --lm-warn-bg:         #f3e2d0;
+  --lm-warn-border:     #e8caa2;
+  --lm-success:         #3f8f6c;
+  --lm-success-bg:      #dcebe3;
+  --lm-success-border:  #b9d7c8;
 }
 
 // ============================================================
@@ -50,9 +55,9 @@ $grey-light:   #b5b5b5;
 $grey:         #7a7a7a;
 $grey-dark:    #4a4a4a;
 $black:        #363636;
-$primary:      #000000;
-$green:        #36995b;
-$red:          #FF5722;
+$primary:      #1b1e24;
+$green:        #3f8f6c;
+$red:          #c1503b;
 $body-family:  "DM Sans", "Inter", "Helvetica Neue", sans-serif;
 $body-size:    15px;
 
@@ -323,7 +328,7 @@ ul.no {
   }
   &.is-warning {
     background: $white-ter;
-    border-left-color: #ed7b00;
+    border-left-color: #d97d3d;
     color: $black;
   }
 }
@@ -511,7 +516,7 @@ select { height: auto; padding: 0.5rem 0.75rem; }
     height: auto;
   }
   &.private, &.scheduled, &.paused, &.tx, &.api {
-    $color: #ed7b00;
+    $color: #d97d3d;
     color: $color;
     background: color.adjust($color, $lightness: 47%);
   }
@@ -572,12 +577,12 @@ $sidebar-w:      260px;
 $topbar-h:       56px;
 $sidebar-bg:     #ffffff;
 $sidebar-border: #e2e8f0;
-$sidebar-hover:  #f5f0e6;           // soft-cream tint
-$sidebar-active: #d8d0c0;           // warm-beige
+$sidebar-hover:  #efebe1;           // warm-tan
+$sidebar-active: #efebe1;           // warm-tan
 $nav-text:       #64748b;
-$nav-text-hover: #1b1e24;           // deep-navy
-$nav-text-active:#000000;           // ink-black
-$nav-active-bar: #000000;           // ink-black
+$nav-text-hover: #1b1e24;           // ink
+$nav-text-active:#1b1e24;           // ink
+$nav-active-bar: #d97d3d;           // amber-accent
 $nav-label:      #94a3b8;
 $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -1065,7 +1070,7 @@ section {
 
     &.p-toast-message-success { border-left-color: $green; }
     &.p-toast-message-error   { border-left-color: $red; }
-    &.p-toast-message-warn    { border-left-color: #ed7b00; }
+    &.p-toast-message-warn    { border-left-color: #d97d3d; }
     &.p-toast-message-info    { border-left-color: $primary; }
   }
 }
@@ -1780,32 +1785,33 @@ th.role-toggle-select a { font-weight: normal; }
   color: var(--lm-text);
   body { color: var(--lm-text); background: var(--lm-bg); }
 
-  --lm-primary:         #d8d0c0;
-  --lm-primary-hover:   #f5f0e6;
-  --lm-primary-light:   #2b303a;
-  --lm-primary-border:  #464e5e;
-  --lm-primary-text:    #f5f0e6;
+  // Matches listnun-console's .dark tokens exactly.
+  --lm-primary:         #ece9e1;
+  --lm-primary-hover:   #f6f3ec;
+  --lm-primary-light:   #181b21;
+  --lm-primary-border:  #2b2f36;
+  --lm-primary-text:    #ece9e1;
 
-  --lm-text:            #e2e8f0;
-  --lm-text-secondary:  #cbd5e1;
-  --lm-text-muted:      #94a3b8;
-  --lm-text-subtle:     #475569;
+  --lm-text:            #ece9e1;
+  --lm-text-secondary:  #c7c3ba;
+  --lm-text-muted:      #9599a0;
+  --lm-text-subtle:     #6b6f76;
 
-  --lm-border:          #464e5e;
-  --lm-border-light:    #363c48;
-  --lm-bg:              #1b1e24;
-  --lm-bg-subtle:       #0f1014;
-  --lm-surface:         #2b303a;
+  --lm-border:          #2b2f36;
+  --lm-border-light:    #181b21;
+  --lm-bg:              #14171c;
+  --lm-bg-subtle:       #181b21;
+  --lm-surface:         #1b1f26;
 
-  --lm-danger:          #f87171;
-  --lm-danger-bg:       #2a0a0a;
-  --lm-danger-border:   #7f1d1d;
-  --lm-warn:            #fbbf24;
-  --lm-warn-bg:         #1a1200;
-  --lm-warn-border:     #92400e;
-  --lm-success:         #4ade80;
-  --lm-success-bg:      #0a1a0d;
-  --lm-success-border:  #14532d;
+  --lm-danger:          #c1503b;
+  --lm-danger-bg:       #3a2320;
+  --lm-danger-border:   #5c332c;
+  --lm-warn:            #d97d3d;
+  --lm-warn-bg:         #3a2c1e;
+  --lm-warn-border:     #5c4530;
+  --lm-success:         #3f8f6c;
+  --lm-success-bg:      #1d3128;
+  --lm-success-border:  #2d4a3c;
 
   // Layout
   .app-shell { background: var(--lm-bg); }

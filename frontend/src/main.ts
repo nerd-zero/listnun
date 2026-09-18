@@ -58,25 +58,24 @@ import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
 
-const BlackOnBeigePreset = definePreset(Aura, {
+// Matches listnun-console's own design tokens (web/src/index.css)
+// exactly: ink is primary, paper/warm-tan are the light tints, and
+// dark mode's primary flips to the light "ece9e1" foreground since
+// ink has no contrast against a dark background.
+const ConsoleMatchedPreset = definePreset(Aura, {
   semantic: {
     primary: {
-      // 50-300: cream/beige light tints (hover backgrounds, badges).
-      // 400: beige again, used as dark mode's primary color since pure
-      // black has no contrast against a dark background. 500+: black,
-      // the actual light-mode primary -- 600 lightens slightly for
-      // hover since black itself has nowhere darker to go.
-      50: '#FAF8F3',
-      100: '#F5F0E6',
-      200: '#EDE3D0',
-      300: '#D8D0C0',
-      400: '#D8D0C0',
-      500: '#000000',
-      600: '#262626',
-      700: '#000000',
-      800: '#000000',
-      900: '#000000',
-      950: '#000000',
+      50: '#f6f3ec',
+      100: '#efebe1',
+      200: '#dedad0',
+      300: '#c7c3ba',
+      400: '#ece9e1',
+      500: '#1b1e24',
+      600: '#2b2f36',
+      700: '#1b1e24',
+      800: '#1b1e24',
+      900: '#1b1e24',
+      950: '#1b1e24',
     },
   },
 });
@@ -98,7 +97,7 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: BlackOnBeigePreset,
+    preset: ConsoleMatchedPreset,
     options: { darkModeSelector: '.app-dark' },
   },
   ripple: true,
