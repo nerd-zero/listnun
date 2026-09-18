@@ -7,14 +7,14 @@
 
     <div class="field">
       <label class="block mb-1 text-sm font-medium">{{ $t('settings.general.rootURL') }}</label>
-      <PvInputText v-model="data['app.root_url']" name="app.root_url" placeholder="https://listmonk.yoursite.com"
+      <PvInputText v-model="data['app.root_url']" name="app.root_url" placeholder="https://listnun.yoursite.com"
         :maxlength="300" required type="url" pattern="https?://.*" class="w-full" />
       <small class="block mt-1 text-color-secondary">{{ $t('settings.general.rootURLHelp') }}</small>
     </div>
 
     <div class="field">
       <label class="block mb-1 text-sm font-medium">{{ $t('settings.general.logoURL') }}</label>
-      <PvInputText v-model="data['app.logo_url']" name="app.logo_url" placeholder="https://listmonk.yoursite.com/logo.png"
+      <PvInputText v-model="data['app.logo_url']" name="app.logo_url" placeholder="https://listnun.yoursite.com/logo.png"
         :maxlength="300" type="url" pattern="https?://.*" class="w-full" />
       <small class="block mt-1 text-color-secondary">{{ $t('settings.general.logoURLHelp') }}</small>
     </div>
@@ -22,7 +22,7 @@
     <div class="field">
       <label class="block mb-1 text-sm font-medium">{{ $t('settings.general.faviconURL') }}</label>
       <PvInputText v-model="data['app.favicon_url']" name="app.favicon_url"
-        placeholder="https://listmonk.yoursite.com/favicon.png" :maxlength="300" type="url" pattern="https?://.*"
+        placeholder="https://listnun.yoursite.com/favicon.png" :maxlength="300" type="url" pattern="https?://.*"
         class="w-full" />
       <small class="block mt-1 text-color-secondary">{{ $t('settings.general.faviconURLHelp') }}</small>
     </div>
@@ -32,7 +32,7 @@
     <div class="field">
       <label class="block mb-1 text-sm font-medium">{{ $t('settings.general.fromEmail') }}</label>
       <PvInputText v-model="data['app.from_email']" name="app.from_email"
-        placeholder="Listmonk <noreply@listmonk.yoursite.com>" pattern="((.+?)\s)?<(.+?)@(.+?)>" :maxlength="300"
+        placeholder="listnun <noreply@listnun.yoursite.com>" pattern="((.+?)\s)?<(.+?)@(.+?)>" :maxlength="300"
         class="w-full" />
       <small class="block mt-1 text-color-secondary">{{ $t('settings.general.fromEmailHelp') }}</small>
     </div>

@@ -1,6 +1,6 @@
-// @title listmonk API
+// @title listnun API
 // @version 1.0
-// @description listmonk mailing list manager REST API.
+// @description listnun mailing list manager REST API.
 // @BasePath /
 // @securityDefinitions.basic BasicAuth
 // @securityDefinitions.apikey BearerAuth

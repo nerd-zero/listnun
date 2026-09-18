@@ -57,7 +57,7 @@ export const BUTTONS: TButtonProps[] = [
       data: {
         props: {
           text: 'Button',
-          url: 'https://listmonk.app',
+          url: 'https://listnun.app',
         },
         style: { padding: { top: 16, bottom: 16, left: 24, right: 24 } },
       },
