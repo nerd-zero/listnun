@@ -95,6 +95,7 @@ type Config struct {
 		Token      string `koanf:"token"`
 		DBUser     string `koanf:"db_user"`
 		DBPassword string `koanf:"db_password"`
+		Env        string `koanf:"env"`
 	} `koanf:"operator"`
 	Privacy struct {
 		IndividualTracking bool            `koanf:"individual_tracking"`
