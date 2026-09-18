@@ -14,11 +14,11 @@ body {
   color: #111;
 }
 a {
-  color: #6366f1;
-  text-decoration-color: #c7d2fe;
+  color: #b08d57;
+  text-decoration-color: #d7c5aa;
 }
 a:hover {
-  color: #4338ca;
+  color: #7b613a;
 }
 label {
   cursor: pointer;
@@ -48,8 +48,8 @@ input[type="text"], input[type="email"], input[type="password"], select {
   outline: none;
 }
 input:focus, select:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #b08d57;
+  box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.15);
 }
 
 input:focus::placeholder {
@@ -73,7 +73,7 @@ input[disabled] {
   color: #dc2626;
 }
 .button {
-  background: #6366f1;
+  background: #b08d57;
   padding: 11px 24px;
   border-radius: 8px;
   border: 0;
@@ -91,11 +91,11 @@ input[disabled] {
   transition: background 0.15s, box-shadow 0.15s;
 }
 .button:hover {
-  background: #4f46e5;
+  background: #977747;
   color: #fff;
 }
 .button:active {
-  background: #4338ca;
+  background: #7b613a;
 }
 .button.button-outline {
   background: #fff;
@@ -103,9 +103,9 @@ input[disabled] {
   color: #374151;
 }
 .button.button-outline:hover {
-  border-color: #6366f1;
-  color: #6366f1;
-  background: #eef2ff;
+  border-color: #b08d57;
+  color: #b08d57;
+  background: #f3ede5;
 }
 
 .container {
@@ -128,6 +128,7 @@ input[disabled] {
 .header .logo img {
   width: auto;
   max-width: 140px;
+  max-height: 48px;
 }
 
 /* ── Login page ─────────────────────────────────────── */
@@ -175,7 +176,7 @@ input[disabled] {
   transition: color 0.15s;
 }
 .password-toggle:hover {
-  color: #6366f1;
+  color: #b08d57;
 }
 .eye-icon {
   width: 18px;
@@ -230,7 +231,7 @@ input[disabled] {
   color: #9ca3af;
 }
 .forgot-link a {
-  color: #6366f1;
+  color: #b08d57;
 }
 
 /* ── Other public pages ─────────────────────────────── */
@@ -314,7 +315,7 @@ footer.container {
     text-decoration: none;
   }
   footer a:hover {
-    color: #6366f1;
+    color: #b08d57;
   }
 
 @media screen and (max-width: 520px) {
