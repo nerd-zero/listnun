@@ -104,7 +104,7 @@ function escapeAttr(value: any) {
 
 function renderHTML() {
   const sc = serverConfig.value as any;
-  let h = `<form method="post" action="${sc.root_url}/subscription/form" class="listmonk-form">\n`
+  let h = `<form method="post" action="${sc.root_url}/subscription/form" class="listnun-form">\n`
     + '  <div>\n'
     + `    <h3>${t('public.sub')}</h3>\n`
     + '    <input type="hidden" name="nonce" />\n';

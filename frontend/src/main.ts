@@ -58,20 +58,20 @@ import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
 
-const BluePreset = definePreset(Aura, {
+const GoldPreset = definePreset(Aura, {
   semantic: {
     primary: {
-      50: '#e0f7fc',
-      100: '#caf0f8',
-      200: '#90e0ef',
-      300: '#48cae4',
-      400: '#00b4d8',
-      500: '#0096c7',
-      600: '#0077b6',
-      700: '#005f91',
-      800: '#004466',
-      900: '#022d4a',
-      950: '#03045e',
+      50: '#F9F7F3',
+      100: '#F3EDE5',
+      200: '#E7DDCD',
+      300: '#D7C5AA',
+      400: '#C3A980',
+      500: '#B08D57',
+      600: '#977747',
+      700: '#7B613A',
+      800: '#614D2E',
+      900: '#473821',
+      950: '#2D2415',
     },
   },
 });
@@ -93,7 +93,7 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: BluePreset,
+    preset: GoldPreset,
     options: { darkModeSelector: '.app-dark' },
   },
   ripple: true,
@@ -157,7 +157,7 @@ router.beforeEach((to, _from, next) => {
 router.afterEach((to) => {
   const { te, t } = i18n.global;
   const title = to.meta.title && te(to.meta.title as string) ? `${t(to.meta.title as string)} /` : '';
-  document.title = `${title} listmonk`;
+  document.title = `${title} listnun`;
 });
 
 async function initConfig(instance: typeof app) {
@@ -215,7 +215,7 @@ async function initConfig(instance: typeof app) {
   const routeTitle = currentRoute.meta.title
     ? `${i18n.global.t(currentRoute.meta.title as string)} /`
     : '';
-  document.title = `${routeTitle} listmonk`;
+  document.title = `${routeTitle} listnun`;
 
   instance.mount('#app');
 }

@@ -24,7 +24,7 @@
       <div class="field">
         <label class="block mb-1 text-sm font-medium">{{ $t('settings.media.upload.path') }}</label>
         <PvInputText v-model="data['upload.filesystem.upload_path']" name="app.upload_path"
-          placeholder="/home/listmonk/uploads" :maxlength="200" required class="w-full" />
+          placeholder="/home/listnun/uploads" :maxlength="200" required class="w-full" />
         <small class="block mt-1 text-color-secondary">{{ $t('settings.media.upload.pathHelp') }}</small>
       </div>
 

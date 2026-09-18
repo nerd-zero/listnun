@@ -8,9 +8,9 @@
       <aside class="app-sidebar">
         <div class="sidebar-header">
           <router-link :to="{ name: 'dashboard' }" class="sidebar-brand">
-            <img src="@/assets/logo.svg" alt="listmonk" class="sidebar-logo" />
+            <img src="@/assets/listnun-mark.png" alt="listnun" class="sidebar-logo" />
             <span class="sidebar-brand-text">
-              <span class="sidebar-brand-name">listmonk</span>
+              <span class="sidebar-brand-name">listnun</span>
               <span
                 v-if="serverConfig.organization_name"
                 class="sidebar-org-name"

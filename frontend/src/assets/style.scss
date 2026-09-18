@@ -5,17 +5,17 @@
 // CSS Custom Properties (design tokens)
 // ============================================================
 :root {
-  --deep-twilight:      #03045e;
-  --bright-teal-blue:   #0077b6;
-  --turquoise-surf:     #00b4d8;
-  --frosted-blue:       #90e0ef;
-  --light-cyan:         #caf0f8;
+  --deep-navy:          #1b1e24;
+  --antique-gold:       #b08d57;
+  --burnished-gold:     #977747;
+  --soft-linen:         #d7c5aa;
+  --warm-ivory:         #f3ede5;
 
-  --lm-primary:         #0077b6;
-  --lm-primary-hover:   #005f91;
-  --lm-primary-light:   #e0f7fc;
-  --lm-primary-border:  #90e0ef;
-  --lm-primary-text:    #03045e;
+  --lm-primary:         #b08d57;
+  --lm-primary-hover:   #977747;
+  --lm-primary-light:   #f3ede5;
+  --lm-primary-border:  #d7c5aa;
+  --lm-primary-text:    #473821;
 
   --lm-text:            #0f172a;
   --lm-text-secondary:  #334155;
@@ -51,7 +51,7 @@ $grey-light:   #b5b5b5;
 $grey:         #7a7a7a;
 $grey-dark:    #4a4a4a;
 $black:        #363636;
-$primary:      #0077b6;
+$primary:      #b08d57;
 $green:        #36995b;
 $red:          #FF5722;
 $body-family:  "DM Sans", "Inter", "Helvetica Neue", sans-serif;
@@ -573,12 +573,12 @@ $sidebar-w:      260px;
 $topbar-h:       56px;
 $sidebar-bg:     #ffffff;
 $sidebar-border: #e2e8f0;
-$sidebar-hover:  #e0f7fc;           // light-cyan tint
-$sidebar-active: #caf0f8;           // light-cyan
+$sidebar-hover:  #f3ede5;           // warm-ivory tint
+$sidebar-active: #e7ddcd;           // soft gold tint
 $nav-text:       #64748b;
-$nav-text-hover: #03045e;           // deep-twilight
-$nav-text-active:#0077b6;           // bright-teal-blue
-$nav-active-bar: #00b4d8;           // turquoise-surf
+$nav-text-hover: #1b1e24;           // deep-navy
+$nav-text-active:#7b613a;           // dark gold
+$nav-active-bar: #b08d57;           // antique-gold
 $nav-label:      #94a3b8;
 $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -631,7 +631,7 @@ $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
   // Wraps the brand name + organization name (when present) as one tight
   // vertical lockup next to the logo, rather than a full-width second row -
-  // reads as a single "listmonk, for {org}" identity rather than two
+  // reads as a single "listnun, for {org}" identity rather than two
   // unrelated header lines.
   .sidebar-brand-text {
     display: flex;
@@ -1498,8 +1498,8 @@ section.import {
 section.campaigns {
   table tbody {
     tr.running {
-      background: color.adjust(#0077b6, $lightness: 44%);
-      td { border-bottom: 1px solid color.adjust(#0077b6, $lightness: 35%); }
+      background: color.adjust($primary, $lightness: 44%);
+      td { border-bottom: 1px solid color.adjust($primary, $lightness: 35%); }
     }
     td {
       .tags { margin-top: 5px; }
@@ -1781,22 +1781,22 @@ th.role-toggle-select a { font-weight: normal; }
   color: var(--lm-text);
   body { color: var(--lm-text); background: var(--lm-bg); }
 
-  --lm-primary:         #00b4d8;
-  --lm-primary-hover:   #00c8f0;
-  --lm-primary-light:   #092030;
-  --lm-primary-border:  #005f91;
-  --lm-primary-text:    #caf0f8;
+  --lm-primary:         #c3a980;
+  --lm-primary-hover:   #d7c5aa;
+  --lm-primary-light:   #2d2415;
+  --lm-primary-border:  #614d2e;
+  --lm-primary-text:    #f3ede5;
 
   --lm-text:            #e2e8f0;
   --lm-text-secondary:  #cbd5e1;
   --lm-text-muted:      #94a3b8;
   --lm-text-subtle:     #475569;
 
-  --lm-border:          #1e2d42;
-  --lm-border-light:    #172032;
-  --lm-bg:              #080e18;
-  --lm-bg-subtle:       #0d1424;
-  --lm-surface:         #111827;
+  --lm-border:          #464e5e;
+  --lm-border-light:    #363c48;
+  --lm-bg:              #1b1e24;
+  --lm-bg-subtle:       #0f1014;
+  --lm-surface:         #2b303a;
 
   --lm-danger:          #f87171;
   --lm-danger-bg:       #2a0a0a;
@@ -1813,19 +1813,23 @@ th.role-toggle-select a { font-weight: normal; }
 
   // Sidebar
   .app-sidebar {
-    background: #0d1424;
+    background: var(--lm-bg-subtle);
     border-right-color: var(--lm-border);
 
     .sidebar-header { border-bottom-color: var(--lm-border); }
+
+    // The mark is a black icon on transparent - invert it to white so it
+    // stays legible against the dark sidebar background.
+    .sidebar-logo { filter: invert(1); }
 
     .nav-section-label { color: #475569; }
 
     .nav-item a {
       color: #94a3b8;
-      &:hover { background: #172032; color: #cbd5e1; }
+      &:hover { background: var(--lm-border-light); color: #cbd5e1; }
     }
     .nav-item a.router-link-active {
-      background: #092030;
+      background: var(--lm-primary-light);
       color: var(--lm-primary);
       &::before { background: var(--lm-primary); }
     }
@@ -1833,7 +1837,7 @@ th.role-toggle-select a { font-weight: normal; }
 
   // Topbar
   .app-topbar {
-    background: #0d1424;
+    background: var(--lm-bg-subtle);
     border-bottom-color: var(--lm-border);
   }
   .topbar-btn {
@@ -1940,5 +1944,5 @@ th.role-toggle-select a { font-weight: normal; }
   .p-dialog { box-shadow: 0 0 24px rgba(0,0,0,0.6); }
 
   // Code editor
-  .code-editor, .plain-editor textarea { background: #0d1424; color: var(--lm-text); border-color: var(--lm-border); }
+  .code-editor, .plain-editor textarea { background: var(--lm-bg-subtle); color: var(--lm-text); border-color: var(--lm-border); }
 }

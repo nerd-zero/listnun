@@ -1357,8 +1357,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: listmonk mailing list manager REST API.
-  title: listmonk API
+  description: listnun mailing list manager REST API.
+  title: listnun API
   version: "1.0"
 paths:
   /api/about:

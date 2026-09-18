@@ -945,6 +945,13 @@ func (a *App) operatorSetupURL(tenantSlug string, customDomain null.String, toke
 // settings.AppRootURL directly rather than deriving it from the
 // request like cmd/public.go's tplRenderer does). Returns "" if
 // app.root_domain isn't configured or app.root_url has no scheme.
+//
+// In prod ([operator] env = "prod", the default), the scheme is always
+// forced to https regardless of what tenant 1's app.root_url happens to
+// have - found live when tenant 1's app.root_url was still the seeded
+// "http://localhost:9000" default and every subsequently-provisioned
+// tenant silently inherited http instead of the https TLS termination
+// actually serves in front of the app.
 func (a *App) tenantRootURL(tenantSlug string) string {
 	if a.cfg.RootDomain == "" {
 		return ""
@@ -953,7 +960,11 @@ func (a *App) tenantRootURL(tenantSlug string) string {
 	if err != nil || u.Scheme == "" {
 		return ""
 	}
-	return u.Scheme + "://" + tenantSlug + "." + a.cfg.RootDomain
+	scheme := u.Scheme
+	if a.cfg.Operator.Env != "dev" {
+		scheme = "https"
+	}
+	return scheme + "://" + tenantSlug + "." + a.cfg.RootDomain
 }
 
 // CreateOperatorSetupLink issues a fresh one-time setup link for an

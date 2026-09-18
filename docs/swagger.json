@@ -1,8 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "listmonk mailing list manager REST API.",
-        "title": "listmonk API",
+        "description": "listnun mailing list manager REST API.",
+        "title": "listnun API",
         "contact": {},
         "version": "1.0"
     },
