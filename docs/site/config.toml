@@ -1,4 +1,4 @@
-baseurl = "/"
+baseurl = "https://listnun.app/"
 languageCode = "en-us"
 title = "listnun - Free and open source self-hosted newsletter, mailing list manager, and transactional mails"
 
