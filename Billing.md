@@ -1,0 +1,1 @@
+## listmonk must have not smtp settings
