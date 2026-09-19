@@ -200,7 +200,7 @@
 
     <!-- Add / edit form modal -->
     <PvDialog v-model:visible="isFormVisible" :style="{ width: '850px' }" class="subscriber-modal" show-header="false" :closable="false" modal @hide="onFormClose">
-      <subscriber-form :data="curItem" :is-editing="isEditing" @finished="querySubscribers" @close="isFormVisible = false" />
+      <subscriber-form :data="curItem" :is-editing="isEditing" @finished="querySubscribers" @close="closeForm" />
     </PvDialog>
   </div>
 </template>
@@ -214,6 +214,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useFormDialog } from '../composables/useFormDialog';
+import { makeQueryHandlers } from '../utils';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import { uris } from '../constants';
 import SubscriberBulkList from './SubscriberBulkList.vue';
@@ -235,10 +237,10 @@ const {
   refreshTick, subscribers, lists, loading,
 } = storeToRefs(store);
 
-const curItem = ref<any>(null);
+const {
+  curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
+} = useFormDialog();
 const isSearchAdvanced = ref(false);
-const isEditing = ref(false);
-const isFormVisible = ref(false);
 const isBulkListFormVisible = ref(false);
 const queryEl = ref<any>(null);
 const bulk = reactive({ checked: [] as any[], all: false });
@@ -291,26 +293,13 @@ function onTableCheck() {
   if (bulk.checked.length !== (subscribers.value as any).total) bulk.all = false;
 }
 
-function showEditForm(sub: any) {
-  curItem.value = sub;
-  isFormVisible.value = true;
-  isEditing.value = true;
-}
-
-function showNewForm() {
-  curItem.value = {};
-  isFormVisible.value = true;
-  isEditing.value = false;
-}
-
 function showBulkListForm() { isBulkListFormVisible.value = true; }
 
 function onFormClose() {
   if (route.params.id) router.push({ name: 'subscribers' });
 }
 
-function onPageChange(p: number) { querySubscribers({ page: p }); }
-function onSort(field: string, direction: string) { querySubscribers({ orderBy: field, order: direction }); }
+const { onPageChange, onSort } = makeQueryHandlers(queryParams, () => querySubscribers());
 
 function onSimpleQueryInput(v: any) {
   const q = (v.target ? v.target.value : v).replace(/'/, "''").trim();

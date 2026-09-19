@@ -116,6 +116,7 @@ import {
 import { storeToRefs } from 'pinia';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { makeQueryHandlers } from '../utils';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 
 const props = withDefaults(defineProps<{
@@ -186,10 +187,7 @@ function onDeleteMedia(id: number) {
   $api.deleteMedia(id).then(() => { getMedia(); });
 }
 
-function onPageChange(p: number) {
-  queryParams.page = p;
-  getMedia();
-}
+const { onPageChange } = makeQueryHandlers(queryParams, getMedia);
 
 watch(() => refreshTick.value, () => { getMedia(); });
 

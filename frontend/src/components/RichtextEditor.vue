@@ -29,9 +29,7 @@
     </PvDialog>
 
     <!-- image picker -->
-    <PvDialog v-model:visible="isMediaVisible" :style="{ width: '900px' }" :closable="true" modal :aria-modal="true">
-      <media is-modal @selected="onMediaSelect" />
-    </PvDialog>
+    <media-picker-dialog v-model:visible="isMediaVisible" @select="onMediaSelect" />
   </div>
 </template>
 
@@ -71,8 +69,8 @@ import 'tinymce/skins/ui/oxide/skin.css';
 import 'tinymce/themes/silver';
 
 import { colors, uris } from '../constants';
-import Media from '../views/Media.vue';
 import CodeEditor from './CodeEditor.vue';
+import MediaPickerDialog from './MediaPickerDialog.vue';
 
 const LANGS: Record<string, string> = {
   cs: 'cs',

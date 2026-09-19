@@ -83,7 +83,7 @@
     <!-- Add / edit form modal -->
     <PvDialog v-model:visible="isFormVisible" :style="{ width: '1200px' }" show-header="false" :closable="false" modal
       class="template-modal">
-      <template-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="isFormVisible = false" />
+      <template-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
     </PvDialog>
 
     <campaign-preview v-if="previewItem" type="template" :id="previewItem.id" :template-type="previewItem.type"
@@ -97,6 +97,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useFormDialog } from '../composables/useFormDialog';
 import CampaignPreview from '../components/CampaignPreview.vue';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import TemplateForm from './TemplateForm.vue';
@@ -110,21 +111,13 @@ const {
 const { t } = useI18n();
 const { refreshTick, templates, loading } = storeToRefs(store);
 
-const curItem = ref<any>(null);
-const isEditing = ref(false);
-const isFormVisible = ref(false);
+const {
+  curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
+} = useFormDialog({ newItem: () => ({ type: 'campaign' }) });
 const previewItem = ref<any>(null);
 
 function fetchTemplates() {
   listTemplates().then((data: any) => { store.setModelResponse({ model: 'templates', data }); });
-}
-
-function showEditForm(data: any) {
-  curItem.value = data; isFormVisible.value = true; isEditing.value = true;
-}
-
-function showNewForm() {
-  curItem.value = { type: 'campaign' }; isFormVisible.value = true; isEditing.value = false;
 }
 
 function formFinished() { fetchTemplates(); }

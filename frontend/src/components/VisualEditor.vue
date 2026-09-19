@@ -4,19 +4,13 @@
       title="Visual email editor" />
 
     <!-- image picker -->
-    <PvDialog v-model:visible="isMediaVisible" :style="{ width: '900px' }" :closable="true" modal>
-      <div class="modal-card content" style="width: auto">
-        <section expanded class="modal-card-body">
-          <media is-modal @selected="onMediaSelect" />
-        </section>
-      </div>
-    </PvDialog>
+    <media-picker-dialog v-model:visible="isMediaVisible" @select="onMediaSelect" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import Media from '../views/Media.vue';
+import MediaPickerDialog from './MediaPickerDialog.vue';
 
 const props = withDefaults(defineProps<{
   source?: string;
