@@ -22,6 +22,8 @@ cd frontend && yarn lint   # ESLint on .js and .vue files
 ### Both together
 Run `make run` (backend on :9000) and `make run-frontend` (frontend on :8080) in separate terminals. The Vite dev server proxies all API/subscription/webhook routes to `:9000`.
 
+**Multi-tenant local dev caveat:** this fork's multi-tenancy (`docs/design/multi-tenancy.md`) resolves tenants from the request `Host` header (`internal/tenant.Middleware`), which is fine for plain reads via `/etc/hosts` overrides or `curl -H "Host: ..."`. **Logging in via the browser requires real DNS, though** — faking a tenant subdomain locally with `/etc/hosts` (e.g. `*.listmonk.test` entries) is not sufficient to get through `/admin/login`. Don't burn time debugging login failures under a `/etc/hosts`-only setup; use a real (sub)domain or a deployed environment for auth-flow testing.
+
 ### E2E Tests (Cypress)
 ```bash
 cd frontend && npx cypress open  # Interactive mode

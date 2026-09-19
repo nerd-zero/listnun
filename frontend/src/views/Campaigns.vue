@@ -219,6 +219,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { makeQueryHandlers } from '../utils';
 import CampaignPreview from '../components/CampaignPreview.vue';
 import CopyText from '../components/CopyText.vue';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
@@ -282,8 +283,7 @@ function fetchCampaigns() {
   }).then((resp: any) => { campaigns.value = resp; });
 }
 
-function onPageChange(p: number) { queryParams.page = p; fetchCampaigns(); }
-function onSort(field: string, direction: string) { queryParams.orderBy = field; queryParams.order = direction; fetchCampaigns(); }
+const { onPageChange, onSort } = makeQueryHandlers(queryParams, fetchCampaigns);
 function previewCampaign(c: any) { previewItem.value = c; }
 function closePreview() { previewItem.value = null; }
 

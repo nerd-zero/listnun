@@ -239,7 +239,7 @@
 
     <!-- Add / edit form modal -->
     <PvDialog v-model:visible="isFormVisible" :style="{ width: '580px' }" :closable="true" :show-header="false" modal @hide="onFormClose">
-      <list-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="isFormVisible = false" />
+      <list-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
     </PvDialog>
 
     <p v-if="settings['app.cache_slow_queries']" class="cache-note">
@@ -260,6 +260,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '@/store';
 import { useGlobal } from '../composables/useGlobal';
+import { useFormDialog } from '../composables/useFormDialog';
+import { makeQueryHandlers } from '../utils';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import ListForm from './ListForm.vue';
 import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
@@ -279,9 +281,9 @@ const {
   refreshTick, loading, settings, serverConfig,
 } = storeToRefs(useMainStore());
 
-const curItem = ref<any>(null);
-const isEditing = ref(false);
-const isFormVisible = ref(false);
+const {
+  curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
+} = useFormDialog();
 const lists = ref<any>([]);
 const scrubStatus = ref<Record<number, any>>({});
 const scrubProgress = ref<Record<number, number>>({});
@@ -298,28 +300,7 @@ const queryParams = reactive({
 
 const numSelectedLists = computed(() => (bulk.all ? (lists.value as any).total : bulk.checked.length));
 
-function onPageChange(p: number) {
-  queryParams.page = p;
-  fetchLists();
-}
-
-function onSort(field: string, direction: string) {
-  queryParams.orderBy = field;
-  queryParams.order = direction;
-  fetchLists();
-}
-
-function showEditForm(list: any) {
-  curItem.value = list;
-  isFormVisible.value = true;
-  isEditing.value = true;
-}
-
-function showNewForm() {
-  curItem.value = {};
-  isFormVisible.value = true;
-  isEditing.value = false;
-}
+const { onPageChange, onSort } = makeQueryHandlers(queryParams, fetchLists);
 
 function formFinished() { fetchLists(); }
 

@@ -295,9 +295,7 @@
       </PvTabPanels>
     </PvTabs>
 
-    <PvDialog v-model:visible="isAttachModalOpen" :style="{ width: '900px' }" :closable="true" modal>
-      <media is-modal @selected="onAttachSelect" @close="isAttachModalOpen = false" />
-    </PvDialog>
+    <media-picker-dialog v-model:visible="isAttachModalOpen" @select="onAttachSelect" />
 
     <campaign-preview v-if="isPreviewingArchive" @close="onToggleArchivePreview" type="campaign" :id="data.id"
       :archive-meta="form.archiveMetaStr" :title="data.name" :content-type="data.contentType"
@@ -320,8 +318,8 @@ import CampaignPreview from '../components/CampaignPreview.vue';
 import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
+import MediaPickerDialog from '../components/MediaPickerDialog.vue';
 import ScrubHistoryList from '../components/ScrubHistoryList.vue';
-import Media from './Media.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 
 const { getScrubListStatus, scrubList } = settingsApi();

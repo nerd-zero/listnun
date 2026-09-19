@@ -106,7 +106,7 @@
 
     <!-- Add / edit form modal -->
     <PvDialog v-model:visible="isFormVisible" :style="{ width: '600px' }" show-header="false" :closable="false" modal @hide="onFormClose">
-      <user-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="isFormVisible = false" />
+      <user-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
     </PvDialog>
   </div>
 </template>
@@ -120,6 +120,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useFormDialog } from '../composables/useFormDialog';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import UserForm from './UserForm.vue';
 import { getUsers as usersApi } from '../api/generated/endpoints/users/users';
@@ -131,22 +132,14 @@ const route = useRoute();
 const router = useRouter();
 const { refreshTick, loading } = storeToRefs(useMainStore());
 
-const curItem = ref<any>(null);
-const isEditing = ref(false);
-const isFormVisible = ref(false);
+const {
+  curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
+} = useFormDialog();
 const users = ref<any[]>([]);
 const checked = ref<any[]>([]);
 const queryParams = reactive({
   page: 1, query: '', orderBy: 'id', order: 'asc',
 });
-
-function showEditForm(item: any) {
-  curItem.value = item; isFormVisible.value = true; isEditing.value = true;
-}
-
-function showNewForm() {
-  curItem.value = {}; isFormVisible.value = true; isEditing.value = false;
-}
 
 function formFinished() { getUsers(); }
 

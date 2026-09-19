@@ -60,7 +60,7 @@
 
     <!-- Add / edit form modal -->
     <PvDialog v-model:visible="isFormVisible" :style="{ width: '700px' }" show-header="false" :closable="false" modal @hide="onFormClose">
-      <role-form :data="curItem" :type="curType" :is-editing="isEditing" @finished="formFinished" @close="isFormVisible = false" />
+      <role-form :data="curItem" :type="curType" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
     </PvDialog>
   </div>
 </template>
@@ -72,6 +72,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useFormDialog } from '../composables/useFormDialog';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import RoleForm from './RoleForm.vue';
 import { getRoles as rolesApi } from '../api/generated/endpoints/roles/roles';
@@ -86,10 +87,14 @@ const router = useRouter();
 const store = useMainStore();
 const { loading, userRoles, listRoles } = storeToRefs(store);
 
-const curItem = ref<any>(null);
+// Roles keeps its own showEditForm/showNewForm rather than the
+// composable's (it also tracks curType, and showNewForm deliberately
+// doesn't reset curItem) -- but still shares the curItem/isEditing/
+// isFormVisible refs and closeForm helper the other CRUD views use.
+const {
+  curItem, isEditing, isFormVisible, closeForm,
+} = useFormDialog();
 const curType = ref<string | null>(null);
-const isEditing = ref(false);
-const isFormVisible = ref(false);
 
 const isUser = computed(() => curType.value === 'user');
 const isLoading = computed(() => (curType.value === 'user' ? loading.value.userRoles : loading.value.listRoles));

@@ -11,6 +11,28 @@ dayjs.extend(dayDuration);
 const reEmail = /(.+?)@(.+?)/ig;
 const prefKey = 'listmonk_pref';
 
+// Shared page/sort click handlers for the query-params-plus-refetch
+// pattern repeated across every paginated table view (Lists, Media,
+// Bounces, Campaigns, Subscribers): mutate the reactive query params,
+// then refetch. A plain function, not a composable -- it uses no Vue
+// reactivity of its own, just closures over what the caller passes in.
+export function makeQueryHandlers(
+  queryParams: { page: number; orderBy?: string; order?: string },
+  fetch: () => void,
+) {
+  function onPageChange(page: number) {
+    Object.assign(queryParams, { page });
+    fetch();
+  }
+
+  function onSort(field: string, direction: string) {
+    Object.assign(queryParams, { orderBy: field, order: direction });
+    fetch();
+  }
+
+  return { onPageChange, onSort };
+}
+
 export default class Utils {
   i18n: ReturnType<typeof import('vue-i18n').useI18n>;
 
