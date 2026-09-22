@@ -163,16 +163,6 @@
         <i class="pi pi-wrench nav-icon" />
         <span>{{ $t('menu.maintenance') }}</span>
       </router-link>
-      <router-link
-        v-if="$can('settings:get')"
-        :to="{ name: 'logs' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="logs"
-      >
-        <i class="pi pi-align-left nav-icon" />
-        <span>{{ $t('menu.logs') }}</span>
-      </router-link>
     </div>
   </div>
 </template>

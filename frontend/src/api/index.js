@@ -443,11 +443,6 @@ export const getScrubListProgress = async (id, requestId) => http.get(
   { disableToast: true },
 );
 
-export const getLogs = async () => http.get(
-  '/api/logs',
-  { loading: models.logs, camelCase: false },
-);
-
 export const getLang = async (lang) => http.get(
   `/api/lang/${lang}`,
   { loading: models.lang, camelCase: false },
