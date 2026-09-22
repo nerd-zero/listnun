@@ -514,18 +514,6 @@ func (a *App) handleSettingsRestart(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
-// GetLogs returns the log entries stored in the log buffer.
-//
-//	@ID				getLogs
-//	@Summary		Get application logs
-//	@Tags			settings
-//	@Produce		json
-//	@Success		200	{array}		string
-//	@Router			/api/logs [get]
-func (a *App) GetLogs(c echo.Context) error {
-	return c.JSON(http.StatusOK, okResp{a.bufLog.Lines()})
-}
-
 // TestSMTPSettings tests an SMTP server connection by sending a test e-mail.
 //
 //	@ID				testSmtpSettings
