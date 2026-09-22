@@ -12,7 +12,7 @@ import (
 // updateCheckURL is the GitHub API endpoint for this fork's latest published
 // release. /releases/latest skips drafts and pre-releases, so only real
 // (prod) CalVer releases are ever announced.
-const updateCheckURL = "https://api.github.com/repos/nerd-zero/listmonk/releases/latest"
+const updateCheckURL = "https://api.github.com/repos/nerd-zero/listnun/releases/latest"
 
 type AppUpdate struct {
 	Update struct {
