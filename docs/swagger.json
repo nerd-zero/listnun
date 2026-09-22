@@ -1,8 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "listmonk mailing list manager REST API.",
-        "title": "listmonk API",
+        "description": "listnun mailing list manager REST API.",
+        "title": "listnun API",
         "contact": {},
         "version": "1.0"
     },
@@ -477,6 +477,35 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/campaigns/auto-paused": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get currently auto-paused campaigns",
+                "operationId": "getAutoPausedCampaigns",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -1389,6 +1418,52 @@
                 ],
                 "summary": "Get Scrub list validation status",
                 "operationId": "getScrubListStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/scrub/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get Scrub validation history",
+                "operationId": "getScrubHistory",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Only return invalid results",
+                        "name": "invalid_only",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Continue a previous page's next_cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2378,6 +2453,53 @@
                     },
                     "409": {
                         "description": "This custom domain is already in use by another tenant",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/tenants/{id}/scrub/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's Scrub validation usage (Operator API)",
+                "operationId": "getOperatorTenantScrubUsage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorTenantScrubUsage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -4919,6 +5041,14 @@
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -5053,6 +5183,14 @@
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -5137,6 +5275,17 @@
                 "preconfirm_subscriptions": {
                     "type": "boolean"
                 },
+                "scrub_checked_at": {
+                    "type": "string"
+                },
+                "scrub_status": {
+                    "description": "Set by validate-on-add/import Scrub email validation. ScrubStatus is\none of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,\nor unset (Scrub not configured for this tenant / a legacy row).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -5167,6 +5316,10 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "risky": {
+                    "description": "Risky is how many imported rows Scrub flagged risky (deliverable/\nundeliverable/invalid_syntax aren't separately counted here --\nundeliverable/invalid_syntax rows are skipped like any other\nValidateFields failure, visible in the existing log stream).",
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
@@ -5497,6 +5650,32 @@
                     "type": "string"
                 },
                 "user_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OperatorTenantScrubUsage": {
+            "type": "object",
+            "properties": {
+                "deliverable": {
+                    "type": "integer"
+                },
+                "invalid_syntax": {
+                    "type": "integer"
+                },
+                "risky": {
+                    "type": "integer"
+                },
+                "total_subscribers": {
+                    "type": "integer"
+                },
+                "unchecked": {
+                    "type": "integer"
+                },
+                "unchecked_error": {
+                    "type": "integer"
+                },
+                "undeliverable": {
                     "type": "integer"
                 }
             }
@@ -5974,7 +6153,12 @@
                             "type": "boolean"
                         },
                         "integration_id": {
-                            "type": "integer"
+                            "description": "IntegrationID is a Scrub integration UUID (as a string), not a\nnumber -- Scrub's integrations table moved from a SERIAL/int PK\nto a native UUID PK (see v6.17.0 migration doc comment for the\nexisting-row coercion this required).",
+                            "type": "string"
+                        },
+                        "managed_by_platform": {
+                            "description": "ManagedByPlatform is true once a listnun-console operator push\n(PUT /api/operator/tenants/{id}/scrub) has set this tenant's\nScrub config -- while true, every other field on this struct is\nlocked: internal/core.UpdateSettings/UpdateSettingsByKey refuse\nto let a tenant admin's own settings save change them, and the\nSettings \u003e Mail Validation UI greys the whole section out.",
+                            "type": "boolean"
                         },
                         "url": {
                             "type": "string"
@@ -6194,6 +6378,17 @@
                 "name": {
                     "type": "string"
                 },
+                "scrub_checked_at": {
+                    "type": "string"
+                },
+                "scrub_status": {
+                    "description": "Set by validate-on-add/import Scrub email validation. ScrubStatus is\none of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,\nor unset (Scrub not configured for this tenant / a legacy row).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -6404,6 +6599,14 @@
                 "name": {
                     "type": "string"
                 },
+                "pause_reason": {
+                    "description": "Set only when Status='paused' was set automatically (not by a\nuser) -- see schema.sql's campaigns.pause_reason doc comment.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
                 "send_at": {
                     "type": "string"
                 },
@@ -6549,6 +6752,20 @@
             "type": "object",
             "properties": {
                 "message": {}
+            }
+        },
+        "github_com_knadh_listmonk_internal_core.AutoPausedCampaign": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pause_reason": {
+                    "$ref": "#/definitions/null.String"
+                }
             }
         },
         "models.Tenant": {

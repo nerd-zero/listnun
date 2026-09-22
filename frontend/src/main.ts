@@ -58,20 +58,24 @@ import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
 
-const BluePreset = definePreset(Aura, {
+// Matches listnun-console's own design tokens (web/src/index.css)
+// exactly: ink is primary, paper/warm-tan are the light tints, and
+// dark mode's primary flips to the light "ece9e1" foreground since
+// ink has no contrast against a dark background.
+const ConsoleMatchedPreset = definePreset(Aura, {
   semantic: {
     primary: {
-      50: '#e0f7fc',
-      100: '#caf0f8',
-      200: '#90e0ef',
-      300: '#48cae4',
-      400: '#00b4d8',
-      500: '#0096c7',
-      600: '#0077b6',
-      700: '#005f91',
-      800: '#004466',
-      900: '#022d4a',
-      950: '#03045e',
+      50: '#f6f3ec',
+      100: '#efebe1',
+      200: '#dedad0',
+      300: '#c7c3ba',
+      400: '#ece9e1',
+      500: '#1b1e24',
+      600: '#2b2f36',
+      700: '#1b1e24',
+      800: '#1b1e24',
+      900: '#1b1e24',
+      950: '#1b1e24',
     },
   },
 });
@@ -93,7 +97,7 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: BluePreset,
+    preset: ConsoleMatchedPreset,
     options: { darkModeSelector: '.app-dark' },
   },
   ripple: true,
@@ -157,7 +161,7 @@ router.beforeEach((to, _from, next) => {
 router.afterEach((to) => {
   const { te, t } = i18n.global;
   const title = to.meta.title && te(to.meta.title as string) ? `${t(to.meta.title as string)} /` : '';
-  document.title = `${title} listmonk`;
+  document.title = `${title} listnun`;
 });
 
 async function initConfig(instance: typeof app) {
@@ -215,7 +219,7 @@ async function initConfig(instance: typeof app) {
   const routeTitle = currentRoute.meta.title
     ? `${i18n.global.t(currentRoute.meta.title as string)} /`
     : '';
-  document.title = `${routeTitle} listmonk`;
+  document.title = `${routeTitle} listnun`;
 
   instance.mount('#app');
 }

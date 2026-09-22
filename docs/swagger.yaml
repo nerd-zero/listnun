@@ -155,6 +155,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -248,6 +254,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -304,6 +316,15 @@ definitions:
         type: string
       preconfirm_subscriptions:
         type: boolean
+      scrub_checked_at:
+        type: string
+      scrub_status:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set by validate-on-add/import Scrub email validation. ScrubStatus is
+          one of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,
+          or unset (Scrub not configured for this tenant / a legacy row).
       status:
         type: string
       updated_at:
@@ -324,6 +345,13 @@ definitions:
         type: integer
       name:
         type: string
+      risky:
+        description: |-
+          Risky is how many imported rows Scrub flagged risky (deliverable/
+          undeliverable/invalid_syntax aren't separately counted here --
+          undeliverable/invalid_syntax rows are skipped like any other
+          ValidateFields failure, visible in the existing log stream).
+        type: integer
       status:
         type: string
       total:
@@ -540,6 +568,23 @@ definitions:
       updated_at:
         type: string
       user_count:
+        type: integer
+    type: object
+  OperatorTenantScrubUsage:
+    properties:
+      deliverable:
+        type: integer
+      invalid_syntax:
+        type: integer
+      risky:
+        type: integer
+      total_subscribers:
+        type: integer
+      unchecked:
+        type: integer
+      unchecked_error:
+        type: integer
+      undeliverable:
         type: integer
     type: object
   OperatorUpdateTenantStatusReq:
@@ -853,7 +898,21 @@ definitions:
           enabled:
             type: boolean
           integration_id:
-            type: integer
+            description: |-
+              IntegrationID is a Scrub integration UUID (as a string), not a
+              number -- Scrub's integrations table moved from a SERIAL/int PK
+              to a native UUID PK (see v6.17.0 migration doc comment for the
+              existing-row coercion this required).
+            type: string
+          managed_by_platform:
+            description: |-
+              ManagedByPlatform is true once a listnun-console operator push
+              (PUT /api/operator/tenants/{id}/scrub) has set this tenant's
+              Scrub config -- while true, every other field on this struct is
+              locked: internal/core.UpdateSettings/UpdateSettingsByKey refuse
+              to let a tenant admin's own settings save change them, and the
+              Settings > Mail Validation UI greys the whole section out.
+            type: boolean
           url:
             type: string
         type: object
@@ -997,6 +1056,15 @@ definitions:
         type: array
       name:
         type: string
+      scrub_checked_at:
+        type: string
+      scrub_status:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set by validate-on-add/import Scrub email validation. ScrubStatus is
+          one of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,
+          or unset (Scrub not configured for this tenant / a legacy row).
       status:
         type: string
       updated_at:
@@ -1141,6 +1209,12 @@ definitions:
         type: string
       name:
         type: string
+      pause_reason:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          Set only when Status='paused' was set automatically (not by a
+          user) -- see schema.sql's campaigns.pause_reason doc comment.
       send_at:
         type: string
       sent:
@@ -1239,6 +1313,15 @@ definitions:
     properties:
       message: {}
     type: object
+  github_com_knadh_listmonk_internal_core.AutoPausedCampaign:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      pause_reason:
+        $ref: '#/definitions/null.String'
+    type: object
   models.Tenant:
     properties:
       created_at:
@@ -1274,8 +1357,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: listmonk mailing list manager REST API.
-  title: listmonk API
+  description: listnun mailing list manager REST API.
+  title: listnun API
   version: "1.0"
 paths:
   /api/about:
@@ -1906,6 +1989,25 @@ paths:
       summary: Get campaign analytics
       tags:
       - campaigns
+  /api/campaigns/auto-paused:
+    get:
+      operationId: getAutoPausedCampaigns
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get currently auto-paused campaigns
+      tags:
+      - campaigns
   /api/campaigns/running/stats:
     get:
       operationId: getRunningCampaignStats
@@ -2308,6 +2410,36 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get Scrub list validation status
+      tags:
+      - settings
+  /api/lists/scrub/history:
+    get:
+      operationId: getScrubHistory
+      parameters:
+      - description: Only return invalid results
+        in: query
+        name: invalid_only
+        type: boolean
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Continue a previous page's next_cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get Scrub validation history
       tags:
       - settings
   /api/logout:
@@ -2865,6 +2997,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Set or clear a tenant's custom domain (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/scrub/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantScrubUsage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorTenantScrubUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's Scrub validation usage (Operator API)
       tags:
       - operator
   /api/operator/tenants/{id}/setup-link:

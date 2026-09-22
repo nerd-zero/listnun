@@ -34,6 +34,12 @@ type Subscriber struct {
 	Attribs JSON           `db:"attribs" json:"attribs"`
 	Status  string         `db:"status" json:"status"`
 	Lists   types.JSONText `db:"lists" json:"lists"`
+
+	// Set by validate-on-add/import Scrub email validation. ScrubStatus is
+	// one of deliverable|undeliverable|invalid_syntax|risky|unchecked_error,
+	// or unset (Scrub not configured for this tenant / a legacy row).
+	ScrubStatus    null.String `db:"scrub_status" json:"scrub_status"`
+	ScrubCheckedAt null.Time   `db:"scrub_checked_at" json:"scrub_checked_at"`
 } // @name Subscriber
 
 type subLists struct {

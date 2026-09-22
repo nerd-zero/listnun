@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,7 +19,6 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/knadh/listmonk/internal/auth"
 	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/tenant"
 	"github.com/knadh/listmonk/internal/tmptokens"
 	"github.com/knadh/listmonk/internal/utils"
 	"github.com/knadh/listmonk/models"
@@ -46,6 +46,8 @@ type operatorQueries struct {
 	SetTenantRootURL       *sqlx.Stmt `query:"operator-set-tenant-root-url"`
 	SetTenantCustomDomain  *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP          *sqlx.Stmt `query:"operator-set-tenant-smtp"`
+	SetTenantScrub         *sqlx.Stmt `query:"operator-set-tenant-scrub"`
+	GetTenantScrubUsage    *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
 	GetTenant              *sqlx.Stmt `query:"operator-get-tenant"`
 	GetTenants             *sqlx.Stmt `query:"operator-get-tenants"`
 	UpdateTenantStatus     *sqlx.Stmt `query:"operator-update-tenant-status"`
@@ -56,9 +58,25 @@ type operatorQueries struct {
 // obtainable via the BYPASSRLS operator connection.
 type operatorTenant struct {
 	models.Tenant
-	UserCount       int `db:"user_count" json:"user_count"`
-	SubscriberCount int `db:"subscriber_count" json:"subscriber_count"`
+	UserCount       int         `db:"user_count" json:"user_count"`
+	SubscriberCount int         `db:"subscriber_count" json:"subscriber_count"`
+	RootURL         null.String `db:"root_url" json:"root_url"`
 } // @name OperatorTenant
+
+// operatorTenantScrubUsage is a tenant's subscriber validation status
+// breakdown (subscribers.scrub_status), the same local data the
+// tenant's own dashboard widget reads -- exposed cross-tenant here so
+// the console can show per-instance usage without needing Scrub's
+// account-scoped usage API (which has no per-integration breakdown).
+type operatorTenantScrubUsage struct {
+	Deliverable      int `db:"deliverable" json:"deliverable"`
+	Undeliverable    int `db:"undeliverable" json:"undeliverable"`
+	InvalidSyntax    int `db:"invalid_syntax" json:"invalid_syntax"`
+	Risky            int `db:"risky" json:"risky"`
+	UncheckedError   int `db:"unchecked_error" json:"unchecked_error"`
+	Unchecked        int `db:"unchecked" json:"unchecked"`
+	TotalSubscribers int `db:"total_subscribers" json:"total_subscribers"`
+} // @name OperatorTenantScrubUsage
 
 // operatorOrganization is an organization row augmented with a
 // cross-tenant tenant count, only obtainable via the BYPASSRLS operator
@@ -175,6 +193,14 @@ func (s *operatorStore) GetTenants() ([]operatorTenant, error) {
 func (s *operatorStore) GetTenant(id int) (operatorTenant, error) {
 	var out operatorTenant
 	if err := s.q.GetTenant.Get(&out, id); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantScrubUsage(id int) (operatorTenantScrubUsage, error) {
+	var out operatorTenantScrubUsage
+	if err := s.q.GetTenantScrubUsage.Get(&out, id); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -427,6 +453,146 @@ func (s *operatorStore) SetTenantSMTP(tenantID int, entry operatorSMTPEntry) err
 	return err
 }
 
+// operatorScrubEntry mirrors models.Settings.Scrub for JSON marshaling
+// from an external provisioner (listnun) that owns the actual Scrub
+// integration -- this endpoint only ever writes whatever it's given,
+// listmonk has no Scrub-provider knowledge of its own. ManagedByPlatform
+// is always forced true by SetTenantScrub below, not taken from the
+// caller, so a request body can't accidentally unlock a tenant.
+type operatorScrubEntry struct {
+	Enabled       bool   `json:"enabled"`
+	URL           string `json:"url"`
+	APIKey        string `json:"api_key"`
+	IntegrationID string `json:"integration_id"`
+} // @name OperatorScrubEntry
+
+// SetTenantScrub replaces a tenant's scrub setting with a single real
+// entry pushed by the calling provisioner (e.g. listnun's console-toggle
+// action), always locking it (managed_by_platform: true) -- see
+// models.Settings.Scrub's doc comment and internal/core.UpdateSettings/
+// UpdateSettingsByKey, which refuse to let a tenant admin's own settings
+// save change a locked row.
+func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) error {
+	b, err := json.Marshal(struct {
+		operatorScrubEntry
+		ManagedByPlatform bool `json:"managed_by_platform"`
+	}{operatorScrubEntry: entry, ManagedByPlatform: true})
+	if err != nil {
+		return err
+	}
+
+	_, err = s.q.SetTenantScrub.Exec(tenantID, b)
+	return err
+}
+
+// scrubIntegrationUsername returns the reserved API username Scrub's own
+// listnun/listmonk-provider integration authenticates as when it calls
+// back into a tenant (GET /api/lists, /api/subscribers, blocklisting) --
+// the reverse direction of SetTenantScrub above, which only pushes
+// settings the other way (this tenant calling out to Scrub).
+//
+// Includes the tenant id rather than being one fixed literal across
+// every tenant -- found live: internal/auth.Auth's apiUsers cache
+// (auth.go) is a single process-wide map keyed by bare username, not by
+// tenant, because Basic Auth resolves the tenant from the Host header
+// separately (internal/tenant.Middleware) before this cache is ever
+// consulted. A literal "scrub-integration" username shared by every
+// tenant would collide in that one map -- only the most recently cached
+// tenant's copy survives, silently 403ing every other tenant's
+// otherwise-correct credentials via tenantMismatch. Deterministic
+// (not random) so CreateTenantScrubAPIUser can still find and rotate a
+// previous one by a simple username lookup.
+func scrubIntegrationUsername(tenantID int) string {
+	return fmt.Sprintf("scrub-integration-%d", tenantID)
+}
+
+// scrubIntegrationRoleName names the least-privilege role
+// getOrCreateScrubIntegrationRole creates for scrubIntegrationUsername --
+// just enough to read lists/subscribers and blocklist invalid ones, not
+// the tenant's full Super Admin role (which would also hand over
+// campaigns, users, and settings management to Scrub's API key).
+const scrubIntegrationRoleName = "Scrub Integration"
+
+var scrubIntegrationPermissions = []string{"lists:get_all", "subscribers:get_all", "subscribers:manage"}
+
+// CreateTenantScrubAPIUser provisions the dedicated API user (and its
+// supporting role, created on first use) that Scrub authenticates as
+// when calling back into this tenant. Returns the username and a fresh
+// one-time plaintext token -- see CreateUser's own doc comment on why
+// the token can only ever be read at creation time.
+//
+// Create-or-rotate, not create-once: if scrubIntegrationUsername already
+// exists (a previous call already ran, or the caller lost track of the
+// token it was shown), the old user is deleted and a new one created
+// rather than erroring. This is what listnun's periodic healing sweep
+// (provisioning.HealScrubIntegrations) relies on to recover an
+// integration whose credentials went bad for any reason -- there's no
+// way to verify or recover an existing API user's plaintext token to
+// confirm it still matches what Scrub has on file, so treating "already
+// exists" as "needs a fresh one" is the only option that's actually
+// self-healing.
+func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID int) (string, string, error) {
+	users, err := s.co.GetUsers(ctx, tenantID)
+	if err != nil {
+		return "", "", err
+	}
+	username := scrubIntegrationUsername(tenantID)
+	for _, u := range users {
+		if u.Username == username {
+			if err := s.co.DeleteUsers(ctx, tenantID, []int{u.ID}); err != nil {
+				return "", "", err
+			}
+			break
+		}
+	}
+
+	roleID, err := s.getOrCreateScrubIntegrationRole(ctx, tenantID)
+	if err != nil {
+		return "", "", err
+	}
+
+	out, err := s.co.CreateUser(ctx, tenantID, auth.User{
+		Type:       auth.UserTypeAPI,
+		Username:   username,
+		Name:       scrubIntegrationRoleName,
+		UserRoleID: roleID,
+		Status:     auth.UserStatusEnabled,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return out.Username, out.Password.String, nil
+}
+
+// getOrCreateScrubIntegrationRole returns the tenant's own
+// scrubIntegrationRoleName role id, creating it on first use. Looked up
+// by name rather than assumed to be auth.SuperAdminRoleID (id 1) --
+// role ids come from one sequence shared across every tenant, so only
+// tenant 1's own roles happen to land on the low numbers; see
+// queries/users.sql's update-user query for the same reasoning applied
+// to the Super Admin role.
+func (s *operatorStore) getOrCreateScrubIntegrationRole(ctx context.Context, tenantID int) (int, error) {
+	roles, err := s.co.GetRoles(ctx, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	for _, r := range roles {
+		if r.Name.String == scrubIntegrationRoleName {
+			return r.ID, nil
+		}
+	}
+
+	newRole, err := s.co.CreateRole(ctx, tenantID, auth.Role{
+		Type:        auth.RoleTypeUser,
+		Name:        null.NewString(scrubIntegrationRoleName, true),
+		Permissions: scrubIntegrationPermissions,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return newRole.ID, nil
+}
+
 // CreateSetupLink issues a fresh one-time setup token for an existing
 // tenant admin, without creating a new tenant/user. Needed because
 // internal/tmptokens is in-memory and process-lifetime only (see its own
@@ -658,6 +824,40 @@ func (a *App) GetOperatorTenant(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetOperatorTenantScrubUsage returns a tenant's subscriber validation
+// status breakdown -- the same subscribers.scrub_status data the
+// tenant's own dashboard widget reads locally, exposed cross-tenant so
+// a console can show per-instance usage. Scrub itself has no
+// per-integration usage endpoint (only account-scoped /usage/* and raw
+// paginated /history with no aggregate), so this is computed here
+// instead of proxying to Scrub's API.
+//
+//	@ID			getOperatorTenantScrubUsage
+//	@Summary		Get a tenant's Scrub validation usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	operatorTenantScrubUsage
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/scrub/usage [get]
+func (a *App) GetOperatorTenantScrubUsage(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	out, err := a.operator.GetTenantScrubUsage(id)
+	if err != nil {
+		a.log.Printf("error getting tenant scrub usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant scrub usage")
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // CreateOperatorTenant provisions a new tenant and its initial admin user.
 //
 //	@ID			createOperatorTenant
@@ -746,12 +946,12 @@ func (a *App) operatorSetupURL(tenantSlug string, customDomain null.String, toke
 // request like cmd/public.go's tplRenderer does). Returns "" if
 // app.root_domain isn't configured or app.root_url has no scheme.
 //
-// When [operator].env is "dev", the subdomain gets a "-dev" suffix
-// (<slug>-dev.root_domain instead of <slug>.root_domain) so a dev
-// deployment's tenant URLs never collide with a prod deployment sharing
-// the same root_domain. tenant.SlugSuffix is the single source of truth
-// for this suffix - internal/tenant.Middleware strips the same suffix
-// when resolving incoming requests, so the two can't drift apart.
+// In prod ([operator] env = "prod", the default), the scheme is always
+// forced to https regardless of what tenant 1's app.root_url happens to
+// have - found live when tenant 1's app.root_url was still the seeded
+// "http://localhost:9000" default and every subsequently-provisioned
+// tenant silently inherited http instead of the https TLS termination
+// actually serves in front of the app.
 func (a *App) tenantRootURL(tenantSlug string) string {
 	if a.cfg.RootDomain == "" {
 		return ""
@@ -760,7 +960,11 @@ func (a *App) tenantRootURL(tenantSlug string) string {
 	if err != nil || u.Scheme == "" {
 		return ""
 	}
-	return u.Scheme + "://" + tenantSlug + tenant.SlugSuffix(a.cfg.Operator.Env) + "." + a.cfg.RootDomain
+	scheme := u.Scheme
+	if a.cfg.Operator.Env != "dev" {
+		scheme = "https"
+	}
+	return scheme + "://" + tenantSlug + "." + a.cfg.RootDomain
 }
 
 // CreateOperatorSetupLink issues a fresh one-time setup link for an
@@ -938,6 +1142,85 @@ func (a *App) SetOperatorTenantSMTP(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// SetOperatorTenantScrub replaces a tenant's scrub setting with a
+// platform-pushed, locked entry -- see operatorStore.SetTenantScrub.
+func (a *App) SetOperatorTenantScrub(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req operatorScrubEntry
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.Enabled && (req.URL == "" || req.APIKey == "" || req.IntegrationID == "") {
+		return echo.NewHTTPError(http.StatusBadRequest, "url, api_key, and integration_id are required to enable")
+	}
+
+	if err := a.operator.SetTenantScrub(id, req); err != nil {
+		a.log.Printf("error setting tenant scrub: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant scrub")
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// operatorScrubAPIUserResp is the response body for
+// CreateOperatorTenantScrubAPIUser -- the token is shown exactly once
+// here, same as the regular admin UI's own "create API user" flow.
+type operatorScrubAPIUserResp struct {
+	Username string `json:"username"`
+	APIToken string `json:"api_token"`
+} // @name OperatorScrubAPIUserResp
+
+// CreateOperatorTenantScrubAPIUser provisions (or rotates, if one
+// already exists) the dedicated API user Scrub's own
+// listnun/listmonk-provider integration authenticates as when calling
+// back into this tenant -- see operatorStore.CreateTenantScrubAPIUser,
+// including why this rotates rather than erroring on a repeat call. The
+// caller (listnun) is responsible for immediately pushing the returned
+// credentials into Scrub's integration config; there is no way to
+// retrieve the token again afterward.
+//
+//	@ID			createOperatorTenantScrubAPIUser
+//	@Summary		Create or rotate the Scrub integration API user for a tenant (Operator API)
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	operatorScrubAPIUserResp
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/scrub/api-user [post]
+func (a *App) CreateOperatorTenantScrubAPIUser(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	username, token, err := a.operator.CreateTenantScrubAPIUser(c.Request().Context(), id)
+	if err != nil {
+		a.log.Printf("error creating tenant scrub API user: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error creating scrub API user")
+	}
+
+	// Basic Auth is served from internal/auth.Auth's in-memory apiUsers
+	// cache, not a live DB read (see auth.go's GetAPIToken) -- without
+	// this refresh, the user this just created/rotated in the DB can't
+	// actually authenticate until the process happens to restart for
+	// some unrelated reason. Same refresh cmd/users.go's own CreateUser
+	// handler already does after the admin UI creates an API user.
+	if _, err := cacheUsers(a.core, a.auth); err != nil {
+		a.log.Printf("error refreshing API user cache: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error refreshing API user cache")
+	}
+
+	return c.JSON(http.StatusOK, okResp{operatorScrubAPIUserResp{Username: username, APIToken: token}})
 }
 
 // OperatorSetupPage renders (GET) and processes (POST) the one-time

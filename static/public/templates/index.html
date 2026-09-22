@@ -31,6 +31,7 @@
 					<img src="{{ .LogoURL }}" alt="{{ .Data.Title }}" />
 				{{ else }}
 					<img src="/public/static/logo.svg?v={{ .AssetVersion }}" alt="{{ .Data.Title }}" />
+					<span class="logo-text">listnun</span>
 				{{ end }}
 				</a>
 			</div>
@@ -41,7 +42,7 @@
 	</div>
 	
 	<footer class="container">
-		{{ L.T "public.poweredBy" }} <a target="_blank" rel="noreferrer" href="https://listmonk.app">listmonk</a>
+		{{ L.T "public.poweredBy" }} <a target="_blank" rel="noreferrer" href="https://listnun.app">listnun</a>
 	</footer>
 </body>
 </html>

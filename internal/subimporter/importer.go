@@ -77,6 +77,29 @@ type Options struct {
 
 	DomainBlocklist []string
 	DomainAllowlist []string
+
+	TenantID int
+
+	// ScrubSubmitFunc, if set, is called once per commit-batch window
+	// (see flushWindow) with that session's target list IDs and the
+	// window's emails, submitting them to Scrub for asynchronous
+	// validation -- baked in at Importer construction time
+	// (tenantImporters.Get, cmd/tenant_importer.go) from tenant settings,
+	// same "requires a process restart to pick up a settings change"
+	// precedent DomainBlocklist/DomainAllowlist above already have in
+	// this per-tenant-cached importer. listIDs travels through here
+	// (rather than being baked into the closure) because it's a
+	// per-session value (SessionOpt.ListIDs), not known at Importer
+	// construction time, but is needed by the eventual callback to know
+	// which lists to unsubscribe invalid emails from / pause campaigns
+	// on -- see cmd/scrub_batch.go's scrub_validation_batches.list_ids.
+	// Results aren't known synchronously: Scrub reports back later via
+	// the /webhooks/scrub/batch callback, which sets scrub_status and
+	// handles risky/invalid rows directly -- this package only fires the
+	// submission, it never sees the outcome. Never called for
+	// ModeBlocklist rows (flushWindow gates on Mode), since those rows
+	// are never sent to and validating them burns quota for no benefit.
+	ScrubSubmitFunc func(listIDs []int, emails []string) error
 }
 
 // Session represents a single import session.
@@ -112,8 +135,14 @@ type Status struct {
 	Name     string `json:"name"`
 	Total    int    `json:"total"`
 	Imported int    `json:"imported"`
-	Status   string `json:"status"`
-	logBuf   *bytes.Buffer
+	// Risky always reads 0 during the import itself: Scrub validation is
+	// asynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky
+	// included -- aren't known until the /webhooks/scrub/batch callback
+	// resolves each submitted batch, well after this Status stops being
+	// polled. Kept for API/frontend type stability rather than removed.
+	Risky  int    `json:"risky"`
+	Status string `json:"status"`
+	logBuf *bytes.Buffer
 } // @name ImportStatus
 
 // SubReq is a wrapper over the Subscriber model.
@@ -213,6 +242,7 @@ func (im *Importer) GetStats() Status {
 		Status:   im.status.Status,
 		Total:    im.status.Total,
 		Imported: im.status.Imported,
+		Risky:    im.status.Risky,
 	}
 }
 
@@ -499,6 +529,16 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 	var (
 		lnHdr = len(hdrKeys)
 		i     = 0
+
+		// window buffers up to commitBatchSize syntactically-valid rows
+		// so Scrub can be called once per window (bulk) rather than once
+		// per row -- keeps memory bounded and progress reporting
+		// (status.Total below) at the same granularity as before, and
+		// limits a transient Scrub error's blast radius to one window
+		// rather than the whole file. Rows only reach the window after
+		// the existing per-row syntax/domain check (ValidateFields)
+		// already passed, same as before this change.
+		window []windowRow
 	)
 	for {
 		i++
@@ -506,6 +546,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		// Check for the stop signal.
 		select {
 		case <-s.im.stop:
+			s.flushWindow(window)
 			failed = false
 			close(s.subQueue)
 			s.log.Println("stop request received")
@@ -558,8 +599,11 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			}
 		}
 
-		// Send the subscriber to the queue.
-		s.subQueue <- sub
+		window = append(window, windowRow{sub: sub, line: i})
+		if len(window) >= commitBatchSize {
+			s.flushWindow(window)
+			window = window[:0]
+		}
 
 		if i%commitBatchSize == 0 {
 			s.im.Lock()
@@ -567,6 +611,8 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			s.im.Unlock()
 		}
 	}
+
+	s.flushWindow(window)
 
 	s.im.Lock()
 	s.im.status.Total = i
@@ -576,6 +622,48 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 	failed = false
 
 	return nil
+}
+
+// windowRow pairs a syntactically-valid SubReq with its source line
+// number, for logging when Scrub subsequently flags/rejects it.
+type windowRow struct {
+	sub  SubReq
+	line int
+}
+
+// flushWindow pushes every row in the window onto subQueue for Start() to
+// insert, then -- if this session has Scrub validation wired (see
+// NewSession) -- asynchronously submits the window's emails to Scrub for
+// validation. Unlike the old synchronous ValidateBulk, results are no
+// longer known at flush time: Scrub validates out-of-band and reports
+// back later via the /webhooks/scrub/batch callback (see
+// cmd/scrub_batch.go), which is what actually sets scrub_status and
+// unsubscribes/tags rows Scrub flags invalid. So every syntactically-valid
+// row reaches the DB immediately with scrub_status left unset (pending),
+// rather than invalid_syntax/undeliverable rows being skipped
+// pre-insert as they were when validation was synchronous.
+func (s *Session) flushWindow(window []windowRow) {
+	if len(window) == 0 {
+		return
+	}
+
+	for _, w := range window {
+		s.subQueue <- w.sub
+	}
+
+	// Blocklist-mode rows are never sent to, so validating them against
+	// Scrub burns quota for no benefit.
+	if s.im.opt.ScrubSubmitFunc == nil || s.opt.Mode != ModeSubscribe {
+		return
+	}
+
+	emails := make([]string, len(window))
+	for i, w := range window {
+		emails[i] = w.sub.Email
+	}
+	if err := s.im.opt.ScrubSubmitFunc(s.opt.ListIDs, emails); err != nil {
+		s.log.Printf("error submitting batch to scrub, subscribers will remain unchecked: %v", err)
+	}
 }
 
 // Stop sends a signal to stop the existing import.

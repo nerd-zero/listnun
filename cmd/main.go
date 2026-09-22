@@ -1,6 +1,6 @@
-// @title listmonk API
+// @title listnun API
 // @version 1.0
-// @description listmonk mailing list manager REST API.
+// @description listnun mailing list manager REST API.
 // @BasePath /
 // @securityDefinitions.basic BasicAuth
 // @securityDefinitions.apikey BearerAuth
@@ -241,7 +241,7 @@ func main() {
 		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
-		importers = newTenantImporters(queries, db, core, i18n)
+		importers = newTenantImporters(queries, db, core, mgr, i18n)
 
 		// Initialize the auth manager.
 		auth = initAuth(core, db.DB, ko)

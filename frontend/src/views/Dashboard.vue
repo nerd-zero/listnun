@@ -76,6 +76,58 @@
           <div class="stat-label">{{ $t('dashboard.messagesSent') }}</div>
         </div>
       </div>
+
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="scrub-risky">
+        <div class="stat-icon stat-icon--red">
+          <i class="pi pi-shield" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isCountsLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(counts.scrub?.risky_subscribers || 0) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.riskySubscribers') }}</div>
+        </div>
+      </div>
+
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="auto-paused">
+        <div class="stat-icon stat-icon--red">
+          <i class="pi pi-exclamation-triangle" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isAutoPausedLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(autoPaused.length) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.autoPausedCampaigns') }}</div>
+          <div class="stat-breakdown">
+            <span v-if="!isAutoPausedLoading && autoPaused.length === 0">
+              {{ $t('dashboard.noAutoPausedCampaigns') }}
+            </span>
+            <span v-for="c in autoPaused" :key="c.id">
+              {{ c.name }} &mdash; {{ $t(`campaigns.pauseReason.${c.pause_reason}`) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="(serverConfig as any).scrub_enabled" class="stat-card" data-cy="scrub-jobs">
+        <div class="stat-icon stat-icon--green">
+          <i class="pi pi-verified" />
+        </div>
+        <div class="stat-body">
+          <div class="stat-number">
+            <PvProgressSpinner v-if="isScrubJobsLoading" style="width:1.5rem;height:1.5rem" stroke-width="4" />
+            <span v-else>{{ $utils.niceNumber(scrubValidated + scrubInvalid) }}</span>
+          </div>
+          <div class="stat-label">{{ $t('dashboard.scrubEmailsValidated') }}</div>
+          <div class="stat-breakdown">
+            <span>{{ $utils.niceNumber(scrubValidated) }} {{ $t('settings.scrub.historyStatus.valid') }}</span>
+            <span>{{ $utils.niceNumber(scrubInvalid) }} {{ $t('settings.scrub.historyStatus.invalid') }}</span>
+            <span v-if="scrubActiveJobs > 0">{{ $t('dashboard.scrubJobsRunning', { count: scrubActiveJobs }) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -132,14 +184,26 @@ import { useMainStore } from '../store';
 import { colors } from '../constants';
 import Chart from '../components/Chart.vue';
 import { getDashboard } from '../api/generated/endpoints/dashboard/dashboard';
+import { getCampaigns } from '../api/generated/endpoints/campaigns/campaigns';
+import { getSettings } from '../api/generated/endpoints/settings/settings';
 
 const { getDashboardCounts, getDashboardCharts } = getDashboard();
-const { refreshTick, settings, profile } = storeToRefs(useMainStore());
+const { getAutoPausedCampaigns } = getCampaigns();
+const { getScrubListStatus } = getSettings();
+const {
+  refreshTick, settings, profile, serverConfig,
+} = storeToRefs(useMainStore());
 
 const isChartsLoading = ref(true);
 const isCountsLoading = ref(true);
+const isAutoPausedLoading = ref(true);
+const isScrubJobsLoading = ref(true);
 const campaignViews = ref<any>(null);
 const campaignClicks = ref<any>(null);
+const autoPaused = ref<any[]>([]);
+const scrubValidated = ref(0);
+const scrubInvalid = ref(0);
+const scrubActiveJobs = ref(0);
 const counts = ref<any>({
   lists: {},
   subscribers: {},
@@ -184,6 +248,30 @@ function fetchData() {
     campaignViews.value = makeChart(data.campaignViews);
     campaignClicks.value = makeChart(data.linkClicks);
   });
+
+  if ((serverConfig.value as any).scrub_enabled) {
+    isAutoPausedLoading.value = true;
+    getAutoPausedCampaigns().then((data: any) => {
+      autoPaused.value = data || [];
+      isAutoPausedLoading.value = false;
+    }).catch(() => { isAutoPausedLoading.value = false; });
+
+    // Aggregates GetScrubListStatus's per-list last_result across every
+    // list in this tenant -- there's no dedicated tenant-wide Scrub
+    // stats endpoint, and Scrub's own account-scoped job endpoints
+    // (/v1/jobs/active, /v1/jobs/recent) can't be used here since one
+    // Scrub account is shared across every listnun tenant; they'd leak
+    // other tenants' jobs. This stays scoped to just this tenant's own
+    // integration.
+    isScrubJobsLoading.value = true;
+    getScrubListStatus().then((data: any) => {
+      const lists = Array.isArray(data) ? data : [];
+      scrubValidated.value = lists.reduce((n: number, l: any) => n + (l.lastResult?.validCount || 0), 0);
+      scrubInvalid.value = lists.reduce((n: number, l: any) => n + (l.lastResult?.invalidCount || 0), 0);
+      scrubActiveJobs.value = lists.filter((l: any) => l.activeJobRequestId).length;
+      isScrubJobsLoading.value = false;
+    }).catch(() => { isScrubJobsLoading.value = false; });
+  }
 }
 
 watch(() => refreshTick.value, () => { fetchData(); });
@@ -256,10 +344,11 @@ onMounted(() => {
   flex-shrink: 0;
 
   i { font-size: 1.15rem; }
-  &--blue   { background: #e0f7fc; color: #0077b6; }
+  &--blue   { background: #efebe1; color: #1b1e24; }
   &--green  { background: var(--lm-success-bg); color: #16a34a; }
   &--purple { background: #f5f3ff; color: #7c3aed; }
   &--orange { background: #fff7ed; color: #ea580c; }
+  &--red    { background: #fee2e2; color: #b91c1c; }
 }
 
 .stat-body {

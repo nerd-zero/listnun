@@ -49,7 +49,7 @@ export const storeKeys = Object.freeze({
 export const timestamp = 'ddd D MMM YYYY, hh:mm A';
 
 export const colors = Object.freeze({
-  primary: '#0077b6',
+  primary: '#1b1e24',
 });
 
 export const regDuration = '[0-9]+(ms|s|m|h|d)';

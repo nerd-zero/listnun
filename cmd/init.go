@@ -956,7 +956,7 @@ func initHTTPServer(cfg *Config, urlCfg *UrlConfig, i *i18n.I18n, fs stuffbin.Fi
 
 	// Resolve the tenant for every request (authenticated and public alike)
 	// ahead of auth. A no-op unless app.multi_tenancy_enabled is set.
-	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.MultiTenancyEnabled, cfg.Operator.Env))
+	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.MultiTenancyEnabled))
 
 	tpl, err := stuffbin.ParseTemplatesGlob(initTplFuncs(i, urlCfg), fs, "/public/templates/*.html")
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/knadh/listmonk/internal/auth"
 	"github.com/knadh/listmonk/internal/i18n"
 	"github.com/knadh/listmonk/internal/notifs"
+	"github.com/knadh/listmonk/internal/scrub"
 	"github.com/knadh/listmonk/internal/subimporter"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
@@ -313,10 +314,33 @@ func (a *App) CreateSubscriber(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, a.i18n.Ts("globals.messages.permissionDenied", "name", "lists"))
 	}
 
+	ctx := c.Request().Context()
+	tID := tenantID(c)
+
+	// Validate against Scrub, if configured for this tenant. invalid_syntax/
+	// undeliverable are rejected outright; risky is inserted but flagged.
+	scrubStatus := ""
+	if s, err := a.core.GetSettings(ctx, tID); err == nil {
+		status, reject := validateEmailForAdd(ctx, s, req.Email)
+		if reject {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+		}
+		scrubStatus = status
+	}
+
 	// Insert the subscriber into the DB.
-	sub, _, err := a.core.InsertSubscriber(c.Request().Context(), tenantID(c), req.Subscriber, listIDs, nil, req.PreconfirmSubs, false)
+	sub, _, err := a.core.InsertSubscriber(ctx, tID, req.Subscriber, listIDs, nil, req.PreconfirmSubs, false)
 	if err != nil {
 		return err
+	}
+
+	if scrubStatus != "" {
+		if err := a.core.SetSubscriberScrubStatus(ctx, tID, sub.ID, scrubStatus); err != nil {
+			a.log.Printf("error setting scrub status on subscriber %d: %v", sub.ID, err)
+		}
+		if scrubStatus == scrub.StatusRisky {
+			a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{sub})
@@ -628,20 +652,33 @@ func (a *App) ManageSubscriberLists(c echo.Context) error {
 	}
 
 	// Run the action in the DB.
+	ctx := c.Request().Context()
+	tID := tenantID(c)
+
 	var err error
 	switch req.Action {
 	case "add":
-		err = a.core.AddSubscriptions(c.Request().Context(), tenantID(c), subIDs, listIDs, req.Status)
+		err = a.core.AddSubscriptions(ctx, tID, subIDs, listIDs, req.Status)
 	case "remove":
-		err = a.core.DeleteSubscriptions(c.Request().Context(), tenantID(c), subIDs, listIDs)
+		err = a.core.DeleteSubscriptions(ctx, tID, subIDs, listIDs)
 	case "unsubscribe":
-		err = a.core.UnsubscribeLists(c.Request().Context(), tenantID(c), subIDs, listIDs, nil)
+		err = a.core.UnsubscribeLists(ctx, tID, subIDs, listIDs, nil)
 	default:
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidAction"))
 	}
 
 	if err != nil {
 		return err
+	}
+
+	// Linking existing subscribers to a list can't itself make them risky --
+	// they're already-known subscribers, so just check whether any of them
+	// are already flagged risky and auto-pause accordingly, rather than
+	// calling Scrub again for emails that haven't changed.
+	if req.Action == "add" {
+		if risky, err := a.core.GetRiskySubscriberIDs(ctx, tID, subIDs); err == nil && len(risky) > 0 {
+			a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})

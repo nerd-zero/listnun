@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/knadh/listmonk/internal/auth"
+	"github.com/knadh/listmonk/internal/core"
 	"github.com/knadh/listmonk/internal/notifs"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
@@ -497,6 +499,17 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 		a.manager.StopCampaign(id)
 	}
 
+	// A stale auto-pause reason (Scrub risky subscriber, too many errors)
+	// shouldn't linger once the campaign moves to any other status --
+	// only the auto-pause paths themselves ever set one.
+	if req.Status != models.CampaignStatusPaused {
+		if err := a.core.ClearCampaignPauseReason(c.Request().Context(), tenantID(c), id); err != nil {
+			a.log.Printf("error clearing pause reason on campaign %d: %v", id, err)
+		} else {
+			out.PauseReason.Valid = false
+		}
+	}
+
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
@@ -675,6 +688,39 @@ func (a *App) GetRunningCampaignStats(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetAutoPausedCampaigns returns campaigns currently paused automatically
+// (Scrub-flagged risky subscriber, too many send errors) rather than by a
+// user -- backs the dashboard widget. Deliberately a live query, not
+// routed through the cached dashboard-counts materialized view, since
+// this is the one signal whose entire purpose is prompt visibility right
+// after the pause event -- see core.GetAutoPausedCampaigns's doc comment.
+//
+//	@ID			getAutoPausedCampaigns
+//	@Summary		Get currently auto-paused campaigns
+//	@Tags			campaigns
+//	@Produce		json
+//	@Success		200	{object}	[]core.AutoPausedCampaign
+//	@Failure		500	{object}	echo.HTTPError
+//	@Router			/api/campaigns/auto-paused [get]
+func (a *App) GetAutoPausedCampaigns(c echo.Context) error {
+	out, err := a.getAutoPausedCampaigns(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if len(out) == 0 {
+		return c.JSON(http.StatusOK, okResp{[]struct{}{}})
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// getAutoPausedCampaigns is a thin, explicitly-typed wrapper around
+// a.core.GetAutoPausedCampaigns -- swag's doc-comment type resolution
+// needs core.AutoPausedCampaign used as a real Go identifier somewhere in
+// this file, not just named in a comment string.
+func (a *App) getAutoPausedCampaigns(ctx context.Context, tenantID int) ([]core.AutoPausedCampaign, error) {
+	return a.core.GetAutoPausedCampaigns(ctx, tenantID)
 }
 
 // TestCampaign handles the sending of a campaign message to
@@ -1038,10 +1084,13 @@ func canEditCampaign(status string) bool {
 
 // checkScrubJobOnCampaign returns (true, listName) if any of the campaign's
 // target lists has an active Scrub validation job. Returns (false, "") silently
-// when Scrub is not configured or unreachable.
+// when Scrub is not configured. A local scrub_validation_jobs lookup (see
+// cmd/scrub_batch.go/cmd/settings.go's ScrubList) rather than a call out
+// to Scrub's own API -- removes an external-HTTP-call failure mode from
+// campaign scheduling entirely.
 func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaignID int) (bool, string, error) {
 	s, err := a.core.GetSettings(ctx, tenantID)
-	if err != nil || !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == 0 {
+	if err != nil || !s.Scrub.Enabled || s.Scrub.URL == "" || s.Scrub.APIKey == "" || s.Scrub.IntegrationID == "" {
 		return false, "", nil
 	}
 
@@ -1051,50 +1100,21 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 		return false, "", err
 	}
 
-	// Parse campaign list IDs from the JSON array [{id, name}, ...].
+	// Parse campaign list IDs/names from the JSON array [{id, name}, ...].
 	var campLists []struct {
-		ID int `json:"id"`
+		ID   int    `json:"id"`
+		Name string `json:"name"`
 	}
 	if err := json.Unmarshal([]byte(camp.Lists), &campLists); err != nil || len(campLists) == 0 {
 		return false, "", nil
 	}
-	campListIDs := make(map[int]bool, len(campLists))
+
 	for _, l := range campLists {
-		campListIDs[l.ID] = true
-	}
-
-	// Query Scrub API for lists with active jobs.
-	scrubURL := strings.TrimRight(strings.TrimSpace(s.Scrub.URL), "/")
-	apiURL := fmt.Sprintf("%s/listmonk/integrations/%d/lists", scrubURL, s.Scrub.IntegrationID)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return false, "", nil
-	}
-	httpReq.Header.Set("X-API-Key", s.Scrub.APIKey)
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return false, "", nil // silently pass if Scrub is unreachable
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return false, "", nil // silently pass if Scrub is unreachable
-	}
-
-	var lists []struct {
-		ID                 int     `json:"id"`
-		Name               string  `json:"name"`
-		ActiveJobRequestID *string `json:"active_job_request_id"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&lists); err != nil {
-		return false, "", nil
-	}
-
-	for _, l := range lists {
-		if l.ActiveJobRequestID != nil && campListIDs[l.ID] {
+		var job models.ScrubValidationJob
+		if err := a.queries.GetActiveScrubJobForList.Get(&job, tenantID, l.ID); err == nil {
 			return true, l.Name, nil
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			a.log.Printf("error checking active scrub job for list %d: %v", l.ID, err)
 		}
 	}
 	return false, "", nil

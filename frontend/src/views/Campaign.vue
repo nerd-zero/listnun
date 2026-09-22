@@ -7,7 +7,10 @@
           <template v-else>{{ $t('campaigns.newCampaign') }}</template>
         </h1>
         <div v-if="isEditing && data.status" class="header-meta">
-          <PvTag :class="data.status" :value="$t(`campaigns.status.${data.status}`)" />
+          <PvTag
+            :class="data.status" :value="$t(`campaigns.status.${data.status}`)"
+            v-tooltip.bottom="data.pauseReason ? $t(`campaigns.pauseReason.${data.pauseReason}`) : null"
+          />
           <PvTag v-if="data.type === 'optin'" :class="data.type" :value="$t('lists.optin')" />
           <span class="id-meta" :data-campaign-id="data.id">
             {{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" />
@@ -76,6 +79,34 @@
               <div class="field">
                 <list-selector v-model="form.lists" :selected="form.lists" :all="lists.results" :disabled="!canEdit"
                   :label="$t('globals.terms.lists')" :placeholder="$t('campaigns.sendToLists')" />
+              </div>
+
+              <div v-if="(serverConfig as any).scrub_enabled && campaignScrubLists.length > 0"
+                class="field" data-cy="scrub-status">
+                <label class="field-label">{{ $t('settings.scrub.name') }}</label>
+                <div class="flex flex-column gap-2">
+                  <div v-for="l in campaignScrubLists" :key="l.id" class="flex align-items-center gap-2">
+                    <span style="font-size:0.9rem">{{ l.name }}</span>
+                    <PvTag v-if="l.scrub?.activeJobRequestId" severity="warn" :value="$t('settings.scrub.validating')" />
+                    <PvTag v-else-if="l.scrub?.lastResult" severity="secondary"
+                      :value="`${$t('settings.scrub.lastValidated')}: ${$utils.niceDate(l.scrub.lastResult.completedAt)}`" />
+                    <PvButton
+                      v-if="$can('settings:manage')"
+                      severity="secondary" outlined size="small"
+                      :disabled="!!l.scrub?.activeJobRequestId" :label="$t('settings.scrub.scrubList')"
+                      @click="$utils.confirm($t('settings.scrub.scrubListConfirm', { name: l.name }), () => onScrubValidateList(l.id))"
+                    />
+                  </div>
+                </div>
+                <small v-if="hasActiveScrubJob" class="block mt-1 text-color-secondary">
+                  {{ $t('campaigns.scrubValidationInProgressHelp') }}
+                </small>
+              </div>
+
+              <div v-if="(serverConfig as any).scrub_enabled && form.lists.length > 0"
+                class="field" data-cy="scrub-history">
+                <label class="field-label">{{ $t('settings.scrub.history') }}</label>
+                <scrub-history-list />
               </div>
 
               <div class="form-row">
@@ -264,9 +295,7 @@
       </PvTabPanels>
     </PvTabs>
 
-    <PvDialog v-model:visible="isAttachModalOpen" :style="{ width: '900px' }" :closable="true" modal>
-      <media is-modal @selected="onAttachSelect" @close="isAttachModalOpen = false" />
-    </PvDialog>
+    <media-picker-dialog v-model:visible="isAttachModalOpen" @select="onAttachSelect" />
 
     <campaign-preview v-if="isPreviewingArchive" @close="onToggleArchivePreview" type="campaign" :id="data.id"
       :archive-meta="form.archiveMetaStr" :title="data.name" :content-type="data.contentType"
@@ -289,8 +318,11 @@ import CampaignPreview from '../components/CampaignPreview.vue';
 import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
-import Media from './Media.vue';
+import MediaPickerDialog from '../components/MediaPickerDialog.vue';
+import ScrubHistoryList from '../components/ScrubHistoryList.vue';
+import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 
+const { getScrubListStatus, scrubList } = settingsApi();
 const {
   $api, $utils, $can, $events,
 } = useGlobal();
@@ -311,6 +343,7 @@ const isPreviewingArchive = ref(false);
 const activeTab = ref('campaign');
 const data = ref<any>({});
 const selListIDs = ref<number[]>([]);
+const scrubListStatus = ref<Record<number, any>>({});
 
 const form = reactive<any>({
   archiveSlug: null,
@@ -348,9 +381,23 @@ const contentTypes = computed(() => Object.freeze({
 const canManage = computed(() => $can('campaigns:manage_all', 'campaigns:manage'));
 const canSend = computed(() => $can('campaigns:send'));
 const canEdit = computed(() => isNew.value || data.value.status === 'draft' || data.value.status === 'scheduled' || data.value.status === 'paused');
-const canSchedule = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && form.sendLater && form.sendAtDate);
+// campaignScrubLists pairs each of the campaign's target lists with its
+// Scrub status (scrubListStatus, fetched tenant-wide the same way
+// Lists.vue's own scrub widget does -- Scrub has no per-list status
+// endpoint) -- includes every target list regardless of whether it's
+// ever been validated, so the widget can offer a trigger even for one
+// with no status yet, not just render tags for lists that already have
+// some.
+const campaignScrubLists = computed(() => (form.lists as any[])
+  .map((l: any) => ({ ...l, scrub: scrubListStatus.value[l.id] })));
+// hasActiveScrubJob mirrors cmd/campaigns.go's checkScrubJobOnCampaign
+// server-side block on the client, so Start/Schedule visibly disable
+// instead of round-tripping into the same 400 -- the backend check
+// remains authoritative (this can go stale between fetches).
+const hasActiveScrubJob = computed(() => campaignScrubLists.value.some((l: any) => l.scrub?.activeJobRequestId));
+const canSchedule = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && form.sendLater && form.sendAtDate && !hasActiveScrubJob.value);
 const canUnSchedule = computed(() => data.value.status === 'scheduled');
-const canStart = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && !form.sendLater);
+const canStart = computed(() => (data.value.status === 'draft' || data.value.status === 'paused') && !form.sendLater && !hasActiveScrubJob.value);
 const canArchive = computed(() => data.value.status !== 'cancelled' && data.value.type !== 'optin');
 const selectedLists = computed(() => {
   if (selListIDs.value.length === 0 || !(lists.value as any).results) return [];
@@ -364,6 +411,28 @@ const allMessengers = computed(() => {
 });
 const contentTypeOptions = computed(() => Object.entries(contentTypes.value).map(([value, label]) => ({ value, label })));
 const campaignTemplates = computed(() => ((templates.value as any[]) || []).filter((tpl: any) => tpl.type === 'campaign'));
+
+function fetchScrubListStatus() {
+  if (!(serverConfig.value as any).scrub_enabled) return;
+  getScrubListStatus().then((res: any) => {
+    const m: Record<number, any> = {};
+    (Array.isArray(res) ? res : []).forEach((l: any) => {
+      m[l.id] = { activeJobRequestId: l.activeJobRequestId, lastResult: l.lastResult };
+    });
+    scrubListStatus.value = m;
+  }).catch(() => {});
+}
+
+// onScrubValidateList mirrors Lists.vue's own onScrubList -- lets the
+// campaign page trigger a validation run on one of its target lists
+// directly, instead of the status widget here being read-only and
+// forcing a trip to the Lists page just to kick one off.
+function onScrubValidateList(listId: number) {
+  scrubList(listId).then(() => {
+    $utils.toast(t('settings.scrub.scrubJobStarted'));
+    fetchScrubListStatus();
+  });
+}
 
 function isUnsaved() {
   if (isNew.value) {
@@ -546,6 +615,7 @@ function unscheduleCampaign() {
 }
 
 watch(selectedLists, (v) => { form.lists = v; });
+watch(() => form.lists, fetchScrubListStatus);
 watch(() => data.value.sendAt, (v) => {
   if (v !== null) { form.sendLater = true; form.sendAtDate = dayjs(v).toDate(); } else { form.sendLater = false; form.sendAtDate = null; }
 });

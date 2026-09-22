@@ -208,6 +208,9 @@ func (p *pipe) cleanup() {
 			p.m.log.Printf("error updating campaign (%s) status to %s: %v", p.camp.Name, models.CampaignStatusPaused, err)
 		} else {
 			p.m.log.Printf("set campaign (%s) to %s", p.camp.Name, models.CampaignStatusPaused)
+			if err := p.m.store.SetCampaignPauseReason(p.camp.ID, "too_many_errors"); err != nil {
+				p.m.log.Printf("error setting pause reason on campaign (%s): %v", p.camp.Name, err)
+			}
 		}
 
 		_ = p.m.sendNotif(p.camp, models.CampaignStatusPaused, "Too many errors")

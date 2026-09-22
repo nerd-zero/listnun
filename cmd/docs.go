@@ -1,8 +1,8 @@
-// Package main is the listmonk server.
+// Package main is the listnun server.
 //
-// @title listmonk API
+// @title listnun API
 // @version 1.0
-// @description listmonk mailing list manager REST API.
+// @description listnun mailing list manager REST API.
 // @host localhost:9000
 // @BasePath /
 // @securityDefinitions.basic BasicAuth

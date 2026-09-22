@@ -73,16 +73,53 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-scrub
+-- Replaces the tenant's scrub setting with a platform-pushed entry - see
+-- cmd/operator.go's SetTenantScrub. Always writes managed_by_platform:
+-- true (the caller sets it, not the tenant's prior value) so a
+-- platform-initiated disable still locks the tenant's own toggle,
+-- distinct from a tenant that was never platform-managed at all.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'scrub', $2::JSONB)
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
+
+-- name: operator-get-tenant-scrub-usage
+-- Ground truth for the console's per-instance usage display -- Scrub
+-- itself has no per-integration usage endpoint (only account-scoped
+-- /usage/*, and raw paginated /history with no aggregate), so this
+-- reads the same local subscribers.scrub_status data the tenant's own
+-- dashboard widget already uses (see internal/migrations/v6.16.0.go).
+SELECT
+    COUNT(*) FILTER (WHERE scrub_status = 'deliverable') AS deliverable,
+    COUNT(*) FILTER (WHERE scrub_status = 'undeliverable') AS undeliverable,
+    COUNT(*) FILTER (WHERE scrub_status = 'invalid_syntax') AS invalid_syntax,
+    COUNT(*) FILTER (WHERE scrub_status = 'risky') AS risky,
+    COUNT(*) FILTER (WHERE scrub_status = 'unchecked_error') AS unchecked_error,
+    COUNT(*) FILTER (WHERE scrub_status IS NULL) AS unchecked,
+    COUNT(*) AS total_subscribers
+FROM subscribers WHERE tenant_id = $1;
+
 -- name: operator-get-tenant
+-- root_url is the tenant's own settings.app.root_url -- the fork's real
+-- source of truth for where it's reachable, distinct from (and can
+-- diverge from) whatever a caller's own root-domain config assumes.
+-- Found live: legacy tenants provisioned under an earlier root domain
+-- kept settings.app.root_url pointing at that domain even after the
+-- provisioner's own config moved on, so reconstructing a tenant's URL
+-- from a single global root-domain value silently produces a
+-- dead/wrong host for them (see doProvisionScrubIntegration's own doc
+-- comment). Exposing this column is the fix -- always ask the fork
+-- rather than assume.
 SELECT t.*,
     (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) AS user_count,
-    (SELECT COUNT(*) FROM subscribers WHERE tenant_id = t.id) AS subscriber_count
+    (SELECT COUNT(*) FROM subscribers WHERE tenant_id = t.id) AS subscriber_count,
+    (SELECT value #>> '{}' FROM settings WHERE tenant_id = t.id AND key = 'app.root_url') AS root_url
 FROM tenants t WHERE t.id = $1;
 
 -- name: operator-get-tenants
 SELECT t.*,
     (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) AS user_count,
-    (SELECT COUNT(*) FROM subscribers WHERE tenant_id = t.id) AS subscriber_count
+    (SELECT COUNT(*) FROM subscribers WHERE tenant_id = t.id) AS subscriber_count,
+    (SELECT value #>> '{}' FROM settings WHERE tenant_id = t.id AND key = 'app.root_url') AS root_url
 FROM tenants t ORDER BY t.id;
 
 -- name: operator-update-tenant-status

@@ -1,22 +1,27 @@
 <template>
   <div class="items">
+    <PvMessage v-if="data.scrub.managed_by_platform" severity="info" :closable="false">
+      {{ $t('settings.scrub.managedByPlatform') }}
+    </PvMessage>
+
     <div class="settings-card">
       <div class="grid">
         <div class="col-2">
           <div class="field">
             <div class="flex items-center gap-2">
-              <PvToggleSwitch v-model="data.scrub.enabled" name="scrub.enabled" />
+              <PvToggleSwitch v-model="data.scrub.enabled" name="scrub.enabled"
+                :disabled="data.scrub.managed_by_platform" />
               <span>{{ $t('globals.buttons.enabled') }}</span>
             </div>
           </div>
         </div>
 
-        <div class="col-10" :class="{ disabled: !data.scrub.enabled }">
+        <div class="col-10" :class="{ disabled: !data.scrub.enabled || data.scrub.managed_by_platform }">
           <div class="field">
             <label class="block mb-1 text-sm font-medium">{{ $t('settings.scrub.url') }}</label>
             <PvInputText v-model="data.scrub.url" name="scrub.url"
               placeholder="https://api.thescrub.app" :maxlength="300"
-              :disabled="!data.scrub.enabled" class="w-full" />
+              :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
             <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.urlHelp') }}</small>
           </div>
 
@@ -25,14 +30,14 @@
             <PvPassword v-model="data.scrub.api_key" name="scrub.api_key"
               :maxlength="300" :feedback="false"
               :placeholder="$t('settings.scrub.apiKeyPlaceholder')"
-              :disabled="!data.scrub.enabled" class="w-full" />
+              :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
             <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.apiKeyHelp') }}</small>
           </div>
 
           <div class="field mt-4">
             <label class="block mb-1 text-sm font-medium">{{ $t('settings.scrub.integrationId') }}</label>
-            <PvInputNumber v-model="data.scrub.integration_id" name="scrub.integration_id"
-              :use-grouping="false" :min="0" :disabled="!data.scrub.enabled" class="w-full" />
+            <PvInputText v-model="data.scrub.integration_id" name="scrub.integration_id"
+              :maxlength="64" :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
             <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.integrationIdHelp') }}</small>
           </div>
 

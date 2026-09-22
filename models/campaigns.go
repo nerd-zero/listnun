@@ -39,17 +39,20 @@ type Campaign struct {
 	Base
 	CampaignMeta
 
-	TenantID          int             `db:"tenant_id" json:"tenant_id,omitempty"`
-	UUID              string          `db:"uuid" json:"uuid"`
-	Type              string          `db:"type" json:"type"`
-	Name              string          `db:"name" json:"name"`
-	Subject           string          `db:"subject" json:"subject"`
-	FromEmail         string          `db:"from_email" json:"from_email"`
-	Body              string          `db:"body" json:"body"`
-	BodySource        null.String     `db:"body_source" json:"body_source"`
-	AltBody           null.String     `db:"altbody" json:"altbody"`
-	SendAt            null.Time       `db:"send_at" json:"send_at"`
-	Status            string          `db:"status" json:"status"`
+	TenantID   int         `db:"tenant_id" json:"tenant_id,omitempty"`
+	UUID       string      `db:"uuid" json:"uuid"`
+	Type       string      `db:"type" json:"type"`
+	Name       string      `db:"name" json:"name"`
+	Subject    string      `db:"subject" json:"subject"`
+	FromEmail  string      `db:"from_email" json:"from_email"`
+	Body       string      `db:"body" json:"body"`
+	BodySource null.String `db:"body_source" json:"body_source"`
+	AltBody    null.String `db:"altbody" json:"altbody"`
+	SendAt     null.Time   `db:"send_at" json:"send_at"`
+	Status     string      `db:"status" json:"status"`
+	// Set only when Status='paused' was set automatically (not by a
+	// user) -- see schema.sql's campaigns.pause_reason doc comment.
+	PauseReason       null.String     `db:"pause_reason" json:"pause_reason"`
 	ContentType       string          `db:"content_type" json:"content_type"`
 	Tags              pq.StringArray  `db:"tags" json:"tags"`
 	Headers           Headers         `db:"headers" json:"headers"`

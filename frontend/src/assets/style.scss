@@ -4,39 +4,43 @@
 // ============================================================
 // CSS Custom Properties (design tokens)
 // ============================================================
+// Ported to match listnun-console's own design tokens exactly
+// (web/src/index.css's warm paper/ink palette) rather than an
+// independently-derived scheme -- ink is primary, paper/tan are the
+// light tints, amber is the one accent (used for focus rings), status
+// colors match console's --status-* one-for-one.
 :root {
-  --deep-twilight:      #03045e;
-  --bright-teal-blue:   #0077b6;
-  --turquoise-surf:     #00b4d8;
-  --frosted-blue:       #90e0ef;
-  --light-cyan:         #caf0f8;
+  --ink:                #1b1e24;
+  --paper:              #f6f3ec;
+  --warm-tan:           #efebe1;
+  --amber-accent:       #d97d3d;
 
-  --lm-primary:         #0077b6;
-  --lm-primary-hover:   #005f91;
-  --lm-primary-light:   #e0f7fc;
-  --lm-primary-border:  #90e0ef;
-  --lm-primary-text:    #03045e;
+  --lm-primary:         #1b1e24;
+  --lm-primary-hover:   #2b2f36;
+  --lm-primary-light:   #efebe1;
+  --lm-primary-border:  #dedad0;
+  --lm-primary-text:    #1b1e24;
 
-  --lm-text:            #0f172a;
-  --lm-text-secondary:  #334155;
-  --lm-text-muted:      #64748b;
-  --lm-text-subtle:     #94a3b8;
+  --lm-text:            #1b1e24;
+  --lm-text-secondary:  #4a4e56;
+  --lm-text-muted:      #6b6f76;
+  --lm-text-subtle:     #9599a0;
 
-  --lm-border:          #e2e8f0;
-  --lm-border-light:    #f1f5f9;
-  --lm-bg:              #f8fafc;
-  --lm-bg-subtle:       #f1f5f9;
+  --lm-border:          #dedad0;
+  --lm-border-light:    #efebe1;
+  --lm-bg:              #f6f3ec;
+  --lm-bg-subtle:       #efebe1;
   --lm-surface:         #ffffff;
 
-  --lm-danger:          #ef4444;
-  --lm-danger-bg:       #fef2f2;
-  --lm-danger-border:   #fecaca;
-  --lm-warn:            #f59e0b;
-  --lm-warn-bg:         #fffbeb;
-  --lm-warn-border:     #fde68a;
-  --lm-success:         #22c55e;
-  --lm-success-bg:      #f0fdf4;
-  --lm-success-border:  #bbf7d0;
+  --lm-danger:          #c1503b;
+  --lm-danger-bg:       #f3ddd6;
+  --lm-danger-border:   #e6c0b5;
+  --lm-warn:            #d97d3d;
+  --lm-warn-bg:         #f3e2d0;
+  --lm-warn-border:     #e8caa2;
+  --lm-success:         #3f8f6c;
+  --lm-success-bg:      #dcebe3;
+  --lm-success-border:  #b9d7c8;
 }
 
 // ============================================================
@@ -51,9 +55,9 @@ $grey-light:   #b5b5b5;
 $grey:         #7a7a7a;
 $grey-dark:    #4a4a4a;
 $black:        #363636;
-$primary:      #0077b6;
-$green:        #36995b;
-$red:          #FF5722;
+$primary:      #1b1e24;
+$green:        #3f8f6c;
+$red:          #c1503b;
 $body-family:  "DM Sans", "Inter", "Helvetica Neue", sans-serif;
 $body-size:    15px;
 
@@ -324,7 +328,7 @@ ul.no {
   }
   &.is-warning {
     background: $white-ter;
-    border-left-color: #ed7b00;
+    border-left-color: #d97d3d;
     color: $black;
   }
 }
@@ -512,7 +516,7 @@ select { height: auto; padding: 0.5rem 0.75rem; }
     height: auto;
   }
   &.private, &.scheduled, &.paused, &.tx, &.api {
-    $color: #ed7b00;
+    $color: #d97d3d;
     color: $color;
     background: color.adjust($color, $lightness: 47%);
   }
@@ -573,12 +577,12 @@ $sidebar-w:      260px;
 $topbar-h:       56px;
 $sidebar-bg:     #ffffff;
 $sidebar-border: #e2e8f0;
-$sidebar-hover:  #e0f7fc;           // light-cyan tint
-$sidebar-active: #caf0f8;           // light-cyan
+$sidebar-hover:  #efebe1;           // warm-tan
+$sidebar-active: #efebe1;           // warm-tan
 $nav-text:       #64748b;
-$nav-text-hover: #03045e;           // deep-twilight
-$nav-text-active:#0077b6;           // bright-teal-blue
-$nav-active-bar: #00b4d8;           // turquoise-surf
+$nav-text-hover: #1b1e24;           // ink
+$nav-text-active:#1b1e24;           // ink
+$nav-active-bar: #d97d3d;           // amber-accent
 $nav-label:      #94a3b8;
 $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -631,7 +635,7 @@ $ease:           cubic-bezier(0.4, 0, 0.2, 1);
 
   // Wraps the brand name + organization name (when present) as one tight
   // vertical lockup next to the logo, rather than a full-width second row -
-  // reads as a single "listmonk, for {org}" identity rather than two
+  // reads as a single "listnun, for {org}" identity rather than two
   // unrelated header lines.
   .sidebar-brand-text {
     display: flex;
@@ -930,40 +934,6 @@ section {
 }
 
 // ============================================================
-// PvDialog inside (replaces .modal-card-*)
-// ============================================================
-.modal {
-  z-index: 950;
-  &.has-overflow {
-    overflow: auto !important;
-    .modal-content, .modal-card, .modal-card-body { overflow: visible !important; }
-  }
-}
-.modal-background { background: rgba(241, 241, 241, 0.7); }
-.modal-content, .modal.dialog .modal-card {
-  background: $white;
-  box-shadow: 0 0 10px #ddd;
-  border: 1px solid #ddd;
-  padding: 0;
-  border-radius: 5px;
-}
-.modal-card-head   { display: block; border-bottom: 0; padding: 1rem 1.5rem; }
-.modal-card-body   { padding: 30px 20px; }
-.modal-card-foot {
-  background: none;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 0;
-  padding: 1rem 1.5rem;
-  gap: 0.5rem;
-}
-.modal .modal-card-foot button {
-  flex-grow: 1;
-  &.is-primary { font-weight: bold; }
-}
-.modal .modal-close.is-large { display: none; }
-
-// ============================================================
 // Shared pill-style tabs (.lm-tabs)
 // ============================================================
 .lm-tabs {
@@ -1066,7 +1036,7 @@ section {
 
     &.p-toast-message-success { border-left-color: $green; }
     &.p-toast-message-error   { border-left-color: $red; }
-    &.p-toast-message-warn    { border-left-color: #ed7b00; }
+    &.p-toast-message-warn    { border-left-color: #d97d3d; }
     &.p-toast-message-info    { border-left-color: $primary; }
   }
 }
@@ -1498,8 +1468,8 @@ section.import {
 section.campaigns {
   table tbody {
     tr.running {
-      background: color.adjust(#0077b6, $lightness: 44%);
-      td { border-bottom: 1px solid color.adjust(#0077b6, $lightness: 35%); }
+      background: color.adjust($primary, $lightness: 44%);
+      td { border-bottom: 1px solid color.adjust($primary, $lightness: 35%); }
     }
     td {
       .tags { margin-top: 5px; }
@@ -1781,51 +1751,56 @@ th.role-toggle-select a { font-weight: normal; }
   color: var(--lm-text);
   body { color: var(--lm-text); background: var(--lm-bg); }
 
-  --lm-primary:         #00b4d8;
-  --lm-primary-hover:   #00c8f0;
-  --lm-primary-light:   #092030;
-  --lm-primary-border:  #005f91;
-  --lm-primary-text:    #caf0f8;
+  // Matches listnun-console's .dark tokens exactly.
+  --lm-primary:         #ece9e1;
+  --lm-primary-hover:   #f6f3ec;
+  --lm-primary-light:   #181b21;
+  --lm-primary-border:  #2b2f36;
+  --lm-primary-text:    #ece9e1;
 
-  --lm-text:            #e2e8f0;
-  --lm-text-secondary:  #cbd5e1;
-  --lm-text-muted:      #94a3b8;
-  --lm-text-subtle:     #475569;
+  --lm-text:            #ece9e1;
+  --lm-text-secondary:  #c7c3ba;
+  --lm-text-muted:      #9599a0;
+  --lm-text-subtle:     #6b6f76;
 
-  --lm-border:          #1e2d42;
-  --lm-border-light:    #172032;
-  --lm-bg:              #080e18;
-  --lm-bg-subtle:       #0d1424;
-  --lm-surface:         #111827;
+  --lm-border:          #2b2f36;
+  --lm-border-light:    #181b21;
+  --lm-bg:              #14171c;
+  --lm-bg-subtle:       #181b21;
+  --lm-surface:         #1b1f26;
 
-  --lm-danger:          #f87171;
-  --lm-danger-bg:       #2a0a0a;
-  --lm-danger-border:   #7f1d1d;
-  --lm-warn:            #fbbf24;
-  --lm-warn-bg:         #1a1200;
-  --lm-warn-border:     #92400e;
-  --lm-success:         #4ade80;
-  --lm-success-bg:      #0a1a0d;
-  --lm-success-border:  #14532d;
+  --lm-danger:          #c1503b;
+  --lm-danger-bg:       #3a2320;
+  --lm-danger-border:   #5c332c;
+  --lm-warn:            #d97d3d;
+  --lm-warn-bg:         #3a2c1e;
+  --lm-warn-border:     #5c4530;
+  --lm-success:         #3f8f6c;
+  --lm-success-bg:      #1d3128;
+  --lm-success-border:  #2d4a3c;
 
   // Layout
   .app-shell { background: var(--lm-bg); }
 
   // Sidebar
   .app-sidebar {
-    background: #0d1424;
+    background: var(--lm-bg-subtle);
     border-right-color: var(--lm-border);
 
     .sidebar-header { border-bottom-color: var(--lm-border); }
+
+    // The mark is a black icon on transparent - invert it to white so it
+    // stays legible against the dark sidebar background.
+    .sidebar-logo { filter: invert(1); }
 
     .nav-section-label { color: #475569; }
 
     .nav-item a {
       color: #94a3b8;
-      &:hover { background: #172032; color: #cbd5e1; }
+      &:hover { background: var(--lm-border-light); color: #cbd5e1; }
     }
     .nav-item a.router-link-active {
-      background: #092030;
+      background: var(--lm-primary-light);
       color: var(--lm-primary);
       &::before { background: var(--lm-primary); }
     }
@@ -1833,7 +1808,7 @@ th.role-toggle-select a { font-weight: normal; }
 
   // Topbar
   .app-topbar {
-    background: #0d1424;
+    background: var(--lm-bg-subtle);
     border-bottom-color: var(--lm-border);
   }
   .topbar-btn {
@@ -1940,5 +1915,5 @@ th.role-toggle-select a { font-weight: normal; }
   .p-dialog { box-shadow: 0 0 24px rgba(0,0,0,0.6); }
 
   // Code editor
-  .code-editor, .plain-editor textarea { background: #0d1424; color: var(--lm-text); border-color: var(--lm-border); }
+  .code-editor, .plain-editor textarea { background: var(--lm-bg-subtle); color: var(--lm-text); border-color: var(--lm-border); }
 }

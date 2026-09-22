@@ -1,4 +1,4 @@
-site_name: listmonk / Documentation
+site_name: listnun / Documentation
 theme:
   name: material
   # custom_dir: "mkdocs-material/material"
@@ -44,7 +44,7 @@ nav:
     - "Installation": installation.md
     - "Configuration": configuration.md
     - "Upgrade": upgrade.md
-  - "Using listmonk":
+  - "Using listnun":
     - "Concepts": concepts.md
     - "Templating": templating.md
     - "Querying and segmenting subscribers": querying-and-segmentation.md

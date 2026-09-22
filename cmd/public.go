@@ -16,6 +16,7 @@ import (
 	"github.com/knadh/listmonk/internal/i18n"
 	"github.com/knadh/listmonk/internal/manager"
 	"github.com/knadh/listmonk/internal/notifs"
+	"github.com/knadh/listmonk/internal/scrub"
 	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
@@ -790,13 +791,46 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		}
 	}
 
+	ctx := c.Request().Context()
+	tID := tenantID(c)
+
+	// listIDs (as opposed to listUUIDs above) is only needed for the Scrub
+	// auto-pause check below -- resolved once, used on both the fresh-insert
+	// and resubscribe-existing branches.
+	listIDs, err := a.core.GetListIDsByUUIDs(ctx, tID, req.FormListUUIDs)
+	if err != nil {
+		listIDs = nil
+	}
+
+	// Validate against Scrub, if configured for this tenant, only on a
+	// genuinely new subscriber -- a returning user resubmitting the form
+	// with an existing email isn't "adding" a new one, see the resubscribe
+	// branch below, which skips this and just checks the already-known
+	// status instead.
+	scrubStatus := ""
+	if s, err := a.core.GetSettings(ctx, tID); err == nil {
+		status, reject := validateEmailForAdd(ctx, s, req.Email)
+		if reject {
+			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+		}
+		scrubStatus = status
+	}
+
 	// Insert the subscriber into the DB.
-	_, hasOptin, err := a.core.InsertSubscriber(c.Request().Context(), tenantID(c), models.Subscriber{
+	sub, hasOptin, err := a.core.InsertSubscriber(ctx, tID, models.Subscriber{
 		Name:   req.Name,
 		Email:  req.Email,
 		Status: models.SubscriberStatusEnabled,
 	}, nil, listUUIDs, false, true)
 	if err == nil {
+		if scrubStatus != "" {
+			if err := a.core.SetSubscriberScrubStatus(ctx, tID, sub.ID, scrubStatus); err != nil {
+				a.log.Printf("error setting scrub status on subscriber %d: %v", sub.ID, err)
+			}
+			if scrubStatus == scrub.StatusRisky {
+				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
+			}
+		}
 		return hasOptin, nil
 	}
 
@@ -806,14 +840,19 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 	// Subscriber already exists. Update subscriptions in the DB.
 	if e, ok := err.(*echo.HTTPError); ok && e.Code == http.StatusConflict {
 		// Get the subscriber from the DB by their email.
-		sub, err := a.core.GetSubscriber(c.Request().Context(), tenantID(c), 0, "", req.Email)
+		existing, err := a.core.GetSubscriber(ctx, tID, 0, "", req.Email)
 		if err != nil {
 			return false, err
 		}
 
 		// Update the subscriber's subscriptions in the DB.
-		_, hasOptin, err := a.core.UpdateSubscriberWithLists(c.Request().Context(), tenantID(c), sub.ID, sub, nil, listUUIDs, false, false, true, nil, true)
+		_, hasOptin, err := a.core.UpdateSubscriberWithLists(ctx, tID, existing.ID, existing, nil, listUUIDs, false, false, true, nil, true)
 		if err == nil {
+			// Already-known subscriber, no fresh Scrub call -- just check
+			// their existing status, same as ManageSubscriberLists' "add".
+			if existing.ScrubStatus.String == scrub.StatusRisky {
+				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
+			}
 			return hasOptin, nil
 		}
 		lastErr = err

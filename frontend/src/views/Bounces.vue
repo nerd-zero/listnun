@@ -112,6 +112,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { makeQueryHandlers } from '../utils';
 import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import { getBounces as bouncesApi } from '../api/generated/endpoints/bounces/bounces';
 import { getSubscribers as subscribersApi } from '../api/generated/endpoints/subscribers/subscribers';
@@ -146,16 +147,7 @@ function getBounces() {
   }).then((data: any) => { bounces.value = data; });
 }
 
-function onSort(field: string, direction: string) {
-  queryParams.orderBy = field;
-  queryParams.order = direction;
-  getBounces();
-}
-
-function onPageChange(p: number) {
-  queryParams.page = p;
-  getBounces();
-}
+const { onPageChange, onSort } = makeQueryHandlers(queryParams, getBounces);
 
 function selectAllBounces() { bulk.all = true; }
 

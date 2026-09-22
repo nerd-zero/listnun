@@ -161,7 +161,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// Individual list permissions are applied directly within handleGetLists.
 		g.GET("/api/lists", a.GetLists)
 		g.GET("/api/lists/scrub", pm(a.GetScrubListStatus, "settings:manage"))
+		g.GET("/api/lists/scrub/history", pm(a.GetScrubHistory, "settings:manage"))
 		g.POST("/api/lists/:id/scrub", hasID(pm(a.ScrubList, "settings:manage")))
+		g.GET("/api/lists/:id/scrub/progress/:request_id", hasID(pm(a.GetScrubListProgress, "settings:manage")))
 		g.GET("/api/lists/:id", hasID(a.GetList))
 		g.POST("/api/lists", pm(a.CreateList, "lists:manage_all"))
 		g.PUT("/api/lists/:id", hasID(a.UpdateList))
@@ -170,6 +172,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		g.GET("/api/campaigns", pm(a.GetCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/running/stats", pm(a.GetRunningCampaignStats, "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/auto-paused", pm(a.GetAutoPausedCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/analytics/:type", pm(a.GetCampaignViewAnalytics, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
@@ -256,6 +259,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/tenants/:id", hasID(a.DeleteOperatorTenant))
 		g.POST("/tenants/:id/setup-link", hasID(a.CreateOperatorSetupLink))
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
+		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
+		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.POST("/tenants/:id/scrub/api-user", hasID(a.CreateOperatorTenantScrubAPIUser))
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
 
@@ -269,6 +275,13 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 			// Public bounce endpoints for webservices like SES.
 			g.POST("/webhooks/service/:service", a.BounceWebhook)
 		}
+
+		// Scrub batch validation progress callback -- no global enable
+		// flag like BounceWebhooksEnabled since Scrub is a per-tenant
+		// setting, not server config; authenticated per-request by
+		// verifying Scrub's HMAC signature instead (see
+		// cmd/scrub_batch.go's ScrubBatchWebhook).
+		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
 
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {

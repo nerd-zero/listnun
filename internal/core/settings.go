@@ -38,6 +38,15 @@ func (c *Core) GetSettings(ctx context.Context, tenantID int) (models.Settings, 
 
 // UpdateSettings updates settings.
 func (c *Core) UpdateSettings(ctx context.Context, tenantID int, s models.Settings) error {
+	// A platform-managed Scrub config is locked -- a tenant admin's own
+	// full-object settings save must not be able to change any part of
+	// it, no matter what the request body contained. This is the whole
+	// sub-object, not field-by-field, since everything is locked together
+	// once platform-managed (see models.Settings.Scrub's doc comment).
+	if cur, err := c.GetSettings(ctx, tenantID); err == nil && cur.Scrub.ManagedByPlatform {
+		s.Scrub = cur.Scrub
+	}
+
 	// Marshal settings.
 	b, err := json.Marshal(s)
 	if err != nil {
@@ -60,6 +69,17 @@ func (c *Core) UpdateSettings(ctx context.Context, tenantID int, s models.Settin
 
 // UpdateSettingsByKey updates a single setting by key.
 func (c *Core) UpdateSettingsByKey(ctx context.Context, tenantID int, key string, value json.RawMessage) error {
+	// A raw PUT /api/settings/:key targeting "scrub" is a second,
+	// independent write path into the same row UpdateSettings guards --
+	// it must be locked too, or a tenant admin can trivially bypass the
+	// UpdateSettings-only guard by calling this endpoint directly instead.
+	if key == "scrub" {
+		if cur, err := c.GetSettings(ctx, tenantID); err == nil && cur.Scrub.ManagedByPlatform {
+			return echo.NewHTTPError(http.StatusForbidden,
+				c.i18n.T("settings.scrub.managedByPlatform"))
+		}
+	}
+
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
 		_, err := stmtx(tx, c.q.UpdateSettingsByKey).Exec(key, value, tenantID)
 		return err

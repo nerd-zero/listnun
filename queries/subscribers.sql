@@ -8,6 +8,27 @@ SELECT * FROM subscribers WHERE
         WHEN $3 != '' THEN email = $3
     END;
 
+-- name: set-subscriber-scrub-status
+-- Sets a single subscriber's Scrub validate-on-add result. Deliberately a
+-- standalone follow-up UPDATE rather than a param on insert-subscriber --
+-- that CTE is shared by multiple callers (single add, public signup form)
+-- and its $-positional signature isn't worth reshaping for this.
+UPDATE subscribers SET scrub_status = $2, scrub_checked_at = NOW()
+WHERE id = $1 AND tenant_id = $3;
+
+-- name: set-subscribers-scrub-status-by-email
+-- Batched equivalent for CSV import, called once per distinct status value
+-- present in a commit batch rather than once per row.
+UPDATE subscribers SET scrub_status = $2, scrub_checked_at = NOW()
+WHERE tenant_id = $1 AND email = ANY($3::TEXT[]);
+
+-- name: get-risky-subscriber-ids
+-- Which of the given subscriber IDs are currently flagged risky --
+-- used by ManageSubscriberLists' "add" action, which links *existing*
+-- subscribers to a list and so never calls Scrub itself, just checks
+-- their already-known status.
+SELECT id FROM subscribers WHERE tenant_id = $1 AND id = ANY($2::INT[]) AND scrub_status = 'risky';
+
 -- name: has-subscriber-list
 -- Used for checking access permission by list.
 SELECT s.id AS subscriber_id,
@@ -21,6 +42,14 @@ FROM subscribers s WHERE s.id = ANY($1);
 -- name: get-subscribers-by-emails
 -- Get subscribers by emails.
 SELECT * FROM subscribers WHERE email=ANY($1);
+
+-- name: get-list-subscriber-emails
+-- Emails to submit for cmd/settings.go's ScrubList (list-validate) --
+-- everyone on the list except those already unsubscribed from it, since
+-- there's no point re-validating an address nothing will ever be sent to.
+SELECT s.email FROM subscribers s
+    JOIN subscriber_lists sl ON (sl.subscriber_id = s.id)
+    WHERE sl.list_id = $1 AND s.tenant_id = $2 AND sl.status != 'unsubscribed';
 
 -- name: get-subscriber-lists
 WITH sub AS (
