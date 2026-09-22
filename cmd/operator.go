@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -483,114 +482,6 @@ func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) e
 
 	_, err = s.q.SetTenantScrub.Exec(tenantID, b)
 	return err
-}
-
-// scrubIntegrationUsername returns the reserved API username Scrub's own
-// listnun/listmonk-provider integration authenticates as when it calls
-// back into a tenant (GET /api/lists, /api/subscribers, blocklisting) --
-// the reverse direction of SetTenantScrub above, which only pushes
-// settings the other way (this tenant calling out to Scrub).
-//
-// Includes the tenant id rather than being one fixed literal across
-// every tenant -- found live: internal/auth.Auth's apiUsers cache
-// (auth.go) is a single process-wide map keyed by bare username, not by
-// tenant, because Basic Auth resolves the tenant from the Host header
-// separately (internal/tenant.Middleware) before this cache is ever
-// consulted. A literal "scrub-integration" username shared by every
-// tenant would collide in that one map -- only the most recently cached
-// tenant's copy survives, silently 403ing every other tenant's
-// otherwise-correct credentials via tenantMismatch. Deterministic
-// (not random) so CreateTenantScrubAPIUser can still find and rotate a
-// previous one by a simple username lookup.
-func scrubIntegrationUsername(tenantID int) string {
-	return fmt.Sprintf("scrub-integration-%d", tenantID)
-}
-
-// scrubIntegrationRoleName names the least-privilege role
-// getOrCreateScrubIntegrationRole creates for scrubIntegrationUsername --
-// just enough to read lists/subscribers and blocklist invalid ones, not
-// the tenant's full Super Admin role (which would also hand over
-// campaigns, users, and settings management to Scrub's API key).
-const scrubIntegrationRoleName = "Scrub Integration"
-
-var scrubIntegrationPermissions = []string{"lists:get_all", "subscribers:get_all", "subscribers:manage"}
-
-// CreateTenantScrubAPIUser provisions the dedicated API user (and its
-// supporting role, created on first use) that Scrub authenticates as
-// when calling back into this tenant. Returns the username and a fresh
-// one-time plaintext token -- see CreateUser's own doc comment on why
-// the token can only ever be read at creation time.
-//
-// Create-or-rotate, not create-once: if scrubIntegrationUsername already
-// exists (a previous call already ran, or the caller lost track of the
-// token it was shown), the old user is deleted and a new one created
-// rather than erroring. This is what listnun's periodic healing sweep
-// (provisioning.HealScrubIntegrations) relies on to recover an
-// integration whose credentials went bad for any reason -- there's no
-// way to verify or recover an existing API user's plaintext token to
-// confirm it still matches what Scrub has on file, so treating "already
-// exists" as "needs a fresh one" is the only option that's actually
-// self-healing.
-func (s *operatorStore) CreateTenantScrubAPIUser(ctx context.Context, tenantID int) (string, string, error) {
-	users, err := s.co.GetUsers(ctx, tenantID)
-	if err != nil {
-		return "", "", err
-	}
-	username := scrubIntegrationUsername(tenantID)
-	for _, u := range users {
-		if u.Username == username {
-			if err := s.co.DeleteUsers(ctx, tenantID, []int{u.ID}); err != nil {
-				return "", "", err
-			}
-			break
-		}
-	}
-
-	roleID, err := s.getOrCreateScrubIntegrationRole(ctx, tenantID)
-	if err != nil {
-		return "", "", err
-	}
-
-	out, err := s.co.CreateUser(ctx, tenantID, auth.User{
-		Type:       auth.UserTypeAPI,
-		Username:   username,
-		Name:       scrubIntegrationRoleName,
-		UserRoleID: roleID,
-		Status:     auth.UserStatusEnabled,
-	})
-	if err != nil {
-		return "", "", err
-	}
-	return out.Username, out.Password.String, nil
-}
-
-// getOrCreateScrubIntegrationRole returns the tenant's own
-// scrubIntegrationRoleName role id, creating it on first use. Looked up
-// by name rather than assumed to be auth.SuperAdminRoleID (id 1) --
-// role ids come from one sequence shared across every tenant, so only
-// tenant 1's own roles happen to land on the low numbers; see
-// queries/users.sql's update-user query for the same reasoning applied
-// to the Super Admin role.
-func (s *operatorStore) getOrCreateScrubIntegrationRole(ctx context.Context, tenantID int) (int, error) {
-	roles, err := s.co.GetRoles(ctx, tenantID)
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range roles {
-		if r.Name.String == scrubIntegrationRoleName {
-			return r.ID, nil
-		}
-	}
-
-	newRole, err := s.co.CreateRole(ctx, tenantID, auth.Role{
-		Type:        auth.RoleTypeUser,
-		Name:        null.NewString(scrubIntegrationRoleName, true),
-		Permissions: scrubIntegrationPermissions,
-	})
-	if err != nil {
-		return 0, err
-	}
-	return newRole.ID, nil
 }
 
 // CreateSetupLink issues a fresh one-time setup token for an existing
@@ -1167,60 +1058,6 @@ func (a *App) SetOperatorTenantScrub(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})
-}
-
-// operatorScrubAPIUserResp is the response body for
-// CreateOperatorTenantScrubAPIUser -- the token is shown exactly once
-// here, same as the regular admin UI's own "create API user" flow.
-type operatorScrubAPIUserResp struct {
-	Username string `json:"username"`
-	APIToken string `json:"api_token"`
-} // @name OperatorScrubAPIUserResp
-
-// CreateOperatorTenantScrubAPIUser provisions (or rotates, if one
-// already exists) the dedicated API user Scrub's own
-// listnun/listmonk-provider integration authenticates as when calling
-// back into this tenant -- see operatorStore.CreateTenantScrubAPIUser,
-// including why this rotates rather than erroring on a repeat call. The
-// caller (listnun) is responsible for immediately pushing the returned
-// credentials into Scrub's integration config; there is no way to
-// retrieve the token again afterward.
-//
-//	@ID			createOperatorTenantScrubAPIUser
-//	@Summary		Create or rotate the Scrub integration API user for a tenant (Operator API)
-//	@Tags			operator
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id	path		int	true	"Tenant ID"
-//	@Success		200	{object}	operatorScrubAPIUserResp
-//	@Failure		401	{object}	echo.HTTPError
-//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
-//	@Router			/api/operator/tenants/{id}/scrub/api-user [post]
-func (a *App) CreateOperatorTenantScrubAPIUser(c echo.Context) error {
-	id := getID(c)
-
-	if _, err := a.operator.GetTenant(id); err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
-	}
-
-	username, token, err := a.operator.CreateTenantScrubAPIUser(c.Request().Context(), id)
-	if err != nil {
-		a.log.Printf("error creating tenant scrub API user: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "error creating scrub API user")
-	}
-
-	// Basic Auth is served from internal/auth.Auth's in-memory apiUsers
-	// cache, not a live DB read (see auth.go's GetAPIToken) -- without
-	// this refresh, the user this just created/rotated in the DB can't
-	// actually authenticate until the process happens to restart for
-	// some unrelated reason. Same refresh cmd/users.go's own CreateUser
-	// handler already does after the admin UI creates an API user.
-	if _, err := cacheUsers(a.core, a.auth); err != nil {
-		a.log.Printf("error refreshing API user cache: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "error refreshing API user cache")
-	}
-
-	return c.JSON(http.StatusOK, okResp{operatorScrubAPIUserResp{Username: username, APIToken: token}})
 }
 
 // OperatorSetupPage renders (GET) and processes (POST) the one-time
