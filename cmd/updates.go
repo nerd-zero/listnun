@@ -5,12 +5,14 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
-
-	"golang.org/x/mod/semver"
 )
 
-const updateCheckURL = "https://update.listmonk.app/update.json"
+// updateCheckURL is the GitHub API endpoint for this fork's latest published
+// release. /releases/latest skips drafts and pre-releases, so only real
+// (prod) CalVer releases are ever announced.
+const updateCheckURL = "https://api.github.com/repos/nerd-zero/listmonk/releases/latest"
 
 type AppUpdate struct {
 	Update struct {
@@ -31,23 +33,75 @@ type AppUpdate struct {
 	} `json:"messages"`
 } // @name AppUpdate
 
-var reSemver = regexp.MustCompile(`-(.*)`)
+// ghRelease is the subset of the GitHub release payload that's used.
+type ghRelease struct {
+	TagName     string `json:"tag_name"`
+	HTMLURL     string `json:"html_url"`
+	Body        string `json:"body"`
+	PublishedAt string `json:"published_at"`
+}
+
+// reCalVer matches the fork's CalVer release tags (YYYY.MM.NNN, with an
+// optional -suffix such as -alpha), as produced by .github/workflows/build.yml.
+var reCalVer = regexp.MustCompile(`^v?(\d{4})\.(\d{2})\.(\d+)(?:-.*)?$`)
+
+// parseCalVer returns the numeric parts of a CalVer tag, or false if the tag
+// isn't CalVer.
+func parseCalVer(v string) ([3]int, bool) {
+	var out [3]int
+	m := reCalVer.FindStringSubmatch(v)
+	if m == nil {
+		return out, false
+	}
+	for i := range out {
+		n, _ := strconv.Atoi(m[i+1])
+		out[i] = n
+	}
+	return out, true
+}
+
+// isNewerCalVer reports whether remote is a newer CalVer release than cur.
+func isNewerCalVer(remote, cur string) bool {
+	r, ok := parseCalVer(remote)
+	if !ok {
+		return false
+	}
+	c, ok := parseCalVer(cur)
+	if !ok {
+		return false
+	}
+	for i := range r {
+		if r[i] != c[i] {
+			return r[i] > c[i]
+		}
+	}
+	return false
+}
 
 // checkUpdates is a blocking function that checks for updates to the app
-// at the given intervals. On detecting a new update (new semver), it
-// sets the global update status that renders a prompt on the UI.
+// at the given intervals. On detecting a newer release, it sets the global
+// update status that renders a prompt on the UI.
 func (a *App) checkUpdates(curVersion string, interval time.Duration) {
-	// Strip -* suffix.
-	curVersion = reSemver.ReplaceAllString(curVersion, "")
-
 	fnCheck := func() {
-		resp, err := http.Get(updateCheckURL)
+		req, err := http.NewRequest(http.MethodGet, updateCheckURL, nil)
+		if err != nil {
+			a.log.Printf("error creating remote update request: %v", err)
+			return
+		}
+		req.Header.Set("Accept", "application/vnd.github+json")
+
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			a.log.Printf("error checking for remote update: %v", err)
 			return
 		}
+		defer resp.Body.Close()
 
-		if resp.StatusCode != 200 {
+		// 404 means no release has been published yet.
+		if resp.StatusCode == http.StatusNotFound {
+			return
+		}
+		if resp.StatusCode != http.StatusOK {
 			a.log.Printf("non 200 response on remote update check: %d", resp.StatusCode)
 			return
 		}
@@ -57,21 +111,23 @@ func (a *App) checkUpdates(curVersion string, interval time.Duration) {
 			a.log.Printf("error reading remote update payload: %v", err)
 			return
 		}
-		resp.Body.Close()
 
-		var out AppUpdate
-		if err := json.Unmarshal(b, &out); err != nil {
+		var rel ghRelease
+		if err := json.Unmarshal(b, &rel); err != nil {
 			a.log.Printf("error unmarshalling remote update payload: %v", err)
 			return
 		}
 
+		var out AppUpdate
+		out.Update.ReleaseVersion = rel.TagName
+		out.Update.ReleaseDate = rel.PublishedAt
+		out.Update.URL = rel.HTMLURL
+		out.Update.Description = rel.Body
+
 		// There is an update. Set it on the global app state.
-		if semver.IsValid(out.Update.ReleaseVersion) {
-			v := reSemver.ReplaceAllString(out.Update.ReleaseVersion, "")
-			if semver.Compare(v, curVersion) > 0 {
-				out.Update.IsNew = true
-				a.log.Printf("new update %s found", out.Update.ReleaseVersion)
-			}
+		if isNewerCalVer(rel.TagName, curVersion) {
+			out.Update.IsNew = true
+			a.log.Printf("new update %s found", rel.TagName)
 		}
 
 		a.Lock()

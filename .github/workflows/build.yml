@@ -124,3 +124,17 @@ jobs:
         run: |
           git tag "${{ needs.prepare_build.outputs.APP_VERSION }}"
           git push origin "${{ needs.prepare_build.outputs.APP_VERSION }}"
+
+      # Only prod builds become GitHub Releases. The app's update checker
+      # (cmd/updates.go) polls /releases/latest to show the "update available"
+      # banner, so -alpha builds must never be published here.
+      - name: Publish GitHub release
+        if: github.ref_name == 'prod'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ needs.prepare_build.outputs.APP_VERSION }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ needs.prepare_build.outputs.APP_VERSION }}" \
+            --generate-notes \
+            --latest
