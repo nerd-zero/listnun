@@ -7,8 +7,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // GetSettings returns settings from the DB.

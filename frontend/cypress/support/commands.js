@@ -3,8 +3,8 @@ import 'cypress-wait-until';
 
 Cypress.Commands.add('resetDB', () => {
   // Although cypress clearly states that a webserver should not be run
-  // from within it, listmonk is killed, the DB reset, and run again
-  // in the background. If the DB is reset without restarting listmonk,
+  // from within it, listnun is killed, the DB reset, and run again
+  // in the background. If the DB is reset without restarting listnun,
   // the live Postgres connections in the app throw errors because the
   // schema changes midway.
   cy.task('resetServer');
@@ -30,8 +30,8 @@ Cypress.Commands.add('sortTable', (theadSelector, ordIDs) => {
 Cypress.Commands.add('loginAndVisit', (url) => {
   cy.visit(`/admin/login?next=${url}`);
 
-  const username = Cypress.env('LISTMONK_ADMIN_USER') || 'admin';
-  const password = Cypress.env('LISTMONK_ADMIN_PASSWORD') || 'listmonk';
+  const username = Cypress.env('LISTNUN_ADMIN_USER') || 'admin';
+  const password = Cypress.env('LISTNUN_ADMIN_PASSWORD') || 'listnun123';
 
   // Fill the username and password and login.
   cy.get('input[name=username]').invoke('val', username);

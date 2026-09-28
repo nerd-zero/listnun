@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Calea de încărcare",
     "settings.media.upload.pathHelp": "Calea către directorul în care va fi încărcat conținutul media.",
     "settings.media.upload.uri": "Încărcați URI-ul",
-    "settings.media.upload.uriHelp": "Încărcați URI care este vizibil pentru lumea exterioară. Conținutul media încărcat în upload_path va fi accesibil publicului în temeiul {root_url}, de exemplu, https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "Încărcați URI care este vizibil pentru lumea exterioară. Conținutul media încărcat în upload_path va fi accesibil publicului în temeiul {root_url}, de exemplu, https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Conexiuni maxime",
     "settings.messengers.maxConnsHelp": "Conexiuni concurente maxime la server.",
     "settings.messengers.messageSaved": "Setari Salvate. Se reîncarcă aplicația ...",

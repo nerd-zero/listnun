@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Uppladdningsmapp",
     "settings.media.upload.pathHelp": "Sökväg till mappen där media kommer att laddas upp.",
     "settings.media.upload.uri": "Uppladdnings-URI",
-    "settings.media.upload.uriHelp": "Uppladdnings-URI som är synligt för omvärlden. Medierna som laddas upp till uppladdningsmappen kommer att vara offentligt tillgängliga under {root_url}, till exempel, https://listmonk.dindomän.com/uploads.",
+    "settings.media.upload.uriHelp": "Uppladdnings-URI som är synligt för omvärlden. Medierna som laddas upp till uppladdningsmappen kommer att vara offentligt tillgängliga under {root_url}, till exempel, https://listnun.dindomän.com/uploads.",
     "settings.messengers.maxConns": "Max. anslutningar",
     "settings.messengers.maxConnsHelp": "Maximalt antal samtidiga anslutningar till servern.",
     "settings.messengers.messageSaved": "Inställningarna har sparats. Laddar om app ...",

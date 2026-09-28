@@ -11,14 +11,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/internal/notifs"
-	"github.com/knadh/listmonk/internal/scrub"
-	"github.com/knadh/listmonk/internal/subimporter"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/internal/scrub"
+	"github.com/nerd-zero/listnun/internal/subimporter"
+	"github.com/nerd-zero/listnun/models"
 )
 
 const (

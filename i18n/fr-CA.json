@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Emplacement d'envoi des fichiers",
     "settings.media.upload.pathHelp": "Chemin vers le répertoire où les médias seront mis en ligne",
     "settings.media.upload.uri": "URI d'envoi des fichiers",
-    "settings.media.upload.uriHelp": "URI d'envoi des fichiers (qui sera visible du monde extérieur). Les médias stockés à cet emplacement seront accessible publiquement sous {root_url}, par exemple à l'adresse : https://listmonk.votresite.com/uploads",
+    "settings.media.upload.uriHelp": "URI d'envoi des fichiers (qui sera visible du monde extérieur). Les médias stockés à cet emplacement seront accessible publiquement sous {root_url}, par exemple à l'adresse : https://listnun.votresite.com/uploads",
     "settings.messengers.maxConns": "Nombre de connexions max.",
     "settings.messengers.maxConnsHelp": "Nombre maximum de connexions simultanées au serveur",
     "settings.messengers.messageSaved": "Paramètres sauvegardés. Redémarrage de l'application...",

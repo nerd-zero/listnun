@@ -19,19 +19,19 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       allowedHosts: true,
-      port: parseInt(env.LISTMONK_FRONTEND_PORT, 10) || 8080,
+      port: parseInt(env.LISTNUN_FRONTEND_PORT, 10) || 8080,
       proxy: {
         '^/$': {
-          target: env.LISTMONK_API_URL || 'http://127.0.0.1:9000',
+          target: env.LISTNUN_API_URL || 'http://127.0.0.1:9000',
         },
         '^/(api|webhooks|subscription|public|health)': {
-          target: env.LISTMONK_API_URL || 'http://127.0.0.1:9000',
+          target: env.LISTNUN_API_URL || 'http://127.0.0.1:9000',
         },
         '^/admin/login': {
-          target: env.LISTMONK_API_URL || 'http://127.0.0.1:9000',
+          target: env.LISTNUN_API_URL || 'http://127.0.0.1:9000',
         },
         '^/(admin\\/custom\\.(css|js))': {
-          target: env.LISTMONK_API_URL || 'http://127.0.0.1:9000',
+          target: env.LISTNUN_API_URL || 'http://127.0.0.1:9000',
         },
       },
     },

@@ -84,7 +84,7 @@ jobs:
       - name: Prepare dependencies
         run: make dist
         env:
-          LISTMONK_VERSION: nightly-${{ steps.tag.outputs.date }}
+          LISTNUN_VERSION: nightly-${{ steps.tag.outputs.date }}
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -93,40 +93,40 @@ jobs:
           args: release --snapshot --parallelism 1 --clean --config .goreleaser-nightly.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LISTMONK_VERSION: nightly-${{ steps.tag.outputs.date }}
+          LISTNUN_VERSION: nightly-${{ steps.tag.outputs.date }}
 
       - name: Push Docker images
         run: |
           # Push all architecture-specific images
-          docker push listmonk/listmonk:nightly-amd64
-          docker push listmonk/listmonk:nightly-arm64v8
-          docker push listmonk/listmonk:nightly-armv6
-          docker push listmonk/listmonk:nightly-armv7
-          docker push ghcr.io/knadh/listmonk:nightly-amd64
-          docker push ghcr.io/knadh/listmonk:nightly-arm64v8
-          docker push ghcr.io/knadh/listmonk:nightly-armv6
-          docker push ghcr.io/knadh/listmonk:nightly-armv7
+          docker push listnun/listnun:nightly-amd64
+          docker push listnun/listnun:nightly-arm64v8
+          docker push listnun/listnun:nightly-armv6
+          docker push listnun/listnun:nightly-armv7
+          docker push ghcr.io/nerd-zero/listnun:nightly-amd64
+          docker push ghcr.io/nerd-zero/listnun:nightly-arm64v8
+          docker push ghcr.io/nerd-zero/listnun:nightly-armv6
+          docker push ghcr.io/nerd-zero/listnun:nightly-armv7
 
       - name: Create and push Docker manifests
         run: |
           # Docker Hub manifest
-          docker buildx imagetools create -t listmonk/listmonk:nightly \
-            listmonk/listmonk:nightly-amd64 \
-            listmonk/listmonk:nightly-arm64v8 \
-            listmonk/listmonk:nightly-armv6 \
-            listmonk/listmonk:nightly-armv7
+          docker buildx imagetools create -t listnun/listnun:nightly \
+            listnun/listnun:nightly-amd64 \
+            listnun/listnun:nightly-arm64v8 \
+            listnun/listnun:nightly-armv6 \
+            listnun/listnun:nightly-armv7
 
           # GHCR manifest
-          docker buildx imagetools create -t ghcr.io/knadh/listmonk:nightly \
-            ghcr.io/knadh/listmonk:nightly-amd64 \
-            ghcr.io/knadh/listmonk:nightly-arm64v8 \
-            ghcr.io/knadh/listmonk:nightly-armv6 \
-            ghcr.io/knadh/listmonk:nightly-armv7
+          docker buildx imagetools create -t ghcr.io/nerd-zero/listnun:nightly \
+            ghcr.io/nerd-zero/listnun:nightly-amd64 \
+            ghcr.io/nerd-zero/listnun:nightly-arm64v8 \
+            ghcr.io/nerd-zero/listnun:nightly-armv6 \
+            ghcr.io/nerd-zero/listnun:nightly-armv7
 
       - name: Verify Docker manifests
         run: |
-          docker buildx imagetools inspect listmonk/listmonk:nightly
-          docker buildx imagetools inspect ghcr.io/knadh/listmonk:nightly
+          docker buildx imagetools inspect listnun/listnun:nightly
+          docker buildx imagetools inspect ghcr.io/nerd-zero/listnun:nightly
 
       - name: Create GitHub Release
         env:
@@ -137,7 +137,7 @@ jobs:
             --notes "
           > **Warning**: This is an automated nightly build from the master branch.
           > It may contain bugs and breaking changes. Use at your own risk.
-          > Available on Docker Hub and GitHub Container Registry as `listmonk/listmonk:nightly`.
+          > Available on Docker Hub and GitHub Container Registry as `listnun/listnun:nightly`.
           > For stable releases, please use a versioned release. [Learn more](https://listmonk.app/docs/installation/#nightly)
 
           Built from commit: $(git rev-parse --short HEAD)" \

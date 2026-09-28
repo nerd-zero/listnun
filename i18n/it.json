@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Percorso del caricamento",
     "settings.media.upload.pathHelp": "Percorso verso la cartella dove i media saranno caricati.",
     "settings.media.upload.uri": "URI del caricamento",
-    "settings.media.upload.uriHelp": "URI del caricamento che sarà visibile dal mondo esterno. Il media caricato nel percorso del caricamento sarà accessibile pubblicamente sotto {root_url}, per esempio: https://listmonk.tuosito.com/uploads.",
+    "settings.media.upload.uriHelp": "URI del caricamento che sarà visibile dal mondo esterno. Il media caricato nel percorso del caricamento sarà accessibile pubblicamente sotto {root_url}, per esempio: https://listnun.tuosito.com/uploads.",
     "settings.messengers.maxConns": "Nb. connessioni max.",
     "settings.messengers.maxConnsHelp": "Numero massimo di connessioni simultanee al server.",
     "settings.messengers.messageSaved": "Parametri salvati. Ricarica dell'applicazione...",

@@ -9,9 +9,9 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/media"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/media"
+	"github.com/nerd-zero/listnun/models"
 	"gopkg.in/volatiletech/null.v6"
 )
 

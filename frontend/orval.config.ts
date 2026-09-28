@@ -1,7 +1,7 @@
 import { defineConfig } from 'orval';
 
 export default defineConfig({
-  listmonk: {
+  listnun: {
     input: {
       target: '../docs/swagger.yaml',
     },

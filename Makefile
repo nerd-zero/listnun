@@ -2,7 +2,7 @@
 LAST_COMMIT := $(or $(shell git rev-parse --short HEAD 2> /dev/null),$(shell head -n 1 VERSION | grep -oP -m 1 "^[a-z0-9]+$$"),"")
 
 # Try to get the semver from 1) git 2) the VERSION file 3) fallback.
-VERSION := $(or $(LISTMONK_VERSION),$(shell git describe --tags --abbrev=0 2> /dev/null),$(shell grep -oP 'tag: \Kv\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?' VERSION),"v0.0.0")
+VERSION := $(or $(LISTNUN_VERSION),$(shell git describe --tags --abbrev=0 2> /dev/null),$(shell grep -oP 'tag: \Kv\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?' VERSION),"v0.0.0")
 
 BUILDDATE := $(if $(SOURCE_DATE_EPOCH),$(shell date -u -d @$(SOURCE_DATE_EPOCH) +"%Y-%m-%dT%H:%M:%S%z"),$(shell date -u +"%Y-%m-%dT%H:%M:%S%z"))
 BUILDSTR := ${VERSION} (\#${LAST_COMMIT} $(BUILDDATE))
@@ -32,7 +32,7 @@ FRONTEND_EMAIL_BUILDER_DEPS = \
 	$(FRONTEND_EMAIL_BUILDER)/vite.config.ts \
 	$(shell find $(FRONTEND_EMAIL_BUILDER)/src -type f)
 
-BIN := listmonk
+BIN := listnun
 STATIC := config.toml.sample \
 	schema.sql queries:/queries permissions.json \
 	static/public:/public \
@@ -57,7 +57,7 @@ $(FRONTEND_EMAIL_BUILDER_YARN_MODULES): frontend/package.json frontend/yarn.lock
 	cd $(FRONTEND_EMAIL_BUILDER) && $(YARN) install
 	touch -c $(FRONTEND_EMAIL_BUILDER_YARN_MODULES)
 
-# Build the backend to ./listmonk.
+# Build the backend to ./listnun.
 $(BIN): $(SRC) go.mod go.sum schema.sql $(SQL) permissions.json
 	CGO_ENABLED=0 go build -o ${BIN} -ldflags="-s -w -X 'main.buildString=${BUILDSTR}' -X 'main.versionString=${VERSION}'" ./cmd
 
@@ -99,7 +99,7 @@ run-frontend: $(FRONTEND_EMAIL_BUILDER_DIST_FINAL)
 test:
 	go test ./...
 
-# Bundle all static assets including the JS frontend into the ./listmonk binary
+# Bundle all static assets including the JS frontend into the ./listnun binary
 # using stuffbin (installed with make deps).
 .PHONY: dist
 dist: $(STUFFBIN) build build-frontend pack-bin
@@ -147,4 +147,4 @@ rm-dev-docker: build ## Delete the docker containers including DB volumes.
 .PHONY: init-dev-docker
 init-dev-docker: build-dev-docker ## Delete the docker containers including DB volumes.
 	cd dev; \
-	docker compose run --rm backend sh -c "make dist && ./listmonk --install --idempotent --yes --config dev/config.toml"
+	docker compose run --rm backend sh -c "make dist && ./listnun --install --idempotent --yes --config dev/config.toml"

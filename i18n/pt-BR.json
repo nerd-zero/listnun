@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Caminho de envio",
     "settings.media.upload.pathHelp": "Caminho para o diretório onde a mídia será enviado.",
     "settings.media.upload.uri": "URI de envio",
-    "settings.media.upload.uriHelp": "URI de envio que é visível ao mundo exterior. Todas as mídias enviadas para o upload_path será publicamente acessível em {root_url}, por exemplo, https://listmonk.exemplo.com.br/uploads.",
+    "settings.media.upload.uriHelp": "URI de envio que é visível ao mundo exterior. Todas as mídias enviadas para o upload_path será publicamente acessível em {root_url}, por exemplo, https://listnun.exemplo.com.br/uploads.",
     "settings.messengers.maxConns": "Máx. conexões",
     "settings.messengers.maxConnsHelp": "Máximo de conexões simultâneas para o servidor.",
     "settings.messengers.messageSaved": "Configurações salvas. Recarregando o aplicativo...",

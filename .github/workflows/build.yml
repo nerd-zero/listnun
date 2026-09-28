@@ -26,7 +26,7 @@ jobs:
       - id: set_variables
         name: Set variables
         env:
-          APP_IMAGE_REPOSITORY: ghcr.io/nerd-zero/listmonk
+          APP_IMAGE_REPOSITORY: ghcr.io/nerd-zero/listnun
         run: |
           YEAR_MONTH=$(date -u +"%Y.%m")
           COUNT=$(git tag -l "${YEAR_MONTH}.*" | wc -l)
@@ -99,7 +99,7 @@ jobs:
       - name: Build distribution (Go binary + frontend)
         run: make dist
         env:
-          LISTMONK_VERSION: ${{ needs.prepare_build.outputs.APP_VERSION }}
+          LISTNUN_VERSION: ${{ needs.prepare_build.outputs.APP_VERSION }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -115,10 +115,10 @@ jobs:
             --build-arg "APP_VERSION=${{ needs.prepare_build.outputs.APP_VERSION }}" \
             --build-arg "APP_BUILD_DATE=${{ needs.prepare_build.outputs.APP_BUILD_DATE }}" \
             --tag "${{ needs.prepare_build.outputs.APP_IMAGE_REPOSITORY }}" \
-            --tag "ghcr.io/nerd-zero/listmonk:latest"
+            --tag "ghcr.io/nerd-zero/listnun:latest"
 
           docker push ${{ needs.prepare_build.outputs.APP_IMAGE_REPOSITORY }}
-          docker push ghcr.io/nerd-zero/listmonk:latest
+          docker push ghcr.io/nerd-zero/listnun:latest
 
       - name: Tag release
         run: |

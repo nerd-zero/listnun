@@ -14,7 +14,7 @@ import (
 )
 
 // dbDSN builds a Postgres DSN for the given role, using the same
-// LISTMONK_db__* env vars the CI workflow (.github/workflows/tests.yml)
+// LISTNUN_db__* env vars the CI workflow (.github/workflows/tests.yml)
 // already sets for host/port/dbname, falling back to this repo's local dev
 // config.toml values so the test also runs against `make run`'s dev
 // database without any extra setup.
@@ -25,14 +25,14 @@ func dbDSN(user, password string) string {
 		}
 		return def
 	}
-	port, _ := strconv.Atoi(get("LISTMONK_db__port", "5435"))
+	port, _ := strconv.Atoi(get("LISTNUN_db__port", "5435"))
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		get("LISTMONK_db__host", "127.0.0.1"),
+		get("LISTNUN_db__host", "127.0.0.1"),
 		port,
 		user,
 		password,
-		get("LISTMONK_db__database", "listmonk-dev"),
+		get("LISTNUN_db__database", "listnun-dev"),
 	)
 }
 
@@ -43,7 +43,7 @@ func adminDSN() string {
 		}
 		return def
 	}
-	return dbDSN(get("LISTMONK_db__user", "listmonk-dev"), get("LISTMONK_db__password", "listmonk-dev"))
+	return dbDSN(get("LISTNUN_db__user", "listnun-dev"), get("LISTNUN_db__password", "listnun-dev"))
 }
 
 // TestWithTenant_ConcurrentIsolation is the concurrency spike flagged in

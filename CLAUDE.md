@@ -22,14 +22,14 @@ cd frontend && yarn lint   # ESLint on .js and .vue files
 ### Both together
 Run `make run` (backend on :9000) and `make run-frontend` (frontend on :8080) in separate terminals. The Vite dev server proxies all API/subscription/webhook routes to `:9000`.
 
-**Multi-tenant local dev caveat:** this fork's multi-tenancy (`docs/design/multi-tenancy.md`) resolves tenants from the request `Host` header (`internal/tenant.Middleware`), which is fine for plain reads via `/etc/hosts` overrides or `curl -H "Host: ..."`. **Logging in via the browser requires real DNS, though** — faking a tenant subdomain locally with `/etc/hosts` (e.g. `*.listmonk.test` entries) is not sufficient to get through `/admin/login`. Don't burn time debugging login failures under a `/etc/hosts`-only setup; use a real (sub)domain or a deployed environment for auth-flow testing.
+**Multi-tenant local dev caveat:** this fork's multi-tenancy (`docs/design/multi-tenancy.md`) resolves tenants from the request `Host` header (`internal/tenant.Middleware`), which is fine for plain reads via `/etc/hosts` overrides or `curl -H "Host: ..."`. **Logging in via the browser requires real DNS, though** — faking a tenant subdomain locally with `/etc/hosts` (e.g. `*.listnun.test` entries) is not sufficient to get through `/admin/login`. Don't burn time debugging login failures under a `/etc/hosts`-only setup; use a real (sub)domain or a deployed environment for auth-flow testing.
 
 ### E2E Tests (Cypress)
 ```bash
 cd frontend && npx cypress open  # Interactive mode
 cd frontend && npx cypress run   # Headless (requires running server at :9000)
 ```
-Cypress config: `frontend/cypress.config.js`. Tests use admin/listmonk credentials against a fresh listmonk instance.
+Cypress config: `frontend/cypress.config.js`. Tests use admin/listnun123 credentials against a fresh listnun instance.
 
 ### Full distribution build
 ```bash
@@ -63,7 +63,7 @@ HTTP server: `labstack/echo/v4`. Routes and middleware are in `cmd/handlers.go`.
 
 Database: PostgreSQL. Schema in `schema.sql`. Queries are raw SQL files, not an ORM.
 
-Config: TOML via `knadh/koanf`. Environment variables override config using `LISTMONK_` prefix with `__` as dot separator (e.g. `LISTMONK_db__host`).
+Config: TOML via `knadh/koanf`. Environment variables override config using `LISTNUN_` prefix with `__` as dot separator (e.g. `LISTNUN_db__host`).
 
 Static assets (frontend dist, schema, i18n files) are embedded into the binary at build time using `stuffbin`. In dev mode (`make run`), they're served from disk.
 

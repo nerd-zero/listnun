@@ -3,7 +3,7 @@ package scrub
 import (
 	"testing"
 
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/models"
 )
 
 func makeEmails(n int) []string {

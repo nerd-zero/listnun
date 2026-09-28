@@ -507,7 +507,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign"
+                                "$ref": "#/definitions/github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign"
                             }
                         }
                     },
@@ -2052,7 +2052,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. An organization is just a unique name that tenants can optionally be created under (via organization_id on POST /api/operator/tenants) - it groups multiple tenants (\"listmonks\") for the same customer under one umbrella.",
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. An organization is just a unique name that tenants can optionally be created under (via organization_id on POST /api/operator/tenants) - it groups multiple tenants (\"listnuns\") for the same customer under one umbrella.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2403,7 +2403,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Sets tenants.custom_domain -- the additional exact Host internal/tenant.Middleware will accept for this tenant, alongside \u003cslug\u003e.root_domain -- and updates app.root_url to match in the same transaction. Pass an empty custom_domain to clear it and revert root_url to \u003cslug\u003e.root_domain. The caller is responsible for having already verified domain ownership (e.g. via a Cloudflare Custom Hostname's DCV) before calling this; listmonk does no verification of its own.",
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Sets tenants.custom_domain -- the additional exact Host internal/tenant.Middleware will accept for this tenant, alongside \u003cslug\u003e.root_domain -- and updates app.root_url to match in the same transaction. Pass an empty custom_domain to clear it and revert root_url to \u003cslug\u003e.root_domain. The caller is responsible for having already verified domain ownership (e.g. via a Cloudflare Custom Hostname's DCV) before calling this; listnun does no verification of its own.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2586,7 +2586,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. listmonk has no mail-provider-specific logic - the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc. API calls) is responsible for creating the server/credentials and passes them here as-is; this endpoint only writes them into the tenant's settings, replacing its placeholder SMTP examples.",
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. listnun has no mail-provider-specific logic - the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc. API calls) is responsible for creating the server/credentials and passes them here as-is; this endpoint only writes them into the tenant's settings, replacing its placeholder SMTP examples.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6761,7 +6761,7 @@ const docTemplate = `{
                 "message": {}
             }
         },
-        "github_com_knadh_listmonk_internal_core.AutoPausedCampaign": {
+        "github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign": {
             "type": "object",
             "properties": {
                 "id": {

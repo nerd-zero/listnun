@@ -18,7 +18,7 @@ const http = Axios.create({
 
 http.interceptors.response.use(
   (resp) => {
-    // Unwrap the listmonk { data: T } envelope.
+    // Unwrap the listnun { data: T } envelope.
     let data: unknown = resp.data?.data ?? resp.data;
     if (data !== null && typeof data === 'object') {
       data = utils.camelKeys(data);

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/models"
 )
 
 type BounceDetails struct {
@@ -80,7 +80,7 @@ func (p *Forwardemail) ProcessBounce(sigHex string, body []byte) ([]models.Bounc
 	}
 
 	campUUID := ""
-	if v, ok := n.Headers["X-Listmonk-Campaign"]; ok {
+	if v, ok := n.Headers["X-Listnun-Campaign"]; ok {
 		campUUID = v
 	}
 

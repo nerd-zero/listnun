@@ -19,9 +19,9 @@ import (
 	"maps"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/internal/notifs"
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/models"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -183,7 +183,7 @@ type Config struct {
 
 	// ScanCampaigns indicates whether this instance of manager will scan the DB
 	// for active campaigns and process them.
-	// This can be used to run multiple instances of listmonk
+	// This can be used to run multiple instances of listnun
 	// (exposed to the internet, private etc.) where only one does campaign
 	// processing while the others handle other kinds of traffic.
 	ScanCampaigns bool

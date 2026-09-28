@@ -490,7 +490,7 @@
     "settings.media.upload.path": "נתיב העלאה",
     "settings.media.upload.pathHelp": "נתיב הספרייה שבה יועלו הקבצים.",
     "settings.media.upload.uri": "URI העלאה",
-    "settings.media.upload.uriHelp": "URI העלאה הגלוי לעולם החיצוני. התקיות המעולות לתוך upload_path יהיו גלויות באופן ציבורי תחת {root_url}, לדוגמה, https://listmonk.example.com/uploads.",
+    "settings.media.upload.uriHelp": "URI העלאה הגלוי לעולם החיצוני. התקיות המעולות לתוך upload_path יהיו גלויות באופן ציבורי תחת {root_url}, לדוגמה, https://listnun.example.com/uploads.",
     "settings.messengers.maxConns": "מקסימום בקשות מקבילות",
     "settings.messengers.maxConnsHelp": "מספר חיבורים מקבילים רבים ביותר לשרת.",
     "settings.messengers.messageSaved": "הגדרות נשמרו. מרענן את אפליקציה...",

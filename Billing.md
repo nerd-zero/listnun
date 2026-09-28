@@ -1,1 +1,1 @@
-## listmonk must have not smtp settings
+## listnun must have not smtp settings

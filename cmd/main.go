@@ -25,18 +25,18 @@ import (
 	"github.com/knadh/goyesql/v2"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/v2"
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/bounce"
-	"github.com/knadh/listmonk/internal/buflog"
-	"github.com/knadh/listmonk/internal/captcha"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/events"
-	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/internal/messenger/email"
-	"github.com/knadh/listmonk/models"
 	"github.com/knadh/paginator"
 	"github.com/knadh/stuffbin"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/bounce"
+	"github.com/nerd-zero/listnun/internal/buflog"
+	"github.com/nerd-zero/listnun/internal/captcha"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/events"
+	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/internal/messenger/email"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // App contains the "global" shared components, controllers and fields.
@@ -128,10 +128,10 @@ func init() {
 	initConfigFiles(ko.Strings("config"), ko)
 
 	// Load environment variables and merge into the loaded config.
-	// LISTMONK_foo__bar -> foo.bar (double underscore becomes dot for nested config)
-	// LISTMONK_static_dir -> static-dir (top-level keys with underscore become hyphen for CLI flags)
-	if err := ko.Load(env.Provider("LISTMONK_", ".", func(s string) string {
-		key := strings.ToLower(strings.TrimPrefix(s, "LISTMONK_"))
+	// LISTNUN_foo__bar -> foo.bar (double underscore becomes dot for nested config)
+	// LISTNUN_static_dir -> static-dir (top-level keys with underscore become hyphen for CLI flags)
+	if err := ko.Load(env.Provider("LISTNUN_", ".", func(s string) string {
+		key := strings.ToLower(strings.TrimPrefix(s, "LISTNUN_"))
 		key = strings.Replace(key, "__", ".", -1)
 		// Only convert underscore to hyphen for top-level keys (CLI flags like static-dir, i18n-dir)
 		// Nested config keys (containing dots) keep underscores (e.g., db.ssl_mode)

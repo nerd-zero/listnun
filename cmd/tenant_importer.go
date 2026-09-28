@@ -5,12 +5,12 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/internal/notifs"
-	"github.com/knadh/listmonk/internal/subimporter"
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/internal/subimporter"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // tenantImporters lazily builds and caches a *subimporter.Importer per

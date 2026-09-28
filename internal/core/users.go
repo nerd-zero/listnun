@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/utils"
 	"gopkg.in/volatiletech/null.v6"
 )
 

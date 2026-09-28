@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Upload pad",
     "settings.media.upload.pathHelp": "Pad naar de map waar media geüpload zal worden.",
     "settings.media.upload.uri": "Upload URI",
-    "settings.media.upload.uriHelp": "Upload URI zichtbaar voor de buitenwereld. De media geüpload naar upload_path zal publiek beschikbaar zijn onder {root_url}, bijvoorbeeld, https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "Upload URI zichtbaar voor de buitenwereld. De media geüpload naar upload_path zal publiek beschikbaar zijn onder {root_url}, bijvoorbeeld, https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Max. connecties",
     "settings.messengers.maxConnsHelp": "Maximum concurrente connecties naar de server.",
     "settings.messengers.messageSaved": "Instellingen opgeslagen. App wordt herstart...",

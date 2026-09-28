@@ -49,7 +49,7 @@ func V2_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger
 	    ('bounce.ses_enabled', 'false'),
 	    ('bounce.sendgrid_enabled', 'false'),
 	    ('bounce.sendgrid_key', '""'),
-	    ('bounce.mailboxes', '[{"enabled":false, "type": "pop", "host":"pop.yoursite.com","port":995,"auth_protocol":"userpass","username":"username","password":"password","return_path": "bounce@listmonk.yoursite.com","scan_interval":"15m","tls_enabled":true,"tls_skip_verify":false}]')
+	    ('bounce.mailboxes', '[{"enabled":false, "type": "pop", "host":"pop.yoursite.com","port":995,"auth_protocol":"userpass","username":"username","password":"password","return_path": "bounce@listnun.yoursite.com","scan_interval":"15m","tls_enabled":true,"tls_skip_verify":false}]')
 	    ON CONFLICT DO NOTHING;`); err != nil {
 		return err
 	}

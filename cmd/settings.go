@@ -23,11 +23,11 @@ import (
 	koanfjson "github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/messenger/email"
-	"github.com/knadh/listmonk/internal/notifs"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/messenger/email"
+	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/models"
 )
 
 const pwdMask = "•"
@@ -731,7 +731,7 @@ func (a *App) GetScrubListStatus(c echo.Context) error {
 // submitScrubListValidation, the same async batch pipeline CSV import
 // uses, chunked as needed for lists over Scrub's 30,000-email cap. This
 // replaced the old call into Scrub's own list-sync endpoint (which
-// required Scrub to call back into listmonk using per-tenant reverse
+// required Scrub to call back into listnun using per-tenant reverse
 // credentials) since that path was unreliable in production.
 //
 //	@ID			scrubList

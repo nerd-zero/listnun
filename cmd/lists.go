@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // GetLists retrieves lists with additional metadata like subscriber counts.

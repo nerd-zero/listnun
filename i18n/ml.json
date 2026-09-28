@@ -490,7 +490,7 @@
     "settings.media.upload.path": "അപ്ലോഡ് പാത്ത്",
     "settings.media.upload.pathHelp": "മീഡിയ അപ്ലോഡ് ചെയ്യുന്നതിനുള്ള ഡയറക്ടറിയിലേക്കുള്ള പാത്ത്.",
     "settings.media.upload.uri": "അപ്ലോഡ് URI",
-    "settings.media.upload.uriHelp": "അപ്ലോഡ് URI പൊതുവായി ദ്രശ്യമായിരിക്കും. `upload_path` ലേക്ക് അപ്ലോഡ് ചെയ്ത മീഡിയകൾ  {root_url} ൽ എല്ലാവർക്കും പ്രാപ്യമായിരിക്കും. ഉദാഹരണത്തിന് https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "അപ്ലോഡ് URI പൊതുവായി ദ്രശ്യമായിരിക്കും. `upload_path` ലേക്ക് അപ്ലോഡ് ചെയ്ത മീഡിയകൾ  {root_url} ൽ എല്ലാവർക്കും പ്രാപ്യമായിരിക്കും. ഉദാഹരണത്തിന് https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "പരമാവധി കണക്ഷനുകൾ",
     "settings.messengers.maxConnsHelp": "SMTP സേർവ്വറിലേയ്ക്കുള്ള പരമാവധി സമാന്തര കണക്ഷനുകൾ.",
     "settings.messengers.messageSaved": "ക്രമീകരണങ്ങൾ സംരക്ഷിച്ചു. ആപ്പ് പുനരാരംഭിക്കുന്നു ...",

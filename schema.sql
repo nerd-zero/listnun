@@ -20,7 +20,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- A purely cross-tenant grouping construct, managed only via the Operator
 -- API (see docs/design/multi-tenancy.md) - never RLS-scoped, never
 -- resolved per-request the way tenants are. One organization can own
--- multiple tenants ("listmonks") for different purposes (e.g. separate
+-- multiple tenants ("listnuns") for different purposes (e.g. separate
 -- brands/departments), or none at all - tenants.organization_id is
 -- nullable so existing/standalone tenants aren't forced into one.
 DROP TABLE IF EXISTS organizations CASCADE;
@@ -312,7 +312,7 @@ INSERT INTO settings (key, value) VALUES
     ('app.site_name', '"Mailing list"'),
     ('app.root_url', '"http://localhost:9000"'),
     ('app.favicon_url', '""'),
-    ('app.from_email', '"listmonk <noreply@listmonk.yoursite.com>"'),
+    ('app.from_email', '"listnun <noreply@listnun.yoursite.com>"'),
     ('app.logo_url', '""'),
     ('app.concurrency', '10'),
     ('app.message_rate', '10'),
@@ -375,7 +375,7 @@ INSERT INTO settings (key, value) VALUES
     ('bounce.forwardemail', '{"enabled": false, "key": ""}'),
     ('bounce.lettermint', '{"enabled": false, "key": ""}'),
     ('bounce.mailboxes',
-        '[{"enabled":false, "type": "pop", "host":"pop.yoursite.com","port":995,"auth_protocol":"userpass","username":"username","password":"password","return_path": "bounce@listmonk.yoursite.com","scan_interval":"15m","tls_enabled":true,"tls_skip_verify":false}]'),
+        '[{"enabled":false, "type": "pop", "host":"pop.yoursite.com","port":995,"auth_protocol":"userpass","username":"username","password":"password","return_path": "bounce@listnun.yoursite.com","scan_interval":"15m","tls_enabled":true,"tls_skip_verify":false}]'),
     ('appearance.admin.custom_css', '""'),
     ('appearance.admin.custom_js', '""'),
     ('appearance.public.custom_css', '""'),
@@ -493,7 +493,7 @@ CREATE UNIQUE INDEX users_email_key ON users (tenant_id, email);
 -- row level security: tenant isolation, enforced inside Postgres itself
 -- rather than solely relying on every hand-written query in queries/*.sql
 -- remembering a `WHERE tenant_id = ...` clause. FORCE (in addition to
--- ENABLE) matters because most self-hosted listmonk installs use a single
+-- ENABLE) matters because most self-hosted listnun installs use a single
 -- Postgres role for both schema ownership and the app connection, and
 -- table owners are exempt from RLS by default - plain ENABLE alone would
 -- silently be a no-op for that common setup. Superusers are always exempt

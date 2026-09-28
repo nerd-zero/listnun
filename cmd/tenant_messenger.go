@@ -7,8 +7,8 @@ import (
 
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/manager"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/manager"
 )
 
 // tenantMessengers is a manager.MessengerResolver that lazily builds and

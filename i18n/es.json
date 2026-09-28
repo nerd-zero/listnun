@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Ruta de carga",
     "settings.media.upload.pathHelp": "Ruta o prefijo donde los archivos seránn cargados.",
     "settings.media.upload.uri": "URI de carga",
-    "settings.media.upload.uriHelp": "La URI de carga es visible hacia afuera. Los archivos cargados en el directorio de carga serán accesible públicamente bajo {root_url}, por ejemplo, https://listmonk.susitio.com/uploads",
+    "settings.media.upload.uriHelp": "La URI de carga es visible hacia afuera. Los archivos cargados en el directorio de carga serán accesible públicamente bajo {root_url}, por ejemplo, https://listnun.susitio.com/uploads",
     "settings.messengers.maxConns": "Conexiones máximas",
     "settings.messengers.maxConnsHelp": "Número máximo de conexiones al servidor",
     "settings.messengers.messageSaved": "Configuracion guardada. Recargando la aplicación.",

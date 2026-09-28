@@ -25,7 +25,7 @@ import (
 // context on every request.
 //
 // FORCE ROW LEVEL SECURITY (in addition to ENABLE) matters because most
-// self-hosted listmonk installs, including this dev database, use a single
+// self-hosted listnun installs, including this dev database, use a single
 // Postgres role for both schema ownership and the app connection - and
 // table owners are exempt from RLS by default, silently making plain
 // ENABLE ROW LEVEL SECURITY a no-op for that common setup. Superusers are
