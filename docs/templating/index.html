@@ -1691,7 +1691,7 @@
 
 <h1 id="templating">Templating<a class="headerlink" href="#templating" title="Permanent link">&para;</a></h1>
 <p>A template is a re-usable HTML design that can be used across campaigns and transactional messages. Most commonly, templates have standard header and footer areas with logos and branding elements, where campaign content is inserted in the middle.</p>
-<p>listmonk supports <a href="https://pkg.go.dev/text/template">Go template</a> expressions that lets you create powerful, dynamic HTML templates. It also integrates 100+ useful <a href="https://masterminds.github.io/sprig/">Sprig template functions</a>.</p>
+<p>listnun supports <a href="https://pkg.go.dev/text/template">Go template</a> expressions that lets you create powerful, dynamic HTML templates. It also integrates 100+ useful <a href="https://masterminds.github.io/sprig/">Sprig template functions</a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Sprig template functions are powerful and Turing-complete, allowing programming of complex behaviour in templates. This means that it is also possible to program undesired behaviour, such as overloading memory on the host by concatenating large strings in a loop. Ensure that templating (campaigns, templates) permissions are given only to trusted users.</p>
@@ -1827,7 +1827,7 @@
 </tbody>
 </table>
 <h3 id="sprig-functions">Sprig functions<a class="headerlink" href="#sprig-functions" title="Permanent link">&para;</a></h3>
-<p>listmonk integrates the Sprig library that offers 100+ utility functions for working with strings, numbers, dates etc. that can be used in templating. Refer to the <a href="https://masterminds.github.io/sprig/">Sprig documentation</a> for the full list of functions.</p>
+<p>listnun integrates the Sprig library that offers 100+ utility functions for working with strings, numbers, dates etc. that can be used in templating. Refer to the <a href="https://masterminds.github.io/sprig/">Sprig documentation</a> for the full list of functions.</p>
 <h3 id="example-template">Example template<a class="headerlink" href="#example-template" title="Permanent link">&para;</a></h3>
 <p>The expression <code>{{ template "content" . }}</code> should appear exactly once in every template denoting the spot where an e-mail's content is inserted. Here's a sample HTML e-mail that has a fixed header and footer that inserts the content in the middle.</p>
 <div class="highlight"><pre><span></span><code><span class="cp">&lt;!DOCTYPE html&gt;</span>
@@ -1900,9 +1900,9 @@ Here is a link for you to click that will be tracked.
 </code></pre></div>
 <p>The above example uses an <code>if</code> condition to show one of two messages depending on the value of a subscriber attribute. Many such dynamic expressions are possible with Go templating expressions.</p>
 <h2 id="system-templates">System templates<a class="headerlink" href="#system-templates" title="Permanent link">&para;</a></h2>
-<p>System templates are used for rendering public user-facing pages such as the subscription management page, and in automatically generated system e-mails such as the opt-in confirmation e-mail. These are bundled into listmonk but can be customized by copying the <a href="https://github.com/knadh/listmonk/tree/master/static">static directory</a> locally, and passing its path to listmonk with the <code>./listmonk --static-dir=your/custom/path</code> flag.</p>
+<p>System templates are used for rendering public user-facing pages such as the subscription management page, and in automatically generated system e-mails such as the opt-in confirmation e-mail. These are bundled into listnun but can be customized by copying the <a href="https://github.com/knadh/listmonk/tree/master/static">static directory</a> locally, and passing its path to listnun with the <code>./listnun --static-dir=your/custom/path</code> flag.</p>
 <p>You can fetch the static files with:<br>
-<code>mkdir -p /home/ubuntu/listmonk/static ; wget -O - https://github.com/knadh/listmonk/archive/master.tar.gz | tar xz -C /home/ubuntu/listmonk/static --strip=2 "listmonk-master/static"</code></p>
+<code>mkdir -p /home/ubuntu/listnun/static ; wget -O - https://github.com/knadh/listmonk/archive/master.tar.gz | tar xz -C /home/ubuntu/listnun/static --strip=2 "listnun-master/static"</code></p>
 <p><a href="https://yasoob.me/posts/setting-up-listmonk-opensource-newsletter-mailing/#custom-static-files">Docker example</a>, <a href="https://github.com/knadh/listmonk/blob/master/listmonk-simple.service">binary example</a>.</p>
 <h3 id="public-pages">Public pages<a class="headerlink" href="#public-pages" title="Permanent link">&para;</a></h3>
 <table>
@@ -1976,7 +1976,7 @@ Here is a link for you to click that will be tracked.
 </tr>
 <tr>
 <td><code>default.tpl</code></td>
-<td>Default campaign template that is created in Campaigns -&gt; Templates when listmonk is first installed. This is not used after that.</td>
+<td>Default campaign template that is created in Campaigns -&gt; Templates when listnun is first installed. This is not used after that.</td>
 </tr>
 </tbody>
 </table>

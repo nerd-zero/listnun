@@ -1882,9 +1882,9 @@
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
 <h3 id="toml-configuration-file">TOML Configuration file<a class="headerlink" href="#toml-configuration-file" title="Permanent link">&para;</a></h3>
 <p>One or more TOML files can be read by passing <code>--config config.toml</code> multiple times. Apart from a few low level configuration variables and the database configuration, all other settings can be managed from the <code>Settings</code> dashboard on the admin UI.</p>
-<p>To generate a new sample configuration file, run <code>listmonk --new-config</code></p>
+<p>To generate a new sample configuration file, run <code>listnun --new-config</code></p>
 <h3 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<p>Variables defined in config.toml can also be provided as environment variables prefixed by <code>LISTMONK_</code> with periods replaced by <code>__</code> (double underscore). To start listmonk purely with environment variables without a configuration file, set the environment variables and pass the config flag as <code>--config=""</code>.</p>
+<p>Variables defined in config.toml can also be provided as environment variables prefixed by <code>LISTNUN_</code> with periods replaced by <code>__</code> (double underscore). To start listnun purely with environment variables without a configuration file, set the environment variables and pass the config flag as <code>--config=""</code>.</p>
 <p>Supported variables:</p>
 <table>
 <thead>
@@ -1895,31 +1895,31 @@
 </thead>
 <tbody>
 <tr>
-<td><code>LISTMONK_app__address</code></td>
+<td><code>LISTNUN_app__address</code></td>
 <td>"0.0.0.0:9000"</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__host</code></td>
+<td><code>LISTNUN_db__host</code></td>
 <td>db</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__port</code></td>
+<td><code>LISTNUN_db__port</code></td>
 <td>9432</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__user</code></td>
-<td>listmonk</td>
+<td><code>LISTNUN_db__user</code></td>
+<td>listnun</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__password</code></td>
-<td>listmonk</td>
+<td><code>LISTNUN_db__password</code></td>
+<td>listnun</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__database</code></td>
-<td>listmonk</td>
+<td><code>LISTNUN_db__database</code></td>
+<td>listnun</td>
 </tr>
 <tr>
-<td><code>LISTMONK_db__ssl_mode</code></td>
+<td><code>LISTNUN_db__ssl_mode</code></td>
 <td>disable</td>
 </tr>
 </tbody>
@@ -2001,21 +2001,21 @@
 <h4 id="using-filesystem">Using filesystem<a class="headerlink" href="#using-filesystem" title="Permanent link">&para;</a></h4>
 <p>When configuring <code>docker</code> volume mounts for using filesystem media uploads, you can follow either of two approaches. <a href="https://github.com/knadh/listmonk/issues/1169#issuecomment-1674475945">The second option may be necessary if</a> your setup requires you to use <code>sudo</code> for docker commands. </p>
 <p>After making any changes you will need to run <code>sudo docker compose stop ; sudo docker compose up</code>. </p>
-<p>And under <code>https://listmonk.mysite.com/admin/settings</code> you put <code>/listmonk/uploads</code>. </p>
+<p>And under <code>https://listnun.mysite.com/admin/settings</code> you put <code>/listnun/uploads</code>. </p>
 <h4 id="using-volumes">Using volumes<a class="headerlink" href="#using-volumes" title="Permanent link">&para;</a></h4>
 <p>Using <code>docker volumes</code>, you can specify the name of volume and destination for the files to be uploaded inside the container.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">app</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">volume</span>
-<span class="w">        </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">listmonk-uploads</span>
-<span class="w">        </span><span class="nt">target</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/listmonk/uploads</span>
+<span class="w">        </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">listnun-uploads</span>
+<span class="w">        </span><span class="nt">target</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/listnun/uploads</span>
 
 <span class="nt">volumes</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">listmonk-uploads</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">listnun-uploads</span><span class="p">:</span>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This volume is managed by <code>docker</code> itself, and you can see find the host path with <code>docker volume inspect listmonk_listmonk-uploads</code>.</p>
+<p>This volume is managed by <code>docker</code> itself, and you can see find the host path with <code>docker volume inspect listnun_listnun-uploads</code>.</p>
 </div>
 <h4 id="using-bind-mounts">Using bind mounts<a class="headerlink" href="#using-bind-mounts" title="Permanent link">&para;</a></h4>
 <p><div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
@@ -2025,30 +2025,30 @@
 Eg:
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data/uploads:/listmonk/uploads</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data/uploads:/listnun/uploads</span>
 </code></pre></div>
 The files will be available inside <code>/data/uploads</code> directory on the host machine.</p>
 <p>To use the default <code>uploads</code> folder:
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./uploads:/listmonk/uploads</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./uploads:/listnun/uploads</span>
 </code></pre></div></p>
 <h2 id="logs">Logs<a class="headerlink" href="#logs" title="Permanent link">&para;</a></h2>
 <h3 id="docker">Docker<a class="headerlink" href="#docker" title="Permanent link">&para;</a></h3>
 <p>https://docs.docker.com/engine/reference/commandline/logs/
 <div class="highlight"><pre><span></span><code>sudo docker logs -f
-sudo docker logs listmonk_app -t
-sudo docker logs listmonk_db -t
+sudo docker logs listnun_app -t
+sudo docker logs listnun_db -t
 sudo docker logs --help
 </code></pre></div>
-Container info: <code>sudo docker inspect listmonk_listmonk</code></p>
+Container info: <code>sudo docker inspect listnun_listnun</code></p>
 <p>Docker logs to <code>/dev/stdout</code> and <code>/dev/stderr</code>. The logs are collected by the docker daemon and stored in your node's host path (by default). The same can be configured (/etc/docker/daemon.json) in your docker daemon settings to setup other logging drivers, logrotate policy and more, which you can read about <a href="https://docs.docker.com/config/containers/logging/configure/">here</a>.</p>
 <h3 id="binary">Binary<a class="headerlink" href="#binary" title="Permanent link">&para;</a></h3>
-<p>listmonk logs to <code>stdout</code>, which is usually not saved to any file. To save listmonk logs to a file use <code>./listmonk &gt; listmonk.log</code>.</p>
-<p>Settings -&gt; Logs in admin shows the last 1000 lines of the standard log output but gets erased when listmonk is restarted.</p>
-<p>For the <a href="https://github.com/knadh/listmonk/blob/master/listmonk%40.service">service file</a>, you can use <code>ExecStart=/bin/bash -ce "exec /usr/bin/listmonk --config /etc/listmonk/config.toml --static-dir /etc/listmonk/static &gt;&gt;/etc/listmonk/listmonk.log 2&gt;&amp;1"</code> to create a log file that persists after restarts. <a href="https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606">More info</a>.</p>
+<p>listnun logs to <code>stdout</code>, which is usually not saved to any file. To save listnun logs to a file use <code>./listnun &gt; listnun.log</code>.</p>
+<p>Settings -&gt; Logs in admin shows the last 1000 lines of the standard log output but gets erased when listnun is restarted.</p>
+<p>For the <a href="https://github.com/knadh/listmonk/blob/master/listmonk%40.service">service file</a>, you can use <code>ExecStart=/bin/bash -ce "exec /usr/bin/listnun --config /etc/listnun/config.toml --static-dir /etc/listnun/static &gt;&gt;/etc/listnun/listnun.log 2&gt;&amp;1"</code> to create a log file that persists after restarts. <a href="https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606">More info</a>.</p>
 <h2 id="time-zone">Time zone<a class="headerlink" href="#time-zone" title="Permanent link">&para;</a></h2>
-<p>To change listmonk's time zone (logs, etc.) edit <code>docker-compose.yml</code>:
+<p>To change listnun's time zone (logs, etc.) edit <code>docker-compose.yml</code>:
 <div class="highlight"><pre><span></span><code>environment:
     - TZ=Etc/UTC
 </code></pre></div>

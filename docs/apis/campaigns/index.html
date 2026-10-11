@@ -2750,7 +2750,7 @@
 <span class="w">                </span><span class="nt">"uuid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"57702beb-6fae-4355-a324-c2fd5b59a549"</span><span class="p">,</span>
 <span class="w">                </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"regular"</span><span class="p">,</span>
 <span class="w">                </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Test campaign"</span><span class="p">,</span>
-<span class="w">                </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listmonk"</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listnun"</span><span class="p">,</span>
 <span class="w">                </span><span class="nt">"from_email"</span><span class="p">:</span><span class="w"> </span><span class="s2">"No Reply &lt;noreply@yoursite.com&gt;"</span><span class="p">,</span>
 <span class="w">                </span><span class="nt">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;h3&gt;Hi {{ .Subscriber.FirstName }}!&lt;/h3&gt;\n\t\t\tThis is a test e-mail campaign. Your second name is {{ .Subscriber.LastName }} and you are from {{ .Subscriber.Attribs.city }}."</span><span class="p">,</span>
 <span class="w">                </span><span class="nt">"body_source"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
@@ -2822,7 +2822,7 @@
 <span class="w">        </span><span class="nt">"uuid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"57702beb-6fae-4355-a324-c2fd5b59a549"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"regular"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Test campaign"</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listmonk"</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listnun"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"from_email"</span><span class="p">:</span><span class="w"> </span><span class="s2">"No Reply &lt;noreply@yoursite.com&gt;"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;h3&gt;Hi {{ .Subscriber.FirstName }}!&lt;/h3&gt;\n\t\t\tThis is a test e-mail campaign. Your second name is {{ .Subscriber.LastName }} and you are from {{ .Subscriber.Attribs.city }}."</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"body_source"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
@@ -3102,7 +3102,7 @@ This is a test e-mail campaign. Your second name is Doe and you are from Bengalu
 </tbody>
 </table>
 <h5 id="example-request_6">Example request<a class="headerlink" href="#example-request_6" title="Permanent link">&para;</a></h5>
-<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-u<span class="w"> </span><span class="s2">"api_user:token"</span><span class="w"> </span><span class="s1">'http://localhost:9000/api/campaigns'</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json;charset=utf-8'</span><span class="w"> </span>--data-raw<span class="w"> </span><span class="s1">'{"name":"Test campaign","subject":"Hello, world","lists":[1],"from_email":"listmonk &lt;noreply@listmonk.yoursite.com&gt;","content_type":"richtext","messenger":"email","type":"regular","tags":["test"],"template_id":1}'</span>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-u<span class="w"> </span><span class="s2">"api_user:token"</span><span class="w"> </span><span class="s1">'http://localhost:9000/api/campaigns'</span><span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json;charset=utf-8'</span><span class="w"> </span>--data-raw<span class="w"> </span><span class="s1">'{"name":"Test campaign","subject":"Hello, world","lists":[1],"from_email":"listnun &lt;noreply@listnun.yoursite.com&gt;","content_type":"richtext","messenger":"email","type":"regular","tags":["test"],"template_id":1}'</span>
 </code></pre></div>
 <h5 id="example-response_6">Example response<a class="headerlink" href="#example-response_6" title="Permanent link">&para;</a></h5>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
@@ -3124,7 +3124,7 @@ This is a test e-mail campaign. Your second name is Doe and you are from Bengalu
 <span class="w">        </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"regular"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Test campaign"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Hello, world"</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">"from_email"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listmonk \u003cnoreply@listmonk.yoursite.com\u003e"</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">"from_email"</span><span class="p">:</span><span class="w"> </span><span class="s2">"listnun \u003cnoreply@listnun.yoursite.com\u003e"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"body_source"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"altbody"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
@@ -3236,7 +3236,7 @@ This is a test e-mail campaign. Your second name is Doe and you are from Bengalu
 <span class="w">        </span><span class="nt">"uuid"</span><span class="p">:</span><span class="w"> </span><span class="s2">"57702beb-6fae-4355-a324-c2fd5b59a549"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"regular"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Test campaign"</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listmonk"</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listnun"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"from_email"</span><span class="p">:</span><span class="w"> </span><span class="s2">"No Reply &lt;noreply@yoursite.com&gt;"</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">"&lt;h3&gt;Hi {{ .Subscriber.FirstName }}!&lt;/h3&gt;\n\t\t\tThis is a test e-mail campaign. Your second name is {{ .Subscriber.LastName }} and you are from {{ .Subscriber.Attribs.city }}."</span><span class="p">,</span>
 <span class="w">        </span><span class="nt">"send_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2020-03-15T17:36:41.293233+01:00"</span><span class="p">,</span>

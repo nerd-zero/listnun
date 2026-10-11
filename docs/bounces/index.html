@@ -1577,7 +1577,7 @@
 </code></pre></div>
 <p>Some mail servers may also return the bounce to the <code>Reply-To</code> address, which can also be added to the header settings.</p>
 <h3 id="bounce-classification">Bounce classification<a class="headerlink" href="#bounce-classification" title="Permanent link">&para;</a></h3>
-<p>listmonk applies a series of heuristics looking for keywords in the bounced mail body to guess if it is a 'soft' bounce or a 'hard' bounce. For instance, 4.x.x and 5.x.x error status codes, common strings such as "mailbox not found" etc. If none of the heuristics match, then the bounce mail is considered to be 'soft' by default.</p>
+<p>listnun applies a series of heuristics looking for keywords in the bounced mail body to guess if it is a 'soft' bounce or a 'hard' bounce. For instance, 4.x.x and 5.x.x error status codes, common strings such as "mailbox not found" etc. If none of the heuristics match, then the bounce mail is considered to be 'soft' by default.</p>
 <h2 id="webhook-api">Webhook API<a class="headerlink" href="#webhook-api" title="Permanent link">&para;</a></h2>
 <p>The bounce webhook API can be used to record bounce events with custom scripting. This could be by reading a mailbox, a database, or mail server logs.</p>
 <table>
@@ -1649,7 +1649,7 @@
 <span class="w">    </span>--data<span class="w"> </span><span class="s1">'{"email": "user1@mail.com", "campaign_uuid": "9f86b50d-5711-41c8-ab03-bc91c43d711b", "source": "api", "type": "hard", "meta": "{\"additional\": \"info\"}}'</span>
 </code></pre></div>
 <h2 id="external-webhooks">External webhooks<a class="headerlink" href="#external-webhooks" title="Permanent link">&para;</a></h2>
-<p>listmonk supports receiving bounce webhook events from the following SMTP providers.</p>
+<p>listnun supports receiving bounce webhook events from the following SMTP providers.</p>
 <table>
 <thead>
 <tr>
@@ -1660,32 +1660,32 @@
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/ses</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/ses</code></td>
 <td style="text-align: left;">Amazon (AWS) SES</td>
 <td style="text-align: left;">See below</td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/azure</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/azure</code></td>
 <td style="text-align: left;">Azure Communication Services (ACS)</td>
 <td style="text-align: left;"><a href="https://learn.microsoft.com/en-us/azure/event-grid/communication-services-email-events">More info</a></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/sendgrid</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/sendgrid</code></td>
 <td style="text-align: left;">Sendgrid / Twilio Signed event webhook</td>
 <td style="text-align: left;"><a href="https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features">More info</a></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/postmark</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/postmark</code></td>
 <td style="text-align: left;">Postmark webhook</td>
 <td style="text-align: left;"><a href="https://postmarkapp.com/developer/webhooks/webhooks-overview">More info</a></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/forwardemail</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/forwardemail</code></td>
 <td style="text-align: left;">Forward Email webhook</td>
 <td style="text-align: left;"><a href="https://forwardemail.net/en/faq#do-you-support-bounce-webhooks">More info</a></td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>https://listmonk.yoursite.com/webhooks/service/lettermint</code></td>
+<td style="text-align: left;"><code>https://listnun.yoursite.com/webhooks/service/lettermint</code></td>
 <td style="text-align: left;">Lettermint webhook</td>
 <td style="text-align: left;"><a href="https://lettermint.co/knowledge-base/guides/send-newsletter-with-listmonk">More info</a></td>
 </tr>
@@ -1694,7 +1694,7 @@
 <h2 id="amazon-simple-email-service-ses">Amazon Simple Email Service (SES)<a class="headerlink" href="#amazon-simple-email-service-ses" title="Permanent link">&para;</a></h2>
 <p>If using SES as your SMTP provider, automatic bounce processing is the recommended way to maintain your <a href="https://docs.aws.amazon.com/ses/latest/dg/monitor-sender-reputation.html">sender reputation</a>. The settings below are based on Amazon's <a href="https://docs.aws.amazon.com/ses/latest/dg/send-email-concepts-deliverability.html">recommendations</a>. Please note that your sending domain must be verified in SES before proceeding.</p>
 <ol>
-<li>In listmonk settings, go to the "Bounces" tab and configure the following:<ul>
+<li>In listnun settings, go to the "Bounces" tab and configure the following:<ul>
 <li>Enable bounce processing: <code>Enabled</code><ul>
 <li>Soft:<ul>
 <li>Bounce count: <code>2</code></li>
@@ -1724,11 +1724,11 @@
 </li>
 <li>Create a new subscription to that topic with the following settings:<ul>
 <li>Protocol: <code>HTTPS</code></li>
-<li>Endpoint: <code>https://listmonk.yoursite.com/webhooks/service/ses</code></li>
+<li>Endpoint: <code>https://listnun.yoursite.com/webhooks/service/ses</code></li>
 <li>Enable raw message delivery: <code>Disabled</code> (unchecked)</li>
 </ul>
 </li>
-<li>SES will then make a request to your listmonk instance to confirm the subscription. After a page refresh, the subscription should have a status of "Confirmed". If not, your endpoint may be incorrect or not publicly accessible.</li>
+<li>SES will then make a request to your listnun instance to confirm the subscription. After a page refresh, the subscription should have a status of "Confirmed". If not, your endpoint may be incorrect or not publicly accessible.</li>
 <li>In the AWS console, go to <a href="https://console.aws.amazon.com/ses/">Simple Email Service</a> and click "Identities" in the left sidebar.</li>
 <li>Click your domain and go to the "Notifications" tab.</li>
 <li>Next to "Feedback notifications", click "Edit".</li>
@@ -1737,7 +1737,7 @@
 <li>Include original email headers: <code>Enabled</code> (checked)</li>
 </ul>
 </li>
-<li>Repeat steps 6-8 for any <code>Email address</code> identities you send from using listmonk</li>
+<li>Repeat steps 6-8 for any <code>Email address</code> identities you send from using listnun</li>
 <li>Bounce processing should now be working. You can test it with <a href="https://docs.aws.amazon.com/ses/latest/dg/send-an-email-from-console.html#send-email-simulator">SES simulator addresses</a>. Add them as subscribers, send them campaign previews, and ensure that the appropriate action was taken after the configured bounce count was reached.<ul>
 <li>Soft bounce: <code>ooto@simulator.amazonses.com</code></li>
 <li>Hard bounce: <code>bounce@simulator.amazonses.com</code></li>
@@ -1747,27 +1747,27 @@
 <li>You can optionally <a href="https://docs.aws.amazon.com/ses/latest/dg/monitor-sending-activity-using-notifications-email.html#monitor-sending-activity-using-notifications-email-disabling">disable email feedback forwarding</a>.</li>
 </ol>
 <h2 id="azure-communication-services-acs">Azure Communication Services (ACS)<a class="headerlink" href="#azure-communication-services-acs" title="Permanent link">&para;</a></h2>
-<p>If you use Azure Communication Services Email, listmonk can receive delivery report events from Azure Event Grid and turn them into bounces.</p>
+<p>If you use Azure Communication Services Email, listnun can receive delivery report events from Azure Event Grid and turn them into bounces.</p>
 <ol>
-<li>In listmonk settings, go to "Bounces" and configure:<ul>
+<li>In listnun settings, go to "Bounces" and configure:<ul>
 <li>Enable bounce processing: <code>Enabled</code></li>
 <li>Enable bounce webhooks: <code>Enabled</code></li>
 <li>Enable Azure ACS: <code>Enabled</code></li>
 <li>Optional: set <code>Azure Event Grid Shared Secret</code>.</li>
-<li>Optional: set <code>Azure Shared Secret Header Name</code> if you want listmonk to read the secret from a header (defaults to <code>X-Listmonk-Webhook-Secret</code>).</li>
+<li>Optional: set <code>Azure Shared Secret Header Name</code> if you want listnun to read the secret from a header (defaults to <code>X-Listnun-Webhook-Secret</code>).</li>
 </ul>
 </li>
-<li>In listmonk settings, go to "SMTP" and use the <code>Azure ACS</code> quick preset to fill SMTP defaults.</li>
+<li>In listnun settings, go to "SMTP" and use the <code>Azure ACS</code> quick preset to fill SMTP defaults.</li>
 <li>In Azure, create an Event Grid subscription for your ACS Email events with:<ul>
 <li>Endpoint type: <code>Web Hook</code></li>
-<li>Endpoint URL: <code>https://listmonk.yoursite.com/webhooks/service/azure</code></li>
+<li>Endpoint URL: <code>https://listnun.yoursite.com/webhooks/service/azure</code></li>
 <li>If using query-param auth, append <code>?code=&lt;your-shared-secret&gt;</code>.</li>
-<li>If using header auth, configure Event Grid to include the same secret in the header name configured in listmonk.</li>
+<li>If using header auth, configure Event Grid to include the same secret in the header name configured in listnun.</li>
 </ul>
 </li>
-<li>During subscription creation, Event Grid sends a subscription validation event. listmonk automatically returns <code>validationResponse</code> for this handshake.</li>
-<li>Subscribe to <code>Microsoft.Communication.EmailDeliveryReportReceived</code> events. listmonk maps relevant statuses to bounce records.</li>
-<li>Send test mail and verify bounces in listmonk.</li>
+<li>During subscription creation, Event Grid sends a subscription validation event. listnun automatically returns <code>validationResponse</code> for this handshake.</li>
+<li>Subscribe to <code>Microsoft.Communication.EmailDeliveryReportReceived</code> events. listnun maps relevant statuses to bounce records.</li>
+<li>Send test mail and verify bounces in listnun.</li>
 </ol>
 <h2 id="exporting-bounces">Exporting bounces<a class="headerlink" href="#exporting-bounces" title="Permanent link">&para;</a></h2>
 <p>Bounces can be exported via the JSON API:

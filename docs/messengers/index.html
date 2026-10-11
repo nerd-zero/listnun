@@ -1424,13 +1424,13 @@
 
 
 <h1 id="messengers">Messengers<a class="headerlink" href="#messengers" title="Permanent link">&para;</a></h1>
-<p>listmonk supports multiple custom messaging backends in additional to the default SMTP e-mail backend, enabling not just e-mail campaigns, but arbitrary message campaigns such as SMS, FCM notifications etc.</p>
+<p>listnun supports multiple custom messaging backends in additional to the default SMTP e-mail backend, enabling not just e-mail campaigns, but arbitrary message campaigns such as SMS, FCM notifications etc.</p>
 <p>A <em>Messenger</em> is a web service that accepts a campaign message pushed to it as a JSON request, which the service can in turn broadcast as SMS, FCM etc. Messengers are registered in the <em>Settings -&gt; Messengers</em> UI, and can be selected on individual campaigns.</p>
 <p>Messengers support optional BasicAuth authentication. <code>Plain text</code> format for campaign content is ideal for messengers such as SMS and FCM.</p>
-<p>When a campaign starts, listmonk POSTs messages in the following format to the selected messenger's endpoint. The endpoint should return a <code>200 OK</code> response in case of a successful request.</p>
+<p>When a campaign starts, listnun POSTs messages in the following format to the selected messenger's endpoint. The endpoint should return a <code>200 OK</code> response in case of a successful request.</p>
 <p>The address required to broadcast the message, for instance, a phone number or an FCM ID, is expected to be stored and relayed as <a href="../concepts/#attributes">subscriber attributes</a>. </p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">    </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listmonk"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"subject"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Welcome to listnun"</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">"body"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The message body"</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">"content_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"plain"</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">"recipients"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
@@ -1462,23 +1462,23 @@
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><a href="https://github.com/joeirimpan/listmonk-messenger">listmonk-messenger</a></td>
+<td style="text-align: left;"><a href="https://github.com/joeirimpan/listmonk-messenger">listnun-messenger</a></td>
 <td style="text-align: left;">AWS Pinpoint SMS</td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="https://github.com/antandros/listmonk-verimor-gateway">listmonk-verimor-gateway</a></td>
+<td style="text-align: left;"><a href="https://github.com/antandros/listmonk-verimor-gateway">listnun-verimor-gateway</a></td>
 <td style="text-align: left;">Verimor</td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="https://github.com/tkawczynski/listmonk-mailersend">listmonk-mailersend</a></td>
+<td style="text-align: left;"><a href="https://github.com/tkawczynski/listmonk-mailersend">listnun-mailersend</a></td>
 <td style="text-align: left;">Mailersend</td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="https://github.com/Codepowercode/listmonk-novu-messenger">listmonk-novu-messenger</a></td>
+<td style="text-align: left;"><a href="https://github.com/Codepowercode/listmonk-novu-messenger">listnun-novu-messenger</a></td>
 <td style="text-align: left;">Novu</td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="https://github.com/shyamkrishna21/listmonk-push-messenger">listmonk-push-messenger</a></td>
+<td style="text-align: left;"><a href="https://github.com/shyamkrishna21/listmonk-push-messenger">listnun-push-messenger</a></td>
 <td style="text-align: left;">Google FCM</td>
 </tr>
 </tbody>

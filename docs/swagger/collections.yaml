@@ -1,13 +1,13 @@
 openapi: 3.0.0
 
 servers:
-  - description: Listmonk Developement Server
+  - description: Listnun Developement Server
     url: http://localhost:9000/api
 
 info:
   version: "1.0.0"
-  title: Listmonk
-  description: The API collection for listmonk
+  title: Listnun
+  description: The API collection for listnun
   license:
     name: AGPL-3.0 license
     url: https://github.com/knadh/listmonk/blob/master/LICENSE
@@ -54,7 +54,7 @@ tags:
   - name: Maintenance
     description: Maintenance API
   - name: Public
-    description: Listmonk Public API
+    description: Listnun Public API
 
 paths:
   /health:
