@@ -347,10 +347,11 @@ definitions:
         type: string
       risky:
         description: |-
-          Risky is how many imported rows Scrub flagged risky (deliverable/
-          undeliverable/invalid_syntax aren't separately counted here --
-          undeliverable/invalid_syntax rows are skipped like any other
-          ValidateFields failure, visible in the existing log stream).
+          Risky always reads 0 during the import itself: Scrub validation is
+          asynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky
+          included -- aren't known until the /webhooks/scrub/batch callback
+          resolves each submitted batch, well after this Status stops being
+          polled. Kept for API/frontend type stability rather than removed.
         type: integer
       status:
         type: string
@@ -432,6 +433,18 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  OperatorBounceWebhooks:
+    properties:
+      enabled:
+        type: boolean
+      postmark:
+        properties:
+          password:
+            type: string
+          username:
+            type: string
+        type: object
     type: object
   OperatorCreateOrganizationReq:
     properties:
@@ -559,6 +572,8 @@ definitions:
         type: string
       organization_id:
         $ref: '#/definitions/null.Int'
+      root_url:
+        $ref: '#/definitions/null.String'
       slug:
         type: string
       status:
@@ -1313,7 +1328,7 @@ definitions:
     properties:
       message: {}
     type: object
-  github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign:
+  github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign:
     properties:
       id:
         type: integer
@@ -1999,7 +2014,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign'
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign'
             type: array
         "500":
           description: Internal Server Error
@@ -2395,6 +2410,34 @@ paths:
       summary: Trigger Scrub validation on a list
       tags:
       - settings
+  /api/lists/{id}/scrub/progress/{request_id}:
+    get:
+      operationId: getScrubListProgress
+      parameters:
+      - description: List ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Validation job request ID (from ScrubList's response)
+        in: path
+        name: request_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get progress for a running Scrub validation job
+      tags:
+      - settings
   /api/lists/scrub:
     get:
       operationId: getScrubListStatus
@@ -2453,21 +2496,6 @@ paths:
       summary: Log out the current user
       tags:
       - users
-  /api/logs:
-    get:
-      operationId: getLogs
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              type: string
-            type: array
-      summary: Get application logs
-      tags:
-      - settings
   /api/maintenance/analytics/{type}:
     delete:
       operationId: gcCampaignAnalytics
@@ -2946,6 +2974,52 @@ paths:
       summary: Get a tenant (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/bounce-webhooks:
+    put:
+      consumes:
+      - application/json
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Writes the tenant's bounce.webhooks_enabled and
+        bounce.postmark settings. The caller registers the Postmark webhook (https://{tenant
+        host}/webhooks/service/postmark) with the same basic auth credentials. Enabling
+        also turns on bounce.enabled.
+      operationId: setOperatorTenantBounceWebhooks
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bounce webhook settings
+        in: body
+        name: webhooks
+        required: true
+        schema:
+          $ref: '#/definitions/OperatorBounceWebhooks'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Set a tenant's bounce webhook settings (Operator API)
+      tags:
+      - operator
   /api/operator/tenants/{id}/custom-domain:
     put:
       consumes:
@@ -2956,8 +3030,8 @@ paths:
         -- and updates app.root_url to match in the same transaction. Pass an empty
         custom_domain to clear it and revert root_url to <slug>.root_domain. The caller
         is responsible for having already verified domain ownership (e.g. via a Cloudflare
-        Custom Hostname's DCV) before calling this; listnun does no verification
-        of its own.
+        Custom Hostname's DCV) before calling this; listnun does no verification of
+        its own.
       operationId: updateOperatorTenantCustomDomain
       parameters:
       - description: Tenant ID
@@ -3080,8 +3154,8 @@ paths:
       consumes:
       - application/json
       description: Fork-only, off by default (see [operator] config). Requires the
-        Operator API bearer token. listnun has no mail-provider-specific logic -
-        the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc.
+        Operator API bearer token. listnun has no mail-provider-specific logic - the
+        caller (e.g. an external provisioner that owns the actual Postmark/SES/etc.
         API calls) is responsible for creating the server/credentials and passes them
         here as-is; this endpoint only writes them into the tenant's settings, replacing
         its placeholder SMTP examples.
@@ -4551,13 +4625,40 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/echo.HTTPError'
-        "503":
-          description: Service Unavailable
+        "404":
+          description: Bounce webhooks are disabled for this tenant
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Receive a bounce webhook
       tags:
       - bounces
+  /webhooks/scrub/batch:
+    post:
+      consumes:
+      - application/json
+      operationId: scrubBatchWebhook
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Receive a Scrub batch validation progress callback
+      tags:
+      - webhooks
 securityDefinitions:
   BasicAuth:
     type: basic
