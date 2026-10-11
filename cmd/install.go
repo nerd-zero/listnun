@@ -60,6 +60,10 @@ func install(lastVer string, db *sqlx.DB, fs stuffbin.FileSystem, prompt, idempo
 		lo.Fatalf("error migrating DB schema: %v", err)
 	}
 
+	// schema.sql can't template the configured [operator] role name, so
+	// cover fresh installs that don't run --upgrade afterwards.
+	applyOperatorGrants(db)
+
 	// Load the queries.
 	q := prepareQueries(qMap, db, ko)
 
