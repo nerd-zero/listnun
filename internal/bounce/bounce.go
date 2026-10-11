@@ -46,19 +46,26 @@ type Opt struct {
 	RecordBounceCB func(models.Bounce) error
 }
 
-// Manager handles e-mail bounces.
-type Manager struct {
-	queue        chan models.Bounce
-	mailbox      Mailbox
+// Webhooks holds the webhook processors for each enabled bounce service. A
+// nil field means that service is not enabled.
+type Webhooks struct {
 	SES          *webhooks.SES
 	Azure        *webhooks.Azure
 	Sendgrid     *webhooks.Sendgrid
 	Postmark     *webhooks.Postmark
 	Forwardemail *webhooks.Forwardemail
 	Lettermint   *webhooks.Lettermint
-	queries      *Queries
-	opt          Opt
-	log          *log.Logger
+}
+
+// Manager handles e-mail bounces.
+type Manager struct {
+	Webhooks
+
+	queue   chan models.Bounce
+	mailbox Mailbox
+	queries *Queries
+	opt     Opt
+	log     *log.Logger
 }
 
 // Queries contains the queries.
@@ -87,37 +94,48 @@ func New(opt Opt, q *Queries, lo *log.Logger) (*Manager, error) {
 	}
 
 	if opt.WebhooksEnabled {
-		if opt.SESEnabled {
-			m.SES = webhooks.NewSES()
-		}
-		if opt.AzureEnabled {
-			m.Azure = webhooks.NewAzure(opt.AzureSharedSecret, opt.AzureSharedSecretHeader)
-		}
-
-		if opt.SendgridEnabled {
-			sg, err := webhooks.NewSendgrid(opt.SendgridKey)
-			if err != nil {
-				lo.Printf("error initializing sendgrid webhooks: %v", err)
-			} else {
-				m.Sendgrid = sg
-			}
-		}
-
-		if opt.Postmark.Enabled {
-			m.Postmark = webhooks.NewPostmark(opt.Postmark.Username, opt.Postmark.Password)
-		}
-
-		if opt.ForwardEmail.Enabled {
-			fe := webhooks.NewForwardemail([]byte(opt.ForwardEmail.Key))
-			m.Forwardemail = fe
-		}
-
-		if opt.Lettermint.Enabled {
-			m.Lettermint = webhooks.NewLettermint([]byte(opt.Lettermint.Key))
-		}
+		m.Webhooks = NewWebhooks(opt, lo)
 	}
 
 	return m, nil
+}
+
+// NewWebhooks builds the webhook processors for the services enabled in opt.
+// It doesn't check opt.WebhooksEnabled; callers decide whether webhooks are
+// on at all.
+func NewWebhooks(opt Opt, lo *log.Logger) Webhooks {
+	var w Webhooks
+
+	if opt.SESEnabled {
+		w.SES = webhooks.NewSES()
+	}
+
+	if opt.AzureEnabled {
+		w.Azure = webhooks.NewAzure(opt.AzureSharedSecret, opt.AzureSharedSecretHeader)
+	}
+
+	if opt.SendgridEnabled {
+		sg, err := webhooks.NewSendgrid(opt.SendgridKey)
+		if err != nil {
+			lo.Printf("error initializing sendgrid webhooks: %v", err)
+		} else {
+			w.Sendgrid = sg
+		}
+	}
+
+	if opt.Postmark.Enabled {
+		w.Postmark = webhooks.NewPostmark(opt.Postmark.Username, opt.Postmark.Password)
+	}
+
+	if opt.ForwardEmail.Enabled {
+		w.Forwardemail = webhooks.NewForwardemail([]byte(opt.ForwardEmail.Key))
+	}
+
+	if opt.Lettermint.Enabled {
+		w.Lettermint = webhooks.NewLettermint([]byte(opt.Lettermint.Key))
+	}
+
+	return w
 }
 
 // Run is a blocking function that listens for bounce events from webhooks and or mailboxes
