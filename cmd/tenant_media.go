@@ -80,6 +80,7 @@ func (t *tenantMedia) Get(ctx context.Context, tenantID int) (media.Store, model
 	if err != nil {
 		return nil, models.Settings{}, err
 	}
+	// A map, not a struct: confmap.Provider only accepts map[string]any.
 	var raw map[string]any
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, models.Settings{}, err
