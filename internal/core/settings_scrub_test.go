@@ -88,9 +88,9 @@ func TestScrubSettings_ManagedByPlatformLock(t *testing.T) {
 		pool.MustExec(`DELETE FROM tenants WHERE id = $1`, tenantID)
 	})
 
-	locked := map[string]any{
-		"enabled": true, "url": "https://platform.example", "api_key": "platform-key",
-		"integration_id": "platform-uuid", "managed_by_platform": true,
+	locked := scrubSettingFixture{
+		Enabled: true, URL: "https://platform.example", APIKey: "platform-key",
+		IntegrationID: "platform-uuid", ManagedByPlatform: true,
 	}
 	b, _ := json.Marshal(locked)
 	pool.MustExec(`INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'scrub', $2::jsonb) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`, tenantID, b)
@@ -126,9 +126,9 @@ func TestScrubSettings_ManagedByPlatformLock(t *testing.T) {
 	})
 
 	t.Run("UpdateSettingsByKey refuses a locked scrub row", func(t *testing.T) {
-		bypass, _ := json.Marshal(map[string]any{
-			"enabled": true, "url": "https://evil.example", "api_key": "x",
-			"integration_id": "y", "managed_by_platform": false,
+		bypass, _ := json.Marshal(scrubSettingFixture{
+			Enabled: true, URL: "https://evil.example", APIKey: "x",
+			IntegrationID: "y", ManagedByPlatform: false,
 		})
 		err := c.UpdateSettingsByKey(ctx, tenantID, "scrub", bypass)
 		if err == nil {
@@ -157,14 +157,12 @@ func TestScrubSettings_ManagedByPlatformLock(t *testing.T) {
 			pool.MustExec(`DELETE FROM tenants WHERE id = $1`, otherTenantID)
 		})
 
-		unmanaged, _ := json.Marshal(map[string]any{
-			"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false,
-		})
+		unmanaged, _ := json.Marshal(scrubSettingFixture{})
 		pool.MustExec(`INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'scrub', $2::jsonb) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`, otherTenantID, unmanaged)
 
-		want, _ := json.Marshal(map[string]any{
-			"enabled": true, "url": "https://own.example", "api_key": "own-key",
-			"integration_id": "own-id", "managed_by_platform": false,
+		want, _ := json.Marshal(scrubSettingFixture{
+			Enabled: true, URL: "https://own.example", APIKey: "own-key",
+			IntegrationID: "own-id", ManagedByPlatform: false,
 		})
 		if err := c.UpdateSettingsByKey(ctx, otherTenantID, "scrub", want); err != nil {
 			t.Fatalf("UpdateSettingsByKey on an unmanaged tenant should succeed: %v", err)
@@ -178,4 +176,15 @@ func TestScrubSettings_ManagedByPlatformLock(t *testing.T) {
 			t.Errorf("unmanaged tenant's own settings save didn't take effect: %+v", after.Scrub)
 		}
 	})
+}
+
+// scrubSettingFixture is the "scrub" settings row as these tests write it,
+// with the same JSON keys as models.Settings.Scrub. No omitempty: every
+// key is written, including false and empty values.
+type scrubSettingFixture struct {
+	Enabled           bool   `json:"enabled"`
+	URL               string `json:"url"`
+	APIKey            string `json:"api_key"`
+	IntegrationID     string `json:"integration_id"`
+	ManagedByPlatform bool   `json:"managed_by_platform"`
 }

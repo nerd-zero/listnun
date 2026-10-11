@@ -71,6 +71,7 @@ func (t *tenantMessengers) GetMessenger(ctx context.Context, tenantID int, name 
 	if err != nil {
 		return nil, err
 	}
+	// A map, not a struct: confmap.Provider only accepts map[string]any.
 	var raw map[string]any
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, err
