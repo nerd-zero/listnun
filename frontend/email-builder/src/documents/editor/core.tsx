@@ -37,7 +37,7 @@ export const ImgPropsSchema = ImagePropsSchema.extend({
     embed: z.boolean().nullable().optional(),
   }).nullable().optional(),
 });
-export type ListmonkImageProps = z.infer<typeof ImgPropsSchema>;
+export type ListnunImageProps = z.infer<typeof ImgPropsSchema>;
 
 const EDITOR_DICTIONARY = buildBlockConfigurationDictionary({
   Avatar: {

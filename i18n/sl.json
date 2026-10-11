@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Pot nalaganja",
     "settings.media.upload.pathHelp": "Pot do imenika, kamor bodo naloženi mediji.",
     "settings.media.upload.uri": "URI nalaganja",
-    "settings.media.upload.uriHelp": "URI nalaganja, ki je viden zunanjemu svetu. Mediji, naloženi na upload_path, bodo javno dostopni pod {root_url}, na primer https://listmonk.yoursite.com/uploads. ",
+    "settings.media.upload.uriHelp": "URI nalaganja, ki je viden zunanjemu svetu. Mediji, naloženi na upload_path, bodo javno dostopni pod {root_url}, na primer https://listnun.yoursite.com/uploads. ",
     "settings.messengers.maxConns": "Maks. povezav",
     "settings.messengers.maxConnsHelp": "Največje število sočasnih povezav s strežnikom.",
     "settings.messengers.messageSaved": "Nastavitve shranjene. Ponovno nalaganje aplikacije ...",

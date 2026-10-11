@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/altcha-org/altcha-lib-go"
-	"github.com/knadh/listmonk/internal/tmptokens"
+	"github.com/nerd-zero/listnun/internal/tmptokens"
 )
 
 const (

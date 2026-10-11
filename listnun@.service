@@ -1,36 +1,36 @@
 [Unit]
-Description=listmonk mailing list and newsletter manager (%I)
-ConditionPathExists=/etc/listmonk/%i.toml
+Description=listnun mailing list and newsletter manager (%I)
+ConditionPathExists=/etc/listnun/%i.toml
 Wants=network.target
 # The PostgreSQL database may not be on the same host but if it
-# is listmonk should wait for it to start up.
+# is listnun should wait for it to start up.
 After=postgresql.service
 
 [Service]
 Type=simple
-EnvironmentFile=-/etc/default/listmonk
-EnvironmentFile=-/etc/default/listmonk-%i
+EnvironmentFile=-/etc/default/listnun
+EnvironmentFile=-/etc/default/listnun-%i
 ExecStartPre=/usr/bin/mkdir -p "${HOME}/uploads"
-ExecStartPre=/usr/bin/listmonk --config /etc/listmonk/%i.toml --upgrade --yes
-ExecStart=/usr/bin/listmonk --config /etc/listmonk/%i.toml $SYSTEMD_LISTMONK_ARGS
+ExecStartPre=/usr/bin/listnun --config /etc/listnun/%i.toml --upgrade --yes
+ExecStart=/usr/bin/listnun --config /etc/listnun/%i.toml $SYSTEMD_LISTNUN_ARGS
 Restart=on-failure
 
-# Create dynamic users for listmonk service instances
+# Create dynamic users for listnun service instances
 # but create a state directory for uploads in /var/lib/private/%i.
 DynamicUser=True
-StateDirectory=listmonk-%i
-Environment=HOME=%S/listmonk-%i
-WorkingDirectory=%S/listmonk-%i
+StateDirectory=listnun-%i
+Environment=HOME=%S/listnun-%i
+WorkingDirectory=%S/listnun-%i
 
 # Use systemd’s ability to disable security-sensitive features
-# that listmonk does not explicitly need.
+# that listnun does not explicitly need.
 # NoNewPrivileges should be enabled by DynamicUser=yes but systemd-analyze
 # still recommended to explicitly enable it.
 NoNewPrivileges=True
-# listmonk doesn’t need any capabilities as defined by the linux kernel
+# listnun doesn’t need any capabilities as defined by the linux kernel
 # see: https://man7.org/linux/man-pages/man7/capabilities.7.html
 CapabilityBoundingSet=
-# listmonk only executes native code with no need for any other ABIs.
+# listnun only executes native code with no need for any other ABIs.
 SystemCallArchitectures=native
 # Only enable a reasonable set of system calls.
 # see: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#SystemCallFilter=
@@ -38,28 +38,28 @@ SystemCallFilter=@system-service
 SystemCallFilter=~@privileged
 # ProtectSystem=strict, which is implied by DynamicUser=True, already disabled write calls
 # to the entire filesystem hierarchy, leaving only /dev/, /proc/, and /sys/ writable.
-# listmonk doesn’t need access to those so might as well disable them.
+# listnun doesn’t need access to those so might as well disable them.
 PrivateDevices=True
 ProtectControlGroups=True
 ProtectKernelTunables=True
 # Make /home/, /root/, and /run/user/ inaccessible.
 ProtectHome=True
-# listmonk doesn’t handle any specific device nodes.
+# listnun doesn’t handle any specific device nodes.
 DeviceAllow=False
-# listmonk doesn’t make use of linux namespaces.
+# listnun doesn’t make use of linux namespaces.
 RestrictNamespaces=True
-# listmonk doesn’t need realtime scheduling.
+# listnun doesn’t need realtime scheduling.
 RestrictRealtime=True
-# Make sure files created by listmonk are only readable by itself and
-# others in the listmonk system group.
+# Make sure files created by listnun are only readable by itself and
+# others in the listnun system group.
 UMask=0027
 # Disable memory mappings that are both writable and executable.
 MemoryDenyWriteExecute=True
-# listmonk doesn’t make use of linux personality switching.
+# listnun doesn’t make use of linux personality switching.
 LockPersonality=True
-# listmonk only needs to support the IPv4 and IPv6 address families.
+# listnun only needs to support the IPv4 and IPv6 address families.
 RestrictAddressFamilies=AF_INET AF_INET6
-# listmonk doesn’t need to load any linux kernel modules.
+# listnun doesn’t need to load any linux kernel modules.
 ProtectKernelModules=True
 # Create a sandboxed environment where the system users are mapped to a
 # service-specific linux kernel namespace.

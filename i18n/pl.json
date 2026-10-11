@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Ścieżka do wysyłki",
     "settings.media.upload.pathHelp": "Ścieżka do folderu do którego media będą wrzucane.",
     "settings.media.upload.uri": "URI wysyłki",
-    "settings.media.upload.uriHelp": "URI do wysyłki jest widoczna dla świata zewnętrznego. Wrzucone media do upload_path będą publicznie dostępne pod {root_url} np https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "URI do wysyłki jest widoczna dla świata zewnętrznego. Wrzucone media do upload_path będą publicznie dostępne pod {root_url} np https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Maksymalna liczba połąćzeń",
     "settings.messengers.maxConnsHelp": "Maksymalna liczba jednoczesnych połączeń do serwera.",
     "settings.messengers.messageSaved": "Ustawienia zapisane. Przeładowuję aplikację...",

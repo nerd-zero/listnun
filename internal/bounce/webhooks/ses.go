@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // AWS signature/validation logic borrowed from @cavnit's contrib:

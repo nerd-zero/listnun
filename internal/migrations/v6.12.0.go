@@ -10,7 +10,7 @@ import (
 
 // V6_12_0 adds organizations - a purely cross-tenant grouping construct,
 // managed only via the Operator API. One organization can own multiple
-// tenants ("listmonks") for different purposes; tenants.organization_id
+// tenants ("listnuns") for different purposes; tenants.organization_id
 // is nullable so existing/standalone tenants aren't forced into one.
 // Never RLS-scoped and never resolved per-request the way tenants are -
 // this is a management/billing-side concept, not part of the

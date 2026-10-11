@@ -16,18 +16,18 @@ root_domain = ""
 [db]
 host = "localhost"
 port = 5432
-user = "listmonk"
-password = "listmonk"
+user = "listnun"
+password = "listnun"
 
 # Ensure that this database has been created in Postgres.
-database = "listmonk"
+database = "listnun"
 
 ssl_mode = "disable"
 max_open = 25
 max_idle = 25
 max_lifetime = "300s"
 
-# Optional space separated Postgres DSN params. eg: "application_name=listmonk gssencmode=disable"
+# Optional space separated Postgres DSN params. eg: "application_name=listnun gssencmode=disable"
 params = ""
 
 # Operator API (fork-only, multi-tenancy companion feature, not upstream).

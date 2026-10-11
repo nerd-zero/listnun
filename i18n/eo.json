@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Ruta de càrrega",
     "settings.media.upload.pathHelp": "Ruta al directori on es carregaran els mèdia.",
     "settings.media.upload.uri": "Carrega URI",
-    "settings.media.upload.uriHelp": "Carrega un URI visible per al tothom. Els mèdia carregats a upload_path seran accessibles públicament a {root_url}, per exemple, https://listmonk.yoursite.com/upload",
+    "settings.media.upload.uriHelp": "Carrega un URI visible per al tothom. Els mèdia carregats a upload_path seran accessibles públicament a {root_url}, per exemple, https://listnun.yoursite.com/upload",
     "settings.messengers.maxConns": "Connexions màxiomes",
     "settings.messengers.maxConnsHelp": "Màxim nombre de connexions concurrents al servidor.",
     "settings.messengers.messageSaved": "S'ha desat la configuració. S'està tornant a carregar l'aplicació...",

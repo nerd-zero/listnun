@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a CSV of test subscribers for listmonk import testing."""
+"""Generate a CSV of test subscribers for listnun import testing."""
 
 import csv
 import json

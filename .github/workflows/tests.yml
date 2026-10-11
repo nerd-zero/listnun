@@ -24,13 +24,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: listmonk
-          POSTGRES_PASSWORD: listmonk
-          POSTGRES_DB: listmonk
+          POSTGRES_USER: listnun
+          POSTGRES_PASSWORD: listnun
+          POSTGRES_DB: listnun
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U listmonk"
+          --health-cmd "pg_isready -U listnun"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -52,16 +52,16 @@ jobs:
         # like internal/core/tenant_test.go connect successfully (so they
         # don't hit the "no reachable database" skip) but then fail because
         # tables such as `tenants` don't exist yet.
-        run: PGPASSWORD=listmonk psql -h localhost -U listmonk -d listmonk -f schema.sql
+        run: PGPASSWORD=listnun psql -h localhost -U listnun -d listnun -f schema.sql
 
       - name: Run tests
         run: make test
         env:
-          LISTMONK_db__host: localhost
-          LISTMONK_db__port: 5432
-          LISTMONK_db__user: listmonk
-          LISTMONK_db__password: listmonk
-          LISTMONK_db__database: listmonk
+          LISTNUN_db__host: localhost
+          LISTNUN_db__port: 5432
+          LISTNUN_db__user: listnun
+          LISTNUN_db__password: listnun
+          LISTNUN_db__database: listnun
 
   # ──────────────────────────────────────────────────────────────────────────
   # Frontend build + lint + unit tests

@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/i18n"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/models"
 )
 
 const (
@@ -28,7 +28,7 @@ const (
 	matListSubStats    = "mat_list_subscriber_stats"
 )
 
-// Core represents the listmonk core with all shared, global functions.
+// Core represents the listnun core with all shared, global functions.
 type Core struct {
 	h *Hooks
 

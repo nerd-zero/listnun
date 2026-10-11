@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Каталог вивантажень",
     "settings.media.upload.pathHelp": "Шлях до каталогу, куди слід вивантажувати картинки.",
     "settings.media.upload.uri": "URI-адреса вивантажень",
-    "settings.media.upload.uriHelp": "URI-адреса, за якою вивантаження в каталог угорі доступні всьому світу. Додається до кореневої URL-адреси (вкладка «Загальне»), наприклад https://listmonk.example.org/uploads.",
+    "settings.media.upload.uriHelp": "URI-адреса, за якою вивантаження в каталог угорі доступні всьому світу. Додається до кореневої URL-адреси (вкладка «Загальне»), наприклад https://listnun.example.org/uploads.",
     "settings.messengers.maxConns": "З'єднань",
     "settings.messengers.maxConnsHelp": "Максимум конкурентних з'єднань із сервером.",
     "settings.messengers.messageSaved": "Налаштування збережено. Перезапуск програми…",

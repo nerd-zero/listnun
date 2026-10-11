@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/notifs"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/models"
 	"gopkg.in/volatiletech/null.v6"
 )
 
@@ -178,19 +178,19 @@ func (a *App) GetCampaign(c echo.Context) error {
 //	@Failure		404	{object}	echo.HTTPError
 //	@Router			/api/campaigns/{id}/preview [get]
 
-//	@ID			previewCampaign
-//	@Summary		Preview a campaign (POST)
-//	@Tags			campaigns
-//	@Accept			mpfd
-//	@Produce		html
-//	@Param			id				path		int		true	"Campaign ID"
-//	@Param			content_type	formData	string	false	"Content type override"
-//	@Param			template_id		formData	int		false	"Template ID to use for preview"
-//	@Param			body			formData	string	false	"Campaign body override"
-//	@Success		200	{string}	string	"Rendered HTML or plain text"
-//	@Failure		400	{object}	echo.HTTPError
-//	@Failure		404	{object}	echo.HTTPError
-//	@Router			/api/campaigns/{id}/preview [post]
+// @ID			previewCampaign
+// @Summary		Preview a campaign (POST)
+// @Tags			campaigns
+// @Accept			mpfd
+// @Produce		html
+// @Param			id				path		int		true	"Campaign ID"
+// @Param			content_type	formData	string	false	"Content type override"
+// @Param			template_id		formData	int		false	"Template ID to use for preview"
+// @Param			body			formData	string	false	"Campaign body override"
+// @Success		200	{string}	string	"Rendered HTML or plain text"
+// @Failure		400	{object}	echo.HTTPError
+// @Failure		404	{object}	echo.HTTPError
+// @Router			/api/campaigns/{id}/preview [post]
 func (a *App) PreviewCampaign(c echo.Context) error {
 	// Get the campaign ID.
 	id := getID(c)

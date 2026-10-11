@@ -490,7 +490,7 @@
     "settings.media.upload.path": "上傳路徑",
     "settings.media.upload.pathHelp": "將上傳媒體的目錄的路徑。",
     "settings.media.upload.uri": "上傳 URI",
-    "settings.media.upload.uriHelp": "上傳對外公開的 URI。上傳到 upload_path 的媒體將在 {root_url} 下可被公開檢視，例如 https://listmonk.yoursite.com/uploads。",
+    "settings.media.upload.uriHelp": "上傳對外公開的 URI。上傳到 upload_path 的媒體將在 {root_url} 下可被公開檢視，例如 https://listnun.yoursite.com/uploads。",
     "settings.messengers.maxConns": "最大連接數",
     "settings.messengers.maxConnsHelp": "與伺服器的最大同時連接數。",
     "settings.messengers.messageSaved": "設定已儲存。正在重新讀取應用程式...",

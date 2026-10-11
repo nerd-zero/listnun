@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"strconv"
 
-	_ "github.com/knadh/listmonk/docs" // swaggo generated docs
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/operator"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/nerd-zero/listnun/docs" // swaggo generated docs
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/operator"
+	"github.com/nerd-zero/listnun/models"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
@@ -283,7 +283,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {
-			return c.Render(http.StatusOK, "home", publicTpl{Title: "listmonk"})
+			return c.Render(http.StatusOK, "home", publicTpl{Title: "listnun"})
 		})
 
 		// Public admin endpoints (login page, OIDC endpoints, password reset).

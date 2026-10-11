@@ -16,8 +16,8 @@ import (
 // Enum values for various statuses.
 const (
 	// Headers attached to e-mails for bounce tracking.
-	EmailHeaderSubscriberUUID = "X-Listmonk-Subscriber"
-	EmailHeaderCampaignUUID   = "X-Listmonk-Campaign"
+	EmailHeaderSubscriberUUID = "X-Listnun-Subscriber"
+	EmailHeaderCampaignUUID   = "X-Listnun-Campaign"
 
 	// Standard e-mail headers.
 	EmailHeaderDate        = "Date"

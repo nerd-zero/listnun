@@ -490,7 +490,7 @@
     "settings.media.upload.path": "업로드 경로",
     "settings.media.upload.pathHelp": "미디어가 업로드될 디렉터리 경로입니다.",
     "settings.media.upload.uri": "업로드 URI",
-    "settings.media.upload.uriHelp": "외부에서 접근 가능한 업로드 URI입니다. upload_path에 업로드된 미디어는 {root_url} 하위에서 공개됩니다. 예: https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "외부에서 접근 가능한 업로드 URI입니다. upload_path에 업로드된 미디어는 {root_url} 하위에서 공개됩니다. 예: https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "최대 동시 연결 수",
     "settings.messengers.maxConnsHelp": "서버에 대한 최대 동시 연결 수입니다.",
     "settings.messengers.messageSaved": "설정이 저장되었습니다. 앱을 다시 불러오는 중 ...",

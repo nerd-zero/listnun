@@ -1,6 +1,6 @@
 # APIs
 
-All features that are available on the listmonk dashboard are also available as REST-like HTTP APIs that can be interacted with directly. Request and response bodies are JSON. This allows easy scripting of listmonk and integration with other systems, for instance, synchronisation with external subscriber databases.
+All features that are available on the listnun dashboard are also available as REST-like HTTP APIs that can be interacted with directly. Request and response bodies are JSON. This allows easy scripting of listnun and integration with other systems, for instance, synchronisation with external subscriber databases.
 
 !!! note
     If you come across API calls that are yet to be documented, please consider contributing to docs.

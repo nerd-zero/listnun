@@ -4,9 +4,9 @@ Companion to [`multi-tenancy.md`](./multi-tenancy.md) (architecture/research) an
 [`multi-tenancy-erd.drawio`](./multi-tenancy-erd.drawio) (schema diagrams). That
 doc has the *why*; this one has the *how* — concrete SQL, Go signatures, and
 file-by-file diffs to implement the 9 phases tracked as GitHub issues
-[#28](https://github.com/nerd-zero/listmonk/issues/28)–[#35](https://github.com/nerd-zero/listmonk/issues/35)
-and [#38](https://github.com/nerd-zero/listmonk/issues/38)
-under [#27](https://github.com/nerd-zero/listmonk/issues/27).
+[#28](https://github.com/nerd-zero/listnun/issues/28)–[#35](https://github.com/nerd-zero/listnun/issues/35)
+and [#38](https://github.com/nerd-zero/listnun/issues/38)
+under [#27](https://github.com/nerd-zero/listnun/issues/27).
 
 Status: **not started**. Nothing below has been applied to the codebase yet.
 
@@ -104,7 +104,7 @@ Two deliberate additions beyond the original draft:
   lands and the app reliably sets tenant context on every request — tracked
   as a follow-up, not a new phase.
 - **`FORCE ROW LEVEL SECURITY`** in addition to `ENABLE`: table owners are
-  exempt from RLS by default, and most self-hosted listmonk installs
+  exempt from RLS by default, and most self-hosted listnun installs
   (including this dev database) use a single Postgres role for both schema
   ownership and the app connection — so plain `ENABLE` alone would have
   silently been a no-op for that common deployment shape. `FORCE` closes
@@ -155,7 +155,7 @@ issue #30). Two changes from the original draft:
    was the repo's *first* Go test (`go test ./...` previously had zero test
    files anywhere outside `frontend/`), so it also had to establish how a
    Postgres-backed Go test connects to a database at all. It reads the same
-   `LISTMONK_db__*` env vars `.github/workflows/tests.yml` already sets for
+   `LISTNUN_db__*` env vars `.github/workflows/tests.yml` already sets for
    CI, falling back to this repo's local dev `config.toml` values so it also
    runs against `make run`'s dev database with no extra setup, and skips
    (rather than fails) if no database is reachable.
@@ -314,7 +314,7 @@ indistinguishable from an expired session to the client, no extra
 information disclosed.
 
 Verified end-to-end against a temporary second backend instance
-(`LISTMONK_app__multi_tenancy_enabled=true LISTMONK_app__root_domain=localhost`,
+(`LISTNUN_app__multi_tenancy_enabled=true LISTNUN_app__root_domain=localhost`,
 different port, same dev DB): logged in on tenant 1's own subdomain
 (`default.localhost`), confirmed the resulting session cookie works there,
 then confirmed reusing that exact cookie against a second throwaway
@@ -954,7 +954,7 @@ cross-tenant rows when queried via a non-superuser role with
 (2) confirmed the full HTTP path (two tenants, two logged-in users, real
 subdomains) does **not** show isolation in this specific dev environment,
 but only because — as already flagged in phase 2 — the dev DB role
-(`listmonk-dev`) is a superuser and superusers always bypass RLS
+(`listnun-dev`) is a superuser and superusers always bypass RLS
 regardless of policy. This is a pre-existing, already-documented
 dev-environment limitation, not a defect in this slice's code; the
 per-layer test above is what actually confirms the code is correct.
@@ -1133,12 +1133,12 @@ func Middleware(token string) echo.MiddlewareFunc {
 ```
 
 Config: `config.toml` gains an `[operator]` section (`token = "..."`), or
-`LISTMONK_operator__token` env var, following the existing `LISTMONK_`
+`LISTNUN_operator__token` env var, following the existing `LISTNUN_`
 double-underscore convention.
 
 ### DB role
 
-A new Postgres role (e.g. `listmonk_operator`) with `BYPASSRLS`, distinct
+A new Postgres role (e.g. `listnun_operator`) with `BYPASSRLS`, distinct
 from the tenant-app pool's role (which must never have it — see phase 2's
 verification query). This is the second consumer of a bypass role, alongside
 migrations/backup jobs.
@@ -1184,7 +1184,7 @@ concretely during implementation:
 - **Config**: `[operator]` gained two more fields beyond the sketch's
   `token` - `db_user`/`db_password`, for the separate BYPASSRLS
   connection (see below). All three via `ko.Unmarshal("operator",
-  &c.Operator)` in `initConstConfig`, `LISTMONK_operator__*` env vars
+  &c.Operator)` in `initConstConfig`, `LISTNUN_operator__*` env vars
   work automatically (the env-var provider is fully generic, not
   per-section).
 - **The BYPASSRLS DB role turned out to be a genuine design fork, not a

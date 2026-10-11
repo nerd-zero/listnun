@@ -9,9 +9,9 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // SendTxMessage handles the sending of a transactional message.

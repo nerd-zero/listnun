@@ -41,7 +41,7 @@ single-tenant `UNIQUE` indexes on `roles`/`templates` — migration
 checklist items confirmed already satisfied by the existing
 hard-navigation login/logout flow, no code changes needed; phase 9 not
 started**. This document captures research and a phased
-implementation plan for adding multi-tenancy to listmonk. It is an internal
+implementation plan for adding multi-tenancy to listnun. It is an internal
 engineering design doc, not end-user documentation.
 
 See also: [`multi-tenancy-code-plan.md`](./multi-tenancy-code-plan.md) for the
@@ -52,7 +52,7 @@ or the VS Code Draw.io Integration extension).
 
 ## Goal
 
-Run a single listmonk instance (one binary, one database) serving multiple fully
+Run a single listnun instance (one binary, one database) serving multiple fully
 isolated organizations ("tenants"). Each tenant gets its own users, lists,
 subscribers, campaigns, templates, media, and settings (SMTP, from-address,
 branding, etc.) — nothing is shared between tenants except the running process
@@ -60,7 +60,7 @@ and database server itself.
 
 ## Prior art
 
-listmonk does not have multi-tenancy today, and upstream (`knadh/listmonk`) has
+listnun does not have multi-tenancy today, and upstream (`knadh/listnun`) has
 consistently declined to build it in:
 
 - [#2872 — Native Multi-tenancy Support (Multiple Domains/Workspaces)](https://github.com/knadh/listmonk/issues/2872):
@@ -77,7 +77,7 @@ consistently declined to build it in:
 
 **Implication:** this is a fork-only feature. It should be built and maintained
 as a divergence from upstream, not something we can expect to upstream or stay
-trivially rebasable against — every future `git merge` from `knadh/listmonk`
+trivially rebasable against — every future `git merge` from `knadh/listnun`
 that touches `schema.sql`, `internal/core/*`, `internal/auth/*`, or
 `internal/manager/*` will need conflict resolution against the tenant-scoping
 changes.
@@ -118,12 +118,12 @@ Key points from research:
   ends) instead of creating a Postgres role per tenant.
 - **Critical gotchas identified in research:**
   - RLS does **not** apply to superusers or roles with `BYPASSRLS`. The
-    listmonk DB role used by the app must not have `BYPASSRLS` or superuser,
+    listnun DB role used by the app must not have `BYPASSRLS` or superuser,
     or every policy is silently ignored.
   - `SET LOCAL app.current_tenant = ...` session variables are
     **incompatible with transaction-level poolers like PgBouncer** in
     transaction-pooling mode in some configurations — needs explicit testing
-    against however listmonk pools connections (`sqlx` + `lib/pq`/`pgx`
+    against however listnun pools connections (`sqlx` + `lib/pq`/`pgx`
     pool) before relying on it in production.
   - `tenant_id` must be the **leading column** in composite indexes on
     every scoped table, or RLS predicate filtering silently kills index
@@ -191,7 +191,7 @@ Two knock-on effects worth flagging for implementation:
 ### Request flow changes
 
 - **Decided: tenant resolution is subdomain-based** —
-  `<tenant-slug>.listmonk.example.com`. `cmd/init.go:initHTTPServer` has a
+  `<tenant-slug>.listnun.example.com`. `cmd/init.go:initHTTPServer` has a
   global `srv.Use` that runs before auth on every request (currently just
   `c.Set("app", app)`) — this is the insertion point for a new tenant-
   resolution middleware: parse `c.Request().Host`, strip the port, extract
@@ -207,12 +207,12 @@ Two knock-on effects worth flagging for implementation:
   is rejected — defense in depth against a session/token issued on one
   tenant being replayed against another tenant's subdomain.
 - **Session cookie scoping:** host-only cookies (no explicit `Domain`
-  attribute), not `.listmonk.example.com`-wide. Since one user belongs to
+  attribute), not `.listnun.example.com`-wide. Since one user belongs to
   exactly one tenant, there's no login-once-use-everywhere requirement, and
   host-only cookies mean a stolen cookie can't even be replayed against a
   different subdomain — an extra isolation layer on top of the tenant-match
   check above.
-- **DNS/TLS:** production needs a wildcard DNS record (`*.listmonk.example.com`)
+- **DNS/TLS:** production needs a wildcard DNS record (`*.listnun.example.com`)
   and a wildcard TLS cert (Let's Encrypt DNS-01 challenge — HTTP-01 doesn't
   support wildcards). For local dev, `*.localhost` resolves to `127.0.0.1`
   in modern browsers/OSes with no `/etc/hosts` edits — use e.g.
@@ -243,7 +243,7 @@ Two knock-on effects worth flagging for implementation:
 are exposed as a dedicated REST API, not the per-tenant admin UI — there is no
 UI-level "operator" role.
 
-- **Auth:** a static bearer token from config (`LISTMONK_operator__token` /
+- **Auth:** a static bearer token from config (`LISTNUN_operator__token` /
   `[operator] token=` in `config.toml`), checked by a dedicated Echo
   middleware on its own route group (e.g. `/api/operator/*`), entirely
   independent of the session/JWT auth used by tenant users. Rotated by
@@ -268,14 +268,14 @@ UI-level "operator" role.
     link, and without this endpoint the only recovery was recreating the
     tenant from scratch (which fails outright since the slug is taken).
   - `PUT /api/operator/tenants/:id/smtp` — replace a tenant's SMTP settings
-    with a single server entry. listmonk has zero mail-provider-specific
+    with a single server entry. listnun has zero mail-provider-specific
     logic here — the caller is responsible for actually creating the
     server/credentials with whatever provider it uses, this only writes
-    them into the tenant's settings. (An earlier draft had listmonk itself
+    them into the tenant's settings. (An earlier draft had listnun itself
     auto-provision a Postmark server per tenant; moved out once it became
     clear that responsibility belongs in the separate orchestration service
     that already owns Postmark/Cloudflare/DNS provisioning — see
-    `listnun/docs/plan.md` in the sibling repo. listmonk's Operator API
+    `listnun/docs/plan.md` in the sibling repo. listnun's Operator API
     stays provider-agnostic: generic tenant/organization CRUD and generic
     settings-setting, nothing provider-aware.)
   - `PUT /api/operator/tenants/:id/status` — suspend/reactivate/disable
@@ -320,7 +320,7 @@ or be indistinguishable from - a prod tenant's.
 
 ### Organizations
 
-**Decided (2026-07-09):** a tenant ("listmonk") and a customer aren't
+**Decided (2026-07-09):** a tenant ("listnun") and a customer aren't
 necessarily the same thing — one customer may want several tenants for
 different purposes (e.g. separate brands or departments), each still fully
 isolated by the existing per-tenant RLS/subdomain machinery. `organizations`
@@ -398,7 +398,7 @@ outside the Operator API ever needs to know an organization exists.
 
 ## Decisions log
 
-- **Tenant resolution:** subdomain (`<slug>.listmonk.example.com`), resolved
+- **Tenant resolution:** subdomain (`<slug>.listnun.example.com`), resolved
   by middleware before auth. See "Request flow changes" above.
 - **Cross-tenant management:** no UI-level super-admin. A separate Operator
   API (static bearer token, `BYPASSRLS` DB role) handles tenant
@@ -870,7 +870,7 @@ outside the Operator API ever needs to know an organization exists.
   constraints and replaces them with `UNIQUE (tenant_id, username)` /
   `UNIQUE (tenant_id, email)` indexes of the same name.
   **Also surfaced (and fixed) a real dev-environment gap while chasing
-  this down**: the dev database's own connecting role (`listmonk-dev`)
+  this down**: the dev database's own connecting role (`listnun-dev`)
   was a Postgres superuser, meaning RLS was silently inert for the whole
   session's dev testing — every prior "verified live" claim in this doc
   that needed genuine cross-tenant isolation had to reach for a
@@ -879,7 +879,7 @@ outside the Operator API ever needs to know an organization exists.
   second tenant showed the *first* tenant's user as if it existed
   everywhere (`HasUsers` returning true for a tenant with zero users).
   Fixed properly rather than worked around: created a real non-superuser,
-  non-`BYPASSRLS` application role (`listmonk_app`) with correct table
+  non-`BYPASSRLS` application role (`listnun_app`) with correct table
   grants, and switched the dev `config.toml`'s `[db]` section to use it —
   matching what this doc has said all along any real deployment needs.
   **Verified**: reproduced the exact collision via a direct RLS-scoped
@@ -900,16 +900,16 @@ outside the Operator API ever needs to know an organization exists.
   gained an optional `organization_id` field, validated against an
   existing organization before the tenant is created. **Also reverted in
   the same window**: an earlier draft of `PUT
-  /api/operator/tenants/:id/smtp` had listmonk auto-provision a dedicated
+  /api/operator/tenants/:id/smtp` had listnun auto-provision a dedicated
   Postmark server per tenant directly (new `internal/postmark` package, an
   `[operator].postmark_account_token` config value) — reverted once it
   became clear that responsibility belongs in `listnun` (the sibling
   orchestration-service repo that already has `postmark_servers`/
   `provisioning_jobs` tables and, per its own `docs/plan.md`, is meant to
-  call Postmark's Account API directly and separately call listmonk's
+  call Postmark's Account API directly and separately call listnun's
   Operator API). The endpoint that shipped instead is fully
   provider-agnostic: it writes whatever SMTP config it's handed into the
-  tenant's settings, with zero Postmark-specific code in listmonk.
+  tenant's settings, with zero Postmark-specific code in listnun.
   **Verified**: created an organization via the API, created two tenants
   under it (`organization_id` correctly set on both, correctly `null` for
   a tenant created without one), confirmed `GET
@@ -944,6 +944,6 @@ outside the Operator API ever needs to know an organization exists.
 
 - [AWS: Multi-tenant data isolation with PostgreSQL Row Level Security](https://aws.amazon.com/blogs/database/multi-tenant-data-isolation-with-postgresql-row-level-security/)
 - [AWS Prescriptive Guidance: Row-level security recommendations](https://docs.aws.amazon.com/prescriptive-guidance/latest/saas-multitenant-managed-postgresql/rls.html)
-- [knadh/listmonk#2872 — Native Multi-tenancy Support](https://github.com/knadh/listmonk/issues/2872) (closed, not planned)
-- [knadh/listmonk#2765 — multi-tenancy / namespace feature](https://github.com/knadh/listmonk/issues/2765) (open)
-- [knadh/listmonk#2395 — Multi-Tenancy Permissions](https://github.com/knadh/listmonk/issues/2395) (closed, not planned)
+- [knadh/listnun#2872 — Native Multi-tenancy Support](https://github.com/knadh/listmonk/issues/2872) (closed, not planned)
+- [knadh/listnun#2765 — multi-tenancy / namespace feature](https://github.com/knadh/listmonk/issues/2765) (open)
+- [knadh/listnun#2395 — Multi-Tenancy Permissions](https://github.com/knadh/listmonk/issues/2395) (closed, not planned)

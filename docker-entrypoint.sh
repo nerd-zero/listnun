@@ -39,15 +39,15 @@ load_secret_files() {
   old_ifs="$IFS"
   IFS='
 '
-  # Capture all env variables starting with LISTMONK_ and ending with _FILE.
+  # Capture all env variables starting with LISTNUN_ and ending with _FILE.
   # It's value is assumed to be a file path with its actual value.
-  for line in $(env | grep '^LISTMONK_.*_FILE='); do
+  for line in $(env | grep '^LISTNUN_.*_FILE='); do
     var="${line%%=*}"
     fpath="${line#*=}"
 
     # If it's a valid file, read its contents and assign it to the var
     # without the _FILE suffix.
-    # Eg: LISTMONK_DB_USER_FILE=/run/secrets/user -> LISTMONK_DB_USER=$(contents of /run/secrets/user)
+    # Eg: LISTNUN_DB_USER_FILE=/run/secrets/user -> LISTNUN_DB_USER=$(contents of /run/secrets/user)
     if [ -f "$fpath" ]; then
       new_var="${var%_FILE}"
       export "$new_var"="$(cat "$fpath")"
@@ -56,15 +56,15 @@ load_secret_files() {
   IFS="$old_ifs"
 }
 
-# Load env variables from files if LISTMONK_*_FILE variables are set.
+# Load env variables from files if LISTNUN_*_FILE variables are set.
 load_secret_files
 
 # Try to set the ownership of the app directory to the app user.
-if ! chown -R ${PUID}:${PGID} /listmonk 2>/dev/null; then
-  echo "Warning: Failed to change ownership of /listmonk. Readonly volume?"
+if ! chown -R ${PUID}:${PGID} /listnun 2>/dev/null; then
+  echo "Warning: Failed to change ownership of /listnun. Readonly volume?"
 fi
 
-echo "Launching listmonk with user=[${USER_NAME}] group=[${GROUP_NAME}] PUID=[${PUID}] PGID=[${PGID}]"
+echo "Launching listnun with user=[${USER_NAME}] group=[${GROUP_NAME}] PUID=[${PUID}] PGID=[${PGID}]"
 
 # If running as root and PUID is not 0, then execute command as PUID
 # this allows us to run the container as a non-root user

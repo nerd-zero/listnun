@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/models"
 )
 
 const (

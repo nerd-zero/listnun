@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/models"
 	null "gopkg.in/volatiletech/null.v6"
 )
 

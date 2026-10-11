@@ -147,7 +147,7 @@ func TestSubmitBatch(t *testing.T) {
 		if body.BatchID != "batch_123" {
 			t.Errorf("batch_id = %q, want batch_123", body.BatchID)
 		}
-		if body.EventCallback != "https://listmonk.example/webhooks/scrub/batch?token=t" {
+		if body.EventCallback != "https://listnun.example/webhooks/scrub/batch?token=t" {
 			t.Errorf("event_callback = %q", body.EventCallback)
 		}
 		if len(body.Emails) != 2 {
@@ -167,7 +167,7 @@ func TestSubmitBatch(t *testing.T) {
 	defer srv.Close()
 
 	c := New(srv.URL, "sk_test")
-	res, err := c.SubmitBatch(context.Background(), "int_123", "batch_123", "https://listmonk.example/webhooks/scrub/batch?token=t", []string{"a@example.com", "b@example.com"})
+	res, err := c.SubmitBatch(context.Background(), "int_123", "batch_123", "https://listnun.example/webhooks/scrub/batch?token=t", []string{"a@example.com", "b@example.com"})
 	if err != nil {
 		t.Fatalf("SubmitBatch: %v", err)
 	}

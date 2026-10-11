@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/subimporter"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/subimporter"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // ImportSubscribers handles the uploading and bulk importing of
@@ -93,7 +93,7 @@ func (a *App) ImportSubscribers(c echo.Context) error {
 	defer src.Close()
 
 	// Copy it to a temp location.
-	out, err := os.CreateTemp("", "listmonk")
+	out, err := os.CreateTemp("", "listnun")
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			a.i18n.Ts("import.errorCopyingFile", "error", err.Error()))

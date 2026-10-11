@@ -99,15 +99,15 @@ func V4_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger
 
 	// Create super admin.
 	var (
-		user     = os.Getenv("LISTMONK_ADMIN_USER")
-		password = os.Getenv("LISTMONK_ADMIN_PASSWORD")
+		user     = os.Getenv("LISTNUN_ADMIN_USER")
+		password = os.Getenv("LISTNUN_ADMIN_PASSWORD")
 		typ      = "env"
 	)
 
 	if user != "" {
 		// If the env vars are set, use those values
 		if len(user) < 2 || len(password) < 8 {
-			lo.Fatal("LISTMONK_ADMIN_USER should be min 3 chars and LISTMONK_ADMIN_PASSWORD should be min 8 chars")
+			lo.Fatal("LISTNUN_ADMIN_USER should be min 3 chars and LISTNUN_ADMIN_PASSWORD should be min 8 chars")
 		}
 	} else if ko.Exists("app.admin_username") {
 		// Legacy admin/password are set in the config or env var. Use those.
@@ -133,7 +133,7 @@ func V4_0_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger
 
 		if _, err := db.Exec(`
 		INSERT INTO users (username, password_login, password, email, name, type, user_role_id, status) VALUES($1, true, CRYPT($2, GEN_SALT('bf')), $3, $4, 'user', 1, 'enabled') ON CONFLICT DO NOTHING;
-	`, user, password, user+"@listmonk", user); err != nil {
+	`, user, password, user+"@listnun", user); err != nil {
 			return err
 		}
 	} else {

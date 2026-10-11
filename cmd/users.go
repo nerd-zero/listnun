@@ -5,11 +5,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/utils"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/utils"
+	"github.com/nerd-zero/listnun/models"
 	"github.com/pquerna/otp/totp"
 	"gopkg.in/volatiletech/null.v6"
 )

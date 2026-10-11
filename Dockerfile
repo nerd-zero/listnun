@@ -4,10 +4,10 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata shadow su-exec
 
 # Set the working directory
-WORKDIR /listmonk
+WORKDIR /listnun
 
 # Copy only the necessary files
-COPY listmonk .
+COPY listnun .
 COPY config.toml.sample config.toml
 
 # Copy the entrypoint script
@@ -23,4 +23,4 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Define the command to run the application
-CMD ["./listmonk"]
+CMD ["./listnun"]

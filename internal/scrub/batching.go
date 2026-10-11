@@ -1,6 +1,6 @@
 package scrub
 
-import "github.com/knadh/listmonk/models"
+import "github.com/nerd-zero/listnun/models"
 
 // ChunkEmails splits emails into groups of at most size, preserving
 // order -- used by cmd/scrub_batch.go's submitScrubListValidation to stay

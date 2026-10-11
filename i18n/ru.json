@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Путь загрузки",
     "settings.media.upload.pathHelp": "Путь к директории, куда будут загружаться медиа.",
     "settings.media.upload.uri": "URI загрузки",
-    "settings.media.upload.uriHelp": "URI загрузки, видимый внешнему миру. Медиа, загруженные в upload_path, будут публично доступны по {root_url}, например, https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "URI загрузки, видимый внешнему миру. Медиа, загруженные в upload_path, будут публично доступны по {root_url}, например, https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Макс. соединений",
     "settings.messengers.maxConnsHelp": "Максимальное количество одновременных соединений с сервером.",
     "settings.messengers.messageSaved": "Настройки сохранены. Перезагрузка приложения ...",
