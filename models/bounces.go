@@ -28,6 +28,11 @@ type Bounce struct {
 	CampaignUUID string           `db:"campaign_uuid" json:"campaign_uuid,omitempty"`
 	Campaign     *json.RawMessage `db:"campaign" json:"campaign"`
 
+	// TenantID scopes recording to one tenant's subscribers, campaigns and
+	// bounce actions. Webhooks set it from the request's tenant. 0 (POP3
+	// mailbox scanning, which has no tenant) keeps the old unscoped lookup.
+	TenantID int `db:"-" json:"-"`
+
 	// Pseudofield for getting the total number of bounces
 	// in searches and queries.
 	Total int `db:"total" json:"-"`

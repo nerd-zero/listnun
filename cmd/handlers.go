@@ -231,10 +231,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/api/roles/lists/:id", pm(hasID(a.UpdateListRole), "roles:manage"))
 		g.DELETE("/api/roles/:id", pm(hasID(a.DeleteRole), "roles:manage"))
 
-		if a.cfg.BounceWebhooksEnabled {
-			// Private authenticated bounce endpoint.
-			g.POST("/webhooks/bounce", pm(a.BounceWebhook, "webhooks:post_bounce"))
-		}
+		// Private authenticated bounce endpoint. Always registered: whether
+		// webhooks are on is a per-tenant setting checked in BounceWebhook.
+		g.POST("/webhooks/bounce", pm(a.BounceWebhook, "webhooks:post_bounce"))
 	}
 
 	// =================================================================
@@ -259,6 +258,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/tenants/:id/setup-link", hasID(a.CreateOperatorSetupLink))
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
+		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
@@ -269,14 +269,16 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// Public unauthenticated endpoints.
 		g := e.Group("")
 
-		if a.cfg.BounceWebhooksEnabled {
-			// Public bounce endpoints for webservices like SES.
-			g.POST("/webhooks/service/:service", a.BounceWebhook)
-		}
+		// Public bounce endpoints for webservices like SES and Postmark.
+		// Always registered: the old boot-time gate read tenant 1's
+		// bounce.webhooks_enabled and hid the route from every tenant.
+		// BounceWebhook now checks the requesting tenant's own settings and
+		// returns 404 when that tenant has webhooks off.
+		g.POST("/webhooks/service/:service", a.BounceWebhook)
 
-		// Scrub batch validation progress callback -- no global enable
-		// flag like BounceWebhooksEnabled since Scrub is a per-tenant
-		// setting, not server config; authenticated per-request by
+		// Scrub batch validation progress callback -- no enable flag since
+		// Scrub is a per-tenant setting, not server config; authenticated
+		// per-request by
 		// verifying Scrub's HMAC signature instead (see
 		// cmd/scrub_batch.go's ScrubBatchWebhook).
 		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)

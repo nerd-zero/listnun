@@ -73,6 +73,20 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-bounce-webhooks
+-- Sets the tenant's bounce.webhooks_enabled ($2) and bounce.postmark ($3)
+-- settings - see cmd/operator.go's SetTenantBounceWebhooks. Enabling also
+-- turns on bounce.enabled, which BounceWebhook requires too; disabling
+-- leaves bounce.enabled as the tenant had it.
+INSERT INTO settings (tenant_id, key, value)
+SELECT $1, k, v FROM (VALUES
+    ('bounce.webhooks_enabled', $2::JSONB),
+    ('bounce.postmark', $3::JSONB),
+    ('bounce.enabled', 'true'::JSONB)
+) AS t(k, v)
+WHERE k != 'bounce.enabled' OR $2::JSONB = 'true'::JSONB
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
+
 -- name: operator-set-tenant-scrub
 -- Replaces the tenant's scrub setting with a platform-pushed entry - see
 -- cmd/operator.go's SetTenantScrub. Always writes managed_by_platform:
