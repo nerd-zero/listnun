@@ -78,6 +78,15 @@ type Result struct {
 // schema (IntegrationValidateResults) always returns it as a string --
 // we already know our own integration_id (we sent it), so there's
 // nothing to gain from round-tripping it through this response.
+// submitBatchRequest is the body of Scrub's POST /v1/validate/integration.
+// BatchID and EventCallback are left out when empty.
+type submitBatchRequest struct {
+	IntegrationID string   `json:"integration_id"`
+	Emails        []string `json:"emails"`
+	BatchID       string   `json:"batch_id,omitempty"`
+	EventCallback string   `json:"event_callback,omitempty"`
+}
+
 type BatchSubmission struct {
 	RequestID      string `json:"request_id"`
 	BatchID        string `json:"batch_id"`
@@ -270,15 +279,11 @@ func (c *Client) SubmitBatch(ctx context.Context, integrationID, batchID, eventC
 		Results BatchSubmission `json:"results"`
 	}
 
-	payload := map[string]any{
-		"integration_id": integrationID,
-		"emails":         emails,
-	}
-	if batchID != "" {
-		payload["batch_id"] = batchID
-	}
-	if eventCallback != "" {
-		payload["event_callback"] = eventCallback
+	payload := submitBatchRequest{
+		IntegrationID: integrationID,
+		Emails:        emails,
+		BatchID:       batchID,
+		EventCallback: eventCallback,
 	}
 
 	body, err := json.Marshal(payload)

@@ -155,14 +155,12 @@ func TestSubmitBatch(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"results": map[string]any{
-				"request_id":      "req_123",
-				"integration_id":  101, // deliberately a bare number, per Scrub's documented example
-				"batch_id":        "batch_123",
-				"submitted_count": 2,
-			},
-		})
+		_ = json.NewEncoder(w).Encode(fakeSubmitResponse{Results: fakeSubmission{
+			RequestID:      "req_123",
+			IntegrationID:  101, // deliberately a bare number, per Scrub's documented example
+			BatchID:        "batch_123",
+			SubmittedCount: 2,
+		}})
 	}))
 	defer srv.Close()
 
@@ -184,18 +182,22 @@ func TestSubmitBatch(t *testing.T) {
 
 func TestSubmitBatch_OmitsOptionalFields(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]any
+		// Pointer fields tell an omitted key apart from an empty string.
+		var body struct {
+			BatchID       *string `json:"batch_id"`
+			EventCallback *string `json:"event_callback"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("decode request body: %v", err)
 		}
-		if _, ok := body["batch_id"]; ok {
+		if body.BatchID != nil {
 			t.Errorf("batch_id should be omitted when empty")
 		}
-		if _, ok := body["event_callback"]; ok {
+		if body.EventCallback != nil {
 			t.Errorf("event_callback should be omitted when empty")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"results": map[string]any{"submitted_count": 1}})
+		_ = json.NewEncoder(w).Encode(fakeSubmitResponse{Results: fakeSubmission{SubmittedCount: 1}})
 	}))
 	defer srv.Close()
 
@@ -226,19 +228,19 @@ func TestGetHistory(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("cursor") {
 		case "":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"has_more":    true,
-				"next_cursor": "page2",
-				"results": []HistoryResult{
+			_ = json.NewEncoder(w).Encode(fakeHistoryPage{
+				HasMore:    true,
+				NextCursor: "page2",
+				Results: []HistoryResult{
 					{BatchID: "batch_999", Email: "unrelated@example.com", Status: HistoryStatusValid},
 					{BatchID: "batch_123", Email: "a@example.com", Status: HistoryStatusValid},
 				},
 			})
 		case "page2":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"has_more":    false,
-				"next_cursor": "",
-				"results": []HistoryResult{
+			_ = json.NewEncoder(w).Encode(fakeHistoryPage{
+				HasMore:    false,
+				NextCursor: "",
+				Results: []HistoryResult{
 					{BatchID: "batch_123", Email: "bad@example.com", Status: HistoryStatusInvalid, ErrorCode: "domain_not_found"},
 				},
 			})
@@ -286,10 +288,10 @@ func TestGetHistory_StopsAtWantCount(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"has_more":    true,
-			"next_cursor": "more",
-			"results": []HistoryResult{
+		_ = json.NewEncoder(w).Encode(fakeHistoryPage{
+			HasMore:    true,
+			NextCursor: "more",
+			Results: []HistoryResult{
 				{BatchID: "batch_123", Email: "a@example.com", Status: HistoryStatusValid},
 			},
 		})
@@ -307,4 +309,26 @@ func TestGetHistory_StopsAtWantCount(t *testing.T) {
 	if len(res) != 1 {
 		t.Errorf("len(res) = %d, want 1", len(res))
 	}
+}
+
+// fakeSubmitResponse is Scrub's POST /v1/validate/integration reply as the
+// fake server sends it.
+type fakeSubmitResponse struct {
+	Results fakeSubmission `json:"results"`
+}
+
+// fakeSubmission keeps integration_id numeric, as in Scrub's documented
+// example, to prove the client ignores it rather than failing to decode.
+type fakeSubmission struct {
+	RequestID      string `json:"request_id,omitempty"`
+	IntegrationID  int    `json:"integration_id,omitempty"`
+	BatchID        string `json:"batch_id,omitempty"`
+	SubmittedCount int    `json:"submitted_count"`
+}
+
+// fakeHistoryPage is one page of Scrub's GET /v1/history reply.
+type fakeHistoryPage struct {
+	HasMore    bool            `json:"has_more"`
+	NextCursor string          `json:"next_cursor"`
+	Results    []HistoryResult `json:"results"`
 }
