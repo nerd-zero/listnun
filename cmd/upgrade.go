@@ -88,6 +88,7 @@ func upgrade(db *sqlx.DB, fs stuffbin.FileSystem, prompt bool, record bool) {
 	// No migrations to run.
 	if len(toRun) == 0 {
 		lo.Printf("no upgrades to run. Database is up to date.")
+		applyOperatorGrants(db)
 		return
 	}
 
@@ -111,7 +112,18 @@ func upgrade(db *sqlx.DB, fs stuffbin.FileSystem, prompt bool, record bool) {
 		}
 	}
 
+	applyOperatorGrants(db)
 	lo.Printf("upgrade complete")
+}
+
+// applyOperatorGrants re-applies the [operator] role's privileges on every
+// upgrade run, whether or not any migration ran, so tables added by a
+// migration (and any drift) are covered on the next boot. See
+// migrations.ApplyOperatorGrants.
+func applyOperatorGrants(db *sqlx.DB) {
+	if err := migrations.ApplyOperatorGrants(db, ko, lo); err != nil {
+		lo.Fatalf("error granting operator role access: %v", err)
+	}
 }
 
 // checkUpgrade checks if the current database schema matches the expected
