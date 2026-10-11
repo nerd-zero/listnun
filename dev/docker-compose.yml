@@ -7,7 +7,7 @@ services:
     ports:
       - 8070:8080
     networks:
-      - listmonk-dev
+      - listnun-dev
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -15,22 +15,22 @@ services:
       - "1025:1025" # SMTP
       - "8025:8025" # UI
     networks:
-      - listmonk-dev
+      - listnun-dev
 
   db:
     image: postgres:13
     ports:
       - "127.0.0.1:5435:5432"
     networks:
-      - listmonk-dev
+      - listnun-dev
     environment:
-      - POSTGRES_PASSWORD=listmonk-dev
-      - POSTGRES_USER=listmonk-dev
-      - POSTGRES_DB=listmonk-dev
+      - POSTGRES_PASSWORD=listnun-dev
+      - POSTGRES_USER=listnun-dev
+      - POSTGRES_DB=listnun-dev
     restart: unless-stopped
     volumes:
       - type: volume
-        source: listmonk-dev-db
+        source: listnun-dev-db
         target: /var/lib/postgresql/data
 
   front:
@@ -41,13 +41,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - LISTMONK_API_URL=http://backend:9000
+      - LISTNUN_API_URL=http://backend:9000
     depends_on:
       - db
     volumes:
       - ../:/app
     networks:
-      - listmonk-dev
+      - listnun-dev
 
   backend:
     build:
@@ -62,10 +62,10 @@ services:
       - ../:/app
       - ${GOPATH:-${HOME}/go}/pkg/mod/cache:/go/pkg/mod/cache
     networks:
-      - listmonk-dev
+      - listnun-dev
 
 volumes:
-  listmonk-dev-db:
+  listnun-dev-db:
 
 networks:
-  listmonk-dev:
+  listnun-dev:

@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Път за качване",
     "settings.media.upload.pathHelp": "Път към директорията, където ще се качва медията.",
     "settings.media.upload.uri": "URI за качване",
-    "settings.media.upload.uriHelp": "URI за качване, който е видим за външния свят. Медията, качена в upload_path, ще бъде публично достъпна под {root_url}, например https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "URI за качване, който е видим за външния свят. Медията, качена в upload_path, ще бъде публично достъпна под {root_url}, например https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Макс. връзки",
     "settings.messengers.maxConnsHelp": "Максимален брой едновременни връзки към сървъра.",
     "settings.messengers.messageSaved": "Настройките са запазени. Презареждане на приложението ...",

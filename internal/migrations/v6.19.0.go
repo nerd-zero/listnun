@@ -11,9 +11,9 @@ import (
 // V6_19_0 moves the subscriber-list "Validate" feature (cmd/settings.go's
 // ScrubList) off Scrub's list-sync endpoints (POST/GET
 // /v1/integrations/{id}/lists/...), which require Scrub to call back into
-// listmonk using per-tenant reverse credentials, onto the same async
+// listnun using per-tenant reverse credentials, onto the same async
 // batch-submit pipeline v6.18.0 built for CSV import
-// (POST /v1/validate/integration + /webhooks/scrub/batch) -- listmonk
+// (POST /v1/validate/integration + /webhooks/scrub/batch) -- listnun
 // fetches the list's own emails and submits them directly instead.
 //
 // Adds scrub_validation_jobs: a list-validate action may fan out into

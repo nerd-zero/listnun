@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/knadh/listmonk/internal/i18n"
 	"github.com/knadh/stuffbin"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/i18n"
 )
 
 type i18nLang struct {

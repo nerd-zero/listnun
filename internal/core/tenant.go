@@ -18,7 +18,7 @@ import (
 // TestWithTenant_ConcurrentIsolation for a concurrency spike proving this
 // holds for this specific driver/pool combination.
 //
-// This does NOT hold if listmonk is ever deployed behind an external
+// This does NOT hold if listnun is ever deployed behind an external
 // transaction-pooling proxy (e.g. PgBouncer in transaction-pooling mode)
 // that can multiplex statements from one logical transaction across
 // different physical connections - that combination is out of scope here
@@ -29,21 +29,21 @@ import (
 // it reverts to that GUC's session-level value, and the first time ANY
 // backend touches a never-before-referenced custom parameter name (via
 // SET LOCAL, current_setting, anything), Postgres materializes it as a
-// placeholder with a default of '' (empty string), not NULL. So after the
+// placeholder with a default of ” (empty string), not NULL. So after the
 // very first WithTenant call on a given pooled connection,
-// current_setting('app.current_tenant', true) returns '' - not NULL -
+// current_setting('app.current_tenant', true) returns ” - not NULL -
 // for every later query on that same connection that runs outside
 // WithTenant (e.g. queries/campaigns.sql's next-campaigns, or
 // GetUserUnscoped). Confirmed directly via psql: a fresh session shows
-// current_setting(...) IS NULL before any set_config call, and '' (NULL
+// current_setting(...) IS NULL before any set_config call, and ” (NULL
 // = false) immediately after one SET LOCAL transaction commits, on that
 // same session. v6.10.0 rewrites the RLS policies to
-// NULLIF(current_setting(...), '')::INTEGER so the empty-string case
+// NULLIF(current_setting(...), ”)::INTEGER so the empty-string case
 // never reaches the ::INTEGER cast and is treated the same as unset,
 // rather than trying to special-case this here.
 //
 // The RLS policies from phase 2 (v6.5.0) are permissive while
-// `app.current_tenant` is unset (or, since v6.10.0, ''), so this helper
+// `app.current_tenant` is unset (or, since v6.10.0, ”), so this helper
 // is additive: existing Core methods that don't yet call it are
 // unaffected. Threading tenantID through every Core method to actually
 // call WithTenant is issue #40's job, not this one.

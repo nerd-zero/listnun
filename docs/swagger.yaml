@@ -1313,7 +1313,7 @@ definitions:
     properties:
       message: {}
     type: object
-  github_com_knadh_listmonk_internal_core.AutoPausedCampaign:
+  github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign:
     properties:
       id:
         type: integer
@@ -1999,7 +1999,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_knadh_listmonk_internal_core.AutoPausedCampaign'
+              $ref: '#/definitions/github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign'
             type: array
         "500":
           description: Internal Server Error
@@ -2710,7 +2710,7 @@ paths:
       description: Fork-only, off by default (see [operator] config). Requires the
         Operator API bearer token. An organization is just a unique name that tenants
         can optionally be created under (via organization_id on POST /api/operator/tenants)
-        - it groups multiple tenants ("listmonks") for the same customer under one
+        - it groups multiple tenants ("listnuns") for the same customer under one
         umbrella.
       operationId: createOperatorOrganization
       parameters:
@@ -2956,7 +2956,7 @@ paths:
         -- and updates app.root_url to match in the same transaction. Pass an empty
         custom_domain to clear it and revert root_url to <slug>.root_domain. The caller
         is responsible for having already verified domain ownership (e.g. via a Cloudflare
-        Custom Hostname's DCV) before calling this; listmonk does no verification
+        Custom Hostname's DCV) before calling this; listnun does no verification
         of its own.
       operationId: updateOperatorTenantCustomDomain
       parameters:
@@ -3080,7 +3080,7 @@ paths:
       consumes:
       - application/json
       description: Fork-only, off by default (see [operator] config). Requires the
-        Operator API bearer token. listmonk has no mail-provider-specific logic -
+        Operator API bearer token. listnun has no mail-provider-specific logic -
         the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc.
         API calls) is responsible for creating the server/credentials and passes them
         here as-is; this endpoint only writes them into the tenant's settings, replacing

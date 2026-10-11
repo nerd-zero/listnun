@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/auth"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/auth"
 )
 
 // GetRoles retrieves all roles.

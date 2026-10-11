@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Opplastingssti",
     "settings.media.upload.pathHelp": "Sti til katalogen der media skal lastes opp.",
     "settings.media.upload.uri": "Opplastings-URI",
-    "settings.media.upload.uriHelp": "Opplastings-URI som er synlig for omverdenen. Media lastet opp til upload_path vil være offentlig tilgjengelig under {root_url}, for eksempel https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "Opplastings-URI som er synlig for omverdenen. Media lastet opp til upload_path vil være offentlig tilgjengelig under {root_url}, for eksempel https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Maks. tilkoblinger",
     "settings.messengers.maxConnsHelp": "Maksimalt antall samtidige tilkoblinger til serveren.",
     "settings.messengers.messageSaved": "Innstillinger lagret. Laster inn appen på nytt ...",

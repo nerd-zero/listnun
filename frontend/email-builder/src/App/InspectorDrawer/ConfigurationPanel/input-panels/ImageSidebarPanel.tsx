@@ -8,7 +8,7 @@ import { Checkbox, FormControlLabel, Stack, ToggleButton } from '@mui/material';
 import { ImageProps } from '@usewaypoint/block-image';
 import React, { useState } from 'react';
 
-import { ImgPropsSchema, ListmonkImageProps } from '../../../../documents/editor/core';
+import { ImgPropsSchema, ListnunImageProps } from '../../../../documents/editor/core';
 import BaseSidebarPanel from './helpers/BaseSidebarPanel';
 import RadioGroupInput from './helpers/inputs/RadioGroupInput';
 import TextDimensionInput from './helpers/inputs/TextDimensionInput';
@@ -32,7 +32,7 @@ export default function ImageSidebarPanel({ data, setData }: ImageSidebarPanelPr
     }
   };
 
-  const props = (data && (data as ListmonkImageProps).props) || {};
+  const props = (data && (data as ListnunImageProps).props) || {};
 
   return (
     <BaseSidebarPanel title="Image block">

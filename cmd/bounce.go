@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // GetBounce handles retrieval of a specific bounce record by ID.

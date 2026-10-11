@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // defaultTenant is the stub used when multi-tenancy is disabled

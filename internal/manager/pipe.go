@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/models"
 	"github.com/paulbellamy/ratecounter"
 )
 

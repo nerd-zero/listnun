@@ -9,7 +9,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(dayDuration);
 
 const reEmail = /(.+?)@(.+?)/ig;
-const prefKey = 'listmonk_pref';
+const prefKey = 'listnun_pref';
 
 // Shared page/sort click handlers for the query-params-plus-refetch
 // pattern repeated across every paginated table view (Lists, Media,

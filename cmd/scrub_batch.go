@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid/v5"
-	"github.com/knadh/listmonk/internal/scrub"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/scrub"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // scrubBatchMaxEmails is Scrub's documented hard cap per POST

@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/internal/scrub"
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/internal/scrub"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // scrubValidationEnabled reports whether tenant s has Scrub's generic

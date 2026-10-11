@@ -3,7 +3,7 @@
 // moment a subscriber is actually added) and the batch pair POST
 // /v1/validate/integration + GET /v1/history (asynchronous -- used for
 // CSV import, see internal/subimporter and cmd/scrub_batch.go). Distinct
-// from the Listmonk-specific list-hygiene-job endpoints
+// from the Listnun-specific list-hygiene-job endpoints
 // (/v1/integrations/{id}/lists/...) already called ad hoc from
 // cmd/campaigns.go and cmd/settings.go, which trigger a list-wide re-scan
 // rather than validating a caller-supplied set of emails.
@@ -149,7 +149,7 @@ const webhookTolerance = 5 * time.Minute
 //
 // Verbatim port of listnun's internal/scrubclient.VerifyWebhook (the
 // platform's own, already-working implementation against the real Scrub
-// service) -- reused here rather than re-derived so listmonk's receiver
+// service) -- reused here rather than re-derived so listnun's receiver
 // matches Scrub's actual signing scheme exactly, not a guess.
 func VerifyWebhook(payload []byte, headers http.Header, apiKey string) error {
 	sigHeader := headers.Get("X-Webhook-Signature")

@@ -9,7 +9,7 @@ import (
 	"net/textproto"
 	"time"
 
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // postback is the payload that's posted as JSON to the HTTP Postback server.
@@ -174,7 +174,7 @@ func (p *Postback) exec(method, rURL string, reqBody []byte, headers http.Header
 	} else {
 		req.Header = http.Header{}
 	}
-	req.Header.Set("User-Agent", "listmonk")
+	req.Header.Set("User-Agent", "listnun")
 
 	// Optional BasicAuth.
 	if p.authStr != "" {

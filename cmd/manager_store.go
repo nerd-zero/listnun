@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid/v5"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/models"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // store implements DataSource over the primary

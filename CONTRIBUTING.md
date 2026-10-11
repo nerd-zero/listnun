@@ -1,6 +1,6 @@
 # 1. Contributing
 
-Welcome to listmonk! You can contribute to the project in the following ways:
+Welcome to listnun! You can contribute to the project in the following ways:
 
 1. **Bug reports:** One liner reports are difficult to understand and review.
 	1. Follow the bug reporting issue template and provide clear, concise descriptions and steps to reproduce the bug.

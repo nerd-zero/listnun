@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Διαδρομή μεταφόρτωσης",
     "settings.media.upload.pathHelp": "Διαδρομή προς τον φάκελο όπου θα μεταφορτωθούν τα πολυμέσα.",
     "settings.media.upload.uri": "URI μεταφόρτωσης",
-    "settings.media.upload.uriHelp": "URI μεταφόρτωσης που είναι ορατό στον έξω κόσμο. Τα πολυμέσα που μεταφορτώνονται στο upload_path θα είναι δημόσια προσβάσιμα στο {root_url}, για παράδειγμα στο https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "URI μεταφόρτωσης που είναι ορατό στον έξω κόσμο. Τα πολυμέσα που μεταφορτώνονται στο upload_path θα είναι δημόσια προσβάσιμα στο {root_url}, για παράδειγμα στο https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Μέγιστες συνδέσεις",
     "settings.messengers.maxConnsHelp": "Μέγιστες ταυτόχρονες συνδέσεις στο διακομιστή.",
     "settings.messengers.messageSaved": "Οι ρυθμίσεις αποθηκεύτηκαν. Επαναφόρτωση εφαρμογής…",

@@ -4,7 +4,7 @@ package postback
 
 import (
 	json "encoding/json"
-	models "github.com/knadh/listmonk/models"
+	models "github.com/nerd-zero/listnun/models"
 	easyjson "github.com/zerodha/easyjson"
 	jlexer "github.com/zerodha/easyjson/jlexer"
 	jwriter "github.com/zerodha/easyjson/jwriter"
@@ -19,7 +19,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *jlexer.Lexer, out *postback) {
+func easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback(in *jlexer.Lexer, out *postback) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -63,7 +63,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *j
 				}
 				for !in.IsDelim(']') {
 					var v1 recipient
-					easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback1(in, &v1)
+					easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback1(in, &v1)
 					out.Recipients = append(out.Recipients, v1)
 					in.WantComma()
 				}
@@ -77,7 +77,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *j
 				if out.Campaign == nil {
 					out.Campaign = new(campaign)
 				}
-				easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback2(in, out.Campaign)
+				easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback2(in, out.Campaign)
 			}
 		case "attachments":
 			if in.IsNull() {
@@ -96,7 +96,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *j
 				}
 				for !in.IsDelim(']') {
 					var v2 attachment
-					easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback3(in, &v2)
+					easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback3(in, &v2)
 					out.Attachments = append(out.Attachments, v2)
 					in.WantComma()
 				}
@@ -112,7 +112,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(in *j
 		in.Consumed()
 	}
 }
-func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *jwriter.Writer, in postback) {
+func easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback(out *jwriter.Writer, in postback) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -147,7 +147,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 				if v3 > 0 {
 					out.RawByte(',')
 				}
-				easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback1(out, v4)
+				easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback1(out, v4)
 			}
 			out.RawByte(']')
 		}
@@ -158,7 +158,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 		if in.Campaign == nil {
 			out.RawString("null")
 		} else {
-			easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback2(out, *in.Campaign)
+			easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback2(out, *in.Campaign)
 		}
 	}
 	{
@@ -172,7 +172,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 				if v5 > 0 {
 					out.RawByte(',')
 				}
-				easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback3(out, v6)
+				easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback3(out, v6)
 			}
 			out.RawByte(']')
 		}
@@ -183,27 +183,27 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(out *
 // MarshalJSON supports json.Marshaler interface
 func (v postback) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{FloatFmt: ""}
-	easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(&w, v)
+	easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v postback) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback(w, v)
+	easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *postback) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(&r, v)
+	easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *postback) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback(l, v)
+	easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback(l, v)
 }
-func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback3(in *jlexer.Lexer, out *attachment) {
+func easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback3(in *jlexer.Lexer, out *attachment) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -278,7 +278,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback3(in *
 		in.Consumed()
 	}
 }
-func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback3(out *jwriter.Writer, in attachment) {
+func easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback3(out *jwriter.Writer, in attachment) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -326,7 +326,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback3(out 
 	}
 	out.RawByte('}')
 }
-func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback2(in *jlexer.Lexer, out *campaign) {
+func easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback2(in *jlexer.Lexer, out *campaign) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -421,7 +421,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback2(in *
 		in.Consumed()
 	}
 }
-func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback2(out *jwriter.Writer, in campaign) {
+func easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback2(out *jwriter.Writer, in campaign) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -490,7 +490,7 @@ func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback2(out 
 	}
 	out.RawByte('}')
 }
-func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback1(in *jlexer.Lexer, out *recipient) {
+func easyjsonDf11841fDecodeGithubComNerdZeroListnunInternalMessengerPostback1(in *jlexer.Lexer, out *recipient) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -549,7 +549,7 @@ func easyjsonDf11841fDecodeGithubComKnadhListmonkInternalMessengerPostback1(in *
 		in.Consumed()
 	}
 }
-func easyjsonDf11841fEncodeGithubComKnadhListmonkInternalMessengerPostback1(out *jwriter.Writer, in recipient) {
+func easyjsonDf11841fEncodeGithubComNerdZeroListnunInternalMessengerPostback1(out *jwriter.Writer, in recipient) {
 	out.RawByte('{')
 	first := true
 	_ = first

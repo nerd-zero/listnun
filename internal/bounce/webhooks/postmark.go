@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/nerd-zero/listnun/models"
 )
 
 type postmarkNotif struct {
@@ -84,7 +84,7 @@ func (p *Postmark) ProcessBounce(b []byte, c echo.Context) ([]models.Bounce, err
 
 	// Look for the campaign ID in headers.
 	campUUID := ""
-	if v, ok := n.Metadata["X-Listmonk-Campaign"]; ok {
+	if v, ok := n.Metadata["X-Listnun-Campaign"]; ok {
 		campUUID = v
 	}
 

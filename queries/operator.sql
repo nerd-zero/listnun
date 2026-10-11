@@ -63,7 +63,7 @@ ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 -- resolution only) when unset. Paired transactionally with
 -- operator-set-tenant-root-url by the Go caller (UpdateOperatorTenantCustomDomain)
 -- so tenants.custom_domain (what internal/tenant.Middleware resolves by)
--- and app.root_url (what listmonk generates links with) never drift apart.
+-- and app.root_url (what listnun generates links with) never drift apart.
 UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNING *;
 
 -- name: operator-set-tenant-smtp

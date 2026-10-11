@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/knadh/listmonk/internal/bounce/mailbox"
-	"github.com/knadh/listmonk/internal/bounce/webhooks"
-	"github.com/knadh/listmonk/models"
+	"github.com/nerd-zero/listnun/internal/bounce/mailbox"
+	"github.com/nerd-zero/listnun/internal/bounce/webhooks"
+	"github.com/nerd-zero/listnun/models"
 )
 
 // Mailbox represents a POP/IMAP mailbox client that can scan messages and pass

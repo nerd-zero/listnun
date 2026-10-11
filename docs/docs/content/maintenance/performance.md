@@ -1,6 +1,6 @@
 # Performance
 
-listmonk is built to be highly performant and can handle millions of subscribers with minimal system resources.
+listnun is built to be highly performant and can handle millions of subscribers with minimal system resources.
 
 However, as the Postgres database grows—with a large number of subscribers, campaign views, and click records—it can significantly slow down certain aspects of the program, particularly in counting records and aggregating various statistics. For instance, loading admin pages that do these aggregations can take tens of seconds if the database has millions of subscribers.
 

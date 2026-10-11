@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/auth"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
 )
 
 // GetUserRoles retrieves roles.

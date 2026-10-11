@@ -490,7 +490,7 @@
     "settings.media.upload.path": "パスアップロード",
     "settings.media.upload.pathHelp": "メディアをアップロードするディレクトリへのパス",
     "settings.media.upload.uri": "URIアップロード",
-    "settings.media.upload.uriHelp": "外部から閲覧可能なURIのアップロード。 upload_pathにアップロードされたメディアは{root_url}の下で一般に公開されます。例： https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "外部から閲覧可能なURIのアップロード。 upload_pathにアップロードされたメディアは{root_url}の下で一般に公開されます。例： https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "最大接続数",
     "settings.messengers.maxConnsHelp": "サーバーへの最大同時接続数.",
     "settings.messengers.messageSaved": "設定が保存されました。アプリをリロードしています...",

@@ -9,9 +9,9 @@ import (
 	"net/url"
 
 	"github.com/gorilla/feeds"
-	"github.com/knadh/listmonk/internal/manager"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/models"
 	null "gopkg.in/volatiletech/null.v6"
 )
 

@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Cesta pro nahrávání",
     "settings.media.upload.pathHelp": "Cesta k adresáři, do kterého se budou nahrávat média.",
     "settings.media.upload.uri": "Adresa pro nahrávání (URI)",
-    "settings.media.upload.uriHelp": "Adresa (URI) pro nahrávání, která je dostupná z internetu. Média nahraná do cesty_k_nahrání budou veřejně přístupná pod adresou {root_url}, například https://listmonk.yoursite.com/uploads.",
+    "settings.media.upload.uriHelp": "Adresa (URI) pro nahrávání, která je dostupná z internetu. Média nahraná do cesty_k_nahrání budou veřejně přístupná pod adresou {root_url}, například https://listnun.yoursite.com/uploads.",
     "settings.messengers.maxConns": "Maximální počet připojení",
     "settings.messengers.maxConnsHelp": "Maximální počet souběžných připojení k serveru.",
     "settings.messengers.messageSaved": "Nastavení uloženo. Znovu se načítá aplikace...",

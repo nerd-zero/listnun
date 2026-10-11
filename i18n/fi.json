@@ -490,7 +490,7 @@
     "settings.media.upload.path": "Latauksen polku",
     "settings.media.upload.pathHelp": "Polku, johon media ladataan.",
     "settings.media.upload.uri": "Latauksen URI",
-    "settings.media.upload.uriHelp": "Latauksen URI, joka näkyy muille. Mediatiedostot, jotka ladataan upload_path-polkuun, ovat julkisesti saatavilla {root_url} -osoitteen alla, esimerkiksi https://listmonk.kotisivusi.com/uploads.",
+    "settings.media.upload.uriHelp": "Latauksen URI, joka näkyy muille. Mediatiedostot, jotka ladataan upload_path-polkuun, ovat julkisesti saatavilla {root_url} -osoitteen alla, esimerkiksi https://listnun.kotisivusi.com/uploads.",
     "settings.messengers.maxConns": "Maks. yhteydet",
     "settings.messengers.maxConnsHelp": "Kerralla samaan aikaan avoimet yhteydet palvelimeen.",
     "settings.messengers.messageSaved": "Asetukset tallennettu. Sovellus ladataan uudelleen...",

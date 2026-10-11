@@ -1,6 +1,6 @@
-# listmonk frontend (Vue + Buefy)
+# listnun frontend (Vue + Buefy)
 
-It's best if the `listmonk/frontend` directory is opened in an IDE as a separate project where the frontend directory is the root of the project.
+It's best if the `listnun/frontend` directory is opened in an IDE as a separate project where the frontend directory is the root of the project.
 
 For developer setup instructions, refer to the main project's README.
 
@@ -24,7 +24,7 @@ There is a global state `loading` (eg: loading.campaigns, loading.lists) that in
 ## Icon pack
 Buefy by default uses [Material Design Icons](https://materialdesignicons.com) (MDI) with icon classes prefixed by `mdi-`.
 
-listmonk uses only a handful of icons from the massive MDI set packed as web font, using [Fontello](https://fontello.com). To add more icons to the set using fontello:
+listnun uses only a handful of icons from the massive MDI set packed as web font, using [Fontello](https://fontello.com). To add more icons to the set using fontello:
 
 - Go to Fontello and drag and drop `frontend/fontello/config.json` (This is the full MDI set converted from TTF to SVG icons to work with Fontello).
 - Use the UI to search for icons and add them to the selection (add icons from under the `Custom` section)

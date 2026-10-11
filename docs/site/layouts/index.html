@@ -16,7 +16,7 @@
         <img class="s1" src="static/images/s1.webp" />
         <img class="s2" src="static/images/s2.webp" />
         <img class="s3" src="static/images/s3.webp" />
-        <img class="box" src="{{ .Site.BaseURL }}static/images/splash.webp" alt="listmonk screenshot" />
+        <img class="box" src="{{ .Site.BaseURL }}static/images/splash.webp" alt="listnun screenshot" />
       </div>
   </div>
 </div>
@@ -49,10 +49,10 @@
           <p>Install</p>
           <ul class="install-steps">
             <li>
-              <code>./listmonk --new-config</code> to generate config.toml. Edit it.
+              <code>./listnun --new-config</code> to generate config.toml. Edit it.
             </li>
-            <li><code>./listmonk --install</code> to setup the Postgres DB or <code>--upgrade</code> to upgrade an existing DB.</li>
-            <li>Run <code>./listmonk</code> and visit <code>http://localhost:9000</code></li>
+            <li><code>./listnun --install</code> to setup the Postgres DB or <code>--upgrade</code> to upgrade an existing DB.</li>
+            <li>Run <code>./listnun</code> and visit <code>http://localhost:9000</code></li>
           </ul>
           <p><a href="/docs/installation">Installation docs &rarr;</a></p>
         </div>
@@ -60,7 +60,7 @@
       <div class="col-6">
         <div class="box">
           <h3>Docker</h3>
-          <p><a href="https://hub.docker.com/r/listmonk/listmonk/tags?page=1&ordering=last_updated&name=latest"><code>listmonk/listmonk:latest</code></a></p>
+          <p><a href="https://hub.docker.com/r/listnun/listnun/tags?page=1&ordering=last_updated&name=latest"><code>listnun/listnun:latest</code></a></p>
           <p>
             Download and use the sample <a href="https://github.com/knadh/listmonk/blob/master/docker-compose.yml">docker-compose.yml</a> 
           </p>
@@ -95,7 +95,7 @@ docker compose up -d
       <a href="https://cloudzy.com/marketplace/listmonk/"><img src="static/images/host-cloudzy.svg" alt="Deploy to Cloudzy" style="max-height: 32px;" /></a>
       <a href="https://lumadock.com/vps-hosting/listmonk"><img src="static/images/host-lumadock.svg" alt="Runs faster on LumaDock" style="max-height: 32px;" /></a>
     </div>
-    <p class="disclaimer">*listmonk has no affiliation with these providers</p>
+    <p class="disclaimer">*listnun has no affiliation with these providers</p>
   </div>
 </section>
 
@@ -156,7 +156,7 @@ docker compose up -d
         <img src="static/images/performance.webp" alt="Screenshot of performance metrics" />
 
         <figcaption style="font-size:">
-          A production listmonk instance sending a campaign of 7+ million e-mails.<br />
+          A production listnun instance sending a campaign of 7+ million e-mails.<br />
           CPU usage is a fraction of a single core with peak RAM usage of 57 MB.
         </figcaption>
       </figure>
@@ -212,7 +212,7 @@ docker compose up -d
           <div class="box">
             <h2>Developers</h2>
             <p>
-              listmonk is free and open source software licensed under AGPLv3.
+              listnun is free and open source software licensed under AGPLv3.
               If you are interested in contributing, check out the <a href="https://github.com/knadh/listmonk">GitHub repository</a>
               and refer to the <a href="/docs/developer-setup">developer setup</a>.
               The backend is written in Go and the frontend is Vue with Buefy for UI. 

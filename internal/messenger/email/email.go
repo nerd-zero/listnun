@@ -9,9 +9,9 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/knadh/listmonk/internal/utils"
-	"github.com/knadh/listmonk/models"
 	"github.com/knadh/smtppool/v2"
+	"github.com/nerd-zero/listnun/internal/utils"
+	"github.com/nerd-zero/listnun/models"
 )
 
 const (

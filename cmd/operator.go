@@ -16,13 +16,13 @@ import (
 	"github.com/knadh/goyesql/v2"
 	goyesqlx "github.com/knadh/goyesql/v2/sqlx"
 	"github.com/knadh/koanf/v2"
-	"github.com/knadh/listmonk/internal/auth"
-	"github.com/knadh/listmonk/internal/core"
-	"github.com/knadh/listmonk/internal/tmptokens"
-	"github.com/knadh/listmonk/internal/utils"
-	"github.com/knadh/listmonk/models"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/tmptokens"
+	"github.com/nerd-zero/listnun/internal/utils"
+	"github.com/nerd-zero/listnun/models"
 	null "gopkg.in/volatiletech/null.v6"
 )
 
@@ -412,7 +412,7 @@ func (a *App) DeleteOperatorTenant(c echo.Context) error {
 // Used by SetTenantSMTP to accept a single SMTP server's config from an
 // external provisioner (e.g. listnun, which owns the actual Postmark/
 // SES/etc. API calls - this endpoint only ever writes whatever
-// credentials it's given, listmonk has no provider-specific knowledge).
+// credentials it's given, listnun has no provider-specific knowledge).
 type operatorSMTPEntry struct {
 	Name          string              `json:"name"`
 	UUID          string              `json:"uuid"`
@@ -455,7 +455,7 @@ func (s *operatorStore) SetTenantSMTP(tenantID int, entry operatorSMTPEntry) err
 // operatorScrubEntry mirrors models.Settings.Scrub for JSON marshaling
 // from an external provisioner (listnun) that owns the actual Scrub
 // integration -- this endpoint only ever writes whatever it's given,
-// listmonk has no Scrub-provider knowledge of its own. ManagedByPlatform
+// listnun has no Scrub-provider knowledge of its own. ManagedByPlatform
 // is always forced true by SetTenantScrub below, not taken from the
 // caller, so a request body can't accidentally unlock a tenant.
 type operatorScrubEntry struct {
@@ -549,7 +549,7 @@ type operatorOrganizationReq struct {
 //
 //	@ID			createOperatorOrganization
 //	@Summary		Create an organization (Operator API)
-//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. An organization is just a unique name that tenants can optionally be created under (via organization_id on POST /api/operator/tenants) - it groups multiple tenants ("listmonks") for the same customer under one umbrella.
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. An organization is just a unique name that tenants can optionally be created under (via organization_id on POST /api/operator/tenants) - it groups multiple tenants ("listnuns") for the same customer under one umbrella.
 //	@Tags			operator
 //	@Accept			json
 //	@Produce		json
@@ -949,7 +949,7 @@ type operatorSetCustomDomainReq struct {
 //
 //	@ID			updateOperatorTenantCustomDomain
 //	@Summary		Set or clear a tenant's custom domain (Operator API)
-//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Sets tenants.custom_domain -- the additional exact Host internal/tenant.Middleware will accept for this tenant, alongside <slug>.root_domain -- and updates app.root_url to match in the same transaction. Pass an empty custom_domain to clear it and revert root_url to <slug>.root_domain. The caller is responsible for having already verified domain ownership (e.g. via a Cloudflare Custom Hostname's DCV) before calling this; listmonk does no verification of its own.
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Sets tenants.custom_domain -- the additional exact Host internal/tenant.Middleware will accept for this tenant, alongside <slug>.root_domain -- and updates app.root_url to match in the same transaction. Pass an empty custom_domain to clear it and revert root_url to <slug>.root_domain. The caller is responsible for having already verified domain ownership (e.g. via a Cloudflare Custom Hostname's DCV) before calling this; listnun does no verification of its own.
 //	@Tags			operator
 //	@Accept			json
 //	@Produce		json
@@ -1000,7 +1000,7 @@ func (a *App) UpdateOperatorTenantCustomDomain(c echo.Context) error {
 //
 //	@ID			setOperatorTenantSmtp
 //	@Summary		Set a tenant's SMTP settings (Operator API)
-//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. listmonk has no mail-provider-specific logic - the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc. API calls) is responsible for creating the server/credentials and passes them here as-is; this endpoint only writes them into the tenant's settings, replacing its placeholder SMTP examples.
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. listnun has no mail-provider-specific logic - the caller (e.g. an external provisioner that owns the actual Postmark/SES/etc. API calls) is responsible for creating the server/credentials and passes them here as-is; this endpoint only writes them into the tenant's settings, replacing its placeholder SMTP examples.
 //	@Tags			operator
 //	@Accept			json
 //	@Produce		json

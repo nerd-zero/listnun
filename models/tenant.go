@@ -10,8 +10,8 @@ import null "gopkg.in/volatiletech/null.v6"
 // must import internal/core for the DB lookup) would cycle.
 const TenantCtxKey = "tenant"
 
-// Tenant represents a single tenant ("listmonk") in a multi-tenant
-// listmonk deployment - resolved per-request by subdomain and RLS-scoped.
+// Tenant represents a single tenant ("listnun") in a multi-tenant
+// listnun deployment - resolved per-request by subdomain and RLS-scoped.
 // Not the same thing as an Organization (a separate, purely cross-tenant
 // grouping construct, managed only via the Operator API): a tenant
 // optionally belongs to one via OrganizationID, but tenants remain the
@@ -26,7 +26,7 @@ type Tenant struct {
 	CustomDomain   null.String `db:"custom_domain" json:"custom_domain"`
 }
 
-// Organization is a purely cross-tenant grouping of tenants ("listmonks"),
+// Organization is a purely cross-tenant grouping of tenants ("listnuns"),
 // managed only via the Operator API - never RLS-scoped, never resolved
 // per-request the way a Tenant is. Exists so one customer can run
 // multiple tenants for different purposes (e.g. separate brands/

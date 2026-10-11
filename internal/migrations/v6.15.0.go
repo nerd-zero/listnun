@@ -12,7 +12,7 @@ import (
 // domain the org owns (mail.acme.com) instead of only <slug>.root_domain.
 // Nullable and unset by default; the listnun-side operator client sets it
 // only once the customer's domain ownership has been verified externally
-// (e.g. a Cloudflare Custom Hostname's DCV) - listmonk itself does no
+// (e.g. a Cloudflare Custom Hostname's DCV) - listnun itself does no
 // verification of its own, it just resolves whatever's stored here.
 // internal/tenant/resolve.go's Middleware checks it before falling back to
 // subdomain stripping. See listnun's docs/custom-domains.md.

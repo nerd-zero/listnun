@@ -30,7 +30,7 @@ function mockAxiosResponse(data: unknown, status = 200) {
 // ---------------------------------------------------------------------------
 
 describe('httpMutator — response envelope unwrapping', () => {
-  it('unwraps the { data: T } envelope the listmonk API uses', async () => {
+  it('unwraps the { data: T } envelope the listnun API uses', async () => {
     const inner = [{ id: 1, name: 'Test' }];
     const adapter = vi.fn().mockResolvedValue(mockAxiosResponse({ data: inner }));
 

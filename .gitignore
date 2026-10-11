@@ -15,7 +15,7 @@ static/public/static/altcha.umd.js
 config.toml
 docker-compose.override.yml
 node_modules
-listmonk
+listnun
 dist/*
 uploads/
 .idea/
