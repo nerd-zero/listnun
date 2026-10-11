@@ -71,8 +71,12 @@ func (c *Core) GetBounce(ctx context.Context, tenantID int, id int) (models.Boun
 // WithTenant. queries/bounces.sql's record-bounce derives the inserted
 // row's tenant_id from the resolved subscriber's own tenant_id instead of a
 // session variable; see that query's comment.
+//
+// When b.TenantID is set (webhooks), the lookup is limited to that tenant
+// and that tenant's own bounce.actions decide the count and action
+// (blocklist, unsubscribe, delete). Otherwise the boot-time actions apply.
 func (c *Core) RecordBounce(b models.Bounce) error {
-	action, ok := c.consts.BounceActions[b.Type]
+	count, act, ok := c.bounceAction(b.TenantID, b.Type)
 	if !ok {
 		return echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("globals.messages.invalidData")+": "+b.Type)
 	}
@@ -84,8 +88,9 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 		b.Source,
 		b.Meta,
 		b.CreatedAt,
-		action.Count,
-		action.Action)
+		count,
+		act,
+		b.TenantID)
 
 	if err != nil {
 		// Ignore the error if it complained of no subscriber.
@@ -98,6 +103,23 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 	}
 
 	return err
+}
+
+// bounceAction returns the bounce count threshold and action for a bounce
+// type. A tenant's own bounce.actions win; the boot-time constants (tenant
+// 1's settings) are the fallback when there's no tenant, its settings can't
+// be read, or it has no entry for the type.
+func (c *Core) bounceAction(tenantID int, typ string) (int, string, bool) {
+	if tenantID > 0 {
+		if s, err := c.GetSettings(context.Background(), tenantID); err != nil {
+			c.log.Printf("error reading bounce actions for tenant %d, using defaults: %v", tenantID, err)
+		} else if a, ok := s.BounceActions[typ]; ok {
+			return a.Count, a.Action, true
+		}
+	}
+
+	a, ok := c.consts.BounceActions[typ]
+	return a.Count, a.Action, ok
 }
 
 // BlocklistBouncedSubscribers blocklists all bounced subscribers.

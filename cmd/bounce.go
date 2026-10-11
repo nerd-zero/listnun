@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/bounce"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -186,14 +187,18 @@ func (a *App) BlocklistBouncedSubscribers(c echo.Context) error {
 //	@Param			bounce	body		models.Bounce	false	"Bounce payload (native webhook only)"
 //	@Success		200
 //	@Failure		400		{object}	echo.HTTPError
-//	@Failure		503		{object}	echo.HTTPError
+//	@Failure		404		{object}	echo.HTTPError	"Bounce webhooks are disabled for this tenant"
 //	@Router			/webhooks/bounce [post]
 func (a *App) BounceWebhook(c echo.Context) error {
-	// If bounce processing is disabled, a.bounce will be nil.
-	// Return early to prevent nil pointer dereference.
-	if a.bounce == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable,
-			a.i18n.Ts("globals.messages.internalError"))
+	// Webhooks are configured per tenant: use the requesting tenant's own
+	// settings and credentials, not the boot-time (tenant 1) bounce manager.
+	tID := tenantID(c)
+	hooks, enabled, err := a.tenantBounceWebhooks(c.Request().Context(), tID)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return echo.NewHTTPError(http.StatusNotFound, a.i18n.Ts("globals.messages.notFound", "name", "webhook"))
 	}
 
 	// Read the request body instead of using c.Bind() to read to save the entire raw request as meta.
@@ -233,19 +238,19 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		bounces = append(bounces, b)
 
 	// Amazon SES.
-	case service == "ses" && a.bounce.SES != nil:
+	case service == "ses" && hooks.SES != nil:
 		switch c.Request().Header.Get("X-Amz-Sns-Message-Type") {
 		// SNS webhook registration confirmation. Only after these are processed will the endpoint
 		// start getting bounce notifications.
 		case "SubscriptionConfirmation", "UnsubscribeConfirmation":
-			if err := a.bounce.SES.ProcessSubscription(rawReq); err != nil {
+			if err := hooks.SES.ProcessSubscription(rawReq); err != nil {
 				a.log.Printf("error processing SNS (SES) subscription: %v", err)
 				return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
 			}
 
 		// Bounce notification.
 		case "Notification":
-			b, err := a.bounce.SES.ProcessBounce(rawReq)
+			b, err := hooks.SES.ProcessBounce(rawReq)
 			if err != nil {
 				a.log.Printf("error processing SES notification: %v", err)
 				return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
@@ -257,11 +262,11 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		}
 
 	// Azure ACS through Event Grid.
-	case service == "azure" && a.bounce.Azure != nil:
+	case service == "azure" && hooks.Azure != nil:
 		switch c.Request().Header.Get("aeg-event-type") {
 		// Event Grid webhook registration validation.
 		case "SubscriptionValidation", "SubscriptionValidationEvent":
-			res, err := a.bounce.Azure.ProcessSubscription(rawReq)
+			res, err := hooks.Azure.ProcessSubscription(rawReq)
 			if err != nil {
 				a.log.Printf("error processing Azure Event Grid subscription validation: %v", err)
 				return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
@@ -270,7 +275,7 @@ func (a *App) BounceWebhook(c echo.Context) error {
 
 		// Regular event delivery.
 		case "", "Notification":
-			bs, err := a.bounce.Azure.ProcessBounce(c.Request(), rawReq)
+			bs, err := hooks.Azure.ProcessBounce(c.Request(), rawReq)
 			if err != nil {
 				a.log.Printf("error processing Azure Event Grid notification: %v", err)
 				return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
@@ -282,14 +287,14 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		}
 
 	// SendGrid.
-	case service == "sendgrid" && a.bounce.Sendgrid != nil:
+	case service == "sendgrid" && hooks.Sendgrid != nil:
 		var (
 			sig = c.Request().Header.Get("X-Twilio-Email-Event-Webhook-Signature")
 			ts  = c.Request().Header.Get("X-Twilio-Email-Event-Webhook-Timestamp")
 		)
 
 		// Sendgrid sends multiple bounces.
-		bs, err := a.bounce.Sendgrid.ProcessBounce(sig, ts, rawReq)
+		bs, err := hooks.Sendgrid.ProcessBounce(sig, ts, rawReq)
 		if err != nil {
 			a.log.Printf("error processing sendgrid notification: %v", err)
 			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
@@ -297,8 +302,8 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		bounces = append(bounces, bs...)
 
 	// Postmark.
-	case service == "postmark" && a.bounce.Postmark != nil:
-		bs, err := a.bounce.Postmark.ProcessBounce(rawReq, c)
+	case service == "postmark" && hooks.Postmark != nil:
+		bs, err := hooks.Postmark.ProcessBounce(rawReq, c)
 		if err != nil {
 			a.log.Printf("error processing postmark notification: %v", err)
 			if _, ok := err.(*echo.HTTPError); ok {
@@ -310,12 +315,12 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		bounces = append(bounces, bs...)
 
 	// ForwardEmail.
-	case service == "forwardemail" && a.bounce.Forwardemail != nil:
+	case service == "forwardemail" && hooks.Forwardemail != nil:
 		var (
 			sig = c.Request().Header.Get("X-Webhook-Signature")
 		)
 
-		bs, err := a.bounce.Forwardemail.ProcessBounce(sig, rawReq)
+		bs, err := hooks.Forwardemail.ProcessBounce(sig, rawReq)
 		if err != nil {
 			a.log.Printf("error processing forwardemail notification: %v", err)
 			if _, ok := err.(*echo.HTTPError); ok {
@@ -327,9 +332,9 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		bounces = append(bounces, bs...)
 
 	// Lettermint.
-	case service == "lettermint" && a.bounce.Lettermint != nil:
+	case service == "lettermint" && hooks.Lettermint != nil:
 		sig := c.Request().Header.Get("X-Lettermint-Signature")
-		bs, err := a.bounce.Lettermint.ProcessBounce(sig, rawReq)
+		bs, err := hooks.Lettermint.ProcessBounce(sig, rawReq)
 		if err != nil {
 			a.log.Printf("error processing lettermint notification: %v", err)
 			if _, ok := err.(*echo.HTTPError); ok {
@@ -344,14 +349,51 @@ func (a *App) BounceWebhook(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("bounces.unknownService"))
 	}
 
-	// Insert bounces into the DB.
+	// Insert bounces into the DB, scoped to the tenant the webhook came in
+	// for so its subscribers, campaigns and bounce actions are used.
 	for _, b := range bounces {
-		if err := a.bounce.Record(b); err != nil {
+		b.TenantID = tID
+		if b.CreatedAt.IsZero() {
+			b.CreatedAt = time.Now()
+		}
+		if err := a.core.RecordBounce(b); err != nil {
 			a.log.Printf("error recording bounce: %v", err)
 		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// tenantBounceWebhooks builds the bounce webhook processors from a tenant's
+// own settings. enabled is false when the tenant has bounce processing or
+// webhooks switched off. Settings are read on every call (webhook traffic
+// is low), so changes apply without a restart or cache invalidation.
+func (a *App) tenantBounceWebhooks(ctx context.Context, tenantID int) (bounce.Webhooks, bool, error) {
+	s, err := a.core.GetSettings(ctx, tenantID)
+	if err != nil {
+		return bounce.Webhooks{}, false, err
+	}
+	if !s.BounceEnabled || !s.BounceEnableWebhooks {
+		return bounce.Webhooks{}, false, nil
+	}
+
+	opt := bounce.Opt{
+		SESEnabled:              s.SESEnabled,
+		AzureEnabled:            s.BounceAzure.Enabled,
+		AzureSharedSecret:       s.BounceAzure.SharedSecret,
+		AzureSharedSecretHeader: s.BounceAzure.SharedSecretHeader,
+		SendgridEnabled:         s.SendgridEnabled,
+		SendgridKey:             s.SendgridKey,
+	}
+	opt.Postmark.Enabled = s.BouncePostmark.Enabled
+	opt.Postmark.Username = s.BouncePostmark.Username
+	opt.Postmark.Password = s.BouncePostmark.Password
+	opt.ForwardEmail.Enabled = s.BounceForwardEmail.Enabled
+	opt.ForwardEmail.Key = s.BounceForwardEmail.Key
+	opt.Lettermint.Enabled = s.BounceLettermint.Enabled
+	opt.Lettermint.Key = s.BounceLettermint.Key
+
+	return bounce.NewWebhooks(opt, a.log), true, nil
 }
 
 func (a *App) validateBounceFields(ctx context.Context, tenantID int, b models.Bounce) (models.Bounce, error) {

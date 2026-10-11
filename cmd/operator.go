@@ -35,22 +35,23 @@ var reTenantSlug = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 // pool using a Postgres role with BYPASSRLS, distinct from the
 // tenant-app pool. Never share these statements with the main *sqlx.DB.
 type operatorQueries struct {
-	CreateOrganization     *sqlx.Stmt `query:"operator-create-organization"`
-	GetOrganization        *sqlx.Stmt `query:"operator-get-organization"`
-	GetOrganizations       *sqlx.Stmt `query:"operator-get-organizations"`
-	GetOrganizationTenants *sqlx.Stmt `query:"operator-get-organization-tenants"`
-	DeleteOrganization     *sqlx.Stmt `query:"operator-delete-organization"`
-	CreateTenant           *sqlx.Stmt `query:"operator-create-tenant"`
-	SeedTenantSettings     *sqlx.Stmt `query:"operator-seed-tenant-settings"`
-	SetTenantRootURL       *sqlx.Stmt `query:"operator-set-tenant-root-url"`
-	SetTenantCustomDomain  *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
-	SetTenantSMTP          *sqlx.Stmt `query:"operator-set-tenant-smtp"`
-	SetTenantScrub         *sqlx.Stmt `query:"operator-set-tenant-scrub"`
-	GetTenantScrubUsage    *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
-	GetTenant              *sqlx.Stmt `query:"operator-get-tenant"`
-	GetTenants             *sqlx.Stmt `query:"operator-get-tenants"`
-	UpdateTenantStatus     *sqlx.Stmt `query:"operator-update-tenant-status"`
-	DeleteTenant           *sqlx.Stmt `query:"operator-delete-tenant"`
+	CreateOrganization      *sqlx.Stmt `query:"operator-create-organization"`
+	GetOrganization         *sqlx.Stmt `query:"operator-get-organization"`
+	GetOrganizations        *sqlx.Stmt `query:"operator-get-organizations"`
+	GetOrganizationTenants  *sqlx.Stmt `query:"operator-get-organization-tenants"`
+	DeleteOrganization      *sqlx.Stmt `query:"operator-delete-organization"`
+	CreateTenant            *sqlx.Stmt `query:"operator-create-tenant"`
+	SeedTenantSettings      *sqlx.Stmt `query:"operator-seed-tenant-settings"`
+	SetTenantRootURL        *sqlx.Stmt `query:"operator-set-tenant-root-url"`
+	SetTenantCustomDomain   *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
+	SetTenantSMTP           *sqlx.Stmt `query:"operator-set-tenant-smtp"`
+	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
+	SetTenantBounceWebhooks *sqlx.Stmt `query:"operator-set-tenant-bounce-webhooks"`
+	GetTenantScrubUsage     *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
+	GetTenant               *sqlx.Stmt `query:"operator-get-tenant"`
+	GetTenants              *sqlx.Stmt `query:"operator-get-tenants"`
+	UpdateTenantStatus      *sqlx.Stmt `query:"operator-update-tenant-status"`
+	DeleteTenant            *sqlx.Stmt `query:"operator-delete-tenant"`
 }
 
 // operatorTenant is a tenant row augmented with cross-tenant counts, only
@@ -481,6 +482,40 @@ func (s *operatorStore) SetTenantScrub(tenantID int, entry operatorScrubEntry) e
 	}
 
 	_, err = s.q.SetTenantScrub.Exec(tenantID, b)
+	return err
+}
+
+// operatorBounceWebhooks is the request body for SetOperatorTenantBounceWebhooks.
+// Postmark holds the HTTP basic auth credentials the caller also sets on the
+// tenant's Postmark webhook, so the engine can verify deliveries per tenant.
+type operatorBounceWebhooks struct {
+	Enabled  bool `json:"enabled"`
+	Postmark struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	} `json:"postmark"`
+} // @name OperatorBounceWebhooks
+
+// SetTenantBounceWebhooks writes a tenant's bounce webhook settings: the
+// bounce.webhooks_enabled flag and the Postmark processor with its basic
+// auth credentials. BounceWebhook reads these per request, so no restart
+// or cache invalidation is needed.
+func (s *operatorStore) SetTenantBounceWebhooks(tenantID int, req operatorBounceWebhooks) error {
+	enabled, err := json.Marshal(req.Enabled)
+	if err != nil {
+		return err
+	}
+
+	pm, err := json.Marshal(struct {
+		Enabled  bool   `json:"enabled"`
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}{req.Enabled, req.Postmark.Username, req.Postmark.Password})
+	if err != nil {
+		return err
+	}
+
+	_, err = s.q.SetTenantBounceWebhooks.Exec(tenantID, enabled, pm)
 	return err
 }
 
@@ -1055,6 +1090,46 @@ func (a *App) SetOperatorTenantScrub(c echo.Context) error {
 	if err := a.operator.SetTenantScrub(id, req); err != nil {
 		a.log.Printf("error setting tenant scrub: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant scrub")
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// SetOperatorTenantBounceWebhooks turns a tenant's bounce webhooks on or off
+// and sets the Postmark basic auth credentials they're verified with.
+//
+//	@ID			setOperatorTenantBounceWebhooks
+//	@Summary		Set a tenant's bounce webhook settings (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's bounce.webhooks_enabled and bounce.postmark settings. The caller registers the Postmark webhook (https://{tenant host}/webhooks/service/postmark) with the same basic auth credentials. Enabling also turns on bounce.enabled.
+//	@Tags			operator
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Tenant ID"
+//	@Param			webhooks	body		operatorBounceWebhooks	true	"Bounce webhook settings"
+//	@Success		200	{object}	okResp
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/bounce-webhooks [put]
+func (a *App) SetOperatorTenantBounceWebhooks(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req operatorBounceWebhooks
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.Enabled && (req.Postmark.Username == "" || req.Postmark.Password == "") {
+		return echo.NewHTTPError(http.StatusBadRequest, "postmark username and password are required to enable")
+	}
+
+	if err := a.operator.SetTenantBounceWebhooks(id, req); err != nil {
+		a.log.Printf("error setting tenant bounce webhooks: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant bounce webhooks")
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})

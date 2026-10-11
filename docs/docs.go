@@ -507,7 +507,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign"
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign"
                             }
                         }
                     },
@@ -1650,6 +1650,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/lists/{id}/scrub/progress/{request_id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get progress for a running Scrub validation job",
+                "operationId": "getScrubListProgress",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "List ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Validation job request ID (from ScrubList's response)",
+                        "name": "request_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/logout": {
             "post": {
                 "produces": [
@@ -1663,29 +1705,6 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
-                    }
-                }
-            }
-        },
-        "/api/logs": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "settings"
-                ],
-                "summary": "Get application logs",
-                "operationId": "getLogs",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
@@ -2389,6 +2408,71 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/tenants/{id}/bounce-webhooks": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's bounce.webhooks_enabled and bounce.postmark settings. The caller registers the Postmark webhook (https://{tenant host}/webhooks/service/postmark) with the same basic auth credentials. Enabling also turns on bounce.enabled.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's bounce webhook settings (Operator API)",
+                "operationId": "setOperatorTenantBounceWebhooks",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Bounce webhook settings",
+                        "name": "webhooks",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/OperatorBounceWebhooks"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -4810,8 +4894,49 @@ const docTemplate = `{
                             "$ref": "#/definitions/echo.HTTPError"
                         }
                     },
-                    "503": {
-                        "description": "Service Unavailable",
+                    "404": {
+                        "description": "Bounce webhooks are disabled for this tenant",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/webhooks/scrub/batch": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Receive a Scrub batch validation progress callback",
+                "operationId": "scrubBatchWebhook",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -5325,7 +5450,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "risky": {
-                    "description": "Risky is how many imported rows Scrub flagged risky (deliverable/\nundeliverable/invalid_syntax aren't separately counted here --\nundeliverable/invalid_syntax rows are skipped like any other\nValidateFields failure, visible in the existing log stream).",
+                    "description": "Risky always reads 0 during the import itself: Scrub validation is\nasynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky\nincluded -- aren't known until the /webhooks/scrub/batch callback\nresolves each submitted batch, well after this Status stops being\npolled. Kept for API/frontend type stability rather than removed.",
                     "type": "integer"
                 },
                 "status": {
@@ -5448,6 +5573,25 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "OperatorBounceWebhooks": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "postmark": {
+                    "type": "object",
+                    "properties": {
+                        "password": {
+                            "type": "string"
+                        },
+                        "username": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },
@@ -5643,6 +5787,9 @@ const docTemplate = `{
                 },
                 "organization_id": {
                     "$ref": "#/definitions/null.Int"
+                },
+                "root_url": {
+                    "$ref": "#/definitions/null.String"
                 },
                 "slug": {
                     "type": "string"
@@ -6761,7 +6908,7 @@ const docTemplate = `{
                 "message": {}
             }
         },
-        "github_com_nerd_zero_listnun_internal_core.AutoPausedCampaign": {
+        "github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign": {
             "type": "object",
             "properties": {
                 "id": {
