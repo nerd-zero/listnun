@@ -38,8 +38,10 @@ const operatorPathPrefix = "/api/operator/"
 // When enabled, the request's Host header must either carry a subdomain
 // of rootDomain (`<slug>.rootDomain`) or exactly match a tenant's
 // tenants.custom_domain, identifying an active tenant, or the request is
-// rejected.
-func Middleware(core *core.Core, rootDomain string, enabled bool) echo.MiddlewareFunc {
+// rejected. A non-active tenant's admin page loads are redirected to
+// consoleURL (the listnun console, where billing is settled) when it's
+// set; see unavailableRedirect.
+func Middleware(core *core.Core, rootDomain, consoleURL string, enabled bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if !enabled || strings.HasPrefix(c.Request().URL.Path, operatorPathPrefix) {
@@ -57,6 +59,9 @@ func Middleware(core *core.Core, rootDomain string, enabled bool) echo.Middlewar
 				return echo.NewHTTPError(http.StatusNotFound)
 			}
 			if t.Status != "active" {
+				if u := unavailableRedirect(c.Request(), t.Status, consoleURL); u != "" {
+					return c.Redirect(http.StatusFound, u)
+				}
 				return echo.NewHTTPError(http.StatusServiceUnavailable, "workspace unavailable")
 			}
 
@@ -80,4 +85,27 @@ func resolveTenant(core *core.Core, host, rootDomain string) (models.Tenant, err
 		return core.GetTenantBySlug(slug)
 	}
 	return core.GetTenantByCustomDomain(host)
+}
+
+// unavailableRedirect returns where to send a browser that lands on a
+// non-active tenant, or "" to fall through to the plain 503. Only GET page
+// loads of the admin UI (and "/", which leads to it) are redirected: the
+// people hitting those are the workspace's owners, who can settle billing
+// in the console. Public subscriber routes (unsubscribe, archive, tracking
+// pixels, link redirects) and the API keep the 503 - a subscriber clicking
+// an unsubscribe link must never land on the owner's billing page.
+func unavailableRedirect(r *http.Request, status, consoleURL string) string {
+	if consoleURL == "" || r.Method != http.MethodGet {
+		return ""
+	}
+	if p := r.URL.Path; p != "/" && p != "/admin" && !strings.HasPrefix(p, "/admin/") {
+		return ""
+	}
+
+	base := strings.TrimSuffix(consoleURL, "/")
+	if status == "suspended" {
+		// Suspended is the billing worker's non-payment state.
+		return base + "/billing"
+	}
+	return base
 }

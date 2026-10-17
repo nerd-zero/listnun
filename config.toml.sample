@@ -12,6 +12,12 @@ address = "localhost:9000"
 multi_tenancy_enabled = false
 root_domain = ""
 
+# The listnun console (e.g. "https://listnun.app"). When set, opening the
+# admin UI of a suspended tenant redirects to <console_url>/billing (and a
+# disabled one to <console_url>) instead of returning a bare 503. Public
+# subscriber routes and the API still get the 503. Leave empty to disable.
+console_url = ""
+
 # Database.
 [db]
 host = "localhost"

@@ -91,6 +91,7 @@ type Config struct {
 	DBBatchSize                   int      `koanf:"batch_size"`
 	MultiTenancyEnabled           bool     `koanf:"multi_tenancy_enabled"`
 	RootDomain                    string   `koanf:"root_domain"`
+	ConsoleURL                    string   `koanf:"console_url"`
 	Operator                      struct {
 		Token      string `koanf:"token"`
 		DBUser     string `koanf:"db_user"`
@@ -956,7 +957,7 @@ func initHTTPServer(cfg *Config, urlCfg *UrlConfig, i *i18n.I18n, fs stuffbin.Fi
 
 	// Resolve the tenant for every request (authenticated and public alike)
 	// ahead of auth. A no-op unless app.multi_tenancy_enabled is set.
-	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.MultiTenancyEnabled))
+	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.ConsoleURL, cfg.MultiTenancyEnabled))
 
 	tpl, err := stuffbin.ParseTemplatesGlob(initTplFuncs(i, urlCfg), fs, "/public/templates/*.html")
 	if err != nil {
