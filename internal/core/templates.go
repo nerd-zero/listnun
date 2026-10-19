@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
@@ -111,4 +112,47 @@ func (c *Core) DeleteTemplate(ctx context.Context, tenantID int, id int) error {
 	}
 
 	return nil
+}
+
+// UpdateTxTemplateExtras saves a transactional template's sample data,
+// plain-text body and default headers.
+func (c *Core) UpdateTxTemplateExtras(ctx context.Context, tenantID, id int, sampleData json.RawMessage, altBody string, headers models.Headers) error {
+	if len(sampleData) == 0 {
+		sampleData = json.RawMessage("{}")
+	}
+	if headers == nil {
+		headers = models.Headers{}
+	}
+
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.q.UpdateTemplateTxExtras).Exec(id, sampleData, altBody, headers)
+		return err
+	})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.template}", "error", pqErrMsg(err)))
+	}
+	return nil
+}
+
+// GetTxTemplateUsage returns messages sent per transactional template in
+// the last 7 days, keyed by template ID.
+func (c *Core) GetTxTemplateUsage(ctx context.Context, tenantID int) (map[int]int, error) {
+	var rows []struct {
+		TemplateID int `db:"template_id"`
+		Count      int `db:"count"`
+	}
+	err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetTxTemplateUsage).Select(&rows)
+	})
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.templates}", "error", pqErrMsg(err)))
+	}
+
+	out := make(map[int]int, len(rows))
+	for _, r := range rows {
+		out[r.TemplateID] = r.Count
+	}
+	return out, nil
 }

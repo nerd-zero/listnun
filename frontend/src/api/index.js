@@ -576,3 +576,24 @@ export const getTxMessage = (id) => http.get(
   `/api/developers/messages/${encodeURIComponent(id)}`,
   { camelCase: (keyPath) => !keyPath.startsWith('.payload.') },
 );
+
+// Developers: transactional templates. Sample data and headers are the
+// user's own keys, so they're left as sent.
+const txTemplateKeys = (keyPath) => !/^(\.\*)?\.(sample_data|headers)\./.test(keyPath);
+
+export const listTxTemplates = () => http.get(
+  '/api/developers/templates',
+  { camelCase: txTemplateKeys },
+);
+
+export const createTxTemplate = (data) => http.post(
+  '/api/developers/templates',
+  data,
+  { camelCase: txTemplateKeys },
+);
+
+export const updateTxTemplate = (id, data) => http.put(
+  `/api/developers/templates/${id}`,
+  data,
+  { camelCase: txTemplateKeys },
+);

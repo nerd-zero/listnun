@@ -111,6 +111,22 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/developers/MessageLog.vue'),
   },
   {
+    path: '/developers/templates',
+    name: 'devTemplates',
+    meta: {
+      title: 'developers.templates.title', section: 'developers.title', group: 'developers', perms: ['templates:get'],
+    },
+    component: () => import('../views/developers/TxTemplates.vue'),
+  },
+  {
+    path: '/developers/templates/:id',
+    name: 'devTemplate',
+    meta: {
+      title: 'developers.templates.title', section: 'developers.title', group: 'developers', perms: ['templates:get'],
+    },
+    component: () => import('../views/developers/TxTemplates.vue'),
+  },
+  {
     path: '/user/profile',
     name: 'userProfile',
     meta: { title: 'users.profile', group: 'profile' },

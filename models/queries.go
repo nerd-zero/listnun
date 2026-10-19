@@ -141,11 +141,13 @@ type Queries struct {
 	DeleteAPIKey       *sqlx.Stmt `query:"delete-api-key"`
 	TouchAPIKey        *sqlx.Stmt `query:"touch-api-key"`
 
-	CreateTemplate     *sqlx.Stmt `query:"create-template"`
-	GetTemplates       *sqlx.Stmt `query:"get-templates"`
-	UpdateTemplate     *sqlx.Stmt `query:"update-template"`
-	SetDefaultTemplate *sqlx.Stmt `query:"set-default-template"`
-	DeleteTemplate     *sqlx.Stmt `query:"delete-template"`
+	CreateTemplate         *sqlx.Stmt `query:"create-template"`
+	UpdateTemplateTxExtras *sqlx.Stmt `query:"update-template-tx-extras"`
+	GetTxTemplateUsage     *sqlx.Stmt `query:"get-tx-template-usage"`
+	GetTemplates           *sqlx.Stmt `query:"get-templates"`
+	UpdateTemplate         *sqlx.Stmt `query:"update-template"`
+	SetDefaultTemplate     *sqlx.Stmt `query:"set-default-template"`
+	DeleteTemplate         *sqlx.Stmt `query:"delete-template"`
 
 	CreateLink        *sqlx.Stmt `query:"create-link"`
 	GetLinkURL        *sqlx.Stmt `query:"get-link-url"`

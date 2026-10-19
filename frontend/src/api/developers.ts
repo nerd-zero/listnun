@@ -2,7 +2,12 @@
 // mutator camelCases responses at runtime, so the generated snake_case
 // models don't describe what callers get; these interfaces do.
 import { getDevelopers } from './generated/endpoints/developers/developers';
-import { getTxMessage as legacyGetTxMessage } from './index';
+import {
+  getTxMessage as legacyGetTxMessage,
+  listTxTemplates as legacyListTxTemplates,
+  createTxTemplate as legacyCreateTxTemplate,
+  updateTxTemplate as legacyUpdateTxTemplate,
+} from './index';
 
 export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read';
 
@@ -136,3 +141,62 @@ export const getTxMessage = (id: string) => legacyGetTxMessage(id) as unknown as
 export const resendTxMessage = (id: string) => dev.resendTxMessage(id) as unknown as Promise<string[]>;
 
 export const getTxStats = () => dev.getTxStats() as unknown as Promise<TxStats>;
+
+export type HeaderSet = Record<string, string>;
+
+export interface TxTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  altBody: string;
+  headers: HeaderSet[];
+  // Sample `data` for previews and test sends; the caller's own shape.
+  sampleData: Record<string, unknown>;
+  usedThisWeek: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TxTemplateInput {
+  name: string;
+  subject: string;
+  body: string;
+  altBody: string;
+  headers: HeaderSet[];
+  sampleData: Record<string, unknown>;
+}
+
+export interface TxPreview {
+  subject: string;
+  html: string;
+  text: string;
+  from: string;
+}
+
+// Sample data and header names are the user's own keys, so they're sent
+// and read back untouched rather than camelCased.
+const toTemplateReq = (t: TxTemplateInput) => ({
+  name: t.name,
+  subject: t.subject,
+  body: t.body,
+  alt_body: t.altBody,
+  headers: t.headers,
+  sample_data: t.sampleData as never,
+});
+
+export const listTxTemplates = () => legacyListTxTemplates() as unknown as Promise<TxTemplate[]>;
+
+export const createTxTemplate = (t: TxTemplateInput) => (
+  legacyCreateTxTemplate(toTemplateReq(t)) as unknown as Promise<TxTemplate>
+);
+
+export const updateTxTemplate = (id: number, t: TxTemplateInput) => (
+  legacyUpdateTxTemplate(id, toTemplateReq(t)) as unknown as Promise<TxTemplate>
+);
+
+export const previewTxTemplate = (p: { subject: string; body: string; altBody: string; data: Record<string, unknown> }) => (
+  dev.previewTxTemplate({
+    subject: p.subject, body: p.body, alt_body: p.altBody, data: p.data,
+  }) as unknown as Promise<TxPreview>
+);
