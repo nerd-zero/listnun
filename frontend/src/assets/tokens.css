@@ -1,0 +1,122 @@
+/*
+ * Listnun design tokens. One file, read by page CSS and by the PrimeVue
+ * overrides; theme.ts carries the same values for the Aura preset.
+ * Dark mode is the .app-dark class on <html>.
+ */
+:root {
+  --ln-bg: #f6f3ec;
+  --ln-card: #ffffff;
+  --ln-muted: #efebe1;
+  --ln-hover: #f3f0e8;
+  --ln-ink: #1b1e24;
+  --ln-on-ink: #f6f3ec;
+  --ln-text: #1b1e24;
+  --ln-text-2: #4a4e56;
+  --ln-text-3: #6b6f76;
+  --ln-text-4: #9599a0;
+  --ln-border: #dedad0;
+  --ln-border-soft: #efebe1;
+  --ln-border-strong: #cbc6b9;
+  --ln-ring: #d97d3d;
+
+  /* Status: base is for dots, bars, series and icons; fg/bg for text and tags. */
+  --ln-success: #3f8f6c;
+  --ln-success-fg: #2f6f53;
+  --ln-success-bg: rgba(63, 143, 108, .12);
+  --ln-warn: #d97d3d;
+  --ln-warn-fg: #9a5320;
+  --ln-warn-bg: rgba(217, 125, 61, .14);
+  --ln-danger: #c1503b;
+  --ln-danger-fg: #a33f2c;
+  --ln-danger-bg: rgba(193, 80, 59, .12);
+  --ln-neutral: #9599a0;
+  --ln-neutral-fg: #4a4e56;
+  --ln-neutral-bg: #efebe1;
+
+  /* Chart series, in order. */
+  --ln-series-1: #3f8f6c;
+  --ln-series-2: #d97d3d;
+  --ln-series-3: #c1503b;
+  --ln-series-4: #9599a0;
+  --ln-series-5: #1b1e24;
+
+  --ln-radius: 6px;
+  --ln-radius-card: 10px;
+  --ln-shadow-pop: 0 8px 24px rgba(20, 23, 28, .12);
+  --ln-mask: rgba(20, 23, 28, .4);
+
+  --ln-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ln-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Legacy aliases, kept until every view reads --ln-* directly. */
+  --lm-primary: var(--ln-ink);
+  --lm-primary-hover: #33373e;
+  --lm-primary-light: var(--ln-muted);
+  --lm-primary-border: var(--ln-border);
+  --lm-primary-text: var(--ln-ink);
+  --lm-text: var(--ln-text);
+  --lm-text-secondary: var(--ln-text-2);
+  --lm-text-muted: var(--ln-text-3);
+  --lm-text-subtle: var(--ln-text-4);
+  --lm-border: var(--ln-border);
+  --lm-border-light: var(--ln-border-soft);
+  --lm-bg: var(--ln-bg);
+  --lm-bg-subtle: var(--ln-muted);
+  --lm-surface: var(--ln-card);
+  --lm-danger: var(--ln-danger);
+  --lm-danger-bg: var(--ln-danger-bg);
+  --lm-danger-border: rgba(193, 80, 59, .3);
+  --lm-warn: var(--ln-warn);
+  --lm-warn-bg: var(--ln-warn-bg);
+  --lm-warn-border: rgba(217, 125, 61, .35);
+  --lm-success: var(--ln-success);
+  --lm-success-bg: var(--ln-success-bg);
+  --lm-success-border: rgba(63, 143, 108, .3);
+  --ink: var(--ln-ink);
+  --paper: var(--ln-bg);
+  --warm-tan: var(--ln-muted);
+  --amber-accent: var(--ln-ring);
+}
+
+.app-dark {
+  --ln-bg: #14171c;
+  --ln-card: #1b1f26;
+  --ln-muted: #181b21;
+  --ln-hover: #22262e;
+  --ln-ink: #ece9e1;
+  --ln-on-ink: #14171c;
+  --ln-text: #ece9e1;
+  --ln-text-2: #c7c3ba;
+  --ln-text-3: #9599a0;
+  --ln-text-4: #6b6f76;
+  --ln-border: #2b2f36;
+  --ln-border-soft: #22262e;
+  --ln-border-strong: #3a3f47;
+
+  --ln-success-fg: #6cc39b;
+  --ln-success-bg: rgba(63, 143, 108, .18);
+  --ln-warn-fg: #e8a06b;
+  --ln-warn-bg: rgba(217, 125, 61, .18);
+  --ln-danger-fg: #e58a76;
+  --ln-danger-bg: rgba(193, 80, 59, .2);
+  --ln-neutral-fg: #c7c3ba;
+  --ln-neutral-bg: #22262e;
+  --ln-series-5: #ece9e1;
+
+  --ln-shadow-pop: 0 8px 24px rgba(0, 0, 0, .45);
+  --ln-mask: rgba(0, 0, 0, .6);
+
+  --lm-primary-hover: #f6f3ec;
+
+  color-scheme: dark;
+}
+
+/* Type scale. */
+.ln-display { font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.02em; }
+.ln-page-title { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.ln-section-title { font-size: 17px; line-height: 24px; font-weight: 600; margin: 0; }
+.ln-card-title { font-size: 15px; line-height: 22px; font-weight: 600; margin: 0; }
+.ln-small { font-size: 13px; line-height: 18px; color: var(--ln-text-2); }
+.ln-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; color: var(--ln-text-2); }
+.ln-mono { font-family: var(--ln-mono); font-size: 13px; line-height: 20px; }
+.ln-muted { color: var(--ln-text-3); }
