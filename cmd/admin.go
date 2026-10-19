@@ -38,6 +38,7 @@ type serverConfig struct {
 	ScrubEnabled     bool            `json:"scrub_enabled"`
 	Version          string          `json:"version"`
 	OrganizationName string          `json:"organization_name,omitempty"`
+	ConsoleURL       string          `json:"console_url,omitempty"`
 } // @name ServerConfig
 
 // GetServerConfig returns general server config.
@@ -64,6 +65,7 @@ func (a *App) GetServerConfig(c echo.Context) error {
 		Lang:          a.cfg.Lang,
 		Permissions:   a.cfg.PermissionsRaw,
 		HasLegacyUser: a.cfg.HasLegacyUser,
+		ConsoleURL:    a.cfg.ConsoleURL,
 		Privacy: struct {
 			DisableTracking    bool `json:"disable_tracking"`
 			IndividualTracking bool `json:"individual_tracking"`

@@ -95,7 +95,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/user/profile',
     name: 'userProfile',
-    meta: { title: 'users.profile', group: 'settings' },
+    meta: { title: 'users.profile', group: 'profile' },
     component: () => import('../views/UserProfile.vue'),
   },
   {
