@@ -974,30 +974,35 @@ onBeforeRouteLeave((_to, _from, next) => {
     next(true);
     return;
   }
+
+  // Settle the navigation exactly once: closing the dialog any other way
+  // than its actions cancels it.
+  let settled = false;
+  const stop = watch(() => confirm.open, (open) => {
+    if (!open) settle(false);
+  });
+  function settle(ok: boolean) {
+    if (settled) return;
+    settled = true;
+    stop();
+    confirm.open = false;
+    next(ok);
+  }
+
   Object.assign(confirm, {
     open: true,
     title: t('campaigns.leaveTitle'),
     text: t('campaigns.leaveText', { name: form.name || t('campaigns.newCampaign') }),
     label: isNew.value ? t('developers.templates.leave') : t('campaigns.saveAndLeave'),
     danger: false,
-    secondary: isNew.value ? null : {
-      label: t('developers.templates.leave'),
-      run: () => { confirm.open = false; next(true); },
-    },
+    secondary: isNew.value ? null : { label: t('developers.templates.leave'), run: () => settle(true) },
     run: () => {
-      confirm.open = false;
       if (isNew.value) {
-        next(true);
+        settle(true);
         return;
       }
-      updateCampaign('quiet').then(() => next(true)).catch(() => next(false));
+      updateCampaign('quiet').then(() => settle(true)).catch(() => settle(false));
     },
-  });
-  const stop = watch(() => confirm.open, (open) => {
-    if (!open) {
-      stop();
-      next(false);
-    }
   });
 });
 
