@@ -85,6 +85,14 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
     });
   }
 
+  // Developers: one entry per page, each gated by the permission that opens it.
+  const developers: NavItem[] = [];
+  if (can('apikeys:get')) {
+    developers.push({
+      key: 'devKeys', label: t('developers.keys.title'), icon: 'key', to: { name: 'devKeys' }, names: ['devKeys'],
+    });
+  }
+
   const workspace: NavItem[] = [];
   if (can('users:*', 'roles:*')) {
     const kids: NavKid[] = [];
@@ -108,6 +116,7 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
 
   return [
     { key: 'main', label: '', items: main },
+    { key: 'developers', label: t('globals.terms.developers'), items: developers },
     { key: 'workspace', label: t('menu.workspace'), items: workspace },
   ].filter((g) => g.items.length > 0);
 }

@@ -121,6 +121,16 @@ type Queries struct {
 	QueryMedia  *sqlx.Stmt `query:"query-media"`
 	DeleteMedia *sqlx.Stmt `query:"delete-media"`
 
+	GetAPIKeys         *sqlx.Stmt `query:"get-api-keys"`
+	GetAPIKey          *sqlx.Stmt `query:"get-api-key"`
+	GetAPIKeyAuth      *sqlx.Stmt `query:"get-api-key-auth"`
+	CreateAPIKey       *sqlx.Stmt `query:"create-api-key"`
+	UpdateAPIKeyScopes *sqlx.Stmt `query:"update-api-key-scopes"`
+	RotateAPIKey       *sqlx.Stmt `query:"rotate-api-key"`
+	RevokeAPIKey       *sqlx.Stmt `query:"revoke-api-key"`
+	DeleteAPIKey       *sqlx.Stmt `query:"delete-api-key"`
+	TouchAPIKey        *sqlx.Stmt `query:"touch-api-key"`
+
 	CreateTemplate     *sqlx.Stmt `query:"create-template"`
 	GetTemplates       *sqlx.Stmt `query:"get-templates"`
 	UpdateTemplate     *sqlx.Stmt `query:"update-template"`
