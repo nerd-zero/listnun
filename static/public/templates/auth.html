@@ -1,0 +1,52 @@
+{{- /*
+  Layout for the admin sign-in pages (login, 2FA, forgot and reset
+  password, first-time setup). Server-rendered, no Vue: one stylesheet,
+  light and dark from prefers-color-scheme. custom.css and custom.js
+  still load last so workspace overrides keep working.
+*/ -}}
+{{ define "auth-header" }}
+<!DOCTYPE html>
+<html lang="{{ .L.T "_.code" }}">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+	<meta name="color-scheme" content="light dark" />
+	<title>{{ .Data.Title }} - {{ .SiteName }}</title>
+	<link href="/public/static/login.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css" />
+	<link href="/public/custom.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css">
+	<script src="/public/custom.js?v={{ .AssetVersion }}" async defer></script>
+	{{ if ne .FaviconURL "" }}
+		<link rel="icon" href="{{ .FaviconURL }}" type="image/x-icon" />
+	{{ else }}
+		<link rel="icon" href="/public/static/favicon.png?v={{ .AssetVersion }}" type="image/png" />
+	{{ end }}
+</head>
+<body class="auth">
+	<main class="auth-main">
+		<header class="auth-brand">
+			<span class="auth-logo">
+				<img src="/public/static/listnun.svg?v={{ .AssetVersion }}" alt="" class="auth-logo-mark" />
+				<span class="auth-logo-word">listnun</span>
+			</span>
+			{{ if .OrgName }}<span class="auth-org">{{ .OrgName }}</span>{{ end }}
+		</header>
+		<section class="auth-card">
+{{ end }}
+
+{{ define "auth-footer" }}
+		</section>
+		<footer class="auth-foot">
+			<span>{{ .L.T "public.poweredBy" }} <a target="_blank" rel="noreferrer" href="https://listnun.app">listnun</a></span>
+		</footer>
+	</main>
+	<script src="/public/static/login.js?v={{ .AssetVersion }}" defer></script>
+</body>
+</html>
+{{ end }}
+
+{{ define "auth-password-toggle" }}
+<button type="button" class="auth-eye" data-toggle-password="{{ . }}" aria-label="Show password" aria-pressed="false">
+	<svg class="auth-eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+	<svg class="auth-eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+</button>
+{{ end }}

@@ -61,8 +61,11 @@ type tplData struct {
 	EnablePublicSubPage bool
 	EnablePublicArchive bool
 	IndividualTracking  bool
-	Data                any
-	L                   *i18n.I18n
+	// OrgName is the workspace's organization name, set on the admin
+	// sign-in pages under multi-tenancy.
+	OrgName string
+	Data    any
+	L       *i18n.I18n
 }
 
 type publicTpl struct {
@@ -121,6 +124,18 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		rootURL = c.Scheme() + "://" + c.Request().Host
 	}
 
+	app := c.Get("app").(*App)
+
+	// The sign-in pages name the workspace being signed in to.
+	var orgName string
+	if t.MultiTenancyEnabled && strings.HasPrefix(name, "admin-") {
+		if tn, ok := c.Get(models.TenantCtxKey).(*models.Tenant); ok {
+			if n, err := app.core.GetTenantOrganizationName(tn.ID); err == nil {
+				orgName = n
+			}
+		}
+	}
+
 	return t.templates.ExecuteTemplate(w, name, tplData{
 		SiteName:            t.SiteName,
 		RootURL:             rootURL,
@@ -130,8 +145,9 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		EnablePublicSubPage: t.EnablePublicSubPage,
 		EnablePublicArchive: t.EnablePublicArchive,
 		IndividualTracking:  t.IndividualTracking,
+		OrgName:             orgName,
 		Data:                data,
-		L:                   c.Get("app").(*App).i18n,
+		L:                   app.i18n,
 	})
 }
 
