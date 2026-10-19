@@ -771,5 +771,17 @@
     "lists.archived": "Archived",
     "lists.archivedHelp": "Archiving hides the lists from lists page, campaigns, and public forms. It can be unarchived anytime. It is useful for hiding old and rarely used lists.",
     "maintenance.database.title": "Database",
-    "maintenance.database.vacuumHelp": "PostgreSQL VACUUM ANALYZE reclaims storage used by deleted rows and significantly speeds up database performance on large databases. IMPORTANT: For large databases, this is a slow, blocking operation. Schedule to run this during off-peak hours."
+    "maintenance.database.vacuumHelp": "PostgreSQL VACUUM ANALYZE reclaims storage used by deleted rows and significantly speeds up database performance on large databases. IMPORTANT: For large databases, this is a slow, blocking operation. Schedule to run this during off-peak hours.",
+    "states.errorText": "The server didn’t respond. Your data is safe.",
+    "states.tryAgain": "Try again",
+    "states.copyDetails": "Copy details",
+    "states.copied": "Copied",
+    "states.couldntLoad": "Couldn’t load this page",
+    "states.loading": "Loading",
+    "states.noMatches": "No matches",
+    "states.noMatchesText": "Nothing matches “{query}”.",
+    "states.clearFilters": "Clear filters",
+    "states.noAccessTitle": "You don’t have access to {page}",
+    "states.noAccessText": "Your role, {role}, can’t see this page. Ask a workspace admin if you need it.",
+    "states.backToDashboard": "Back to dashboard"
 }

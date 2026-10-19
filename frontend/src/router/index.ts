@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
-// The meta.group param is used in App.vue to expand menu group by name.
+// meta.group marks the nav group a page belongs to. meta.perms lists the
+// permissions that open it (any one is enough); without them App.vue
+// shows NoAccess in place of the page.
 const routes: RouteRecordRaw[] = [
   {
     path: '/404',
@@ -35,61 +37,61 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/subscribers',
     name: 'subscribers',
-    meta: { title: 'globals.terms.subscribers', group: 'subscribers' },
+    meta: { title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'] },
     component: () => import('../views/Subscribers.vue'),
   },
   {
     path: '/subscribers/import',
     name: 'import',
-    meta: { title: 'import.title', group: 'subscribers' },
+    meta: { title: 'import.title', group: 'subscribers', perms: ['subscribers:import'] },
     component: () => import('../views/Import.vue'),
   },
   {
     path: '/subscribers/bounces',
     name: 'bounces',
-    meta: { title: 'globals.terms.bounces', group: 'subscribers' },
+    meta: { title: 'globals.terms.bounces', group: 'subscribers', perms: ['bounces:get'] },
     component: () => import('../views/Bounces.vue'),
   },
   {
     path: '/subscribers/lists/:listID',
     name: 'subscribers_list',
-    meta: { title: 'globals.terms.subscribers', group: 'subscribers' },
+    meta: { title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'] },
     component: () => import('../views/Subscribers.vue'),
   },
   {
     path: '/subscribers/:id',
     name: 'subscriber',
-    meta: { title: 'globals.terms.subscribers', group: 'subscribers' },
+    meta: { title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'] },
     component: () => import('../views/Subscribers.vue'),
   },
   {
     path: '/campaigns',
     name: 'campaigns',
-    meta: { title: 'globals.terms.campaigns', group: 'campaigns' },
+    meta: { title: 'globals.terms.campaigns', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
     component: () => import('../views/Campaigns.vue'),
   },
   {
     path: '/campaigns/media',
     name: 'media',
-    meta: { title: 'globals.terms.media', group: 'campaigns' },
+    meta: { title: 'globals.terms.media', group: 'campaigns', perms: ['media:get'] },
     component: () => import('../views/Media.vue'),
   },
   {
     path: '/campaigns/templates',
     name: 'templates',
-    meta: { title: 'globals.terms.templates', group: 'campaigns' },
+    meta: { title: 'globals.terms.templates', group: 'campaigns', perms: ['templates:get'] },
     component: () => import('../views/Templates.vue'),
   },
   {
     path: '/campaigns/analytics',
     name: 'campaignAnalytics',
-    meta: { title: 'analytics.title', group: 'campaigns' },
+    meta: { title: 'analytics.title', group: 'campaigns', perms: ['campaigns:get_analytics'] },
     component: () => import('../views/CampaignAnalytics.vue'),
   },
   {
     path: '/campaigns/:id',
     name: 'campaign',
-    meta: { title: 'globals.terms.campaign', group: 'campaigns' },
+    meta: { title: 'globals.terms.campaign', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
     component: () => import('../views/Campaign.vue'),
   },
   {
@@ -101,31 +103,31 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/settings',
     name: 'settings',
-    meta: { title: 'globals.terms.settings', group: 'settings' },
+    meta: { title: 'globals.terms.settings', group: 'settings', perms: ['settings:get'] },
     component: () => import('../views/Settings.vue'),
   },
   {
     path: '/users',
     name: 'users',
-    meta: { title: 'globals.terms.users', group: 'users' },
+    meta: { title: 'globals.terms.users', group: 'users', perms: ['users:get'] },
     component: () => import('../views/Users.vue'),
   },
   {
     path: '/users/roles/users',
     name: 'userRoles',
-    meta: { title: 'users.userRoles', group: 'users' },
+    meta: { title: 'users.userRoles', group: 'users', perms: ['roles:get'] },
     component: () => import('../views/Roles.vue'),
   },
   {
     path: '/users/roles/lists',
     name: 'listRoles',
-    meta: { title: 'users.listRoles', group: 'users' },
+    meta: { title: 'users.listRoles', group: 'users', perms: ['roles:get'] },
     component: () => import('../views/Roles.vue'),
   },
   {
     path: '/settings/maintenance',
     name: 'maintenance',
-    meta: { title: 'maintenance.title', group: 'settings' },
+    meta: { title: 'maintenance.title', group: 'settings', perms: ['settings:maintain'] },
     component: () => import('../views/Maintenance.vue'),
   },
 ];
