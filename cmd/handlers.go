@@ -223,6 +223,8 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/api/developers/templates", pm(a.CreateTxTemplate, "templates:manage"))
 		g.POST("/api/developers/templates/preview", pm(a.PreviewTxTemplate, "templates:get"))
 		g.PUT("/api/developers/templates/:id", pm(hasID(a.UpdateTxTemplate), "templates:manage"))
+		g.GET("/api/developers/branding", pm(a.GetBranding, "templates:get"))
+		g.PUT("/api/developers/branding", pm(a.UpdateBranding, "templates:manage"))
 
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)

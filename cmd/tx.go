@@ -178,6 +178,9 @@ func (a *App) sendTx(ctx context.Context, tenantID int, m models.TxMessage, orig
 			a.i18n.Ts("globals.messages.notFound", "name", fmt.Sprintf("template %d", m.TemplateID)))
 	}
 
+	// The workspace logo, for templates that include the brand-logo block.
+	m.Brand = a.brandBlock(ctx, tenantID)
+
 	// The template's plain-text body applies unless the request brings its own.
 	if m.AltBody == "" {
 		m.AltBody = tpl.AltBody

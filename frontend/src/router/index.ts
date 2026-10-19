@@ -135,6 +135,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/developers/SendTest.vue'),
   },
   {
+    path: '/developers/branding',
+    name: 'devBranding',
+    meta: {
+      title: 'developers.branding.title', section: 'developers.title', group: 'developers', perms: ['templates:get'],
+    },
+    component: () => import('../views/developers/Branding.vue'),
+  },
+  {
     path: '/user/profile',
     name: 'userProfile',
     meta: { title: 'users.profile', group: 'profile' },
