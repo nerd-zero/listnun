@@ -141,6 +141,12 @@ CREATE TABLE templates (
     body_source     TEXT NULL,
     is_default      BOOLEAN NOT NULL DEFAULT false,
 
+    -- Transactional templates only: preview/test data, plain-text body and
+    -- default headers, edited in Developers > Email templates.
+    sample_data     JSONB NOT NULL DEFAULT '{}',
+    alt_body        TEXT NOT NULL DEFAULT '',
+    headers         JSONB NOT NULL DEFAULT '[]',
+
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

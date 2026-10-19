@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	txttpl "text/template"
@@ -29,6 +30,11 @@ type Template struct {
 	BodySource null.String `db:"body_source" json:"body_source,omitempty"`
 	IsDefault  bool        `db:"is_default" json:"is_default"`
 	TenantID   int         `db:"tenant_id" json:"-"`
+
+	// Transactional templates only.
+	SampleData json.RawMessage `db:"sample_data" json:"sample_data,omitempty"`
+	AltBody    string          `db:"alt_body" json:"alt_body,omitempty"`
+	Headers    Headers         `db:"headers" json:"headers,omitempty"`
 
 	// Only relevant to tx (transactional) templates.
 	SubjectTpl  *txttpl.Template   `json:"-"`

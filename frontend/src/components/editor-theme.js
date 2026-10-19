@@ -133,3 +133,34 @@ const vsCodeLight = [
 ];
 
 export { vsCodeLight, vsCodeLightHighlightStyle, vsCodeLightTheme };
+
+// Listnun ink theme: the dark code surface used across the Developers
+// area (snippets, template editor, payloads). Values from the tokens board.
+const inkTheme = /* @__PURE__ */EditorView.theme({
+  '&': {
+    color: '#ece9e1',
+    backgroundColor: '#1b1e24',
+    fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+    fontSize: '13px',
+  },
+  '.cm-content': { caretColor: '#ece9e1', padding: '12px 0' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#ece9e1' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
+    backgroundColor: '#3a3f47',
+  },
+  '.cm-activeLine': { backgroundColor: 'rgba(236,233,225,.04)' },
+  '.cm-gutters': { backgroundColor: '#1b1e24', color: '#6b6f76', border: 'none' },
+  '.cm-activeLineGutter': { backgroundColor: 'transparent', color: '#c7c3ba' },
+  '.cm-searchMatch': { backgroundColor: 'rgba(217,125,61,.3)' },
+}, { dark: true });
+
+const inkHighlight = /* @__PURE__ */HighlightStyle.define([
+  { tag: [tags.comment, tags.lineComment, tags.blockComment], color: '#8a8e95' },
+  { tag: [tags.string, tags.special(tags.string), tags.attributeValue], color: '#9fd3b7' },
+  { tag: [tags.keyword, tags.controlKeyword, tags.propertyName, tags.attributeName], color: '#e8a06b' },
+  { tag: [tags.tagName, tags.angleBracket], color: '#ece9e1' },
+  { tag: [tags.number, tags.bool, tags.null], color: '#e8a06b' },
+  { tag: tags.invalid, color: '#e58a76' },
+]);
+
+export const listnunInk = [inkTheme, syntaxHighlighting(inkHighlight)];

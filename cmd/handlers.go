@@ -219,6 +219,10 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/developers/messages/:uuid", pm(a.GetTxMessage, "tx:logs"))
 		g.POST("/api/developers/messages/:uuid/resend", pm(a.ResendTxMessage, "tx:send"))
 		g.GET("/api/developers/stats", pm(a.GetTxStats, "tx:logs"))
+		g.GET("/api/developers/templates", pm(a.GetTxTemplates, "templates:get"))
+		g.POST("/api/developers/templates", pm(a.CreateTxTemplate, "templates:manage"))
+		g.POST("/api/developers/templates/preview", pm(a.PreviewTxTemplate, "templates:get"))
+		g.PUT("/api/developers/templates/:id", pm(hasID(a.UpdateTxTemplate), "templates:manage"))
 
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)
