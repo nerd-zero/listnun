@@ -83,6 +83,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter by bounce type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search subscriber e-mail or campaign name",
+                        "name": "query",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Field to order results by",
                         "name": "order_by",
                         "in": "query"
@@ -174,6 +186,52 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bounces/counts": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bounces"
+                ],
+                "summary": "Count bounces per type",
+                "operationId": "getBounceCounts",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by bounce source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search subscriber e-mail or campaign name",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/BounceTypeCounts"
+                        }
                     },
                     "500": {
                         "description": "Internal Server Error",
@@ -6220,6 +6278,23 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "BounceTypeCounts": {
+            "type": "object",
+            "properties": {
+                "complaint": {
+                    "type": "integer"
+                },
+                "hard": {
+                    "type": "integer"
+                },
+                "soft": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
