@@ -168,6 +168,43 @@ definitions:
       type:
         type: string
     type: object
+  BrandLogo:
+    properties:
+      content_type:
+        type: string
+      filename:
+        type: string
+      height:
+        type: integer
+      media_id:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+      url:
+        type: string
+      width:
+        type: integer
+    type: object
+  Branding:
+    properties:
+      align:
+        type: string
+      link_url:
+        type: string
+      logo:
+        $ref: '#/definitions/BrandLogo'
+      logo_dark:
+        allOf:
+        - $ref: '#/definitions/BrandLogo'
+        description: |-
+          LogoDark is used by email clients in dark mode. Without it, Logo sits
+          on a white tile there.
+      width:
+        description: Width is the logo's display width in px.
+        type: integer
+    type: object
   Campaign:
     properties:
       altbody:
@@ -919,6 +956,12 @@ definitions:
         type: boolean
       bounce.webhooks_enabled:
         type: boolean
+      branding:
+        allOf:
+        - $ref: '#/definitions/Branding'
+        description: |-
+          Branding is the workspace logo shown in transactional emails through
+          the brand-logo template block (Developers > Email branding).
       maintenance.db:
         properties:
           vacuum:
@@ -2331,6 +2374,44 @@ paths:
       summary: Get dashboard counts
       tags:
       - dashboard
+  /api/developers/branding:
+    get:
+      operationId: getBranding
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+      summary: Get email branding
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateBranding
+      parameters:
+      - description: Branding
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Branding'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save email branding
+      tags:
+      - developers
   /api/developers/keys:
     get:
       operationId: listAPIKeys

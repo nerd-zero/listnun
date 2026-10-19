@@ -82,13 +82,18 @@ type TxMessage struct {
 	Body       []byte             `json:"-"`
 	Tpl        *template.Template `json:"-"`
 	SubjectTpl *txttpl.Template   `json:"-"`
+
+	// Brand is the workspace logo for the brand-logo block; nil renders
+	// nothing.
+	Brand *BrandBlock `json:"-"`
 }
 
 func (m *TxMessage) Render(sub Subscriber, tpl *Template, funcs txttpl.FuncMap) error {
 	data := struct {
 		Subscriber Subscriber
 		Tx         *TxMessage
-	}{sub, m}
+		Brand      *BrandBlock
+	}{sub, m, m.Brand}
 
 	// Render the body.
 	b := bytes.Buffer{}

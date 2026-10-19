@@ -109,6 +109,12 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
     });
   }
 
+  if (can('templates:get')) {
+    developers.push({
+      key: 'devBranding', label: t('developers.branding.title'), icon: 'image', to: { name: 'devBranding' }, names: ['devBranding'],
+    });
+  }
+
   const workspace: NavItem[] = [];
   if (can('users:*', 'roles:*')) {
     const kids: NavKid[] = [];

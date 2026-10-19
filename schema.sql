@@ -387,7 +387,8 @@ INSERT INTO settings (key, value) VALUES
     ('appearance.public.custom_css', '""'),
     ('appearance.public.custom_js', '""'),
     ('maintenance.db', '{"vacuum": false, "vacuum_cron_interval": "0 2 * * *"}'),
-    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}');
+    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}'),
+    ('branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}');
 
 -- scrub_validation_jobs
 -- One row per list-validate action (cmd/settings.go's ScrubList), which

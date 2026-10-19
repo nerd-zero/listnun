@@ -244,3 +244,49 @@ export async function sendTestTx(req: TxRequest, asKey?: string): Promise<TxResu
     messageIds: ids,
   };
 }
+
+export interface BrandLogo {
+  mediaId: number;
+  url: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  width: number;
+  height: number;
+  uploadedAt: string;
+}
+
+export interface Branding {
+  logo: BrandLogo | null;
+  logoDark: BrandLogo | null;
+  width: number;
+  align: 'left' | 'center';
+  linkUrl: string;
+}
+
+const logoToReq = (l: BrandLogo | null) => (l ? {
+  media_id: l.mediaId,
+  url: l.url,
+  filename: l.filename,
+  content_type: l.contentType,
+  size: l.size,
+  width: l.width,
+  height: l.height,
+  uploaded_at: l.uploadedAt,
+} : null);
+
+export const getBranding = () => dev.getBranding() as unknown as Promise<Branding>;
+
+export const updateBranding = (b: Branding) => dev.updateBranding({
+  logo: logoToReq(b.logo) as never,
+  logo_dark: logoToReq(b.logoDark) as never,
+  width: b.width,
+  align: b.align,
+  link_url: b.linkUrl,
+}) as unknown as Promise<Branding>;
+
+// Logo uploads: SVG, PNG or JPG up to 1 MB, raster images at least 240 px
+// wide so they stay sharp on high-density screens.
+export const LOGO_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg'];
+export const LOGO_MAX_BYTES = 1024 * 1024;
+export const LOGO_MIN_WIDTH = 240;
