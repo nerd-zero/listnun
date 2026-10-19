@@ -374,8 +374,8 @@ function fillSettings(n: number | string, key: string) {
 .smtp-list { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.25rem; }
 
 .smtp-card {
-  background: var(--lm-surface);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -385,25 +385,25 @@ function fillSettings(n: number | string, key: string) {
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1.25rem;
-  background: var(--lm-bg-subtle);
-  border-bottom: 1px solid var(--lm-border);
+  background: var(--ln-muted);
+  border-bottom: 1px solid var(--ln-border);
 }
 
-.smtp-card-title { font-weight: 600; font-size: 0.95rem; color: var(--lm-text); }
+.smtp-card-title { font-weight: 600; font-size: 0.95rem; color: var(--ln-text); }
 .smtp-card-host { font-family: var(--ln-mono); font-size: 12px; color: var(--ln-text-3); }
 .smtp-card-off { font-size: 12px; color: var(--ln-text-3); }
 .smtp-card-toggle { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--ln-text); cursor: pointer; padding: 4px 8px; border-radius: 6px; &:hover { background: var(--ln-hover); } }
 
 .smtp-section {
   padding: 1rem 1.25rem;
-  & + & { border-top: 1px solid var(--lm-border); }
-  &--test { background: var(--lm-bg-subtle); }
+  & + & { border-top: 1px solid var(--ln-border); }
+  &--test { background: var(--ln-muted); }
 }
 
 .smtp-section-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--lm-text-muted);
+  color: var(--ln-text-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.75rem;

@@ -48,30 +48,6 @@
   --ln-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ln-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Legacy aliases, kept until every view reads --ln-* directly. */
-  --lm-primary: var(--ln-ink);
-  --lm-primary-hover: #33373e;
-  --lm-primary-light: var(--ln-muted);
-  --lm-primary-border: var(--ln-border);
-  --lm-primary-text: var(--ln-ink);
-  --lm-text: var(--ln-text);
-  --lm-text-secondary: var(--ln-text-2);
-  --lm-text-muted: var(--ln-text-3);
-  --lm-text-subtle: var(--ln-text-4);
-  --lm-border: var(--ln-border);
-  --lm-border-light: var(--ln-border-soft);
-  --lm-bg: var(--ln-bg);
-  --lm-bg-subtle: var(--ln-muted);
-  --lm-surface: var(--ln-card);
-  --lm-danger: var(--ln-danger);
-  --lm-danger-bg: var(--ln-danger-bg);
-  --lm-danger-border: rgba(193, 80, 59, .3);
-  --lm-warn: var(--ln-warn);
-  --lm-warn-bg: var(--ln-warn-bg);
-  --lm-warn-border: rgba(217, 125, 61, .35);
-  --lm-success: var(--ln-success);
-  --lm-success-bg: var(--ln-success-bg);
-  --lm-success-border: rgba(63, 143, 108, .3);
   --ink: var(--ln-ink);
   --paper: var(--ln-bg);
   --warm-tan: var(--ln-muted);
@@ -106,7 +82,6 @@
   --ln-shadow-pop: 0 8px 24px rgba(0, 0, 0, .45);
   --ln-mask: rgba(0, 0, 0, .6);
 
-  --lm-primary-hover: #f6f3ec;
 
   color-scheme: dark;
 }

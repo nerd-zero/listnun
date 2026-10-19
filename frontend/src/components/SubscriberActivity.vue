@@ -150,8 +150,8 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  background: var(--lm-bg);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-bg);
+  border: 1px solid var(--ln-border);
   border-radius: 8px;
   padding: 1rem;
 }
@@ -159,7 +159,7 @@ onMounted(() => {
 .stat-heading {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--lm-text-muted);
+  color: var(--ln-text-3);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -167,35 +167,35 @@ onMounted(() => {
 .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--lm-text);
+  color: var(--ln-text);
   line-height: 1;
 }
 
 .activity-section-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--lm-text);
+  color: var(--ln-text);
   margin: 1.25rem 0 0.75rem;
 }
 
 .cell-sub {
   font-size: 0.75rem;
-  color: var(--lm-text-subtle);
+  color: var(--ln-text-4);
   margin: 0.15rem 0 0;
 }
 
-.text-muted { color: var(--lm-text-subtle); font-style: italic; }
+.text-muted { color: var(--ln-text-4); font-style: italic; }
 
 .activity-empty {
   text-align: center;
   padding: 2rem 1rem;
-  color: var(--lm-text-subtle);
+  color: var(--ln-text-4);
   font-size: 0.875rem;
 }
 
 :deep(.p-tag-secondary) {
-  background: var(--lm-bg-subtle);
-  color: var(--lm-text-secondary);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-muted);
+  color: var(--ln-text-2);
+  border: 1px solid var(--ln-border);
 }
 </style>
