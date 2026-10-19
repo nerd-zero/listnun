@@ -1,6 +1,7 @@
 // Typed edge over the orval-generated Developers client. The shared
 // mutator camelCases responses at runtime, so the generated snake_case
 // models don't describe what callers get; these interfaces do.
+import axios from 'axios';
 import { getDevelopers } from './generated/endpoints/developers/developers';
 import {
   getTxMessage as legacyGetTxMessage,
@@ -34,6 +35,9 @@ export interface APIKeyWithSecret extends APIKey {
 }
 
 const dev = getDevelopers();
+
+// rawHttp leaves responses untouched, for showing API calls as they are.
+const rawHttp = axios.create({ baseURL: import.meta.env.VUE_APP_ROOT_URL || '/', responseType: 'json' });
 
 export const listAPIKeys = (query = '') => dev.listAPIKeys({ query }) as unknown as Promise<APIKey[]>;
 
@@ -200,3 +204,43 @@ export const previewTxTemplate = (p: { subject: string; body: string; altBody: s
     subject: p.subject, body: p.body, alt_body: p.altBody, data: p.data,
   }) as unknown as Promise<TxPreview>
 );
+
+// TxRequest is a POST /api/tx body as the docs describe it.
+export interface TxRequest {
+  subscriber_email?: string;
+  subscriber_mode?: 'default' | 'fallback' | 'external';
+  template_id: number;
+  data: Record<string, unknown>;
+  from_email?: string;
+  subject?: string;
+  content_type?: 'html' | 'markdown' | 'plain';
+  headers?: HeaderSet[];
+}
+
+export interface TxResult {
+  status: number;
+  statusText: string;
+  ms: number;
+  // The raw response body, shown as the API returned it.
+  body: unknown;
+  messageIds: string[];
+}
+
+// sendTestTx calls POST /api/tx from the browser exactly as an integration
+// would, returning the raw response rather than the app's unwrapped data.
+// asKey attributes the send to an API key in the message log.
+export async function sendTestTx(req: TxRequest, asKey?: string): Promise<TxResult> {
+  const started = performance.now();
+  const resp = await rawHttp.post('/api/tx', req, {
+    headers: asKey ? { 'Listnun-Send-As': asKey } : {},
+    validateStatus: () => true,
+  });
+  const ids = String(resp.headers['listnun-message-id'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+  return {
+    status: resp.status,
+    statusText: resp.statusText,
+    ms: Math.round(performance.now() - started),
+    body: resp.data,
+    messageIds: ids,
+  };
+}

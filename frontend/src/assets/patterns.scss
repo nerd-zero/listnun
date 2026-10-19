@@ -662,6 +662,21 @@ pre.ln-code, .ln-code {
   .p-inputgroupaddon { font-size: 12px; color: var(--ln-text-2); }
 }
 
+// Inline text button that reads as a link.
+.ln-link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ln-text);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover { color: var(--ln-warn-fg); }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
+}
+
 // ── Text field height ───────────────────────────────────
 // Design spec: fields are 40px tall on pages and 36px in dialogs, with 12px
 // side padding (theme.ts) and the text vertically centred. Text areas and
