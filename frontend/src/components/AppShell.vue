@@ -93,7 +93,10 @@
               <span class="ln-logo-word">listnun</span>
             </router-link>
           </template>
-          <span v-else class="ln-crumb">{{ crumb }}</span>
+          <span v-else class="ln-crumb">
+            <template v-if="crumbSection">{{ crumbSection }}<span class="ln-crumb-sep" aria-hidden="true">/</span></template>
+            <span class="ln-crumb-current">{{ crumb }}</span>
+          </span>
         </div>
 
         <div class="ln-topbar-end">
@@ -192,6 +195,12 @@ const crumb = computed(() => {
   const title = route.meta.title as string | undefined;
   if (!title) return t('menu.dashboard');
   return translateOr(t, title, title);
+});
+
+// meta.section names the area a page sits in, e.g. "Developers / API keys".
+const crumbSection = computed(() => {
+  const section = route.meta.section as string | undefined;
+  return section ? translateOr(t, section, '') : '';
 });
 
 const initials = computed(() => {

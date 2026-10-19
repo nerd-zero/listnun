@@ -6,6 +6,7 @@ package core
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -206,4 +207,10 @@ func sanitizeSQLExp(q string) string {
 // strHasLen checks if the given string has a length within min-max.
 func strHasLen(str string, min, max int) bool {
 	return len(str) >= min && len(str) <= max
+}
+
+// isUniqueViolation reports whether err is a Postgres unique_violation.
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	return errors.As(err, &pqErr) && pqErr.Code == "23505"
 }

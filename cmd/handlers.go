@@ -208,6 +208,14 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		g.POST("/api/tx", pm(a.SendTxMessage, "tx:send"))
 
+		// Developers area.
+		g.GET("/api/developers/keys", pm(a.GetAPIKeys, "apikeys:get"))
+		g.POST("/api/developers/keys", pm(a.CreateAPIKey, "apikeys:manage"))
+		g.PUT("/api/developers/keys/:id", pm(hasID(a.UpdateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/rotate", pm(hasID(a.RotateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/revoke", pm(hasID(a.RevokeAPIKey), "apikeys:manage"))
+		g.DELETE("/api/developers/keys/:id", pm(hasID(a.DeleteAPIKey), "apikeys:manage"))
+
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)
 		g.GET("/api/users", pm(a.GetUsers, "users:get"))

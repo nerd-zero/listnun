@@ -401,3 +401,6 @@
   width: 100%;
   background: var(--ln-bg);
 }
+
+.ln-crumb-sep { margin: 0 8px; color: var(--ln-text-4); }
+.ln-crumb-current { color: var(--ln-text-2); }

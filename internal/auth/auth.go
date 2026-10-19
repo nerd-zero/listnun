@@ -63,6 +63,11 @@ type Callbacks struct {
 	// that tenant's own root URL by the callback's implementation; this
 	// package has no notion of tenant settings beyond what's returned here.
 	GetOIDCConfig func(tenantID int) (OIDCConfig, error)
+
+	// AuthenticateAPIKey checks a Developers-area API key (basic auth with
+	// the key name as the username) for the given tenant and returns a
+	// user carrying only the key's scopes. Optional.
+	AuthenticateAPIKey func(tenantID int, name, secret string) (User, bool)
 }
 
 // tenantOIDC holds one tenant's resolved OIDC provider/verifier/OAuth
@@ -308,8 +313,11 @@ func (o *Auth) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 				return next(c)
 			}
 
-			// Validate the token.
+			// Validate the token: legacy API users first, then API keys.
 			user, ok := o.GetAPIToken(key, token)
+			if !ok && o.cb != nil && o.cb.AuthenticateAPIKey != nil && strings.HasPrefix(token, APIKeyPrefix) {
+				user, ok = o.cb.AuthenticateAPIKey(requestTenantID(c), key, token)
+			}
 			if !ok {
 				c.Set(UserHTTPCtxKey, echo.NewHTTPError(http.StatusForbidden, "invalid API credentials"))
 				return next(c)
@@ -340,6 +348,19 @@ func (o *Auth) Middleware(next echo.HandlerFunc) echo.HandlerFunc {
 		c.Set(SessionKey, sess)
 		return next(c)
 	}
+}
+
+// APIKeyPrefix starts every API key secret. Tokens with it are checked
+// against API keys when they don't match a legacy API user.
+const APIKeyPrefix = "lnk_"
+
+// requestTenantID is the tenant resolved onto the request by the tenant
+// middleware, or 1 when multi-tenancy isn't in use.
+func requestTenantID(c echo.Context) int {
+	if t, ok := c.Get(models.TenantCtxKey).(*models.Tenant); ok {
+		return t.ID
+	}
+	return 1
 }
 
 // tenantMismatch reports whether the resolved tenant (set by

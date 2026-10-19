@@ -626,6 +626,42 @@ pre.ln-code, .ln-code {
   .app-dark & { background: #0c0e11; border: 1px solid var(--ln-border); }
 }
 
+// ── Confirm dialog ──────────────────────────────────────
+.p-dialog.ln-confirm { overflow: hidden; }
+.ln-confirm-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+
+  .ln-field { width: 100%; margin-top: 4px; }
+}
+.ln-confirm-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--ln-danger-bg);
+  color: var(--ln-danger-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ln-confirm-title { margin: 0; font-size: 15px; font-weight: 600; }
+.ln-confirm-text { margin: 0; font-size: 13px; color: var(--ln-text-2); }
+.ln-confirm-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--ln-border);
+}
+
+// ── Copy field ──────────────────────────────────────────
+.ln-copy-field {
+  .p-inputtext { background: var(--ln-muted); }
+  .p-inputgroupaddon { font-size: 12px; color: var(--ln-text-2); }
+}
+
 // ── Text field height ───────────────────────────────────
 // Design spec: fields are 40px tall on pages and 36px in dialogs, with 12px
 // side padding (theme.ts) and the text vertically centred. Text areas and

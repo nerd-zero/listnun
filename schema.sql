@@ -558,6 +558,31 @@ CREATE POLICY tenant_isolation ON scrub_validation_jobs USING (tenant_id = NULLI
 DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_batches;
 CREATE POLICY tenant_isolation ON scrub_validation_batches USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
+-- developers: API keys
+DROP TABLE IF EXISTS api_keys CASCADE;
+CREATE TABLE api_keys (
+    id                SERIAL PRIMARY KEY,
+    tenant_id         INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name              TEXT NOT NULL,
+    secret_hash       TEXT NOT NULL,
+    secret_hint       TEXT NOT NULL,
+    prev_secret_hash  TEXT NULL,
+    prev_expires_at   TIMESTAMP WITH TIME ZONE NULL,
+    scopes            TEXT[] NOT NULL DEFAULT '{}',
+    status            TEXT NOT NULL DEFAULT 'active',
+    created_by        INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+    created_by_name   TEXT NOT NULL DEFAULT '',
+    last_used_at      TIMESTAMP WITH TIME ZONE NULL,
+    revoked_at        TIMESTAMP WITH TIME ZONE NULL,
+    created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(tenant_id, name);
+DROP INDEX IF EXISTS idx_api_keys_tenant; CREATE INDEX idx_api_keys_tenant ON api_keys(tenant_id);
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY; ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON api_keys;
+CREATE POLICY tenant_isolation ON api_keys USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
 -- user sessions
 DROP TABLE IF EXISTS sessions CASCADE;
 CREATE TABLE sessions (

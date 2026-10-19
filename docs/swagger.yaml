@@ -1,5 +1,74 @@
 basePath: /
 definitions:
+  APIKey:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  APIKeyRequest:
+    properties:
+      name:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  APIKeyWithSecret:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret:
+        type: string
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   About:
     properties:
       build:
@@ -2083,6 +2152,162 @@ paths:
       summary: Get dashboard counts
       tags:
       - dashboard
+  /api/developers/keys:
+    get:
+      operationId: listAPIKeys
+      parameters:
+      - description: Filter by name
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/APIKey'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List API keys
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createAPIKey
+      parameters:
+      - description: Key name and scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}:
+    delete:
+      operationId: deleteAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete an API key
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update an API key's scopes
+      tags:
+      - developers
+  /api/developers/keys/{id}/revoke:
+    post:
+      operationId: revokeAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Revoke an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}/rotate:
+    post:
+      operationId: rotateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate an API key
+      tags:
+      - developers
   /api/health:
     get:
       operationId: healthCheck
