@@ -327,7 +327,7 @@ func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *
 		UUID:         core.NewTxMessageUUID(),
 		APIKeyID:     origin.APIKeyID,
 		Sender:       origin.Sender,
-		TemplateID:   tpl.ID,
+		TemplateID:   m.TemplateID,
 		TemplateName: tpl.Name,
 		SubscriberID: sub.ID,
 		Recipient:    sub.Email,
@@ -351,7 +351,7 @@ func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *
 	} else {
 		rec.Events = append(rec.Events, models.NewTxLogEvent{
 			Type:   models.TxEventRendered,
-			Detail: fmt.Sprintf("Template #%d with %d variables", tpl.ID, len(m.Data)),
+			Detail: fmt.Sprintf("Template #%d with %d variables", m.TemplateID, len(m.Data)),
 		})
 	}
 
