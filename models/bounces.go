@@ -37,3 +37,23 @@ type Bounce struct {
 	// in searches and queries.
 	Total int `db:"total" json:"-"`
 } // @name Bounce
+
+// BounceFilter narrows a bounce query. Zero values match everything.
+type BounceFilter struct {
+	CampaignID   int
+	SubscriberID int
+	Source       string
+	// Type is one of soft, hard or complaint.
+	Type string
+	// Search matches the subscriber e-mail or campaign name, case-insensitively.
+	Search string
+}
+
+// BounceTypeCounts is the number of bounces per type for a filter, ignoring
+// the filter's type.
+type BounceTypeCounts struct {
+	Total     int `db:"total" json:"total"`
+	Hard      int `db:"hard" json:"hard"`
+	Soft      int `db:"soft" json:"soft"`
+	Complaint int `db:"complaint" json:"complaint"`
+} // @name BounceTypeCounts
