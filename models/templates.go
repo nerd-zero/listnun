@@ -28,6 +28,7 @@ type Template struct {
 	Body       string      `db:"body" json:"body,omitempty"`
 	BodySource null.String `db:"body_source" json:"body_source,omitempty"`
 	IsDefault  bool        `db:"is_default" json:"is_default"`
+	TenantID   int         `db:"tenant_id" json:"-"`
 
 	// Only relevant to tx (transactional) templates.
 	SubjectTpl  *txttpl.Template   `json:"-"`

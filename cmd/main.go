@@ -329,6 +329,9 @@ func main() {
 		chReload:      chReload,
 	}
 
+	// Prune the transactional message log.
+	go app.pruneTxLog()
+
 	// Star the update checker.
 	if ko.Bool("app.check_updates") {
 		go app.checkUpdates(versionString, time.Hour*24)

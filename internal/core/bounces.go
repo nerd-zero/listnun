@@ -81,6 +81,12 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 		return echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("globals.messages.invalidData")+": "+b.Type)
 	}
 
+	// Transactional email to addresses that aren't subscribers bounces too,
+	// so the message log is updated before the subscriber lookup below.
+	if b.CampaignUUID == "" {
+		c.markTxBounced(b)
+	}
+
 	_, err := c.q.RecordBounce.Exec(b.SubscriberUUID,
 		b.Email,
 		b.CampaignUUID,

@@ -32,6 +32,10 @@ type Message struct {
 
 	// Messenger is the messenger backend to use: email|postback.
 	Messenger string
+
+	// TxMessageID is the message log row of a transactional message, so
+	// the worker can record what happened to it. 0 for campaign messages.
+	TxMessageID int64
 }
 
 // Attachment represents a file or blob attachment that can be

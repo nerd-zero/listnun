@@ -215,6 +215,10 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/api/developers/keys/:id/rotate", pm(hasID(a.RotateAPIKey), "apikeys:manage"))
 		g.POST("/api/developers/keys/:id/revoke", pm(hasID(a.RevokeAPIKey), "apikeys:manage"))
 		g.DELETE("/api/developers/keys/:id", pm(hasID(a.DeleteAPIKey), "apikeys:manage"))
+		g.GET("/api/developers/messages", pm(a.QueryTxMessages, "tx:logs"))
+		g.GET("/api/developers/messages/:uuid", pm(a.GetTxMessage, "tx:logs"))
+		g.POST("/api/developers/messages/:uuid/resend", pm(a.ResendTxMessage, "tx:send"))
+		g.GET("/api/developers/stats", pm(a.GetTxStats, "tx:logs"))
 
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)

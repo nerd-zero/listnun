@@ -193,6 +193,11 @@ func (s *store) GetTenantRootURL(tenantID int) (string, error) {
 	return strings.TrimSuffix(out, "/"), nil
 }
 
+// RecordTxSendResult records a transactional message's send outcome.
+func (s *store) RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error) {
+	s.core.RecordTxSendResult(tenantID, txMessageID, messenger, err)
+}
+
 // RecordBounce records a bounce event and returns the bounce count.
 func (s *store) RecordBounce(b models.Bounce) (int64, int, error) {
 	var res = struct {
