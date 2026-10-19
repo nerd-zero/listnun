@@ -3905,12 +3905,12 @@ const docTemplate = `{
                 "operationId": "updateUserProfile",
                 "parameters": [
                     {
-                        "description": "Profile fields",
+                        "description": "Profile fields; current_password is required with a new password",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/User"
+                            "$ref": "#/definitions/ProfileUpdate"
                         }
                     }
                 ],
@@ -3923,6 +3923,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -7215,6 +7221,88 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "ProfileUpdate": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "current_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "list_role": {
+                    "$ref": "#/definitions/ListRolePermissions"
+                },
+                "list_role_id": {
+                    "type": "integer"
+                },
+                "loggedin_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "description": "For API users, this is the plaintext API token.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
+                "password_login": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "integer"
+                },
+                "twofa_type": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_role": {
+                    "description": "Non-DB fields filled post-retrieval.",
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "permissions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "user_role_id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },

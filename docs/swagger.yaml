@@ -803,6 +803,59 @@ definitions:
       total:
         type: integer
     type: object
+  ProfileUpdate:
+    properties:
+      avatar:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      current_password:
+        type: string
+      email:
+        $ref: '#/definitions/null.String'
+      id:
+        type: integer
+      list_role:
+        $ref: '#/definitions/ListRolePermissions'
+      list_role_id:
+        type: integer
+      loggedin_at:
+        type: string
+      name:
+        type: string
+      password:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: For API users, this is the plaintext API token.
+      password_login:
+        type: boolean
+      status:
+        type: string
+      tenant_id:
+        type: integer
+      twofa_type:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_role:
+        description: Non-DB fields filled post-retrieval.
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          permissions:
+            items:
+              type: string
+            type: array
+        type: object
+      user_role_id:
+        type: integer
+      username:
+        type: string
+    type: object
   Role:
     properties:
       created_at:
@@ -4424,12 +4477,12 @@ paths:
       - application/json
       operationId: updateUserProfile
       parameters:
-      - description: Profile fields
+      - description: Profile fields; current_password is required with a new password
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/User'
+          $ref: '#/definitions/ProfileUpdate'
       produces:
       - application/json
       responses:
@@ -4439,6 +4492,10 @@ paths:
             $ref: '#/definitions/User'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update current user profile
