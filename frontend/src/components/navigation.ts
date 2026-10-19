@@ -87,6 +87,11 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
 
   // Developers: one entry per page, each gated by the permission that opens it.
   const developers: NavItem[] = [];
+  if (can('apikeys:get', 'tx:send', 'tx:logs', 'templates:get', 'webhooks:get')) {
+    developers.push({
+      key: 'devOverview', label: t('developers.overview.title'), icon: 'code', to: { name: 'devOverview' }, names: ['devOverview'],
+    });
+  }
   if (can('apikeys:get')) {
     developers.push({
       key: 'devKeys', label: t('developers.keys.title'), icon: 'key', to: { name: 'devKeys' }, names: ['devKeys'],
