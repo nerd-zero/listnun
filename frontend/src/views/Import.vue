@@ -109,7 +109,7 @@
               :placeholder="$t('import.listSubHelp')"
               :message="$t('import.listSubHelp')"
               :selected="form.lists"
-              :all="lists.results"
+              :all="allLists"
             />
 
             <label class="imp-toggle">
@@ -288,6 +288,8 @@ const progress = computed(() => {
   if (!status.value || !(status.value.total > 0)) return 0;
   return Math.ceil((status.value.imported / status.value.total) * 100);
 });
+
+const allLists = computed<Loose[]>(() => (lists.value as Loose).results || []);
 
 const remaining = computed(() => Math.max(0, (status.value.total || 0) - (status.value.imported || 0)));
 
