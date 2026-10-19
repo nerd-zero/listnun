@@ -1605,6 +1605,106 @@ definitions:
       username:
         type: string
     type: object
+  WebhookAttempt:
+    properties:
+      attempt:
+        type: integer
+      created_at:
+        type: string
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      response:
+        type: string
+      status_code:
+        $ref: '#/definitions/null.Int'
+    type: object
+  WebhookDelivery:
+    properties:
+      attempts:
+        type: integer
+      created_at:
+        type: string
+      endpoint_id:
+        type: integer
+      endpoint_url:
+        type: string
+      event:
+        type: string
+      history:
+        items:
+          $ref: '#/definitions/WebhookAttempt'
+        type: array
+      id:
+        type: string
+      last_duration_ms:
+        $ref: '#/definitions/null.Int'
+      last_status_code:
+        $ref: '#/definitions/null.Int'
+      message_id:
+        type: string
+      next_attempt_at:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  WebhookEndpoint:
+    properties:
+      created_at:
+        type: string
+      done_24h:
+        description: Last 24 hours.
+        type: integer
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      median_ms:
+        type: integer
+      ok_24h:
+        type: integer
+      retrying:
+        type: integer
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookEndpointRequest:
+    properties:
+      events:
+        items:
+          type: string
+        type: array
+      status:
+        description: Status is "active" or "disabled"; empty keeps an endpoint active.
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookSecret:
+    properties:
+      secret:
+        type: string
+    type: object
+  WebhookTest:
+    properties:
+      delivery_id:
+        type: string
+    type: object
   cmd.okResp:
     properties:
       data: {}
@@ -2780,6 +2880,247 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Preview a transactional template
+      tags:
+      - developers
+  /api/developers/webhooks:
+    get:
+      operationId: listWebhookEndpoints
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/WebhookEndpoint'
+            type: array
+      summary: List webhook endpoints
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createWebhookEndpoint
+      parameters:
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Add a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}:
+    delete:
+      operationId: deleteWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete a webhook endpoint
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/secret:
+    get:
+      operationId: getWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Reveal a webhook signing secret
+      tags:
+      - developers
+    post:
+      operationId: rotateWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate a webhook signing secret
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/test:
+    post:
+      operationId: sendWebhookTest
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookTest'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test event
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      parameters:
+      - description: Endpoint ID
+        in: query
+        name: endpoint_id
+        type: integer
+      - description: pending, success, retrying or failed
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PageResults'
+      summary: List webhook deliveries
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}:
+    get:
+      operationId: getWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookDelivery'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a webhook delivery
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}/retry:
+    post:
+      operationId: retryWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a webhook delivery
       tags:
       - developers
   /api/health:

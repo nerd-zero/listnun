@@ -121,6 +121,22 @@ type Queries struct {
 	QueryMedia  *sqlx.Stmt `query:"query-media"`
 	DeleteMedia *sqlx.Stmt `query:"delete-media"`
 
+	GetWebhookEndpoints         *sqlx.Stmt `query:"get-webhook-endpoints"`
+	GetWebhookEndpointSecret    *sqlx.Stmt `query:"get-webhook-endpoint-secret"`
+	CreateWebhookEndpoint       *sqlx.Stmt `query:"create-webhook-endpoint"`
+	UpdateWebhookEndpoint       *sqlx.Stmt `query:"update-webhook-endpoint"`
+	RotateWebhookEndpointSecret *sqlx.Stmt `query:"rotate-webhook-endpoint-secret"`
+	DeleteWebhookEndpoint       *sqlx.Stmt `query:"delete-webhook-endpoint"`
+	EnqueueWebhookDeliveries    *sqlx.Stmt `query:"enqueue-webhook-deliveries"`
+	EnqueueWebhookTest          *sqlx.Stmt `query:"enqueue-webhook-test"`
+	ClaimWebhookDeliveries      *sqlx.Stmt `query:"claim-webhook-deliveries"`
+	RecordWebhookAttempt        *sqlx.Stmt `query:"record-webhook-attempt"`
+	QueryWebhookDeliveries      *sqlx.Stmt `query:"query-webhook-deliveries"`
+	GetWebhookDelivery          *sqlx.Stmt `query:"get-webhook-delivery"`
+	GetWebhookAttempts          *sqlx.Stmt `query:"get-webhook-attempts"`
+	RetryWebhookDelivery        *sqlx.Stmt `query:"retry-webhook-delivery"`
+	PruneWebhookDeliveries      *sqlx.Stmt `query:"prune-webhook-deliveries"`
+
 	CreateTxMessage         *sqlx.Stmt `query:"create-tx-message"`
 	SetTxMessageStatus      *sqlx.Stmt `query:"set-tx-message-status"`
 	GetTxMessageForBounce   *sqlx.Stmt `query:"get-tx-message-for-bounce"`

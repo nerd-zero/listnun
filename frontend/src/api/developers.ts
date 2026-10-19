@@ -8,6 +8,7 @@ import {
   listTxTemplates as legacyListTxTemplates,
   createTxTemplate as legacyCreateTxTemplate,
   updateTxTemplate as legacyUpdateTxTemplate,
+  getWebhookDelivery as legacyGetWebhookDelivery,
 } from './index';
 
 export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read';
@@ -290,3 +291,95 @@ export const updateBranding = (b: Branding) => dev.updateBranding({
 export const LOGO_TYPES = ['image/svg+xml', 'image/png', 'image/jpeg'];
 export const LOGO_MAX_BYTES = 1024 * 1024;
 export const LOGO_MIN_WIDTH = 240;
+
+export type WebhookEvent = 'message.sent' | 'message.delivered' | 'message.bounced' | 'message.failed';
+
+// Events an endpoint can subscribe to, in the order the dialog lists them.
+export const WEBHOOK_EVENTS: WebhookEvent[] = ['message.sent', 'message.delivered', 'message.bounced', 'message.failed'];
+
+// The retry schedule (internal/webhooks): attempts and waits between them.
+export const WEBHOOK_MAX_ATTEMPTS = 8;
+
+export interface WebhookEndpoint {
+  id: number;
+  url: string;
+  events: WebhookEvent[];
+  status: 'active' | 'disabled';
+  secretHint: string;
+  createdAt: string;
+  updatedAt: string;
+  done24h: number;
+  ok24h: number;
+  medianMs: number;
+  retrying: number;
+}
+
+export interface WebhookAttempt {
+  attempt: number;
+  statusCode: number | null;
+  durationMs: number;
+  response: string;
+  error: string;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  endpointId: number;
+  endpointUrl: string;
+  event: string;
+  messageId: string;
+  status: 'pending' | 'success' | 'retrying' | 'failed';
+  attempts: number;
+  nextAttemptAt: string | null;
+  lastStatusCode: number | null;
+  lastDurationMs: number | null;
+  createdAt: string;
+  updatedAt: string;
+  // The JSON body as sent, keys untouched.
+  payload?: Record<string, unknown>;
+  history?: WebhookAttempt[];
+}
+
+export interface WebhookDeliveryPage {
+  results: WebhookDelivery[];
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export interface WebhookEndpointInput {
+  url: string;
+  events: WebhookEvent[];
+  status?: 'active' | 'disabled';
+}
+
+export const listWebhookEndpoints = () => dev.listWebhookEndpoints() as unknown as Promise<WebhookEndpoint[]>;
+
+export const createWebhookEndpoint = (e: WebhookEndpointInput) => (
+  dev.createWebhookEndpoint({ url: e.url, events: e.events, status: e.status || '' }) as unknown as Promise<WebhookEndpoint>
+);
+
+export const updateWebhookEndpoint = (id: number, e: WebhookEndpointInput) => (
+  dev.updateWebhookEndpoint(id, { url: e.url, events: e.events, status: e.status || '' }) as unknown as Promise<WebhookEndpoint>
+);
+
+export const deleteWebhookEndpoint = (id: number) => dev.deleteWebhookEndpoint(id) as unknown as Promise<boolean>;
+
+export const revealWebhookSecret = (id: number) => (
+  dev.getWebhookEndpointSecret(id) as unknown as Promise<{ secret: string }>
+);
+
+export const rotateWebhookSecret = (id: number) => (
+  dev.rotateWebhookEndpointSecret(id) as unknown as Promise<{ secret: string }>
+);
+
+export const sendWebhookTest = (id: number) => dev.sendWebhookTest(id) as unknown as Promise<{ deliveryId: string }>;
+
+export const listWebhookDeliveries = (p: { endpointId?: number; page?: number; perPage?: number }) => (
+  dev.listWebhookDeliveries({ endpoint_id: p.endpointId, page: p.page, per_page: p.perPage }) as unknown as Promise<WebhookDeliveryPage>
+);
+
+export const getWebhookDelivery = (id: string) => legacyGetWebhookDelivery(id) as unknown as Promise<WebhookDelivery>;
+
+export const retryWebhookDelivery = (id: string) => dev.retryWebhookDelivery(id) as unknown as Promise<boolean>;

@@ -20,6 +20,7 @@ SELECT id FROM m;
 -- name: set-tx-message-status
 -- Moves a message to a new status and records the event. A message that
 -- already bounced or failed isn't moved back to delivered.
+-- Returns the updated message for the webhook event.
 WITH m AS (
     UPDATE tx_messages SET
         status = $2,
@@ -27,11 +28,14 @@ WITH m AS (
         error = (CASE WHEN $2 = 'failed' THEN $3 ELSE error END),
         updated_at = NOW()
     WHERE id = $1 AND NOT ($2 IN ('sent', 'delivered') AND status IN ('bounced', 'failed'))
-    RETURNING id, tenant_id
+    RETURNING id, tenant_id, uuid, COALESCE(template_id, 0) AS template_id, recipient, status,
+        COALESCE(bounce_type, '') AS bounce_type, error
+),
+ev AS (
+    INSERT INTO tx_message_events (message_id, tenant_id, type, detail)
+        SELECT id, tenant_id, $5, $3 FROM m
 )
-INSERT INTO tx_message_events (message_id, tenant_id, type, detail)
-    SELECT id, tenant_id, $5, $3 FROM m
-    RETURNING message_id;
+SELECT * FROM m;
 
 -- name: get-tx-message-for-bounce
 -- The latest message to an address in the last 72 hours, for attributing a

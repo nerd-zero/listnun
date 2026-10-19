@@ -634,6 +634,65 @@ ALTER TABLE tx_message_events ENABLE ROW LEVEL SECURITY; ALTER TABLE tx_message_
 DROP POLICY IF EXISTS tenant_isolation ON tx_message_events;
 CREATE POLICY tenant_isolation ON tx_message_events USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
+-- developers: outgoing webhooks
+DROP TABLE IF EXISTS webhook_endpoints CASCADE;
+CREATE TABLE webhook_endpoints (
+    id          SERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    url         TEXT NOT NULL,
+    events      TEXT[] NOT NULL DEFAULT '{}',
+    secret      TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'active',
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_endpoints_tenant; CREATE INDEX idx_webhook_endpoints_tenant ON webhook_endpoints(tenant_id);
+
+DROP TABLE IF EXISTS webhook_deliveries CASCADE;
+CREATE TABLE webhook_deliveries (
+    id                BIGSERIAL PRIMARY KEY,
+    uuid              TEXT NOT NULL UNIQUE,
+    tenant_id         INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    endpoint_id       INTEGER NOT NULL REFERENCES webhook_endpoints(id) ON DELETE CASCADE,
+    event             TEXT NOT NULL,
+    message_uuid      TEXT NOT NULL DEFAULT '',
+    payload           JSONB NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'pending',
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at   TIMESTAMP WITH TIME ZONE NULL DEFAULT NOW(),
+    locked_until      TIMESTAMP WITH TIME ZONE NULL,
+    last_status_code  INTEGER NULL,
+    last_duration_ms  INTEGER NULL,
+    created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_deliveries_due; CREATE INDEX idx_webhook_deliveries_due ON webhook_deliveries(next_attempt_at) WHERE status IN ('pending', 'retrying');
+DROP INDEX IF EXISTS idx_webhook_deliveries_endpoint; CREATE INDEX idx_webhook_deliveries_endpoint ON webhook_deliveries(endpoint_id, created_at DESC);
+DROP INDEX IF EXISTS idx_webhook_deliveries_tenant; CREATE INDEX idx_webhook_deliveries_tenant ON webhook_deliveries(tenant_id, created_at DESC);
+
+DROP TABLE IF EXISTS webhook_attempts CASCADE;
+CREATE TABLE webhook_attempts (
+    id            BIGSERIAL PRIMARY KEY,
+    delivery_id   BIGINT NOT NULL REFERENCES webhook_deliveries(id) ON DELETE CASCADE,
+    tenant_id     INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    attempt       INTEGER NOT NULL,
+    status_code   INTEGER NULL,
+    duration_ms   INTEGER NOT NULL DEFAULT 0,
+    response      TEXT NOT NULL DEFAULT '',
+    error         TEXT NOT NULL DEFAULT '',
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_attempts_delivery; CREATE INDEX idx_webhook_attempts_delivery ON webhook_attempts(delivery_id, attempt);
+ALTER TABLE webhook_endpoints ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_endpoints FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_endpoints;
+CREATE POLICY tenant_isolation ON webhook_endpoints USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_deliveries FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_deliveries;
+CREATE POLICY tenant_isolation ON webhook_deliveries USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE webhook_attempts ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_attempts FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_attempts;
+CREATE POLICY tenant_isolation ON webhook_attempts USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
 -- user sessions
 DROP TABLE IF EXISTS sessions CASCADE;
 CREATE TABLE sessions (
