@@ -1,7 +1,7 @@
 <template>
-  <div class="ln-shell" :class="{ 'is-rail': rail && !isMobile, 'is-mobile': isMobile }">
+  <div class="ln-shell" :class="{ 'is-rail': showRail && !isMobile, 'is-mobile': isMobile }">
     <!-- Full sidebar -->
-    <aside v-if="!isMobile && !rail" class="ln-sidebar">
+    <aside v-if="!isMobile && !showRail" class="ln-sidebar">
       <router-link :to="{ name: 'dashboard' }" class="ln-brand">
         <span class="ln-logo">
           <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
@@ -25,7 +25,7 @@
     </aside>
 
     <!-- 60px rail -->
-    <aside v-if="!isMobile && rail" class="ln-rail">
+    <aside v-if="!isMobile && showRail" class="ln-rail">
       <router-link :to="{ name: 'dashboard' }" class="ln-rail-brand" aria-label="listnun">
         <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
       </router-link>
@@ -43,6 +43,7 @@
           <ln-icon name="external" />
         </a>
         <button
+          v-if="!forcedRail"
           v-tooltip.right="$t('menu.expand')"
           type="button"
           class="ln-rail-item"
@@ -190,6 +191,11 @@ const isMobile = ref(window.innerWidth < MOBILE_BREAKPOINT);
 const drawerOpen = ref(false);
 const rail = ref(localStorage.getItem(RAIL_KEY) === '1');
 const accountMenu = ref<PopupMenu | null>(null);
+
+// Full-width pages (the campaign editor) set meta.rail to collapse the
+// sidebar to the rail without changing the user's own preference.
+const forcedRail = computed(() => !!route.meta.rail);
+const showRail = computed(() => rail.value || forcedRail.value);
 
 const crumb = computed(() => {
   const title = route.meta.title as string | undefined;

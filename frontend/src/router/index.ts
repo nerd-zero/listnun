@@ -91,7 +91,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/campaigns/:id',
     name: 'campaign',
-    meta: { title: 'globals.terms.campaign', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
+    meta: {
+      title: 'globals.terms.campaign', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'], rail: true,
+    },
     component: () => import('../views/Campaign.vue'),
   },
   {
