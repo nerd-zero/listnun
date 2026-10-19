@@ -1,158 +1,237 @@
 <template>
-  <section>
-    <form class="lm-form" @submit.prevent="onSubmit">
-      <div class="lm-form-header">
-        <div class="lm-form-title-row">
-          <h3 class="lm-form-title">{{ isEditing ? data.name : $t('templates.newTemplate') }}</h3>
-          <PvButton severity="secondary" @click="onTogglePreview" icon="pi pi-file" :label="$t('templates.preview') + ' (F9)'" />
-        </div>
-        <p v-if="isEditing" class="lm-form-meta">
-          {{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" data-cy="id" />
-        </p>
-      </div>
-      <div class="lm-form-body">
-        <div class="name-type-row">
-          <div class="lm-field name-field">
-            <label class="lm-label">{{ $t('globals.fields.name') }}</label>
-            <PvInputText :maxlength="200" ref="focusEl" v-model="form.name" name="name"
-              :placeholder="$t('globals.fields.name')" required class="w-full" />
+  <PvDialog
+    :visible="true"
+    modal
+    maximizable
+    :draggable="false"
+    :header="isEditing ? $t('templates.editTemplate') : $t('templates.newTemplate')"
+    class="ln-dialog-form tpl-form-dialog"
+    :style="{ width: '1100px', maxWidth: 'calc(100vw - 32px)' }"
+    @update:visible="(v) => { if (!v) $emit('close'); }"
+  >
+    <form :id="formId" class="tpl-form" :class="{ 'is-visual': form.type === 'campaign_visual' }" @submit.prevent="onSubmit">
+      <div class="tpl-form-edit">
+        <div class="tpl-form-row">
+          <div class="ln-field">
+            <label for="tpl-name">{{ $t('globals.fields.name') }}</label>
+            <PvInputText id="tpl-name" ref="focusEl" v-model="form.name" name="name" :maxlength="200" required />
           </div>
-          <div class="lm-field type-field">
-            <label class="lm-label">{{ $t('globals.fields.type') }}</label>
-            <PvSelect v-model="form.type" :disabled="isEditing"
-              :options="[
-                { label: $t('templates.typeCampaignHTML'), value: 'campaign' },
-                { label: $t('templates.typeCampaignVisual'), value: 'campaign_visual' },
-                { label: $t('templates.typeTransactional'), value: 'tx' },
-              ]"
-              option-label="label" option-value="value" class="w-full" />
+          <div class="ln-field">
+            <label for="tpl-type">{{ $t('globals.fields.type') }}</label>
+            <PvSelect
+              v-model="form.type"
+              input-id="tpl-type"
+              :disabled="isEditing"
+              :options="typeOptions"
+              option-label="label"
+              option-value="value"
+            />
           </div>
         </div>
 
-        <div v-if="form.type === 'tx'" class="lm-field">
-          <label class="lm-label">{{ $t('templates.subject') }}</label>
-          <PvInputText :maxlength="200" v-model="form.subject" name="subject"
-            :placeholder="$t('templates.subject')" required class="w-full" />
+        <div v-if="form.type === 'tx'" class="ln-field">
+          <label for="tpl-subject">{{ $t('templates.subject') }}</label>
+          <PvInputText id="tpl-subject" v-model="form.subject" name="subject" :maxlength="200" required />
+          <p class="ln-help">
+            {{ $t('templates.txEditorHint') }}
+            <router-link :to="{ name: 'devTemplates' }">{{ $t('developers.templates.title') }}</router-link>
+          </p>
         </div>
 
         <template v-if="form.body !== null">
-          <visual-editor v-if="form.type === 'campaign_visual'" name="body" :source="form.bodySource"
-            @change="onChangeVisualEditor" height="70vh" />
-
-          <div v-else class="lm-field">
-            <label class="lm-label">{{ $t('templates.rawHTML') }}</label>
-            <code-editor lang="html" v-model="form.body" name="body" />
+          <visual-editor
+            v-if="form.type === 'campaign_visual'"
+            name="body"
+            :source="form.bodySource"
+            height="65vh"
+            @change="onChangeVisualEditor"
+          />
+          <div v-else class="ln-field">
+            <span class="ln-field-label">{{ $t('templates.rawHTML') }}</span>
+            <code-editor v-model="form.body" lang="html" theme="ink" :autofocus="false" name="body" class="tpl-form-code" />
           </div>
         </template>
 
-        <p class="template-help">
+        <p class="ln-help">
           <template v-if="form.type === 'campaign'">
-            {{ $t('templates.placeholderHelp', { placeholder: egPlaceholder }) }}
+            <i18n-t keypath="templates.placeholderHint" tag="span">
+              <template #tag><code class="ln-mono">{{ egPlaceholder }}</code></template>
+            </i18n-t>
           </template>
-          <a target="_blank" rel="noopener noreferer" href="https://listmonk.app/docs/templating">
-            {{ $t('globals.buttons.learnMore') }}
-          </a>
+          <a target="_blank" rel="noopener noreferrer" href="https://listmonk.app/docs/templating">{{ $t('globals.buttons.learnMore') }}</a>
         </p>
       </div>
 
-      <div class="lm-form-footer">
-        <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-        <PvButton v-if="$can('templates:manage')" type="submit" severity="primary" :loading="loading.templates"
-          :label="$t('globals.buttons.save')" />
-      </div>
+      <aside v-if="form.type !== 'campaign_visual'" class="tpl-form-preview">
+        <span class="ln-field-label">{{ $t('templates.preview') }}</span>
+        <PvMessage v-if="previewError" severity="error">{{ previewError }}</PvMessage>
+        <iframe v-else class="tpl-form-frame" sandbox="" :srcdoc="previewHtml" :title="$t('templates.preview')" />
+      </aside>
     </form>
-    <campaign-preview v-if="previewItem" is-post type="template" :title="previewItem.name"
-      :template-type="previewItem.type" :body="form.body" @close="onTogglePreview" />
-  </section>
+
+    <template #footer>
+      <PvButton
+        v-if="isEditing && form.type === 'campaign' && !data.isDefault && $can('templates:manage')"
+        :label="$t('templates.makeDefault')"
+        severity="secondary"
+        outlined
+        data-cy="btn-set-default"
+        @click="$emit('make-default', data)"
+      />
+      <span class="ln-dialog-form-spacer" />
+      <PvButton :label="$t('globals.buttons.cancel')" severity="secondary" outlined @click="$emit('close')" />
+      <PvButton
+        v-if="$can('templates:manage')"
+        type="submit"
+        :form="formId"
+        :label="$t('globals.buttons.save')"
+        :loading="saving"
+        data-cy="btn-save"
+      />
+    </template>
+  </PvDialog>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, nextTick, onMounted, onBeforeUnmount,
+  computed, nextTick, onMounted, reactive, ref, watch,
 } from 'vue';
-import { storeToRefs } from 'pinia';
+import axios from 'axios';
 import { useI18n } from 'vue-i18n';
-import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import CampaignPreview from '../components/CampaignPreview.vue';
 import CodeEditor from '../components/CodeEditor.vue';
 import VisualEditor from '../components/VisualEditor.vue';
-import CopyText from '../components/CopyText.vue';
 import { getTemplates as templatesApi } from '../api/generated/endpoints/templates/templates';
 
+// A template as the API returns it, camelCased.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// How long to wait after typing before re-rendering the preview.
+const PREVIEW_DEBOUNCE_MS = 500;
+
 const props = withDefaults(defineProps<{
-  data?: any;
+  data?: Loose;
   isEditing?: boolean;
 }>(), { data: () => ({}), isEditing: false });
 
-const emit = defineEmits(['finished', 'close']);
+const emit = defineEmits(['finished', 'close', 'make-default']);
 
 const { $utils } = useGlobal();
 const { createTemplate, updateTemplate } = templatesApi();
 const { t } = useI18n();
-const { loading } = storeToRefs(useMainStore());
 
-const focusEl = ref<any>(null);
-const previewItem = ref<any>(null);
+const focusEl = ref<Loose | null>(null);
+const saving = ref(false);
+const previewHtml = ref('');
+const previewError = ref('');
+const formId = `tpl-form-${Math.random().toString(36).slice(2, 9)}`;
 const egPlaceholder = '{{ template "content" . }}';
-const form = reactive<any>({
-  name: '', subject: '', type: 'campaign', optin: '', body: null, bodySource: null,
+const form = reactive<Loose>({
+  name: '', subject: '', type: 'campaign', body: null, bodySource: null,
 });
 
-function onTogglePreview() {
-  previewItem.value = !previewItem.value ? { ...form } : null;
+const typeOptions = computed(() => [
+  { label: t('templates.typeCampaignHTML'), value: 'campaign' },
+  { label: t('templates.typeCampaignVisual'), value: 'campaign_visual' },
+  { label: t('templates.typeTransactional'), value: 'tx' },
+]);
+
+// The preview posts the body straight to the server; errors (such as a
+// missing content tag while typing) show inline instead of as toasts.
+let timer: number | undefined;
+function schedulePreview() {
+  window.clearTimeout(timer);
+  timer = window.setTimeout(renderPreview, PREVIEW_DEBOUNCE_MS);
 }
 
-function onPreviewShortcut(e: KeyboardEvent) {
-  if (e.key === 'F9') { onTogglePreview(); e.preventDefault(); }
+function renderPreview() {
+  if (form.type === 'campaign_visual' || !form.body) {
+    previewHtml.value = '';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('template_type', form.type);
+  fd.append('body', form.body);
+  axios.post('/api/templates/preview', fd, { responseType: 'text' })
+    .then((r) => { previewHtml.value = r.data; previewError.value = ''; })
+    .catch((err) => {
+      let msg = String(err?.response?.data ?? err);
+      try { msg = JSON.parse(msg)?.message || msg; } catch { /* not JSON: show as is */ }
+      previewError.value = msg;
+    });
 }
 
-function onCreateTemplate() {
-  createTemplate({
+function payload() {
+  return {
     name: form.name, type: form.type, subject: form.subject, body: form.body, body_source: form.bodySource,
-  })
-    .then((d: any) => { emit('finished'); emit('close'); $utils.toast(t('globals.messages.created', { name: d.name })); });
-}
-
-function onUpdateTemplate() {
-  updateTemplate(props.data.id, {
-    name: form.name, type: form.type, subject: form.subject, body: form.body, body_source: form.bodySource,
-  })
-    .then((d: any) => { emit('finished'); emit('close'); $utils.toast(`'${d.name}' updated`); });
+  };
 }
 
 function onSubmit() {
-  if (props.isEditing) { onUpdateTemplate(); return; }
-  onCreateTemplate();
+  saving.value = true;
+  const req = props.isEditing ? updateTemplate(props.data.id, payload() as never) : createTemplate(payload() as never);
+  req
+    .then((d) => {
+      emit('finished');
+      emit('close');
+      $utils.toast(t(props.isEditing ? 'globals.messages.updated' : 'globals.messages.created', { name: (d as unknown as Loose).name }));
+    })
+    .finally(() => { saving.value = false; });
 }
 
-function onChangeVisualEditor({ source, body }: any) {
+function onChangeVisualEditor({ source, body }: { source: unknown; body: string }) {
   form.body = body;
   form.bodySource = source;
 }
 
+watch(() => [form.body, form.type], schedulePreview);
+
 onMounted(() => {
   Object.assign(form, props.data);
-  if (form.body === null || form.body === undefined) { form.body = ''; }
+  if (form.body === null || form.body === undefined) form.body = '';
   nextTick(() => { focusEl.value?.$el?.focus(); });
-  window.addEventListener('keydown', onPreviewShortcut);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onPreviewShortcut);
+  renderPreview();
 });
 </script>
 
 <style scoped lang="scss">
-.lm-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0; }
-.lm-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-
-.name-type-row {
+.tpl-form {
   display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 1rem;
-  align-items: start;
-}
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  min-height: 60vh;
 
-.template-help { font-size: 0.78rem; color: var(--lm-text-subtle); margin: 0; }
+  &.is-visual { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); }
+}
+.tpl-form-edit {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  border-right: 1px solid var(--ln-border);
+}
+.tpl-form-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; }
+.tpl-form-code :deep(.cm-editor) { min-height: 420px; max-height: 60vh; border-radius: 8px; }
+.tpl-form-preview {
+  padding: 20px;
+  background: var(--ln-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  .app-dark & { background: var(--ln-hover); }
+}
+.tpl-form-frame {
+  flex: 1;
+  min-height: 420px;
+  width: 100%;
+  border: 1px solid var(--ln-border);
+  border-radius: 8px;
+  background: #fff;
+}
+</style>
+
+<style lang="scss">
+.p-dialog.tpl-form-dialog .p-dialog-content { padding: 0; }
 </style>
