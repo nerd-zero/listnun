@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -175,6 +176,38 @@ func (a *App) GetDashboardCounts(c echo.Context) error {
 		return err
 	}
 
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// dashboardPeriods are the periods the dashboard can show, in days.
+var dashboardPeriods = map[int]bool{7: true, 30: true, 90: true}
+
+// GetDashboardOverview returns live dashboard numbers for a period: sends,
+// bounces and failures per day, subscriber growth, queue and the counts
+// behind "Needs attention".
+//
+//	@ID				getDashboardOverview
+//	@Summary		Get the dashboard overview
+//	@Tags			dashboard
+//	@Produce		json
+//	@Param			days	query		int	false	"7, 30 or 90 (default 30)"
+//	@Success		200		{object}	models.DashboardOverview
+//	@Failure		400		{object}	echo.HTTPError
+//	@Router			/api/dashboard/overview [get]
+func (a *App) GetDashboardOverview(c echo.Context) error {
+	days := 30
+	if v := c.QueryParam("days"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || !dashboardPeriods[n] {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "days"))
+		}
+		days = n
+	}
+
+	out, err := a.core.GetDashboardOverview(c.Request().Context(), tenantID(c), days)
+	if err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, okResp{out})
 }
 

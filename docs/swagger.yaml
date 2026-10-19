@@ -438,6 +438,60 @@ definitions:
       uuid:
         type: string
     type: object
+  DashboardDay:
+    properties:
+      bounced:
+        type: integer
+      date:
+        type: string
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      new_subscribers:
+        type: integer
+    type: object
+  DashboardHotspot:
+    properties:
+      hard:
+        type: integer
+      list_id:
+        type: integer
+      list_name:
+        type: string
+    type: object
+  DashboardOverview:
+    properties:
+      as_of:
+        type: string
+      bounce_hotspot:
+        $ref: '#/definitions/DashboardHotspot'
+      bounce_rate:
+        type: number
+      bounced:
+        type: integer
+      campaigns_started:
+        type: integer
+      days:
+        items:
+          $ref: '#/definitions/DashboardDay'
+        type: array
+      new:
+        type: integer
+      queued:
+        type: integer
+      running:
+        type: integer
+      sent:
+        description: Filled in Go from Days.
+        type: integer
+      stale_drafts:
+        type: integer
+      subscribers:
+        type: integer
+      unsubscribed:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -2472,6 +2526,28 @@ paths:
           schema:
             type: object
       summary: Get dashboard counts
+      tags:
+      - dashboard
+  /api/dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      parameters:
+      - description: 7, 30 or 90 (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DashboardOverview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the dashboard overview
       tags:
       - dashboard
   /api/developers/branding:
