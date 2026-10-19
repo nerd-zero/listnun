@@ -3,38 +3,42 @@
 <section>
     <h2>{{ L.T "public.archiveTitle" }}</h2>
 
+    {{ if .Data.Campaigns }}
     <ul class="archive">
         {{ range $c := .Data.Campaigns }}
             <li>
-                <a href="{{ $c.URL }}">{{ $c.Subject }}</a>
-                <span class="date">
-                    {{ if $c.SendAt.Valid }}
-                        {{ $c.SendAt.Time.Format "Mon, 02 Jan 2006" }}
-                    {{ else }}
-                        {{ $c.CreatedAt.Time.Format "Mon, 02 Jan 2006" }}
-                    {{ end }}
-                </span>
+                <a href="{{ $c.URL }}">
+                    <span class="archive-title">{{ $c.Subject }}</span>
+                    <span class="date">
+                        {{ if $c.SendAt.Valid }}
+                            {{ $c.SendAt.Time.Format "2 January 2006" }}
+                        {{ else }}
+                            {{ $c.CreatedAt.Time.Format "2 January 2006" }}
+                        {{ end }}
+                    </span>
+                </a>
             </li>
         {{ end }}
     </ul>
-
-    {{ if not .Data.Campaigns }}
-        {{ L.T "public.archiveEmpty" }}
+    {{ else }}
+        <p class="sub">{{ L.T "public.archiveEmpty" }}</p>
     {{ end }}
 
-    {{ if .EnablePublicSubPage }}
-        <div class="right">
+    <div class="archive-foot">
+        {{ if gt .Data.TotalPages 1 }}
+            <div class="pagination">{{ .Data.Pagination }}</div>
+        {{ else }}
+            <span></span>
+        {{ end }}
+        <span class="links">
             <a href="{{ .RootURL }}/archive.xml">
-                <img src="{{ .RootURL }}/public/static/rss.svg" alt="RSS" class="feed"
-                    width="16" height="16" />
+                <img src="{{ .RootURL }}/public/static/rss.svg" alt="" class="feed" width="16" height="16" />RSS
             </a>
-            <a href="{{ .RootURL }}/subscription/form">{{ L.T "public.sub" }}</a>
-        </div>
-    {{ end }}
-
-    {{ if gt .Data.TotalPages 1 }}
-        <div class="pagination">{{ .Data.Pagination }}</div>
-    {{ end }}
+            {{ if .EnablePublicSubPage }}
+                · <a href="{{ .RootURL }}/subscription/form">{{ L.T "public.sub" }}</a>
+            {{ end }}
+        </span>
+    </div>
 </section>
 
 {{ template "footer" .}}

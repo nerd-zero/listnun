@@ -2,10 +2,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />	
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<title>{{ .Data.Title }} - {{ .SiteName }}</title>
 	<meta name="description" content="{{ .Data.Description }}" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+	<meta name="color-scheme" content="light dark" />
 
 	{{ if .EnablePublicArchive }}
 		<link rel="alternate" type="application/rss+xml" title="{{ L.T "public.archiveTitle" }} - {{ .SiteName }}"
@@ -13,6 +14,7 @@
 	{{ end }}
 
 	<link href="/public/static/style.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css" />
+	<!-- custom.css and custom.js load last so they can override everything. -->
 	<link href="/public/custom.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css">
 	<script src="/public/custom.js?v={{ .AssetVersion }}" async defer></script>
 
@@ -23,26 +25,31 @@
 	{{ end }}
 </head>
 <body>
-    <div class="container wrap">
+	<main class="container wrap">
 		<header class="header">
 			<div class="logo">
-				<a href="{{ if .EnablePublicSubPage }}{{ .RootURL}}/subscription/form{{ end }}">
+				<a href="{{ if .EnablePublicSubPage }}{{ .RootURL }}/subscription/form{{ else }}#{{ end }}">
 				{{ if ne .LogoURL "" }}
-					<img src="{{ .LogoURL }}" alt="{{ .Data.Title }}" />
+					<img src="{{ .LogoURL }}" alt="{{ .SiteName }}" />
 				{{ else }}
-					<img src="/public/static/logo.svg?v={{ .AssetVersion }}" alt="{{ .Data.Title }}" />
-					<span class="logo-text">listnun</span>
+					<span class="logo-text">{{ .SiteName }}</span>
 				{{ end }}
 				</a>
 			</div>
+			{{ if .EnablePublicArchive }}
+				<nav class="header-nav">
+					<a href="{{ .RootURL }}/archive">{{ L.T "public.archive" }}</a>
+				</nav>
+			{{ end }}
 		</header>
 {{ end }}
 
 {{ define "footer" }}
-	</div>
-	
+	</main>
+
 	<footer class="container">
-		{{ L.T "public.poweredBy" }} <a target="_blank" rel="noreferrer" href="https://listnun.app">listnun</a>
+		<span>{{ .SiteName }}</span>
+		<span>{{ L.T "public.sentWith" }} <a target="_blank" rel="noreferrer" href="https://listnun.app">Listnun</a></span>
 	</footer>
 </body>
 </html>
