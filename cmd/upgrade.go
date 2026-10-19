@@ -65,6 +65,7 @@ var migList = []migFunc{
 	{"v6.22.0", migrations.V6_22_0},
 	{"v6.23.0", migrations.V6_23_0},
 	{"v6.24.0", migrations.V6_24_0},
+	{"v6.25.0", migrations.V6_25_0},
 }
 
 // upgrade upgrades the database to the current version by running SQL migration files

@@ -597,3 +597,9 @@ export const updateTxTemplate = (id, data) => http.put(
   data,
   { camelCase: txTemplateKeys },
 );
+
+// Developers: a webhook delivery. Its payload is shown exactly as sent.
+export const getWebhookDelivery = (id) => http.get(
+  `/api/developers/webhooks/deliveries/${encodeURIComponent(id)}`,
+  { camelCase: (keyPath) => !keyPath.startsWith('.payload.') },
+);

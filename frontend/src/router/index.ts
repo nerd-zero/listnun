@@ -143,6 +143,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/developers/Branding.vue'),
   },
   {
+    path: '/developers/webhooks',
+    name: 'devWebhooks',
+    meta: {
+      title: 'developers.webhooks.title', section: 'developers.title', group: 'developers', perms: ['webhooks:get'],
+    },
+    component: () => import('../views/developers/Webhooks.vue'),
+  },
+  {
     path: '/user/profile',
     name: 'userProfile',
     meta: { title: 'users.profile', group: 'profile' },

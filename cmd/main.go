@@ -332,6 +332,9 @@ func main() {
 	// Prune the transactional message log.
 	go app.pruneTxLog()
 
+	// Deliver outgoing webhooks.
+	app.runWebhooks(context.Background())
+
 	// Star the update checker.
 	if ko.Bool("app.check_updates") {
 		go app.checkUpdates(versionString, time.Hour*24)
