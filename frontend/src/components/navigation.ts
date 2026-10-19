@@ -139,11 +139,13 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
     });
   }
   if (can('settings:*')) {
-    const kids: NavKid[] = [];
-    if (can('settings:get')) kids.push(kid('settings', t('menu.settings'), 'settings', 'all-settings'));
-    if (can('settings:maintain')) kids.push(kid('maintenance', t('menu.maintenance'), 'maintenance', 'maintenance'));
     workspace.push({
-      key: 'settings', label: t('globals.terms.settings'), icon: 'gear', to: { name: 'settings' }, group: 'settings', kids,
+      key: 'settings',
+      label: t('globals.terms.settings'),
+      icon: 'gear',
+      to: { name: can('settings:get') ? 'settings' : 'maintenance' },
+      group: 'settings',
+      cy: 'all-settings',
     });
   }
 
