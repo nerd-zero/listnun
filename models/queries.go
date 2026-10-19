@@ -9,8 +9,9 @@ import (
 
 // Queries contains all prepared SQL queries.
 type Queries struct {
-	GetDashboardCharts *sqlx.Stmt `query:"get-dashboard-charts"`
-	GetDashboardCounts *sqlx.Stmt `query:"get-dashboard-counts"`
+	GetDashboardCharts   *sqlx.Stmt `query:"get-dashboard-charts"`
+	GetDashboardCounts   *sqlx.Stmt `query:"get-dashboard-counts"`
+	GetDashboardOverview *sqlx.Stmt `query:"get-dashboard-overview"`
 
 	InsertSubscriber                *sqlx.Stmt `query:"insert-subscriber"`
 	UpsertSubscriber                *sqlx.Stmt `query:"upsert-subscriber"`

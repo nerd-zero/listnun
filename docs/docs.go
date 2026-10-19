@@ -1081,6 +1081,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/dashboard/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get the dashboard overview",
+                "operationId": "getDashboardOverview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "7, 30 or 90 (default 30)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DashboardOverview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/developers/branding": {
             "get": {
                 "produces": [
@@ -6573,6 +6607,88 @@ const docTemplate = `{
                 },
                 "uuid": {
                     "type": "string"
+                }
+            }
+        },
+        "DashboardDay": {
+            "type": "object",
+            "properties": {
+                "bounced": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "delivered": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "new_subscribers": {
+                    "type": "integer"
+                }
+            }
+        },
+        "DashboardHotspot": {
+            "type": "object",
+            "properties": {
+                "hard": {
+                    "type": "integer"
+                },
+                "list_id": {
+                    "type": "integer"
+                },
+                "list_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "DashboardOverview": {
+            "type": "object",
+            "properties": {
+                "as_of": {
+                    "type": "string"
+                },
+                "bounce_hotspot": {
+                    "$ref": "#/definitions/DashboardHotspot"
+                },
+                "bounce_rate": {
+                    "type": "number"
+                },
+                "bounced": {
+                    "type": "integer"
+                },
+                "campaigns_started": {
+                    "type": "integer"
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DashboardDay"
+                    }
+                },
+                "new": {
+                    "type": "integer"
+                },
+                "queued": {
+                    "type": "integer"
+                },
+                "running": {
+                    "type": "integer"
+                },
+                "sent": {
+                    "description": "Filled in Go from Days.",
+                    "type": "integer"
+                },
+                "stale_drafts": {
+                    "type": "integer"
+                },
+                "subscribers": {
+                    "type": "integer"
+                },
+                "unsubscribed": {
+                    "type": "integer"
                 }
             }
         },
