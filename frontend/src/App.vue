@@ -46,7 +46,8 @@
       </div>
     </template>
 
-    <router-view :key="$route.fullPath" />
+    <no-access v-if="denied" :page="pageTitle" />
+    <router-view v-else :key="$route.fullPath" />
   </app-shell>
 
   <div v-else class="app-loading">
@@ -60,22 +61,35 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { uris } from './constants';
 import { useMainStore } from './store';
 import { setToastInstance, setConfirmInstance } from './toastService';
 import { useGlobal } from './composables/useGlobal';
 import AppShell from './components/AppShell.vue';
+import NoAccess from './views/NoAccess.vue';
+import { translateOr } from './composables/translateOr';
 
 setToastInstance(useToast());
 setConfirmInstance(useConfirm());
 
-const { $api, $utils } = useGlobal();
+const { $api, $utils, $can } = useGlobal();
 const { t } = useI18n();
+const route = useRoute();
 const router = useRouter();
 const { serverConfig, profile } = storeToRefs(useMainStore());
 
 const isLoaded = ref(false);
+
+const denied = computed(() => {
+  const perms = route.meta.perms as string[] | undefined;
+  return !!perms?.length && !$can(...perms);
+});
+
+const pageTitle = computed(() => {
+  const title = route.meta.title as string | undefined;
+  return title ? translateOr(t, title, title) : '';
+});
 const isDark = ref(localStorage.getItem('lm-dark') === '1');
 if (isDark.value) document.documentElement.classList.add('app-dark');
 
@@ -131,5 +145,6 @@ onMounted(() => {
 <style lang="scss">
 @import "assets/style.scss";
 @import "assets/shell.scss";
+@import "assets/patterns.scss";
 @import "assets/icons/fontello.css";
 </style>
