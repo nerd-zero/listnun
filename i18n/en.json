@@ -1087,5 +1087,21 @@
     "developers.overview.keysLineNever": "{n} active · not used yet",
     "developers.overview.noLogo": "No logo yet",
     "developers.overview.logoSet": "Logo set · used in {n} templates",
-    "developers.overview.hookCount": "{n} endpoints"
+    "developers.overview.hookCount": "{n} endpoints",
+    "auth.signIn": "Sign in",
+    "auth.toWorkspace": "to your {name} workspace",
+    "auth.or": "or",
+    "auth.backToSignIn": "Back to sign in",
+    "auth.forgotTitle": "Reset your password",
+    "auth.forgotHelp": "Enter your account's email and we'll send you a link to choose a new password.",
+    "auth.sendLink": "Send reset link",
+    "auth.newPasswordTitle": "Choose a new password",
+    "auth.for": "For {email}",
+    "auth.saveAndSignIn": "Save and sign in",
+    "auth.setupHelp": "Set a password for your account.",
+    "auth.strength0": "At least 8 characters",
+    "auth.strength1": "Too short · at least 8 characters",
+    "auth.strength2": "Fair · add length or mixed characters",
+    "auth.strength3": "Good · at least 8 characters",
+    "auth.strength4": "Strong · at least 8 characters"
 }
