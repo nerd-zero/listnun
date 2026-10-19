@@ -61,6 +61,10 @@ type Store interface {
 	BlocklistSubscriber(id int64) error
 	DeleteSubscriber(id int64) error
 	GetTenantRootURL(tenantID int) (string, error)
+
+	// RecordTxSendResult records a transactional message's send outcome
+	// in the message log.
+	RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error)
 }
 
 // Messenger is an interface for a generic messaging backend,
@@ -110,6 +114,10 @@ type Manager struct {
 
 	tpls    map[int]*models.Template
 	tplsMut sync.RWMutex
+
+	// tplTenants maps a cached tx template to the tenant that owns it, so
+	// one tenant can't send with another's template ID.
+	tplTenants map[int]int
 
 	// Per-tenant resolution of tenantURLCfg, keyed by tenant ID. m.cfg's
 	// own URL fields are process-global and always derived from tenant
@@ -267,6 +275,7 @@ func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *l
 		messengers:   make(map[string]Messenger),
 		pipes:        make(map[int]*pipe),
 		tpls:         make(map[int]*models.Template),
+		tplTenants:   make(map[int]int),
 		tenantURLs:   make(map[int]tenantURLCfg),
 		links:        make(map[string]string),
 		nextPipes:    make(chan *pipe, 1000),
@@ -447,8 +456,15 @@ func (m *Manager) CacheTpl(tenantID int, id int, tpl *models.Template) {
 		}
 	}
 
+	// The template's own tenant wins over the caller's, in case a query
+	// returned rows across tenants.
+	if tpl.TenantID != 0 {
+		tenantID = tpl.TenantID
+	}
+
 	m.tplsMut.Lock()
 	m.tpls[id] = tpl
+	m.tplTenants[id] = tenantID
 	m.tplsMut.Unlock()
 }
 
@@ -456,16 +472,18 @@ func (m *Manager) CacheTpl(tenantID int, id int, tpl *models.Template) {
 func (m *Manager) DeleteTpl(id int) {
 	m.tplsMut.Lock()
 	delete(m.tpls, id)
+	delete(m.tplTenants, id)
 	m.tplsMut.Unlock()
 }
 
-// GetTpl returns a cached template.
-func (m *Manager) GetTpl(id int) (*models.Template, error) {
+// GetTpl returns a tenant's cached template.
+func (m *Manager) GetTpl(tenantID, id int) (*models.Template, error) {
 	m.tplsMut.RLock()
 	tpl, ok := m.tpls[id]
+	owner := m.tplTenants[id]
 	m.tplsMut.RUnlock()
 
-	if !ok {
+	if !ok || owner != tenantID {
 		return nil, fmt.Errorf("template %d not found", id)
 	}
 
@@ -728,6 +746,9 @@ func (m *Manager) worker() {
 			}
 			if err != nil {
 				m.log.Printf("error sending message '%s': %v", msg.Subject, err)
+			}
+			if msg.TxMessageID != 0 {
+				m.store.RecordTxSendResult(msg.TenantID, msg.TxMessageID, msg.Messenger, err)
 			}
 		}
 	}

@@ -1237,6 +1237,92 @@ definitions:
       updated_at:
         type: string
     type: object
+  TxLogEvent:
+    properties:
+      created_at:
+        type: string
+      detail:
+        type: string
+      type:
+        type: string
+    type: object
+  TxLogMessage:
+    properties:
+      api_key_id:
+        $ref: '#/definitions/null.Int'
+      body:
+        type: string
+      bounce_type:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      error:
+        type: string
+      events:
+        items:
+          $ref: '#/definitions/TxLogEvent'
+        type: array
+      id:
+        type: string
+      messenger:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      recipient:
+        type: string
+      sender:
+        type: string
+      source_ip:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      subscriber_id:
+        $ref: '#/definitions/null.Int'
+      subscriber_status:
+        type: string
+      template_id:
+        $ref: '#/definitions/null.Int'
+      template_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  TxLogPage:
+    properties:
+      counts:
+        additionalProperties:
+          type: integer
+        type: object
+      page:
+        type: integer
+      per_page:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/TxLogMessage'
+        type: array
+      total:
+        type: integer
+    type: object
+  TxStats:
+    properties:
+      bounced:
+        type: integer
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      sent:
+        type: integer
+      sent_prev:
+        type: integer
+      top_error:
+        type: string
+    type: object
   UpdateCampaignContentReq:
     properties:
       altbody:
@@ -2306,6 +2392,119 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Rotate an API key
+      tags:
+      - developers
+  /api/developers/messages:
+    get:
+      operationId: listTxMessages
+      parameters:
+      - description: Recipient or message ID
+        in: query
+        name: query
+        type: string
+      - description: queued, sent, delivered, bounced or failed
+        in: query
+        name: status
+        type: string
+      - description: Template ID
+        in: query
+        name: template_id
+        type: integer
+      - description: API key ID
+        in: query
+        name: api_key_id
+        type: integer
+      - description: From (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: To (RFC 3339)
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List transactional messages
+      tags:
+      - developers
+  /api/developers/messages/{uuid}:
+    get:
+      operationId: getTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogMessage'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a transactional message
+      tags:
+      - developers
+  /api/developers/messages/{uuid}/resend:
+    post:
+      operationId: resendTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a transactional message
+      tags:
+      - developers
+  /api/developers/stats:
+    get:
+      operationId: getTxStats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxStats'
+      summary: Transactional email stats, last 24 hours
       tags:
       - developers
   /api/health:

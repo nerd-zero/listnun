@@ -569,3 +569,10 @@ export const disableTOTP = (id, data) => http.delete(
   `/api/users/${id}/twofa`,
   { data },
 );
+
+// Developers: a logged transactional message. Its payload is the caller's
+// own request, so its keys are left as sent.
+export const getTxMessage = (id) => http.get(
+  `/api/developers/messages/${encodeURIComponent(id)}`,
+  { camelCase: (keyPath) => !keyPath.startsWith('.payload.') },
+);

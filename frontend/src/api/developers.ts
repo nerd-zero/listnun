@@ -2,6 +2,7 @@
 // mutator camelCases responses at runtime, so the generated snake_case
 // models don't describe what callers get; these interfaces do.
 import { getDevelopers } from './generated/endpoints/developers/developers';
+import { getTxMessage as legacyGetTxMessage } from './index';
 
 export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read';
 
@@ -54,3 +55,84 @@ export function isRotating(k: APIKey): boolean {
 export function maskedKey(k: Pick<APIKey, 'secretHint'>): string {
   return `lnk_live_••••${k.secretHint}`;
 }
+
+export type TxStatus = 'queued' | 'sent' | 'delivered' | 'bounced' | 'failed';
+
+// Statuses in the order the log's filter pills show them.
+export const TX_STATUSES: TxStatus[] = ['delivered', 'sent', 'queued', 'bounced', 'failed'];
+
+export interface TxLogEvent {
+  type: 'accepted' | 'rendered' | 'sent' | 'delivered' | 'bounced' | 'failed';
+  detail: string;
+  createdAt: string;
+}
+
+export interface TxLogMessage {
+  id: string;
+  apiKeyId: number | null;
+  sender: string;
+  templateId: number | null;
+  templateName: string;
+  subscriberId: number | null;
+  subscriberStatus?: string;
+  recipient: string;
+  subject: string;
+  status: TxStatus;
+  bounceType: string | null;
+  error: string;
+  messenger: string;
+  sourceIp?: string;
+  // The single-recipient request as sent, kept for inspection and resend.
+  payload?: Record<string, unknown>;
+  body?: string;
+  createdAt: string;
+  updatedAt: string;
+  events?: TxLogEvent[];
+}
+
+export interface TxLogPage {
+  results: TxLogMessage[];
+  counts: Partial<Record<TxStatus, number>>;
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+export interface TxLogQuery {
+  query?: string;
+  status?: TxStatus | '';
+  templateId?: number;
+  apiKeyId?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface TxStats {
+  sent: number;
+  sentPrev: number;
+  delivered: number;
+  bounced: number;
+  failed: number;
+  topError: string;
+}
+
+export const listTxMessages = (q: TxLogQuery) => dev.listTxMessages({
+  query: q.query || undefined,
+  status: q.status || undefined,
+  template_id: q.templateId || undefined,
+  api_key_id: q.apiKeyId || undefined,
+  from: q.from || undefined,
+  to: q.to || undefined,
+  page: q.page,
+  per_page: q.perPage,
+}) as unknown as Promise<TxLogPage>;
+
+// Fetched through the legacy client, which can leave the payload's keys
+// (the caller's own request and data) as they were sent.
+export const getTxMessage = (id: string) => legacyGetTxMessage(id) as unknown as Promise<TxLogMessage>;
+
+export const resendTxMessage = (id: string) => dev.resendTxMessage(id) as unknown as Promise<string[]>;
+
+export const getTxStats = () => dev.getTxStats() as unknown as Promise<TxStats>;

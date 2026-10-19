@@ -93,6 +93,12 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
     });
   }
 
+  if (can('tx:logs')) {
+    developers.push({
+      key: 'devLog', label: t('developers.log.title'), icon: 'log', to: { name: 'devLog' }, names: ['devLog'],
+    });
+  }
+
   const workspace: NavItem[] = [];
   if (can('users:*', 'roles:*')) {
     const kids: NavKid[] = [];
