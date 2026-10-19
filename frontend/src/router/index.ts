@@ -178,19 +178,42 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/users',
     name: 'users',
-    meta: { title: 'globals.terms.users', group: 'users', perms: ['users:get'] },
+    meta: {
+      title: 'globals.terms.users', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
+    },
     component: () => import('../views/Users.vue'),
+  },
+  {
+    // Opens the user form for one user (Users.vue reads route.params.id).
+    path: '/users/:id(\\d+)',
+    name: 'user',
+    meta: {
+      title: 'globals.terms.users', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
+    },
+    component: () => import('../views/Users.vue'),
+  },
+  {
+    path: '/users/api',
+    name: 'apiUsers',
+    meta: {
+      title: 'users.apiUsers', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
+    },
+    component: () => import('../views/ApiUsers.vue'),
   },
   {
     path: '/users/roles/users',
     name: 'userRoles',
-    meta: { title: 'users.userRoles', group: 'users', perms: ['roles:get'] },
+    meta: {
+      title: 'users.userRoles', section: 'globals.terms.users', group: 'users', perms: ['roles:get'],
+    },
     component: () => import('../views/Roles.vue'),
   },
   {
     path: '/users/roles/lists',
     name: 'listRoles',
-    meta: { title: 'users.listRoles', group: 'users', perms: ['roles:get'] },
+    meta: {
+      title: 'users.listRoles', section: 'globals.terms.users', group: 'users', perms: ['roles:get'],
+    },
     component: () => import('../views/Roles.vue'),
   },
   {
