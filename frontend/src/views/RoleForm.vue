@@ -1,114 +1,99 @@
 <template>
-  <form class="lm-form" @submit.prevent="onSubmit">
-    <div class="lm-form-header">
-      <div class="lm-form-title-row">
-        <h3 class="lm-form-title">
-          {{ isEditing ? data.name : (type === 'user' ? $t('users.newUserRole') : $t('users.newListRole')) }}
-        </h3>
+  <form class="ln-card role-ed" data-cy="role-form" @submit.prevent="onSubmit">
+    <header class="role-ed-head">
+      <div class="role-ed-name">
+        <label for="role-name">{{ $t('users.roleName') }}</label>
+        <PvInputText id="role-name" ref="focusEl" v-model="form.name" name="name" :maxlength="200" :disabled="disabled" required />
       </div>
-      <p v-if="isEditing" class="lm-form-meta">{{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" /></p>
-    </div>
+      <span class="ln-small">{{ type === 'user' ? $t('users.permsHint') : $t('users.listPermsHint') }}</span>
+    </header>
 
-    <div class="lm-form-body">
-      <div class="lm-field">
-        <label class="lm-label">{{ $t('globals.fields.name') }}</label>
-        <PvInputText :disabled="disabled" :maxlength="200" v-model="form.name" name="name" ref="focusEl"
-          required class="w-full" />
+    <!-- User role: permission groups -->
+    <template v-if="type === 'user'">
+      <div v-for="g in groups" :key="g.group" class="role-ed-group">
+        <span class="role-ed-group-name">{{ groupLabel(g.group) }}</span>
+        <div class="role-ed-perms">
+          <label v-for="p in g.permissions" :key="p" class="role-ed-perm" :for="`perm-${p}`">
+            <PvCheckbox v-model="form.permissions" :value="p" :input-id="`perm-${p}`" :disabled="disabled" />
+            <span class="ln-mono">{{ p }}</span>
+            <a
+              v-if="p === 'subscribers:sql_query'"
+              v-tooltip.bottom="$t('users.sqlQueryWarning')"
+              href="https://listmonk.app/docs/roles-and-permissions/#subscriberssql_query"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="$t('users.sqlQueryWarning')"
+              class="role-ed-warn"
+            >
+              <i class="pi pi-exclamation-triangle" />
+            </a>
+          </label>
+        </div>
       </div>
+      <div v-if="!disabled" class="role-ed-toggle">
+        <button type="button" class="ln-link-btn" @click="toggleAll">
+          {{ allOn ? $t('users.clearAll') : $t('users.selectAll') }}
+        </button>
+      </div>
+    </template>
 
-      <div v-if="type === 'list'" class="form-section">
-        <p class="section-label">{{ $t('users.listPerms') }}</p>
-
-        <div class="list-add-row">
-          <PvSelect v-model="form.curList" name="list"
-            :placeholder="$t('globals.terms.list')"
-            :disabled="disabled || filteredLists.length < 1"
-            :options="filteredLists"
-            option-label="name"
-            option-value="id"
-            class="w-full" />
-          <PvButton @click="onAddListPerm" :disabled="!form.curList" severity="primary"
-            :label="$t('globals.buttons.add')" />
-        </div>
-
-        <div v-if="form.lists.length > 0 && (form.permissions['lists:get_all'] || form.permissions['lists:manage_all'])"
-          class="perms-warning">
-          <i class="pi pi-exclamation-triangle" />
-          {{ $t('users.listPermsWarning') }}
-        </div>
-
-        <PvDataTable v-if="form.lists.length > 0" :value="form.lists">
-          <PvColumn field="name" :header="$t('globals.terms.list')">
-            <template #body="{ data }">
-              <router-link :to="`/lists/${data.id}`" target="_blank">{{ data.name }}</router-link>
-            </template>
-          </PvColumn>
-          <PvColumn field="permissions" :header="$t('users.perms')" style="width:40%">
-            <template #body="{ data }">
-              <div class="check-row">
-                <PvCheckbox v-model="data.permissions" value="list:get" :input-id="`list-get-${data.id}`" />
-                <label :for="`list-get-${data.id}`" class="check-label">{{ $t('globals.buttons.view') }}</label>
-              </div>
-              <div class="check-row check-row--mt">
-                <PvCheckbox v-model="data.permissions" value="list:manage" :input-id="`list-manage-${data.id}`" />
-                <label :for="`list-manage-${data.id}`" class="check-label">{{ $t('globals.buttons.manage') }}</label>
-              </div>
-            </template>
-          </PvColumn>
-          <PvColumn style="width:3rem">
-            <template #body="{ data }">
-              <button type="button" class="row-action-btn row-action-btn--danger"
-                @click="onDeleteListPerm(data.id)" v-tooltip.bottom="$t('globals.buttons.delete')">
-                <i class="pi pi-trash" />
+    <!-- List role: lists × view/manage -->
+    <template v-else>
+      <table v-if="form.lists.length" class="role-ed-lists">
+        <thead>
+          <tr>
+            <th>{{ $t('globals.terms.list') }}</th>
+            <th>{{ $t('users.viewSubscribers') }}</th>
+            <th>{{ $t('users.manageSubscribers') }}</th>
+            <th><span class="sr-only">{{ $t('globals.buttons.delete') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="l in form.lists" :key="l.id">
+            <td>{{ l.name }}</td>
+            <td>
+              <PvCheckbox v-model="l.permissions" value="list:get" :input-id="`list-get-${l.id}`" :disabled="disabled" :aria-label="`${$t('users.viewSubscribers')}: ${l.name}`" />
+            </td>
+            <td>
+              <PvCheckbox v-model="l.permissions" value="list:manage" :input-id="`list-manage-${l.id}`" :disabled="disabled" :aria-label="`${$t('users.manageSubscribers')}: ${l.name}`" />
+            </td>
+            <td class="role-ed-del">
+              <button v-if="!disabled" type="button" class="ln-row-menu" :aria-label="$t('globals.buttons.delete')" @click="removeList(l.id)">
+                <i class="pi pi-times" />
               </button>
-            </template>
-          </PvColumn>
-        </PvDataTable>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="ln-small role-ed-none">{{ $t('users.noListPerms') }}</p>
+      <div v-if="!disabled" class="role-ed-add">
+        <PvSelect
+          v-model="curList"
+          :options="availableLists"
+          option-label="name"
+          option-value="id"
+          filter
+          :placeholder="$t('users.addList')"
+          :disabled="!availableLists.length"
+          :aria-label="$t('users.addList')"
+        />
+        <PvButton :label="$t('globals.buttons.add')" severity="secondary" outlined :disabled="!curList" @click="addList" />
       </div>
+    </template>
 
-      <template v-if="type === 'user'">
-        <div class="perms-header">
-          <span class="section-label">{{ $t('users.perms') }}</span>
-          <a v-if="!disabled" href="#" class="toggle-link" @click.prevent="onToggleSelect">
-            {{ $t('globals.buttons.toggleSelect') }}
-          </a>
-        </div>
-
-        <PvDataTable :value="serverConfig.permissions">
-          <PvColumn field="group" :header="$t('users.roleGroup')" style="width:160px">
-            <template #body="{ data }">
-              <span class="group-label">{{ $t(`globals.terms.${data.group}`) }}</span>
-            </template>
-          </PvColumn>
-          <PvColumn field="permissions" :header="$t('users.perms')">
-            <template #body="{ data }">
-              <div v-for="p in data.permissions" :key="p" class="perm-row">
-                <PvCheckbox v-model="form.permissions" :value="p" :input-id="`perm-${p}`" :disabled="disabled" />
-                <label :for="`perm-${p}`" class="perm-label">
-                  {{ p }}
-                  <a v-if="p === 'subscribers:sql_query'"
-                    href="https://listmonk.app/docs/roles-and-permissions/#subscriberssql_query" target="_blank"
-                    rel="noopener noreferrer" aria-label="Warning: high risk permission">
-                    <i class="pi pi-exclamation-triangle perm-warn-icon" />
-                  </a>
-                </label>
-              </div>
-            </template>
-          </PvColumn>
-        </PvDataTable>
-      </template>
-
-      <a href="https://listmonk.app/docs/roles-and-permissions" target="_blank" rel="noopener noreferrer"
-        class="learn-more">
-        <i class="pi pi-external-link" /> {{ $t('globals.buttons.learnMore') }}
+    <footer class="role-ed-foot">
+      <a href="https://listmonk.app/docs/roles-and-permissions" target="_blank" rel="noopener noreferrer" class="ln-small">
+        {{ $t('globals.buttons.learnMore') }}
       </a>
-    </div>
-
-    <div class="lm-form-footer">
-      <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-      <PvButton v-if="!disabled" type="submit" severity="primary" :loading="loading.roles" data-cy="btn-save"
-        :label="$t('globals.buttons.save')" />
-    </div>
+      <span class="ln-dialog-form-spacer" />
+      <template v-if="!disabled">
+        <PvButton v-if="isEditing" :label="$t('users.deleteRole')" severity="danger" outlined data-cy="btn-delete" @click="$emit('delete', data)" />
+        <PvButton v-if="isEditing" :label="$t('globals.buttons.clone')" severity="secondary" outlined data-cy="btn-clone" @click="$emit('clone', data)" />
+        <PvButton v-else :label="$t('globals.buttons.cancel')" severity="secondary" outlined @click="$emit('cancel')" />
+        <PvButton type="submit" :label="$t('users.saveRole')" :loading="busy" :disabled="!form.name?.trim()" data-cy="btn-save" />
+      </template>
+      <span v-else class="ln-small">{{ $t('users.adminRoleLocked') }}</span>
+    </footer>
   </form>
 </template>
 
@@ -120,213 +105,169 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import CopyText from '../components/CopyText.vue';
 import { getRoles as rolesApi } from '../api/generated/endpoints/roles/roles';
+import { translateOr } from '../composables/translateOr';
+
+// Roles and lists are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+interface PermGroup { group: string; permissions: string[] }
+
+// The built-in admin role. It always has every permission and can't change.
+const ADMIN_ROLE_ID = 1;
+
+// Permissions a new user role leaves off: anything that reaches every list,
+// settings, users or raw SQL is opted into deliberately.
+function isDefaultOff(group: string, p: string): boolean {
+  return ['admin', 'users'].includes(group) || p === 'subscribers:sql_query'
+    || p.startsWith('lists:') || p.startsWith('settings:');
+}
 
 const props = withDefaults(defineProps<{
-  data?: any;
+  data?: Loose;
   isEditing?: boolean;
-  type?: string;
+  type?: 'user' | 'list';
 }>(), { data: () => ({}), isEditing: false, type: 'user' });
 
-const emit = defineEmits(['finished', 'close']);
+const emit = defineEmits(['saved', 'cancel', 'delete', 'clone']);
 
 const { $utils, $can } = useGlobal();
 const {
   createUserRole, updateUserRole, createListRole, updateListRole,
 } = rolesApi();
 const { t } = useI18n();
-const { loading, serverConfig, lists } = storeToRefs(useMainStore());
+const { serverConfig, lists } = storeToRefs(useMainStore());
 
-const focusEl = ref<any>(null);
-const hasToggle = ref(false);
-const disabled = ref(false);
-const form = reactive<any>({
-  curList: null,
-  lists: [],
-  name: null,
-  permissions: [],
+const focusEl = ref<Loose | null>(null);
+const busy = ref(false);
+const curList = ref<number | null>(null);
+const form = reactive<Loose>({ name: '', permissions: [] as string[], lists: [] as Loose[] });
+
+const disabled = computed(() => props.data.id === ADMIN_ROLE_ID || !$can('roles:manage'));
+const groups = computed<PermGroup[]>(() => (serverConfig.value as Loose).permissions || []);
+const allPerms = computed(() => groups.value.flatMap((g) => g.permissions));
+const allOn = computed(() => allPerms.value.every((p) => form.permissions.includes(p)));
+const availableLists = computed<Loose[]>(() => {
+  const have = new Set(form.lists.map((l: Loose) => l.id));
+  return ((lists.value as Loose).results || []).filter((l: Loose) => !have.has(l.id));
 });
 
-const filteredLists = computed(() => {
-  if (!(lists.value as any).results || props.type !== 'list') return [];
-  const subIDs = form.lists.reduce((obj: any, item: any) => ({ ...obj, [item.id]: true }), {});
-  return (lists.value as any).results.filter((l: any) => !(l.id in subIDs));
-});
-
-function onAddListPerm() {
-  const list = (lists.value as any).results.find((l: any) => l.id === form.curList);
-  form.lists.push({ id: list.id, name: list.name, permissions: ['list:get', 'list:manage'] });
-  form.curList = filteredLists.value.length > 0 ? filteredLists.value[0].id : null;
+function groupLabel(group: string): string {
+  const key = `globals.terms.${group}`;
+  return translateOr(t, key, group, 2);
 }
 
-function onDeleteListPerm(id: number) {
-  form.lists = form.lists.filter((p: any) => p.id !== id);
-  form.curList = filteredLists.value.length > 0 ? filteredLists.value[0].id : null;
+function toggleAll() {
+  form.permissions = allOn.value ? [] : [...allPerms.value];
 }
 
-function onToggleSelect() {
-  if (hasToggle.value) {
-    form.permissions = [];
-  } else {
-    form.permissions = (serverConfig.value as any).permissions.reduce((acc: string[], item: any) => {
-      item.permissions.forEach((p: string) => { acc.push(p); });
-      return acc;
-    }, []);
-  }
-  hasToggle.value = !hasToggle.value;
+function addList() {
+  const l = availableLists.value.find((x) => x.id === curList.value);
+  if (!l) return;
+  form.lists.push({ id: l.id, name: l.name, permissions: ['list:get', 'list:manage'] });
+  curList.value = null;
 }
 
-function createRole() {
-  let fn: (payload: any) => Promise<any>;
-  const payload: any = { name: form.name };
-  if (props.type === 'user') {
-    fn = createUserRole;
-    payload.permissions = form.permissions;
-  } else {
-    fn = createListRole;
-    payload.lists = form.lists.map((item: any) => ({ id: item.id, permissions: item.permissions }));
-  }
-  fn(payload).then((data: any) => {
-    emit('finished');
-    $utils.toast(t('globals.messages.created', { name: data.name }));
-    emit('close');
-  });
-}
-
-function updateRole() {
-  const payload: any = { name: form.name };
-  let fn: (id: number, data: any) => Promise<any>;
-  if (props.type === 'user') {
-    fn = updateUserRole;
-    payload.permissions = form.permissions;
-  } else {
-    fn = updateListRole;
-    payload.lists = form.lists.map((item: any) => ({ id: item.id, permissions: item.permissions }));
-  }
-  fn(props.data.id, payload).then((data: any) => {
-    emit('finished');
-    $utils.toast(t('globals.messages.updated', { name: data.name }));
-    emit('close');
-  });
+function removeList(id: number) {
+  form.lists = form.lists.filter((l: Loose) => l.id !== id);
 }
 
 function onSubmit() {
-  if (props.isEditing) { updateRole(); return; }
-  createRole();
+  const payload: Loose = { name: form.name.trim() };
+  if (props.type === 'user') {
+    payload.permissions = form.permissions;
+  } else {
+    payload.lists = form.lists.map((l: Loose) => ({ id: l.id, permissions: l.permissions }));
+  }
+
+  let req: Promise<unknown>;
+  if (props.type === 'user') {
+    req = props.isEditing ? updateUserRole(props.data.id, payload as never) : createUserRole(payload as never);
+  } else {
+    req = props.isEditing ? updateListRole(props.data.id, payload as never) : createListRole(payload as never);
+  }
+
+  busy.value = true;
+  req.then((d) => {
+    const role = d as Loose;
+    emit('saved', role);
+    $utils.toast(t(props.isEditing ? 'globals.messages.updated' : 'globals.messages.created', { name: role.name || payload.name }));
+  }).finally(() => { busy.value = false; });
 }
 
 onMounted(() => {
-  if (props.isEditing) {
-    Object.assign(form, props.data);
-    if (props.data.id === 1 || !$can('roles:manage')) {
-      disabled.value = true;
-    }
-  } else {
-    const skip = ['admin', 'users'];
-    form.permissions = (serverConfig.value as any).permissions.reduce((acc: string[], item: any) => {
-      if (skip.includes(item.group)) return acc;
-      item.permissions.forEach((p: string) => {
-        if (p !== 'subscribers:sql_query' && !p.startsWith('lists:') && !p.startsWith('settings:')) {
-          acc.push(p);
-        }
-      });
-      return acc;
-    }, []);
+  form.name = props.data.name || '';
+  form.permissions = [...(props.data.permissions || [])];
+  form.lists = (props.data.lists || []).map((l: Loose) => ({ ...l, permissions: [...(l.permissions || [])] }));
+
+  if (!props.isEditing && props.type === 'user' && !props.data.permissions) {
+    form.permissions = groups.value.flatMap((g) => g.permissions.filter((p) => !isDefaultOff(g.group, p)));
   }
-  nextTick(() => {
-    if (filteredLists.value.length > 0) form.curList = filteredLists.value[0].id;
-    focusEl.value?.$el?.focus();
-  });
+  if (!props.isEditing) nextTick(() => { focusEl.value?.$el?.focus(); });
 });
 </script>
 
 <style scoped lang="scss">
-.lm-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0; }
-.lm-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-.check-row { display: flex; align-items: center; gap: 0.5rem; &--mt { margin-top: 0.35rem; } }
-.check-label { font-size: 0.875rem; color: var(--lm-text); cursor: pointer; }
-.perm-warn-icon { color: var(--p-red-500); }
-
-.section-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--lm-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.perms-header {
+.role-ed { display: flex; flex-direction: column; min-width: 0; }
+.role-ed-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ln-border);
 }
-
-.toggle-link {
-  font-size: 0.8rem;
-  color: var(--lm-primary);
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-}
-
-.form-section {
-  border: 1px solid var(--lm-border);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.list-add-row {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.perms-warning {
-  font-size: 0.85rem;
-  color: var(--p-red-500);
+.role-ed-name {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 10px;
+  label { font-size: 14px; font-weight: 500; white-space: nowrap; }
+  .p-inputtext { width: 220px; max-width: 100%; }
 }
-
-.perm-row {
-  display: flex;
+.role-ed-group {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--ln-border);
+  @media (max-width: 640px) { grid-template-columns: minmax(0, 1fr); }
+}
+.role-ed-group-name { font-size: 14px; font-weight: 500; padding-top: 2px; text-transform: capitalize; }
+.role-ed-perms { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.role-ed-perm {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.15rem 0;
-}
-
-.perm-label {
-  font-size: 0.85rem;
-  font-family: monospace;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.group-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--lm-text);
-}
-
-.learn-more {
-  font-size: 0.8rem;
-  color: var(--lm-primary);
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-}
-
-.row-action-btn {
-  background: none;
-  border: none;
+  gap: 8px;
+  font-size: 12.5px;
   cursor: pointer;
-  padding: 0.3rem;
-  border-radius: 4px;
-  color: var(--lm-text-subtle);
-  &--danger:hover { color: var(--p-red-500); background: var(--lm-danger-bg, #fef2f2); }
+}
+.role-ed-warn { color: var(--ln-danger, #b42318); font-size: 12px; }
+.role-ed-toggle { padding: 10px 18px 0; }
+.role-ed-lists {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  th, td { padding: 10px 18px; text-align: left; border-bottom: 1px solid var(--ln-border); }
+  th { font-size: 12px; font-weight: 500; color: var(--ln-text-2); background: var(--ln-muted); }
+  td:nth-child(2), td:nth-child(3), th:nth-child(2), th:nth-child(3) { width: 170px; }
+}
+.role-ed-del { width: 48px; text-align: right; }
+.role-ed-none { margin: 0; padding: 18px; }
+.role-ed-add { display: flex; gap: 8px; padding: 14px 18px 0; .p-select { flex: 1; max-width: 360px; } }
+.role-ed-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-top: 4px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 </style>
