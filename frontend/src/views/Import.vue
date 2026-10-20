@@ -134,6 +134,7 @@
           <PvButton
             type="submit"
             icon="pi pi-upload"
+            data-cy="btn-import"
             :disabled="!form.file || (form.mode === 'subscribe' && form.lists.length === 0)"
             :loading="isProcessing"
             :label="$t('import.start')"
@@ -146,7 +147,7 @@
     <section v-else-if="isRunning() || isDone()" class="ln-card imp-run">
       <div class="ln-card-head">
         <h2 class="ln-card-title">{{ runTitle }}</h2>
-        <status-tag :status="status.status" :label="statusLabel" />
+        <status-tag :status="status.status" :label="statusLabel" data-cy="import-status" />
       </div>
       <div class="imp-body">
         <PvProgressBar :value="progress" :show-value="false" class="imp-bar" />

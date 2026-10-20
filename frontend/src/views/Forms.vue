@@ -24,7 +24,7 @@
             <h2 class="ln-card-title">{{ $t('forms.publicLists') }}</h2>
             <p class="ln-small">{{ $t('forms.privateHelp') }}</p>
           </header>
-          <label v-for="l in publicLists" :key="l.id" class="forms-list" :for="`list-${l.id}`">
+          <label v-for="l in publicLists" :key="l.id" class="forms-list" :for="`list-${l.id}`" data-cy="list">
             <PvCheckbox v-model="checked" :value="l.id" :input-id="`list-${l.id}`" />
             <span>
               <strong>{{ l.name }}</strong>
@@ -78,7 +78,7 @@
             <span class="ln-small">{{ $t('forms.unstyled') }}</span>
           </header>
           <div class="forms-stage">
-            <iframe class="forms-frame" sandbox="" :srcdoc="previewDoc" :title="$t('templates.preview')" />
+            <iframe class="forms-frame" data-cy="preview" sandbox="" :srcdoc="previewDoc" :title="$t('templates.preview')" />
           </div>
         </section>
 
@@ -93,8 +93,8 @@
               @click="copyHTML"
             />
           </header>
-          <p v-if="!checked.length" class="forms-none ln-small">{{ $t('forms.selectHelp') }}</p>
-          <code-editor v-else :model-value="html" lang="html" theme="ink" :autofocus="false" disabled class="forms-code" />
+          <p v-if="!checked.length" class="forms-none ln-small" data-cy="no-selection">{{ $t('forms.selectHelp') }}</p>
+          <code-editor v-else data-cy="html" :model-value="html" lang="html" theme="ink" :autofocus="false" disabled class="forms-code" />
         </section>
       </div>
     </div>

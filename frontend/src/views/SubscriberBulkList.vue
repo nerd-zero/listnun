@@ -37,7 +37,7 @@
 
     <div class="lm-form-footer">
       <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-      <PvButton type="submit" severity="primary" :disabled="form.lists.length === 0" :label="$t('globals.buttons.save')" />
+      <PvButton type="submit" severity="primary" data-cy="btn-save" :disabled="form.lists.length === 0" :label="$t('globals.buttons.save')" />
     </div>
   </form>
 </template>

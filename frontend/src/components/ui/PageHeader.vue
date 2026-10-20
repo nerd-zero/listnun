@@ -4,7 +4,7 @@
       <div class="ln-page-header-title">
         <slot name="before-title" />
         <h1 class="ln-page-title">{{ title }}</h1>
-        <span v-if="count !== undefined && count !== null && count !== ''" class="ln-page-count">{{ count }}</span>
+        <span v-if="count !== undefined && count !== null && count !== ''" class="ln-page-count" data-cy="count">{{ count }}</span>
         <slot name="after-title" />
       </div>
       <p v-if="subtitle || $slots.subtitle" class="ln-page-subtitle">

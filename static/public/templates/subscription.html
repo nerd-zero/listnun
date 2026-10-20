@@ -17,7 +17,7 @@
             <button type="submit" class="button" id="btn-unsub">{{ L.T "public.unsub" }}</button>
 
             {{ if .Data.AllowPreferences }}
-                <p class="links center"><a href="?manage=true">{{ L.T "public.managePrefs" }}</a></p>
+                <p class="links center"><a href="?manage=true" data-cy="link-manage">{{ L.T "public.managePrefs" }}</a></p>
             {{ end }}
         </form>
     {{ else }}
@@ -38,7 +38,7 @@
                 <div class="field">
                     <span class="field-label">{{ L.T "globals.terms.lists" }}</span>
                     <p class="help">{{ L.T "public.managePrefsUnsub" }}</p>
-                    <ul class="lists">
+                    <ul class="lists" data-cy="lists">
                         {{ range $i, $l := .Data.Subscriptions }}
                             {{ if ne $l.SubscriptionStatus.String "unsubscribed" }}
                                 <li>

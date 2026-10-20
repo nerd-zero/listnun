@@ -9,7 +9,7 @@
         class="ln-rail-item"
         :class="{ 'is-active': isItemActive(item) }"
         :aria-label="item.label"
-        :data-cy="item.cy"
+        :data-cy="item.cy || item.key"
       >
         <ln-icon :name="item.icon" />
       </router-link>
@@ -26,6 +26,7 @@
             class="ln-nav-item"
             :class="{ 'is-current': isItemActive(item) }"
             :aria-expanded="isOpen(item)"
+            :data-cy="item.cy || item.key"
             @click="toggle(item)"
           >
             <ln-icon :name="item.icon" class="ln-nav-icon" />
@@ -38,7 +39,7 @@
             class="ln-nav-item"
             :class="{ 'is-active': isItemActive(item) }"
             :aria-current="isItemActive(item) ? 'page' : undefined"
-            :data-cy="item.cy"
+            :data-cy="item.cy || item.key"
           >
             <ln-icon :name="item.icon" class="ln-nav-icon" />
             <span class="ln-nav-text">{{ item.label }}</span>
@@ -60,7 +61,7 @@
                 class="ln-nav-kid"
                 :class="{ 'is-active': isKidActive(k) }"
                 :aria-current="isKidActive(k) ? 'page' : undefined"
-                :data-cy="k.cy"
+                :data-cy="k.cy || k.key"
               >
                 {{ k.label }}
               </router-link>

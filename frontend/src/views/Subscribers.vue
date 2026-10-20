@@ -146,9 +146,11 @@
               :href="$router.resolve(`/subscribers/${data.id}`).href"
               class="ln-row-title"
               :class="{ 'subs-blocked': data.status === 'blocklisted' }"
+              data-cy="email"
+              :data-id="data.id"
               @click.prevent.stop="openDrawer(data)"
             >{{ data.email }}</a>
-            <span class="ln-row-sub">{{ data.name }}</span>
+            <span class="ln-row-sub" data-cy="name">{{ data.name }}</span>
             <status-tag
               v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
               class="subs-scrub"
@@ -169,7 +171,7 @@
 
         <PvColumn :header="$t('globals.terms.lists')" header-class="cy-lists">
           <template #body="{ data }">
-            <span class="ln-attrs">
+            <span class="ln-attrs" data-cy="lists">
               <span
                 v-for="l in activeLists(data).slice(0, 2)"
                 :key="l.id"
@@ -191,7 +193,7 @@
 
         <PvColumn v-if="!openSub" header-style="width:56px" body-style="text-align:right">
           <template #body="{ data }">
-            <button type="button" class="ln-row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" @click.stop="(e) => openMenu(e, data)">
+            <button type="button" class="ln-row-menu" data-cy="row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" @click.stop="(e) => openMenu(e, data)">
               <i class="pi pi-ellipsis-h" />
             </button>
           </template>

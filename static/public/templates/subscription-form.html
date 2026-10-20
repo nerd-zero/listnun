@@ -17,7 +17,7 @@
         {{ if .Data.Lists }}
         <div class="field">
             <span class="field-label">{{ L.T "globals.terms.lists" }}</span>
-            <ul class="lists">
+            <ul class="lists" data-cy="lists">
                 {{ range $i, $l := .Data.Lists }}
                     <li>
                         <input checked="true" id="l-{{ $l.UUID }}" type="checkbox" name="l" value="{{ $l.UUID }}" >
@@ -45,7 +45,7 @@
             </div>
         {{ end }}
 
-        <button type="submit" class="button">{{ L.T "public.sub" }}</button>
+        <button type="submit" class="button" data-cy="btn-subscribe">{{ L.T "public.sub" }}</button>
     </form>
 </section>
 

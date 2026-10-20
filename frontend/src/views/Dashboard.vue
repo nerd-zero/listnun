@@ -121,7 +121,7 @@
 
     <div class="dash-lower">
       <!-- Recent campaigns -->
-      <section v-if="$can('campaigns:get_all', 'campaigns:get')" class="ln-card dash-recent">
+      <section v-if="$can('campaigns:get_all', 'campaigns:get')" class="ln-card dash-recent" data-cy="recent-campaigns">
         <div class="ln-card-head">
           <h2 class="ln-card-title">{{ $t('dashboard.recentCampaigns') }}</h2>
           <router-link :to="{ name: 'campaigns' }" class="dash-link">{{ $t('menu.allCampaigns') }}</router-link>

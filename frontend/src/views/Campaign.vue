@@ -56,6 +56,7 @@
           :class="{ 'is-current': s.key === step, 'is-done': stepIndex > i }"
           :aria-current="s.key === step ? 'step' : undefined"
           :disabled="isNew && s.key !== 'settings'"
+          :data-cy="`step-${s.key}`"
           @click="goStep(s.key)"
         >
           <span class="camp-step-mark" aria-hidden="true">
@@ -100,7 +101,7 @@
 
           <div class="ln-field">
             <label for="camp-tags">{{ $t('globals.terms.tags') }} <span class="ln-muted">{{ $t('campaigns.optional') }}</span></label>
-            <PvAutoComplete id="camp-tags" v-model="form.tags" name="tags" :disabled="!canEdit" :typeahead="false" multiple />
+            <PvAutoComplete id="camp-tags" v-model="form.tags" name="tags" data-cy="tags" :disabled="!canEdit" :typeahead="false" multiple />
           </div>
 
           <!-- Mail validation for the target lists -->
@@ -131,7 +132,7 @@
 
           <PvAccordion :value="advancedOpen ? 'advanced' : null" class="camp-advanced">
             <PvAccordionPanel value="advanced">
-              <PvAccordionHeader>{{ $t('campaigns.advanced') }}</PvAccordionHeader>
+              <PvAccordionHeader data-cy="btn-advanced">{{ $t('campaigns.advanced') }}</PvAccordionHeader>
               <PvAccordionContent>
                 <div class="camp-fields">
                   <div class="ln-fields-2">

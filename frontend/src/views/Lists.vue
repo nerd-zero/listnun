@@ -91,7 +91,7 @@
 
         <PvColumn field="name" :header="$t('globals.terms.list')" sortable header-class="cy-name">
           <template #body="{ data }">
-            <a class="ln-row-title" :href="$router.resolve(`/lists/${data.id}`).href" @click.prevent="showEditForm(data)">{{ data.name }}</a>
+            <a class="ln-row-title" :href="$router.resolve(`/lists/${data.id}`).href" :data-id="data.id" data-cy="list-name" @click.prevent="showEditForm(data)">{{ data.name }}</a>
             <span v-if="data.description" class="ln-row-sub lists-desc">{{ data.description }}</span>
             <span class="ln-attrs lists-tags">
               <status-tag
@@ -126,6 +126,7 @@
               :is="$can('subscribers:get_all', 'subscribers:get') ? 'router-link' : 'div'"
               :to="`/subscribers/lists/${data.id}`"
               class="lists-subs"
+              data-cy="subscribers"
             >
               <span class="lists-subs-top">
                 <strong>{{ (data.subscriberCount || 0).toLocaleString() }}</strong>
@@ -167,7 +168,7 @@
               >
                 <i class="pi pi-pencil" />
               </button>
-              <button type="button" class="ln-row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" @click="(e) => openMenu(e, data)">
+              <button type="button" class="ln-row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" data-cy="btn-row-menu" @click="(e) => openMenu(e, data)">
                 <i class="pi pi-ellipsis-h" />
               </button>
             </div>

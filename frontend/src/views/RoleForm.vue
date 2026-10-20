@@ -31,7 +31,7 @@
         </div>
       </div>
       <div v-if="!disabled" class="role-ed-toggle">
-        <button type="button" class="ln-link-btn" @click="toggleAll">
+        <button type="button" class="ln-link-btn" data-cy="btn-toggle-all" @click="toggleAll">
           {{ allOn ? $t('users.clearAll') : $t('users.selectAll') }}
         </button>
       </div>
@@ -76,8 +76,9 @@
           :placeholder="$t('users.addList')"
           :disabled="!availableLists.length"
           :aria-label="$t('users.addList')"
+          data-cy="list-select"
         />
-        <PvButton :label="$t('globals.buttons.add')" severity="secondary" outlined :disabled="!curList" @click="addList" />
+        <PvButton :label="$t('globals.buttons.add')" severity="secondary" outlined :disabled="!curList" data-cy="btn-add-list" @click="addList" />
       </div>
     </template>
 

@@ -97,7 +97,7 @@
         <PvColumn field="name" :header="$t('globals.terms.campaign')" sortable header-class="cy-name">
           <template #body="{ data }">
             <div class="camps-name">
-              <router-link :to="{ name: 'campaign', params: { id: data.id } }" class="ln-row-title">{{ data.name }}</router-link>
+              <router-link :to="{ name: 'campaign', params: { id: data.id } }" class="ln-row-title" data-cy="campaign-name" :data-id="data.id">{{ data.name }}</router-link>
               <span v-if="data.type === 'optin'" class="ln-attr">{{ $t('lists.optin') }}</span>
             </div>
             <span class="ln-row-sub">{{ listNames(data) }}</span>
@@ -172,6 +172,7 @@
                 class="ln-row-menu"
                 :aria-label="$t('globals.buttons.rowActions')"
                 aria-haspopup="true"
+                data-cy="btn-row-menu"
                 @click="(e) => openMenu(e, data)"
               >
                 <i class="pi pi-ellipsis-h" />
