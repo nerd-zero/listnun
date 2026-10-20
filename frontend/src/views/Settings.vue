@@ -280,6 +280,7 @@ async function onSubmit() {
   const objChecks: [Loose, string, string][] = [
     [f['bounce.azure'], 'shared_secret', 'azure shared secret'],
     [f['security.captcha'].hcaptcha, 'secret', 'captcha'],
+    [f['security.captcha'].turnstile, 'secret', 'captcha'],
     [f['security.oidc'], 'client_secret', 'oidc'],
     [f['bounce.postmark'], 'password', 'postmark'],
     [f['bounce.forwardemail'], 'key', 'forwardemail'],
@@ -288,6 +289,7 @@ async function onSubmit() {
   ];
   objChecks.forEach((check) => {
     const [obj, field, label] = check;
+    if (!obj) return;
     if (isDummy(obj[field])) { obj[field] = ''; } else if (hasDummy(obj[field])) { hasDummyField = label; }
   });
 

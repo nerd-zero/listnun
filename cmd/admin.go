@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nerd-zero/listnun/internal/captcha"
 	null "gopkg.in/volatiletech/null.v6"
 )
 
@@ -84,14 +83,13 @@ func (a *App) GetServerConfig(c echo.Context) error {
 	}
 
 	// CAPTCHA.
-	if a.cfg.Security.Captcha.Altcha.Enabled {
+	if w := a.captchaWidget(); w.Enabled {
 		out.PublicSubscription.CaptchaEnabled = true
-		out.PublicSubscription.CaptchaProvider = null.StringFrom(captcha.ProviderAltcha)
-		out.PublicSubscription.AltchaComplexity = a.cfg.Security.Captcha.Altcha.Complexity
-	} else if a.cfg.Security.Captcha.HCaptcha.Enabled {
-		out.PublicSubscription.CaptchaEnabled = true
-		out.PublicSubscription.CaptchaProvider = null.StringFrom(captcha.ProviderHCaptcha)
-		out.PublicSubscription.CaptchaKey = null.StringFrom(a.cfg.Security.Captcha.HCaptcha.Key)
+		out.PublicSubscription.CaptchaProvider = null.StringFrom(w.Provider)
+		out.PublicSubscription.AltchaComplexity = w.Complexity
+		if w.Key != "" {
+			out.PublicSubscription.CaptchaKey = null.StringFrom(w.Key)
+		}
 	}
 
 	if _, settings, err := a.media.Get(c.Request().Context(), tenantID(c)); err == nil {
