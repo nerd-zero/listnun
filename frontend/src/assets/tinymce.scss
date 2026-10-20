@@ -1,0 +1,187 @@
+// TinyMCE 5 (Oxide skin) themed with the --ln-* tokens, so the rich-text
+// editor's chrome, menus and dialogs follow light and dark mode. Everything
+// sits under :root to outrank the skin's own `.tox .x` rules, which load
+// later with the editor chunk. The editing area itself stays white: it
+// shows the e-mail as recipients will see it.
+
+:root {
+  .tox,
+  .tox-tinymce,
+  .tox-tinymce-aux,
+  .tox .tox-button,
+  .tox .tox-dialog__title,
+  .tox .tox-textfield,
+  .tox .tox-textarea,
+  .tox .tox-listboxfield .tox-listbox--select,
+  .tox .tox-selectfield select,
+  .tox .tox-collection__item-label {
+    font-family: var(--ln-font) !important;
+  }
+
+  // Frame
+  .richtext-editor .tox-tinymce { height: 100%; }
+  .tox-tinymce {
+    border: 1px solid var(--ln-border);
+    border-radius: var(--ln-radius-card);
+    box-shadow: none;
+  }
+  .tox .tox-editor-header,
+  .tox .tox-toolbar-overlord,
+  .tox .tox-toolbar,
+  .tox .tox-toolbar__primary,
+  .tox .tox-toolbar__overflow,
+  .tox .tox-menubar {
+    background: var(--ln-muted);
+    background-image: none;
+  }
+  .tox .tox-toolbar__primary,
+  .tox:not(.tox-tinymce-inline) .tox-editor-header {
+    border-bottom: 1px solid var(--ln-border);
+  }
+  .tox .tox-toolbar__group:not(:last-of-type) { border-right-color: var(--ln-border); }
+  .tox .tox-edit-area__iframe { background: #fff; }
+  .tox-tinymce--toolbar-sticky-on .tox-editor-header { padding-top: 48px !important; }
+
+  // Toolbar buttons
+  .tox .tox-tbtn {
+    color: var(--ln-text-2);
+    border-radius: 6px;
+    svg { fill: var(--ln-text-2); }
+    &:hover, &:focus {
+      background: var(--ln-hover);
+      color: var(--ln-text);
+      svg { fill: var(--ln-text); }
+    }
+    &--enabled, &--enabled:hover {
+      background: var(--ln-border);
+      color: var(--ln-text);
+      svg { fill: var(--ln-text); }
+    }
+    &--disabled, &--disabled:hover, &:disabled {
+      background: none;
+      color: var(--ln-text-4);
+      svg { fill: var(--ln-text-4); }
+    }
+  }
+  .tox .tox-tbtn--select .tox-tbtn__select-label { color: inherit; }
+  .tox .tox-split-button:hover { box-shadow: 0 0 0 1px var(--ln-border) inset; }
+  .tox .tox-split-button__chevron svg { fill: currentColor; }
+
+  // Status bar
+  .tox .tox-statusbar {
+    background: var(--ln-muted);
+    border-top: 1px solid var(--ln-border);
+    color: var(--ln-text-3);
+    a, .tox-statusbar__path-item, .tox-statusbar__wordcount { color: var(--ln-text-3); }
+    .tox-statusbar__resize-handle svg { fill: var(--ln-text-3); }
+  }
+  .tox .tox-statusbar__branding { display: none; }
+
+  // Menus and dropdowns
+  .tox .tox-menu,
+  .tox .tox-collection--list,
+  .tox .tox-collection--toolbar,
+  .tox .tox-collection--grid {
+    background: var(--ln-card);
+    border: 1px solid var(--ln-border);
+    border-radius: 8px;
+    box-shadow: var(--ln-shadow-pop);
+  }
+  .tox .tox-collection__item {
+    color: var(--ln-text);
+    svg { fill: var(--ln-text-2); }
+  }
+  .tox .tox-collection--list .tox-collection__item--active,
+  .tox .tox-collection--toolbar .tox-collection__item--active,
+  .tox .tox-collection--grid .tox-collection__item--active {
+    background: var(--ln-hover);
+    color: var(--ln-text);
+  }
+  .tox .tox-collection__group-heading { background: var(--ln-muted); color: var(--ln-text-3); }
+  .tox .tox-collection--list .tox-collection__group { border-color: var(--ln-border); }
+  .tox .tox-tooltip__body {
+    background: var(--ln-ink);
+    color: var(--ln-on-ink);
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .tox .tox-tooltip__arrow { border-top-color: var(--ln-ink); border-bottom-color: var(--ln-ink); }
+
+  // Dialogs (rendered in the floating sink, outside the editor)
+  .tox.tox-silver-sink { z-index: 850; }
+  .tox .tox-dialog-wrap { z-index: 900; }
+  .tox .tox-dialog-wrap__backdrop { background: var(--ln-mask); }
+  .tox .tox-dialog {
+    background: var(--ln-card);
+    border: 1px solid var(--ln-border);
+    border-radius: var(--ln-radius-card);
+    box-shadow: var(--ln-shadow-pop);
+  }
+  .tox .tox-dialog__header,
+  .tox .tox-dialog__footer {
+    background: var(--ln-card);
+    color: var(--ln-text);
+    border-color: var(--ln-border);
+  }
+  .tox .tox-dialog__footer { background: var(--ln-muted); border-top: 1px solid var(--ln-border); }
+  .tox .tox-dialog__title { font-size: 16px; font-weight: 600; color: var(--ln-text); }
+  .tox .tox-dialog__body,
+  .tox .tox-dialog__body-nav-item,
+  .tox .tox-label,
+  .tox .tox-form__group label,
+  .tox .tox-checkbox__label { color: var(--ln-text); }
+  .tox .tox-dialog__body-nav-item--active { border-bottom-color: var(--ln-ink); color: var(--ln-text); }
+  .tox .tox-dialog__header .tox-button--naked svg,
+  .tox .tox-icon svg { fill: var(--ln-text-2); }
+
+  // Fields
+  .tox .tox-textfield,
+  .tox .tox-textarea,
+  .tox .tox-toolbar-textfield,
+  .tox .tox-listboxfield .tox-listbox--select,
+  .tox .tox-selectfield select {
+    background: var(--ln-card);
+    color: var(--ln-text);
+    border: 1px solid var(--ln-border-strong);
+    border-radius: 6px;
+    box-shadow: none;
+    &:focus {
+      border-color: var(--ln-ink);
+      outline: 2px solid var(--ln-ring);
+      outline-offset: 1px;
+      box-shadow: none;
+    }
+  }
+
+  // Buttons
+  .tox .tox-button {
+    background: var(--ln-ink);
+    border-color: var(--ln-ink);
+    color: var(--ln-on-ink);
+    border-radius: 6px;
+    font-weight: 500;
+    &:hover:not(:disabled) { background: var(--ln-ink); border-color: var(--ln-ink); opacity: .9; }
+    &:focus:not(:disabled) { outline: 2px solid var(--ln-ring); outline-offset: 1px; }
+  }
+  .tox .tox-button--secondary {
+    background: var(--ln-card);
+    border-color: var(--ln-border-strong);
+    color: var(--ln-text);
+    &:hover:not(:disabled) { background: var(--ln-hover); border-color: var(--ln-border-strong); color: var(--ln-text); opacity: 1; }
+  }
+  .tox .tox-button--naked {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ln-text-2);
+    &:hover:not(:disabled) { background: var(--ln-hover); border-color: transparent; color: var(--ln-text); opacity: 1; }
+  }
+
+  // The "track link" toggle added to the link dialog (RichtextEditor.vue).
+  .tox .tox-track-link {
+    display: block;
+    cursor: pointer;
+    margin: 5px 0 10px 0;
+    color: var(--ln-text);
+    input { margin-right: 5px; }
+  }
+}
