@@ -1,11 +1,11 @@
 package s3
 
 import (
-	"strconv"
 	"fmt"
 	"io"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 

@@ -11,16 +11,15 @@ import (
 type fakeStore struct{ sizes map[string]int64 }
 
 func (fakeStore) Put(string, string, io.ReadSeeker) (string, error) { return "", nil }
-func (fakeStore) Delete(string) error                                { return nil }
-func (fakeStore) GetURL(string) string                               { return "" }
-func (fakeStore) GetBlob(string) ([]byte, error)                     { return nil, nil }
+func (fakeStore) Delete(string) error                               { return nil }
+func (fakeStore) GetURL(string) string                              { return "" }
+func (fakeStore) GetBlob(string) ([]byte, error)                    { return nil, nil }
 func (f fakeStore) Size(name string) (int64, error) {
 	if v, ok := f.sizes[name]; ok {
 		return v, nil
 	}
 	return 0, errors.New("not found")
 }
-
 
 func TestMeasureSizes(t *testing.T) {
 	stores := map[int]Store{
