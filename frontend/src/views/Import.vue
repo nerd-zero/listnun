@@ -161,12 +161,14 @@
             <span class="ln-tile-value">{{ fmt(status.imported) }}</span>
           </div>
           <div class="ln-tile">
-            <span class="ln-tile-label">{{ $t('import.remaining') }}</span>
-            <span class="ln-tile-value">{{ fmt(remaining) }}</span>
+            <span class="ln-tile-label">{{ $t('import.skipped') }}</span>
+            <span class="ln-tile-value">{{ fmt(status.skipped) }}</span>
+            <span v-if="status.skipped" class="ln-small">{{ $t('import.skippedHelp') }}</span>
           </div>
           <div class="ln-tile">
-            <span class="ln-tile-label">{{ $t('import.risky') }}</span>
-            <span class="ln-tile-value">{{ fmt(status.risky) }}</span>
+            <span class="ln-tile-label">{{ $t('import.failed') }}</span>
+            <span class="ln-tile-value" :class="{ 'imp-bad': status.failed }">{{ fmt(status.failed) }}</span>
+            <span v-if="status.failed" class="ln-small">{{ $t('import.failedHelp') }}</span>
           </div>
         </div>
 
@@ -286,12 +288,12 @@ const stepLabels = computed(() => [t('import.stepUpload'), t('import.stepOptions
 
 const progress = computed(() => {
   if (!status.value || !(status.value.total > 0)) return 0;
-  return Math.ceil((status.value.imported / status.value.total) * 100);
+  // Skipped and failed rows are done with too, so they count as progress.
+  const done = (status.value.imported || 0) + (status.value.skipped || 0) + (status.value.failed || 0);
+  return Math.min(100, Math.ceil((done / status.value.total) * 100));
 });
 
 const allLists = computed<Loose[]>(() => (lists.value as Loose).results || []);
-
-const remaining = computed(() => Math.max(0, (status.value.total || 0) - (status.value.imported || 0)));
 
 const fileSize = computed(() => {
   const size = form.file?.size || 0;
@@ -558,6 +560,7 @@ onBeforeUnmount(() => window.clearInterval(pollID));
   border-radius: 0 0 var(--ln-radius-card) var(--ln-radius-card);
 }
 .imp-bar { height: 8px; }
+.imp-bad { color: var(--ln-danger-fg); }
 .imp-count { margin: -8px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
 .imp-log-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -10px; }
 .imp-log {
