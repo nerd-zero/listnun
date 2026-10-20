@@ -116,10 +116,22 @@
 
         <section class="ln-card ln-card-pad ana-bounces">
           <h2 class="ln-card-title">{{ $t('globals.terms.bounces') }}</h2>
-          <div class="ana-bounce-bar" aria-hidden="true">
+          <div v-if="bounceTypes.total" class="ana-btypes">
+            <div class="ana-bounce-bar" aria-hidden="true">
+              <span v-for="b in bounceTypes.rows" :key="b.type" :class="`is-${b.type}`" :style="{ width: `${b.share}%` }" />
+            </div>
+            <ul class="ana-bounce-rows">
+              <li v-for="b in bounceTypes.rows" :key="b.type">
+                <span><span class="ana-chip-dot" :class="`is-${b.type}`" />{{ $t(`bounces.${b.type}`) }}</span>
+                <strong>{{ b.count.toLocaleString() }}</strong>
+              </li>
+            </ul>
+          </div>
+          <h3 v-if="form.campaigns.length > 1" class="ln-field-label">{{ $t('analytics.byCampaign') }}</h3>
+          <div v-if="form.campaigns.length > 1" class="ana-bounce-bar" aria-hidden="true">
             <span v-for="c in bounceByCampaign" :key="c.id" :style="{ width: `${c.share}%`, background: colorFor(c.id) }" />
           </div>
-          <ul class="ana-bounce-rows">
+          <ul v-if="form.campaigns.length > 1" class="ana-bounce-rows">
             <li v-for="c in bounceByCampaign" :key="c.id">
               <span><span class="ana-chip-dot" :style="{ background: colorFor(c.id) }" />{{ c.name }}</span>
               <strong>{{ c.count.toLocaleString() }}</strong>
@@ -177,11 +189,15 @@ const form = reactive({ campaigns: [] as Loose[] });
 const range = ref<Date[] | null>(null);
 const metric = ref<Metric>('views');
 
-const data = reactive<Record<Metric | 'links', { loading: boolean; rows: Loose[] }>>({
+// Bounce types in display order, worst first.
+const BOUNCE_TYPES = ['hard', 'soft', 'complaint'] as const;
+
+const data = reactive<Record<Metric | 'links' | 'bounce_types', { loading: boolean; rows: Loose[] }>>({
   views: { loading: false, rows: [] },
   clicks: { loading: false, rows: [] },
   bounces: { loading: false, rows: [] },
   links: { loading: false, rows: [] },
+  bounce_types: { loading: false, rows: [] },
 });
 
 const loadingAny = computed(() => Object.values(data).some((d) => d.loading));
@@ -271,6 +287,17 @@ const bounceByCampaign = computed(() => {
   });
 });
 
+const bounceTypes = computed(() => {
+  const all = total(data.bounce_types.rows);
+  return {
+    total: all,
+    rows: BOUNCE_TYPES.map((type) => {
+      const count = data.bounce_types.rows.filter((r) => r.type === type).reduce((n, r) => n + (r.count || 0), 0);
+      return { type, count, share: all ? (count / all) * 100 : 0 };
+    }).filter((b) => b.count > 0),
+  };
+});
+
 function shortUrl(u: string): string {
   try {
     const url = new URL(u);
@@ -283,7 +310,7 @@ function shortUrl(u: string): string {
 function fetchAll() {
   const [from, to] = range.value || [];
   if (!form.campaigns.length || !from || !to) return;
-  (['views', 'clicks', 'bounces', 'links'] as const).forEach((typ) => {
+  (['views', 'clicks', 'bounces', 'links', 'bounce_types'] as const).forEach((typ) => {
     data[typ].loading = true;
     getCampaignAnalytics(typ, {
       id: form.campaigns.map((c) => c.id),
@@ -475,4 +502,12 @@ onMounted(() => {
   span { display: inline-flex; align-items: center; gap: 8px; }
 }
 .ana-review { font-size: 13px; color: var(--ln-text); text-decoration: underline; }
+.ana-btypes { display: flex; flex-direction: column; gap: 12px; }
+// Hard bounces and complaints need action; soft ones usually clear up.
+.ana-bounce-bar span, .ana-chip-dot {
+  &.is-hard { background: var(--ln-danger); }
+  &.is-soft { background: var(--ln-warn); }
+  &.is-complaint { background: var(--ln-series-5); }
+}
+.ana-bounces h3 { margin: 4px 0 -4px; }
 </style>

@@ -26,6 +26,7 @@
     "analytics.noClicks": "No clicks in this range.",
     "analytics.reviewBounces": "Review bounces",
     "analytics.maxCampaigns": "Compare up to {n} campaigns at a time.",
+    "analytics.byCampaign": "By campaign",
     "bounces.complaint": "Complaint",
     "bounces.hard": "Hard",
     "bounces.soft": "Soft",

@@ -826,7 +826,7 @@ func (a *App) TestCampaign(c echo.Context) error {
 //	@Summary		Get campaign analytics
 //	@Tags			campaigns
 //	@Produce		json
-//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links)"
+//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links, bounce_types)"
 //	@Param			id		query		[]int		true	"Campaign IDs"
 //	@Param			from	query		string		true	"Start date (YYYY-MM-DD)"
 //	@Param			to		query		string		true	"End date (YYYY-MM-DD)"
@@ -857,6 +857,16 @@ func (a *App) GetCampaignViewAnalytics(c echo.Context) error {
 	// Campaign link stats.
 	if typ == "links" {
 		out, err := a.core.GetCampaignAnalyticsLinks(c.Request().Context(), tenantID(c), ids, typ, from, to)
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, okResp{out})
+	}
+
+	// Bounce counts per type (soft, hard, complaint).
+	if typ == "bounce_types" {
+		out, err := a.core.GetCampaignBounceTypes(c.Request().Context(), tenantID(c), ids, from, to)
 		if err != nil {
 			return err
 		}
