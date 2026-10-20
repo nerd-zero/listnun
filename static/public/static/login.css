@@ -219,6 +219,23 @@ a:hover { color: var(--warn); }
   color: var(--text-3);
 }
 .auth-foot a { color: var(--text-3); }
+.auth-lang select {
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.auth-lang select:hover { color: var(--text); }
+.auth-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 @media (max-width: 480px) {
   .auth-main { padding-top: 64px; }

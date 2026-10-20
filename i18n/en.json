@@ -1424,6 +1424,7 @@
     "auth.strength2": "Fair · add length or mixed characters",
     "auth.strength3": "Good · at least 8 characters",
     "auth.strength4": "Strong · at least 8 characters",
+    "auth.language": "Language",
     "campaigns.confirm.running.title": "Send “{name}”?",
     "campaigns.confirm.running.text": "It goes out to {n} subscribers now. You can pause it while it sends.",
     "campaigns.confirm.running.action": "Send now",

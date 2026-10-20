@@ -36,6 +36,17 @@
 {{ define "auth-footer" }}
 		</section>
 		<footer class="auth-foot">
+			{{ if gt (len .Langs) 1 }}
+				<label class="auth-lang">
+					<span class="auth-sr">{{ .L.T "auth.language" }}</span>
+					<select data-lang-picker aria-label="{{ .L.T "auth.language" }}">
+						{{ range .Langs }}
+							<option value="{{ .Code }}"{{ if eq .Code $.Lang }} selected{{ end }}>{{ .Name }}</option>
+						{{ end }}
+					</select>
+				</label>
+				<span aria-hidden="true">·</span>
+			{{ end }}
 			<span>{{ .L.T "public.poweredBy" }} <a target="_blank" rel="noreferrer" href="https://listnun.app">listnun</a></span>
 		</footer>
 	</main>
