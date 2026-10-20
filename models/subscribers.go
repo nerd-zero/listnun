@@ -140,3 +140,29 @@ type SubscriberActivity struct {
 	CampaignViews json.RawMessage `db:"campaign_views" json:"campaign_views"`
 	LinkClicks    json.RawMessage `db:"link_clicks" json:"link_clicks"`
 } // @name SubscriberActivity
+
+// SplitUnsubscribed names the public lists a subscriber just left
+// (unsubbedIDs) and the public lists they are still on, for the page shown
+// after unsubscribing. Private list names are never shown to subscribers.
+func SplitUnsubscribed(subs []Subscription, unsubbedIDs []int) (left, still []string) {
+	gone := make(map[int]struct{}, len(unsubbedIDs))
+	for _, id := range unsubbedIDs {
+		gone[id] = struct{}{}
+	}
+
+	left, still = []string{}, []string{}
+	for _, s := range subs {
+		if s.Type == ListTypePrivate {
+			continue
+		}
+		if _, ok := gone[s.ID]; ok {
+			left = append(left, s.Name)
+			continue
+		}
+		if s.SubscriptionStatus.String != SubscriptionStatusUnsubscribed {
+			still = append(still, s.Name)
+		}
+	}
+
+	return left, still
+}
