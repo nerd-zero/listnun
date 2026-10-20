@@ -92,6 +92,7 @@ func (a *App) GetSettings(c echo.Context) error {
 	s.BounceForwardEmail.Key = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BounceForwardEmail.Key))
 	s.BounceLettermint.Key = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BounceLettermint.Key))
 	s.SecurityCaptcha.HCaptcha.Secret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SecurityCaptcha.HCaptcha.Secret))
+	s.SecurityCaptcha.Turnstile.Secret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SecurityCaptcha.Turnstile.Secret))
 	s.OIDC.ClientSecret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.OIDC.ClientSecret))
 
 	return c.JSON(http.StatusOK, okResp{s})
@@ -284,6 +285,16 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	}
 	if set.SecurityCaptcha.HCaptcha.Secret == "" {
 		set.SecurityCaptcha.HCaptcha.Secret = cur.SecurityCaptcha.HCaptcha.Secret
+	}
+	if set.SecurityCaptcha.Turnstile.Secret == "" {
+		set.SecurityCaptcha.Turnstile.Secret = cur.SecurityCaptcha.Turnstile.Secret
+	}
+
+	// Turnstile without its keys would reject every form and, with the
+	// sign-in captcha on, lock everyone out.
+	if t := set.SecurityCaptcha.Turnstile; t.Enabled && (strings.TrimSpace(t.Key) == "" || strings.TrimSpace(t.Secret) == "") {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidFields", "name", "Turnstile key/secret"))
 	}
 	if set.OIDC.ClientSecret == "" {
 		set.OIDC.ClientSecret = cur.OIDC.ClientSecret

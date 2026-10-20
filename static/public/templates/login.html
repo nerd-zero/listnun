@@ -24,6 +24,8 @@
 			</div>
 		</div>
 
+		{{ if .Data.Captcha.Enabled }}{{ template "captcha-widget" .Data.Captcha }}{{ end }}
+
 		{{ if .Data.Error }}<p class="auth-error" role="alert">{{ .Data.Error }}</p>{{ end }}
 
 		<button class="auth-btn" type="submit">{{ .L.T "auth.signIn" }}</button>

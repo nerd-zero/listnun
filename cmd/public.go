@@ -117,15 +117,46 @@ type msgTpl struct {
 	Message      string
 }
 
+// captchaWidget is what a page needs to render the active captcha widget.
+type captchaWidget struct {
+	Enabled    bool
+	Provider   string
+	Key        string
+	Complexity int
+}
+
+// captchaWidget describes the configured captcha widget, in the same
+// provider order captcha.New picks (ALTCHA, Turnstile, hCaptcha).
+func (a *App) captchaWidget() captchaWidget {
+	cc := a.cfg.Security.Captcha
+	switch {
+	case cc.Altcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderAltcha, Complexity: cc.Altcha.Complexity}
+	case cc.Turnstile.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderTurnstile, Key: cc.Turnstile.Key}
+	case cc.HCaptcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderHCaptcha, Key: cc.HCaptcha.Key}
+	}
+	return captchaWidget{}
+}
+
+// verifyCaptcha checks the captcha response in a submitted form.
+func (a *App) verifyCaptcha(c echo.Context) bool {
+	val := c.FormValue(a.captcha.FormField())
+	if val == "" {
+		return false
+	}
+	err, ok := a.captcha.Verify(val)
+	if err != nil {
+		a.log.Printf("captcha request failed: %v", err)
+	}
+	return ok
+}
+
 type subFormTpl struct {
 	publicTpl
 	Lists   []models.List
-	Captcha struct {
-		Enabled    bool
-		Provider   string
-		Key        string
-		Complexity int
-	}
+	Captcha captchaWidget
 }
 
 var (
@@ -557,15 +588,7 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 	out.Lists = lists
 
 	// Captcha configuration for template rendering.
-	if a.cfg.Security.Captcha.Altcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "altcha"
-		out.Captcha.Complexity = a.cfg.Security.Captcha.Altcha.Complexity
-	} else if a.cfg.Security.Captcha.HCaptcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "hcaptcha"
-		out.Captcha.Key = a.cfg.Security.Captcha.HCaptcha.Key
-	}
+	out.Captcha = a.captchaWidget()
 
 	return c.Render(http.StatusOK, "subscription-form", out)
 }
@@ -584,34 +607,9 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 	}
 
 	// Process CAPTCHA.
-	if a.captcha.IsEnabled() {
-		var val string
-
-		// Get the appropriate captcha response field based on provider.
-		switch a.captcha.GetProvider() {
-		case captcha.ProviderHCaptcha:
-			val = c.FormValue("h-captcha-response")
-		case captcha.ProviderAltcha:
-			val = c.FormValue("altcha")
-		default:
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		if val == "" {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		err, ok := a.captcha.Verify(val)
-		if err != nil {
-			a.log.Printf("captcha request failed: %v", err)
-		}
-
-		if !ok {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
+	if a.captcha.IsEnabled() && !a.verifyCaptcha(c) {
+		return c.Render(http.StatusBadRequest, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
 	}
 
 	hasOptin, err := a.processSubForm(c)

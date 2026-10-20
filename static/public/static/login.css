@@ -241,3 +241,4 @@ a:hover { color: var(--warn); }
   .auth-main { padding-top: 64px; }
   .auth-card { padding: 24px 20px; }
 }
+.auth .captcha { display: flex; justify-content: center; min-height: 65px; }
