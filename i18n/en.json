@@ -478,6 +478,8 @@
     "media.files": "{n} files",
     "media.deleteTitle": "Delete {n} files?",
     "media.deleteText": "Campaigns that use them will show broken images. This can't be undone.",
+    "media.used": "Used",
+    "media.unmeasured": "Not counting {n} files: older uploads still being measured, or files whose size couldn't be read.",
     "menu.allCampaigns": "All campaigns",
     "menu.allLists": "All lists",
     "menu.allSubscribers": "All subscribers",

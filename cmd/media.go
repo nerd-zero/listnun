@@ -150,7 +150,7 @@ func (a *App) UploadMedia(c echo.Context) error {
 	}
 
 	// Insert the media into the DB.
-	m, err := a.core.InsertMedia(ctx, tID, fName, thumbfName, contentType, meta, settings.UploadProvider, ms)
+	m, err := a.core.InsertMedia(ctx, tID, fName, thumbfName, contentType, meta, settings.UploadProvider, file.Size, ms)
 	if err != nil {
 		cleanUp = true
 		return err
