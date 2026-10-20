@@ -499,7 +499,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Analytics type (views, clicks, bounces, links)",
+                        "description": "Analytics type (views, clicks, bounces, links, bounce_types)",
                         "name": "type",
                         "in": "path",
                         "required": true

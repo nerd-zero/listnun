@@ -2524,7 +2524,7 @@ paths:
     get:
       operationId: getCampaignAnalytics
       parameters:
-      - description: Analytics type (views, clicks, bounces, links)
+      - description: Analytics type (views, clicks, bounces, links, bounce_types)
         in: path
         name: type
         required: true
