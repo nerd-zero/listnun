@@ -187,7 +187,7 @@ function onSaved(role: Loose) {
 }
 
 // Deleting a user role in use fails (ON DELETE RESTRICT); deleting a list
-// role in use deletes its users (ON DELETE CASCADE), so say which.
+// role in use clears it from its users (ON DELETE SET NULL), so say which.
 function deleteText(r: Loose): string {
   const num = counts.value[r.id];
   if (!num) return t('users.deleteRoleText');
