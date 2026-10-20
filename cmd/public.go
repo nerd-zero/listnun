@@ -85,6 +85,18 @@ type unsubTpl struct {
 	ShowManage       bool
 }
 
+// unsubbedTpl is the page shown after unsubscribing from a campaign's lists.
+type unsubbedTpl struct {
+	publicTpl
+	Email            string
+	Left             []string
+	Still            []string
+	CampUUID         string
+	SubUUID          string
+	AllowBlocklist   bool
+	AllowPreferences bool
+}
+
 type optinReq struct {
 	SubUUID   string
 	ListUUIDs []string      `query:"l" form:"l"`
@@ -280,6 +292,57 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	return c.Render(http.StatusOK, "subscription", out)
 }
 
+// renderUnsubscribed shows which lists the subscriber just left and which
+// they are still on, with a way to undo it. If the details can't be loaded
+// it falls back to the plain confirmation, since the unsubscribe succeeded.
+func (a *App) renderUnsubscribed(c echo.Context, subUUID, campUUID string, listIDs []int) error {
+	ctx := c.Request().Context()
+	sub, err := a.core.GetSubscriber(ctx, tenantID(c), 0, subUUID, "")
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+	subs, err := a.core.GetSubscriptions(ctx, tenantID(c), 0, subUUID, false)
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+
+	left, still := models.SplitUnsubscribed(subs, listIDs)
+	return c.Render(http.StatusOK, "unsubscribed", unsubbedTpl{
+		publicTpl:        publicTpl{Title: a.i18n.T("public.unsubbedTitle")},
+		Email:            sub.Email,
+		Left:             left,
+		Still:            still,
+		CampUUID:         campUUID,
+		SubUUID:          subUUID,
+		AllowBlocklist:   a.cfg.Privacy.AllowBlocklist,
+		AllowPreferences: a.cfg.Privacy.AllowPreferences,
+	})
+}
+
+// Resubscribe undoes an unsubscribe from a campaign's lists, for the
+// "Unsubscribed by mistake?" link on the page shown after unsubscribing.
+func (a *App) Resubscribe(c echo.Context) error {
+	var (
+		campUUID = c.Param("campUUID")
+		subUUID  = c.Param("subUUID")
+	)
+
+	listIDs, err := a.core.ResubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID)
+	if err != nil {
+		return c.Render(http.StatusInternalServerError, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+	}
+	if len(listIDs) == 0 {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.resubNothingTitle"), "", a.i18n.T("public.resubNothing")))
+	}
+
+	return c.Render(http.StatusOK, tplMessage,
+		makeMsgTpl(a.i18n.T("public.resubTitle"), "", a.i18n.T("public.resubInfo")))
+}
+
 // SubscriptionPrefs renders the subscription management page and
 // s unsubscriptions. This is the view that {{ UnsubscribeURL }} in
 // campaigns link to.
@@ -303,9 +366,14 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 		blocklist = a.cfg.Privacy.AllowBlocklist && req.Blocklist
 	)
 	if !req.Manage || blocklist {
-		if err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist); err != nil {
+		listIDs, err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist)
+		if err != nil {
 			return c.Render(http.StatusInternalServerError, tplMessage,
 				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+		}
+
+		if !blocklist {
+			return a.renderUnsubscribed(c, subUUID, campUUID, listIDs)
 		}
 
 		return c.Render(http.StatusOK, tplMessage,
