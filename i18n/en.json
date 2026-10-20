@@ -1480,5 +1480,9 @@
     "import.status.stopping": "Stopping",
     "import.status.finished": "Finished",
     "import.status.stopped": "Stopped",
-    "import.status.failed": "Failed"
+    "import.status.failed": "Failed",
+    "import.skipped": "Skipped",
+    "import.skippedHelp": "Malformed or invalid rows. The log lists each line.",
+    "import.failed": "Errors",
+    "import.failedHelp": "Rows the database rejected. See the log."
 }

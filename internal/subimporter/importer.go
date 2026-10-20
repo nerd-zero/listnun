@@ -140,7 +140,13 @@ type Status struct {
 	// included -- aren't known until the /webhooks/scrub/batch callback
 	// resolves each submitted batch, well after this Status stops being
 	// polled. Kept for API/frontend type stability rather than removed.
-	Risky  int    `json:"risky"`
+	Risky int `json:"risky"`
+	// Skipped is the number of CSV rows left out for being malformed or
+	// invalid (bad e-mail, wrong column count). Each one is in the log.
+	Skipped int `json:"skipped"`
+	// Failed is the number of valid rows the database rejected, i.e. the
+	// rows of a batch whose insert or commit failed.
+	Failed int    `json:"failed"`
 	Status string `json:"status"`
 	logBuf *bytes.Buffer
 } // @name ImportStatus
@@ -243,6 +249,8 @@ func (im *Importer) GetStats() Status {
 		Total:    im.status.Total,
 		Imported: im.status.Imported,
 		Risky:    im.status.Risky,
+		Skipped:  im.status.Skipped,
+		Failed:   im.status.Failed,
 	}
 }
 
@@ -285,6 +293,20 @@ func (im *Importer) isDone() bool {
 func (im *Importer) incrementImportCount(n int) {
 	im.Lock()
 	im.status.Imported += n
+	im.Unlock()
+}
+
+// incrementSkipped adds n to the Importer's "skipped" counter.
+func (im *Importer) incrementSkipped(n int) {
+	im.Lock()
+	im.status.Skipped += n
+	im.Unlock()
+}
+
+// incrementFailed adds n to the Importer's "failed" counter.
+func (im *Importer) incrementFailed(n int) {
+	im.Lock()
+	im.status.Failed += n
 	im.Unlock()
 }
 
@@ -350,6 +372,9 @@ func (s *Session) Start() {
 		if err != nil {
 			s.log.Printf("error executing insert: %v", err)
 			tx.Rollback()
+			// This row. The rest of the rolled-back batch (cur) is counted
+			// when its commit fails below, which also marks the import failed.
+			s.im.incrementFailed(1)
 			break
 		}
 		cur++
@@ -360,6 +385,7 @@ func (s *Session) Start() {
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
 				s.log.Printf("error committing to DB: %v", err)
+				s.im.incrementFailed(cur)
 			} else {
 				s.im.incrementImportCount(cur)
 				s.log.Printf("imported %d", total)
@@ -383,6 +409,7 @@ func (s *Session) Start() {
 	// Queue's closed and there are records left to commit.
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
+		s.im.incrementFailed(cur)
 		s.im.setStatus(StatusFailed)
 		s.log.Printf("error committing to DB: %v", err)
 		s.im.sendNotif(StatusFailed)
@@ -560,6 +587,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		} else if err != nil {
 			if err, ok := err.(*csv.ParseError); ok && err.Err == csv.ErrFieldCount {
 				s.log.Printf("skipping line %d. %v", i, err)
+				s.im.incrementSkipped(1)
 				continue
 			} else {
 				s.log.Printf("error reading CSV '%s'", err)
@@ -569,6 +597,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 
 		if len(cols) < lnHdr {
 			s.log.Printf("skipping line %d. column count (%d) does not match minimum header count (%d)", i, len(cols), lnHdr)
+			s.im.incrementSkipped(1)
 			continue
 		}
 
@@ -583,6 +612,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		sub, err = s.im.ValidateFields(sub)
 		if err != nil {
 			s.log.Printf("skipping line %d: %v: %v", i, err, cols)
+			s.im.incrementSkipped(1)
 			continue
 		}
 
@@ -614,8 +644,9 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 
 	s.flushWindow(window)
 
+	// The last pass of the loop read EOF, not a row.
 	s.im.Lock()
-	s.im.status.Total = i
+	s.im.status.Total = i - 1
 	s.im.Unlock()
 
 	close(s.subQueue)
