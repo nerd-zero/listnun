@@ -615,6 +615,19 @@ definitions:
       name:
         type: string
     type: object
+  MediaUsage:
+    properties:
+      bytes:
+        description: Bytes is the total size of the files whose size is known.
+        type: integer
+      files:
+        type: integer
+      unknown:
+        description: |-
+          Unknown files aren't in Bytes: uploaded before sizes were recorded
+          and not measured yet, or their size couldn't be read.
+        type: integer
+    type: object
   OperatorBounceWebhooks:
     properties:
       enabled:
@@ -1183,6 +1196,18 @@ definitions:
                 type: boolean
             type: object
           hcaptcha:
+            properties:
+              enabled:
+                type: boolean
+              key:
+                type: string
+              secret:
+                type: string
+            type: object
+          login:
+            description: Login also asks for the captcha on the admin sign-in page.
+            type: boolean
+          turnstile:
             properties:
               enabled:
                 type: boolean
@@ -3935,6 +3960,23 @@ paths:
       summary: Get a media item
       tags:
       - media
+  /api/media/usage:
+    get:
+      operationId: getMediaUsage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get media storage usage
+      tags:
+      - media
   /api/operator/organizations:
     get:
       description: Fork-only, off by default (see [operator] config). Requires the
@@ -4467,6 +4509,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a tenant's status (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/storage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantStorage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's media storage usage (Operator API)
       tags:
       - operator
   /api/profile:

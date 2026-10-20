@@ -59,6 +59,15 @@ func (c *Client) GetBlob(url string) ([]byte, error) {
 	return b, err
 }
 
+// Size returns a stored file's size in bytes.
+func (c *Client) Size(name string) (int64, error) {
+	fi, err := os.Stat(filepath.Join(getDir(c.opts.UploadPath), filepath.Base(name)))
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
+}
+
 // Delete accepts a filename and removes it from disk.
 func (c *Client) Delete(file string) error {
 	dir := getDir(c.opts.UploadPath)

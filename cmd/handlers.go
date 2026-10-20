@@ -190,6 +190,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/campaigns/:id", pm(hasID(a.DeleteCampaign), "campaigns:manage_all", "campaigns:manage"))
 
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
+		g.GET("/api/media/usage", pm(a.GetMediaUsage, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
 		g.DELETE("/api/media/:id", pm(hasID(a.DeleteMedia), "media:manage"))
@@ -290,6 +291,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
 

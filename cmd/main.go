@@ -340,6 +340,9 @@ func main() {
 	// Deliver outgoing webhooks.
 	app.runWebhooks(context.Background())
 
+	// Measure media uploaded before sizes were recorded.
+	go app.backfillMediaSizes(context.Background())
+
 	// Star the update checker.
 	if ko.Bool("app.check_updates") {
 		go app.checkUpdates(versionString, time.Hour*24)

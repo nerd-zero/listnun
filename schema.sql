@@ -252,10 +252,13 @@ CREATE TABLE media (
     content_type     TEXT NOT NULL DEFAULT 'application/octet-stream',
     thumb            TEXT NOT NULL,
     meta             JSONB NOT NULL DEFAULT '{}',
+    -- Bytes; NULL until measured, -1 if it couldn't be read.
+    size             BIGINT NULL,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_media_filename; CREATE INDEX idx_media_filename ON media(provider, filename);
 DROP INDEX IF EXISTS idx_media_tenant; CREATE INDEX idx_media_tenant ON media(tenant_id);
+DROP INDEX IF EXISTS idx_media_unsized; CREATE INDEX idx_media_unsized ON media(id) WHERE size IS NULL;
 
 -- campaign_media
 DROP TABLE IF EXISTS campaign_media CASCADE;

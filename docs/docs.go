@@ -3027,6 +3027,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/media/usage": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Get media storage usage",
+                "operationId": "getMediaUsage",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MediaUsage"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/media/{id}": {
             "get": {
                 "produces": [
@@ -3865,6 +3891,53 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/tenants/{id}/storage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's media storage usage (Operator API)",
+                "operationId": "getOperatorTenantStorage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MediaUsage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -6928,6 +7001,22 @@ const docTemplate = `{
                 }
             }
         },
+        "MediaUsage": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "description": "Bytes is the total size of the files whose size is known.",
+                    "type": "integer"
+                },
+                "files": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "description": "Unknown files aren't in Bytes: uploaded before sizes were recorded\nand not measured yet, or their size couldn't be read.",
+                    "type": "integer"
+                }
+            }
+        },
         "OperatorBounceWebhooks": {
             "type": "object",
             "properties": {
@@ -7779,6 +7868,24 @@ const docTemplate = `{
                             }
                         },
                         "hcaptcha": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                },
+                                "key": {
+                                    "type": "string"
+                                },
+                                "secret": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "login": {
+                            "description": "Login also asks for the captcha on the admin sign-in page.",
+                            "type": "boolean"
+                        },
+                        "turnstile": {
                             "type": "object",
                             "properties": {
                                 "enabled": {
