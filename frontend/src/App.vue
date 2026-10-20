@@ -66,6 +66,7 @@ import { uris } from './constants';
 import { useMainStore } from './store';
 import { setToastInstance, setConfirmInstance } from './toastService';
 import { useGlobal } from './composables/useGlobal';
+import { useDarkMode } from './composables/useDarkMode';
 import AppShell from './components/AppShell.vue';
 import NoAccess from './views/NoAccess.vue';
 import { translateOr } from './composables/translateOr';
@@ -90,20 +91,13 @@ const pageTitle = computed(() => {
   const title = route.meta.title as string | undefined;
   return title ? translateOr(t, title, title) : '';
 });
-const isDark = ref(localStorage.getItem('lm-dark') === '1');
-if (isDark.value) document.documentElement.classList.add('app-dark');
+const { isDark, toggleDark } = useDarkMode();
 
 const accountItems = computed(() => [
   { label: t('users.profile'), icon: 'pi pi-user', command: () => router.push('/user/profile') },
   { separator: true },
   { label: t('users.logout'), icon: 'pi pi-sign-out', command: () => doLogout() },
 ]);
-
-function toggleDark() {
-  isDark.value = !isDark.value;
-  document.documentElement.classList.toggle('app-dark', isDark.value);
-  localStorage.setItem('lm-dark', isDark.value ? '1' : '');
-}
 
 function triggerRefresh() { useMainStore().refresh(); }
 

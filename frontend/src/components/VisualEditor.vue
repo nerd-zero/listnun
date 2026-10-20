@@ -9,18 +9,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import {
+  ref, onMounted, onUnmounted, watch,
+} from 'vue';
 import MediaPickerDialog from './MediaPickerDialog.vue';
 
 const props = withDefaults(defineProps<{
   source?: string;
   height?: string;
-}>(), { source: '', height: 'auto' });
+  dark?: boolean;
+}>(), { source: '', height: 'auto', dark: false });
 
 const emit = defineEmits(['change']);
 
 const visualEditorEl = ref<HTMLIFrameElement | null>(null);
 const isMediaVisible = ref(false);
+
+// The builder's chrome follows the app's light/dark mode. It runs in a
+// same-origin srcdoc frame, so the mode is set by calling it directly:
+// before the first render (no light flash) and on every toggle.
+function applyTheme() {
+  const em = (visualEditorEl.value?.contentWindow as any)?.EmailBuilder;
+  em?.setThemeMode?.(props.dark ? 'dark' : 'light');
+}
 
 function loadScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -96,6 +107,7 @@ onMounted(() => {
   iframe.onload = () => {
     loadScript().then(() => {
       const source = props.source ? JSON.parse(props.source) : null;
+      applyTheme();
       render(source);
     }).catch((error) => {
       console.error('Failed to load email-builder script:', error);
@@ -103,6 +115,9 @@ onMounted(() => {
   };
   window.addEventListener('message', onSidebarMount, false);
 });
+
+// The app's theme can be toggled while the editor is open.
+watch(() => props.dark, applyTheme);
 
 onUnmounted(() => {
   window.removeEventListener('message', onSidebarMount, false);
@@ -114,7 +129,9 @@ defineExpose({ render });
 <style lang="css">
 .visual-editor-wrapper {
   width: 100%;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-card);
+  overflow: hidden;
   max-width: 100vw;
 }
 
