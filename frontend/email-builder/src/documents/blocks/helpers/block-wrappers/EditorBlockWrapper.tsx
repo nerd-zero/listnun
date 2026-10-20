@@ -1,9 +1,11 @@
 import React, { CSSProperties, useState } from 'react';
 
 import { Box } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 import { useCurrentBlockId } from '../../../editor/EditorBlock';
 import { setSelectedBlockId, useSelectedBlockId } from '../../../editor/EditorContext';
+import { RING } from '../../../../theme';
 
 import TuneMenu from './TuneMenu';
 
@@ -18,9 +20,9 @@ export default function EditorBlockWrapper({ children }: TEditorBlockWrapperProp
 
   let outline: CSSProperties['outline'];
   if (selectedBlockId === blockId) {
-    outline = '2px solid rgba(0,121,204, 1)';
+    outline = `2px solid ${RING}`;
   } else if (mouseInside) {
-    outline = '2px solid rgba(0,121,204, 0.3)';
+    outline = `2px solid ${alpha(RING, 0.3)}`;
   }
 
   const renderMenu = () => {
