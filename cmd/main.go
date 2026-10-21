@@ -62,6 +62,8 @@ type App struct {
 	// langList is what the picker offers.
 	langs    *i18n.Cache
 	langList []i18nLang
+	// twofa caches each workspace's "require two-step verification" flag.
+	twofa twofaPolicy
 	pg       *paginator.Paginator
 	events   *events.Events
 	log      *log.Logger

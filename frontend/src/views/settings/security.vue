@@ -114,6 +114,16 @@
 
     <hr class="m-0" />
 
+    <div class="field">
+      <div class="flex items-center gap-2">
+        <PvToggleSwitch v-model="data['security.require_2fa']" input-id="require-2fa" name="security.require_2fa" />
+        <label for="require-2fa">{{ $t('settings.security.require2fa') }}</label>
+      </div>
+      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.require2faHelp') }}</small>
+    </div>
+
+    <hr class="m-0" />
+
     <p class="settings-section-label">{{ $t('settings.security.trustedURLs') }} / CORS</p>
     <div class="field">
       <PvTextarea v-model="trustedURLs" name="trusted_urls" rows="5"

@@ -72,9 +72,14 @@ type Settings struct {
 	} `json:"security.oidc"`
 
 	SecurityTrustedURLs []string `json:"security.trusted_urls"`
+	// SecurityRequire2FA holds password users at their profile until they
+	// set up two-step verification (see auth.NeedsTwofaSetup).
+	SecurityRequire2FA bool `json:"security.require_2fa"`
 
 	UploadProvider             string   `json:"upload.provider"`
 	UploadExtensions           []string `json:"upload.extensions"`
+	// UploadMaxFileSize is the largest upload in KB; 0 means no limit.
+	UploadMaxFileSize int `json:"upload.max_file_size"`
 	UploadFilesystemUploadPath string   `json:"upload.filesystem.upload_path"`
 	UploadFilesystemUploadURI  string   `json:"upload.filesystem.upload_uri"`
 	UploadS3URL                string   `json:"upload.s3.url"`

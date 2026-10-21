@@ -102,7 +102,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 					return next(c)
 				}
-			})
+			}, a.requireTwofa)
 		)
 
 		// API endpoints.

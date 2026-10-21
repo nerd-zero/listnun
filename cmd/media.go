@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -48,6 +49,12 @@ func (a *App) UploadMedia(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest,
 			a.i18n.Ts("media.invalidFile", "error", err.Error()))
+	}
+
+	// Enforce the workspace's size limit (Settings › Media, in KB).
+	if max := settings.UploadMaxFileSize; max > 0 && file.Size > int64(max)*1024 {
+		return echo.NewHTTPError(http.StatusRequestEntityTooLarge,
+			a.i18n.Ts("media.fileTooLarge", "max", strconv.FormatFloat(float64(max)/1024, 'f', 1, 64)))
 	}
 
 	// Read the file from the HTTP form.

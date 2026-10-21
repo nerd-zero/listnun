@@ -5,7 +5,7 @@ import { setDocument, resetDocument } from './documents/editor/EditorContext';
 
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { listnunTheme } from './theme';
-import { setThemeMode, useThemeMode } from './themeMode';
+import { handleThemeMessage, setThemeMode, useThemeMode } from './themeMode';
 
 function isRendered(containerId: string): boolean {
   const container = document.getElementById(containerId);
@@ -17,12 +17,19 @@ function isRendered(containerId: string): boolean {
 }
 
 /**
- * The builder root. The theme mode belongs to the admin app, which sets it
- * through the exported setThemeMode (see VisualEditor.vue); the theme is
- * re-derived whenever it changes.
+ * The builder root. The theme mode belongs to the admin app: it sets the
+ * first mode through the exported setThemeMode before rendering (no flash),
+ * then posts a listnun:theme message on every toggle (see VisualEditor.vue).
  */
 function BuilderRoot(props: AppProps) {
   const mode = useThemeMode();
+
+  // Theme toggles arrive as messages from the admin app.
+  React.useEffect(() => {
+    const onMessage = (event: MessageEvent) => { handleThemeMessage(event); };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
 
   return (
     <ThemeProvider theme={listnunTheme(mode)}>
