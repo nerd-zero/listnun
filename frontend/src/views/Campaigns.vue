@@ -346,7 +346,7 @@ function mobileLine(c: Campaign): string {
     case 'running': return t('campaigns.mobileRunning', { pct: Math.round(progress(c)), sent: s.sent.toLocaleString(), total: s.toSend.toLocaleString() });
     case 'scheduled': return c.sendAt ? shortDate(c.sendAt, true) : '';
     case 'draft': return t('dashboard.lineDraft', { when: ago(c.updatedAt) });
-    default: return `${dateLine(c)} ${t('dashboard.views').toLowerCase()} ${rate(c.views, c.sent)} ${t('dashboard.clicks').toLowerCase()} ${rate(c.clicks, c.sent)}`;
+    default: return `${dateLine(c)}\u2003${t('dashboard.views').toLowerCase()} ${rate(c.views, c.sent)}\u2003${t('dashboard.clicks').toLowerCase()} ${rate(c.clicks, c.sent)}`;
   }
 }
 

@@ -322,7 +322,7 @@ const isFiltered = computed(() => !!(queryParams.search || queryParams.queryExp 
 const advancedHint = computed(() => {
   const help = t('subscribers.advancedQueryHelp');
   if (!queryParams.queryExp || subscribers.value.total === undefined) return help;
-  return `${help} ${t('subscribers.matchCount', { n: (subscribers.value.total || 0).toLocaleString() })}`;
+  return `${help}\u2003${t('subscribers.matchCount', { n: (subscribers.value.total || 0).toLocaleString() })}`;
 });
 
 const rangeLabel = computed(() => {
