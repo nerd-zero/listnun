@@ -30,6 +30,27 @@ export function setThemeMode(mode: ThemeMode): void {
   listeners.forEach((listener) => listener());
 }
 
+/** The message the admin app posts when the user toggles the theme. */
+export const THEME_MESSAGE = 'listnun:theme';
+
+/**
+ * Applies a theme message from the admin app (handover: `{ type:
+ * "listnun:theme", mode: "light" | "dark" }`). Only the embedding page may
+ * send it: same origin as this frame (a srcdoc frame shares its parent's)
+ * and from the parent window itself.
+ */
+export function handleThemeMessage(event: MessageEvent): boolean {
+  if (event.source !== window.parent || event.origin !== window.location.origin) {
+    return false;
+  }
+  const data = event.data as { type?: unknown; mode?: unknown } | null;
+  if (!data || data.type !== THEME_MESSAGE || (data.mode !== 'light' && data.mode !== 'dark')) {
+    return false;
+  }
+  setThemeMode(data.mode);
+  return true;
+}
+
 /** Subscribes the root component to mode changes. */
 export function useThemeMode(): ThemeMode {
   return useSyncExternalStore(

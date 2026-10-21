@@ -361,6 +361,9 @@ func (a *App) UpdateSettings(c echo.Context) error {
 		return err
 	}
 
+	// The two-step verification requirement may have changed.
+	a.twofa.forget(tenantID(c))
+
 	// SMTP/upload/OIDC settings can be applied by invalidating that
 	// tenant's cached resolver (cmd/tenant_messenger.go, cmd/tenant_media.go,
 	// internal/auth's OIDC cache) instead of the full-process restart every
@@ -409,6 +412,7 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	// key alone says which per-tenant cache to invalidate, same groups as
 	// diffSettingsGroups. Anything outside those still needs the full
 	// restart.
+	a.twofa.forget(tenantID(c))
 	switch {
 	case key == "smtp":
 		a.tenantMsgrs.Invalidate(tenantID(c))

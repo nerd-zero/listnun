@@ -25,12 +25,23 @@ const emit = defineEmits(['change']);
 const visualEditorEl = ref<HTMLIFrameElement | null>(null);
 const isMediaVisible = ref(false);
 
-// The builder's chrome follows the app's light/dark mode. It runs in a
-// same-origin srcdoc frame, so the mode is set by calling it directly:
-// before the first render (no light flash) and on every toggle.
+// The builder's chrome follows the app's light/dark mode. The first mode is
+// set directly before the first render, so there's no light flash (the
+// srcdoc frame has no URL to carry ?theme=). Toggles are posted as the
+// handover's listnun:theme message, which the builder checks the origin of.
+const THEME_MESSAGE = 'listnun:theme';
+
+function themeMode(): 'light' | 'dark' {
+  return props.dark ? 'dark' : 'light';
+}
+
 function applyTheme() {
   const em = (visualEditorEl.value?.contentWindow as any)?.EmailBuilder;
-  em?.setThemeMode?.(props.dark ? 'dark' : 'light');
+  em?.setThemeMode?.(themeMode());
+}
+
+function postTheme() {
+  visualEditorEl.value?.contentWindow?.postMessage({ type: THEME_MESSAGE, mode: themeMode() }, window.location.origin);
 }
 
 function loadScript(): Promise<void> {
@@ -118,7 +129,7 @@ onMounted(() => {
 });
 
 // The app's theme can be toggled while the editor is open.
-watch(() => props.dark, applyTheme);
+watch(() => props.dark, postTheme);
 
 onUnmounted(() => {
   window.removeEventListener('message', onSidebarMount, false);
