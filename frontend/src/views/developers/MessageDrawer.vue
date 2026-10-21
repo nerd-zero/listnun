@@ -131,7 +131,7 @@ const tab = ref('events');
 
 function statusLabel(m: TxLogMessage): string {
   const s = t(`developers.log.status.${m.status}`);
-  return m.status === 'bounced' && m.bounceType ? `${s} ${m.bounceType}` : s;
+  return m.status === 'bounced' && m.bounceType ? `${s}\u2003${m.bounceType}` : s;
 }
 
 function eventLabel(e: TxLogEvent): string {

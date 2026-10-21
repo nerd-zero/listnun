@@ -173,7 +173,7 @@ const timeline = computed<TimelineEvent[]>(() => {
   clicks.value.forEach((c) => out.push({
     at: c.lastClickedAt,
     title: t('subscribers.evClicked'),
-    text: [c.campaignName, c.url].filter(Boolean).join(' '),
+    text: [c.campaignName, c.url].filter(Boolean).join('\u2003'),
     tone: 'delivered',
   }));
   views.value.forEach((v) => out.push({
@@ -182,7 +182,7 @@ const timeline = computed<TimelineEvent[]>(() => {
   txs.value.forEach((m) => out.push({
     at: m.createdAt,
     title: m.status === 'bounced' ? t('subscribers.evTxBounced') : t('subscribers.evTx'),
-    text: `${m.templateName} ${m.id}`,
+    text: `${m.templateName}\u2003${m.id}`,
     tone: m.status === 'bounced' ? 'bounced' : 'neutral',
   }));
   (props.subscriber?.lists || []).forEach((l: Loose) => {

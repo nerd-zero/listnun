@@ -182,7 +182,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import type { RouteLocationRaw } from 'vue-router';
-import dayjs from 'dayjs';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
