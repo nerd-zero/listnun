@@ -9,7 +9,7 @@
         <h1 class="ln-page-header-title">{{ data.name || data.username }}</h1>
         <p class="ln-small">
           <template v-if="data.userRole">{{ data.userRole.name }}</template>
-          <template v-if="data.userRole && orgName"> · </template>
+          <template v-if="data.userRole && orgName">&emsp;</template>
           {{ orgName }}
         </p>
       </div>

@@ -78,7 +78,6 @@
                     <button type="submit" class="link-btn" title="{{ L.T "public.privacyExportHelp" }}"
                         formaction="/subscription/export/{{ .Data.SubUUID }}">{{ L.T "public.privacyExport" }}</button>
                 {{ end }}
-                {{ if and .Data.AllowExport .Data.AllowWipe }}<span aria-hidden="true">·</span>{{ end }}
                 {{ if .Data.AllowWipe }}
                     <button type="submit" class="link-btn" title="{{ L.T "public.privacyWipeHelp" }}"
                         formaction="/subscription/wipe/{{ .Data.SubUUID }}" onclick="return confirmWipe()">{{ L.T "public.privacyWipe" }}</button>

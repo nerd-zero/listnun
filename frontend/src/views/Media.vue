@@ -196,7 +196,7 @@ function meta(m: Loose): string {
   const w = m.meta?.width;
   const h = m.meta?.height;
   const dims = w && h ? `${w} × ${h}` : ext(m.filename);
-  return `${dims} · ${shortDate(m.createdAt)}`;
+  return `${dims} ${shortDate(m.createdAt)}`;
 }
 
 function toggle(id: number) {

@@ -27,8 +27,8 @@ import { alpha, createTheme, type Shadows } from '@mui/material/styles';
 
 export type ThemeMode = 'light' | 'dark';
 
-const FONT_FAMILY = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
-const MONO_FONT_FAMILY = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+const FONT_FAMILY = "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif";
+const MONO_FONT_FAMILY = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
 /** The amber focus ring, shared with the admin app's PrimeVue preset. */
 export const RING = '#d97d3d';

@@ -140,7 +140,7 @@ const inkTheme = /* @__PURE__ */EditorView.theme({
   '&': {
     color: '#ece9e1',
     backgroundColor: '#1b1e24',
-    fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+    fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
     fontSize: '13px',
   },
   '.cm-content': { caretColor: '#ece9e1', padding: '12px 0' },

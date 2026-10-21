@@ -47,6 +47,11 @@
         <PvColumn :header="$t('developers.keys.name')">
           <template #body="{ data }">
             <span class="ln-row-title">{{ data.name }}</span>
+            <span v-if="data.legacyUserId" class="ln-row-sub dev-keys-legacy-note">
+              {{ data.legacyUserStatus === 'enabled'
+                ? $t('developers.keys.migratedActive', { name: data.legacyUsername })
+                : $t('developers.keys.migratedDisabled', { name: data.legacyUsername }) }}
+            </span>
             <span class="ln-row-sub">
               {{ data.createdByName
                 ? $t('developers.keys.createdBy', { date: shortDate(data.createdAt), name: data.createdByName })
@@ -57,7 +62,8 @@
 
         <PvColumn :header="$t('developers.keys.key')">
           <template #body="{ data }">
-            <span class="ln-mono">{{ maskedKey(data) }}</span>
+            <span v-if="data.legacyUserId && !data.secretHint" class="ln-small">{{ $t('developers.keys.noSecretYet') }}</span>
+            <span v-else class="ln-mono">{{ maskedKey(data) }}</span>
           </template>
         </PvColumn>
 
@@ -109,7 +115,7 @@
     <PvMenu ref="rowMenu" :model="rowMenuItems" popup />
 
     <!-- API users from before keys existed. They still authenticate. -->
-    <section v-if="legacy.length" class="ln-card dev-keys-legacy" data-cy="legacy-api-users">
+    <section v-if="unmigrated.length" class="ln-card dev-keys-legacy" data-cy="legacy-api-users">
       <header class="ln-card-head">
         <div>
           <h2 class="ln-card-title">{{ $t('developers.keys.legacyTitle') }}</h2>
@@ -117,7 +123,7 @@
         </div>
       </header>
       <ul class="dev-keys-legacy-list">
-        <li v-for="u in legacy" :key="u.id">
+        <li v-for="u in unmigrated" :key="u.id">
           <span class="dev-keys-legacy-who">
             <span class="ln-mono ln-row-title">{{ u.username }}</span>
             <span class="ln-row-sub">{{ u.userRole?.name }}</span>
@@ -197,7 +203,7 @@
       width="520px"
       @submit="onCreate"
     >
-      <span class="ln-help">{{ $t('developers.keys.step', { n: 1 }) }} · {{ $t('developers.keys.stepDetails') }}</span>
+      <span class="ln-help">{{ $t('developers.keys.step', { n: 1 }) }}&emsp;{{ $t('developers.keys.stepDetails') }}</span>
       <div class="ln-field">
         <label for="key-name">{{ $t('developers.keys.name') }}</label>
         <PvInputText
@@ -241,7 +247,7 @@
         <div>
           <div class="p-dialog-title">{{ rotated ? $t('developers.keys.rotatedTitle') : $t('developers.keys.copyTitle') }}</div>
           <span v-if="!rotated" class="ln-help">
-            {{ $t('developers.keys.step', { n: 2 }) }} · {{ $t('developers.keys.stepDetails') }} ✓ · {{ $t('developers.keys.stepCopy') }}
+            {{ $t('developers.keys.step', { n: 2 }) }}&emsp;{{ $t('developers.keys.stepDetails') }} ✓&emsp;{{ $t('developers.keys.stepCopy') }}
           </span>
         </div>
       </template>
@@ -358,6 +364,8 @@ const confirm = reactive({
 const { listUsers, updateUser } = usersApi();
 const legacy = ref<Loose[]>([]);
 const replace = reactive({ open: false, disable: false, user: null as Loose | null });
+// API users that have no migrated key (created after the v6.29 upgrade).
+const unmigrated = computed(() => legacy.value.filter((u) => !keys.value.some((k) => k.legacyUserId === u.id)));
 const uncovered = computed(() => uncoveredPermissions(replace.user?.userRole, form.scopes));
 
 const validName = computed(() => /^[a-z0-9][a-z0-9._-]{1,62}$/.test(form.name));
@@ -461,6 +469,27 @@ function askRevoke(k: APIKey) {
   });
 }
 
+// Turns off the API user a key was migrated from, so its old
+// username:token stops working. The key itself is unaffected.
+function askDisableOld(k: APIKey) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('developers.keys.disableOldTitle', { name: k.legacyUsername }),
+    text: t('developers.keys.disableOldText', { name: k.legacyUsername, key: k.name }),
+    label: t('developers.keys.disableOldToken'),
+    typed: '',
+    danger: true,
+    run: () => {
+      const u = legacy.value.find((x) => x.id === k.legacyUserId);
+      if (!u) return;
+      saving.value = true;
+      updateUser(u.id, { ...userPayload(u), status: 'disabled' } as never)
+        .then(() => { confirm.open = false; fetchKeys(); fetchLegacy(); })
+        .finally(() => { saving.value = false; });
+    },
+  });
+}
+
 function askDelete(k: APIKey) {
   Object.assign(confirm, {
     open: true,
@@ -496,6 +525,9 @@ const rowMenuItems = computed<MenuItem[]>(() => {
         },
       },
       { label: t('developers.keys.rotate'), icon: 'pi pi-refresh', command: () => askRotate(k) },
+      ...(k.legacyUserId && k.legacyUserStatus === 'enabled' && $can('users:manage')
+        ? [{ label: t('developers.keys.disableOldToken'), icon: 'pi pi-ban', command: () => askDisableOld(k) }]
+        : []),
       { separator: true },
       {
         label: t('developers.keys.revoke'), icon: 'pi pi-ban', class: 'is-danger', command: () => askRevoke(k),

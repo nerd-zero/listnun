@@ -45,8 +45,8 @@
   --ln-shadow-pop: 0 8px 24px rgba(20, 23, 28, .12);
   --ln-mask: rgba(20, 23, 28, .4);
 
-  --ln-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --ln-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ln-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ln-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --ink: var(--ln-ink);
   --paper: var(--ln-bg);

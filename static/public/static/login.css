@@ -1,3 +1,4 @@
+@import url('fonts/fonts.css');
 /*
  * Admin sign-in pages: login, 2FA, forgot and reset password, setup.
  * Tokens match the app's (frontend/src/assets/tokens.css); dark mode
@@ -56,7 +57,7 @@ html, body {
   min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 20px;
   -webkit-font-smoothing: antialiased;
@@ -131,7 +132,7 @@ a:hover { color: var(--warn); }
 
 .auth-otp {
   text-align: center;
-  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 22px !important;
   letter-spacing: .4em;
   height: 52px !important;

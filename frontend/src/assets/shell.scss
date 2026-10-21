@@ -311,14 +311,6 @@
   &--lg { width: 44px; height: 44px; color: var(--ln-text); }
 }
 
-.ln-dot {
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 99px;
-  background: currentColor;
-}
-
 .ln-restart {
   height: 30px;
   padding: 0 10px;
@@ -334,7 +326,6 @@
   align-items: center;
   cursor: pointer;
 
-  .ln-dot { background: var(--ln-warn); }
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
 

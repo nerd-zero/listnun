@@ -47,7 +47,7 @@
           </div>
           <span class="ln-attrs">
             <span class="ln-attr" :data-cy="`type-${tpl.type}`">{{ typeLabel(tpl.type) }}</span>
-            <span class="ln-small">#{{ tpl.id }} · {{ $t('templates.updated', { when: ago(tpl.updatedAt).toLowerCase() }) }}</span>
+            <span class="ln-small">#{{ tpl.id }}&emsp;{{ $t('templates.updated', { when: ago(tpl.updatedAt).toLowerCase() }) }}</span>
           </span>
           <span v-if="tpl.type === 'tx'" class="ln-row-sub">{{ tpl.subject }}</span>
         </div>

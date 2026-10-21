@@ -7,7 +7,7 @@
           :value="$t(`subscribers.status.${data.status}`)" />
       </div>
       <p v-if="isEditing" class="lm-form-meta">
-        ID: <copy-text :text="`${data.id}`" data-cy="id" /> &nbsp;·&nbsp;
+        ID: <copy-text :text="`${data.id}`" data-cy="id" />&emsp;
         UUID: <copy-text :text="data.uuid" />
       </p>
     </div>

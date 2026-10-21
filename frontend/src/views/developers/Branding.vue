@@ -32,7 +32,7 @@
             <div>
               <h2 class="ln-card-title">
                 {{ $t('developers.branding.logoDark') }}
-                <span class="ln-muted dev-brand-optional">· {{ $t('developers.branding.optional') }}</span>
+                <span class="ln-muted dev-brand-optional">{{ $t('developers.branding.optional') }}</span>
               </h2>
               <p class="ln-small">{{ $t('developers.branding.logoDarkHelp') }}</p>
             </div>

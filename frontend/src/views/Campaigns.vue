@@ -120,7 +120,7 @@
               <PvProgressBar :value="progress(data)" :show-value="false" class="camps-progress" />
               <span class="ln-small camps-perf">
                 {{ $t('campaigns.sentOf', { sent: stats(data).sent.toLocaleString(), total: stats(data).toSend.toLocaleString() }) }}
-                <template v-if="stats(data).rate"> · {{ Math.round(stats(data).rate) }}/{{ $t('campaigns.rateMinuteShort') }}</template>
+                <template v-if="stats(data).rate">&emsp;{{ Math.round(stats(data).rate) }}/{{ $t('campaigns.rateMinuteShort') }}</template>
               </span>
             </template>
             <span v-else-if="data.status === 'scheduled'" class="ln-small">{{ $t('campaigns.goesTo', { n: (data.toSend || 0).toLocaleString() }) }}</span>
@@ -346,7 +346,7 @@ function mobileLine(c: Campaign): string {
     case 'running': return t('campaigns.mobileRunning', { pct: Math.round(progress(c)), sent: s.sent.toLocaleString(), total: s.toSend.toLocaleString() });
     case 'scheduled': return c.sendAt ? shortDate(c.sendAt, true) : '';
     case 'draft': return t('dashboard.lineDraft', { when: ago(c.updatedAt) });
-    default: return `${dateLine(c)} · ${t('dashboard.views').toLowerCase()} ${rate(c.views, c.sent)} · ${t('dashboard.clicks').toLowerCase()} ${rate(c.clicks, c.sent)}`;
+    default: return `${dateLine(c)} ${t('dashboard.views').toLowerCase()} ${rate(c.views, c.sent)} ${t('dashboard.clicks').toLowerCase()} ${rate(c.clicks, c.sent)}`;
   }
 }
 

@@ -11,10 +11,10 @@ import {
   getWebhookDelivery as legacyGetWebhookDelivery,
 } from './index';
 
-export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read';
+export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read' | 'keys:manage' | 'webhooks:manage';
 
 // Every scope a key can be given, in the order the UI lists them.
-export const API_KEY_SCOPES: APIKeyScope[] = ['tx:send', 'tx:logs', 'subscribers:read'];
+export const API_KEY_SCOPES: APIKeyScope[] = ['tx:send', 'tx:logs', 'subscribers:read', 'keys:manage', 'webhooks:manage'];
 
 export interface APIKey {
   id: number;
@@ -29,6 +29,11 @@ export interface APIKey {
   revokedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Set on keys migrated from an API user (v6.29); that user's old
+  // username:token keeps working until it is disabled.
+  legacyUserId?: number | null;
+  legacyUsername?: string;
+  legacyUserStatus?: string;
 }
 
 export interface APIKeyWithSecret extends APIKey {

@@ -6,7 +6,6 @@
 
     <div v-if="selectedCount > 0" class="ln-bulk-bar" role="toolbar" :aria-label="$t('globals.messages.numSelected', { num: selectedCount })">
       <strong>{{ $t('globals.messages.numSelected', { num: selectedLabel ?? selectedCount }) }}</strong>
-      <span class="ln-bulk-sep" aria-hidden="true">·</span>
       <slot name="bulk" />
       <span class="ln-bulk-spacer" />
       <button type="button" class="ln-bulk-clear" @click="$emit('clear')">{{ $t('globals.buttons.clear') }}</button>

@@ -585,9 +585,13 @@ CREATE TABLE api_keys (
     last_used_at      TIMESTAMP WITH TIME ZONE NULL,
     revoked_at        TIMESTAMP WITH TIME ZONE NULL,
     created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    -- The API user this key was migrated from (v6.29); that user's old
+    -- username:token keeps working until it is disabled.
+    legacy_user_id    INTEGER NULL REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(tenant_id, name);
+CREATE UNIQUE INDEX idx_api_keys_legacy_user ON api_keys(legacy_user_id) WHERE legacy_user_id IS NOT NULL;
 DROP INDEX IF EXISTS idx_api_keys_tenant; CREATE INDEX idx_api_keys_tenant ON api_keys(tenant_id);
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY; ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON api_keys;
