@@ -4336,6 +4336,109 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/settings/inactive-cleanup": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get inactive cleanup status",
+                "operationId": "getInactiveCleanupStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.cleanupStatus"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/inactive-cleanup/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Preview inactive cleanup rules",
+                "operationId": "previewInactiveCleanup",
+                "parameters": [
+                    {
+                        "description": "Rules to preview",
+                        "name": "rules",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/logs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get the workspace's activity log",
+                "operationId": "getActivityLog",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Lines to return (max 500)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ActivityEntry"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings/scrub/test": {
             "post": {
                 "consumes": [
@@ -6122,6 +6225,20 @@ const docTemplate = `{
                 "last_used_at": {
                     "type": "string"
                 },
+                "legacy_user_id": {
+                    "description": "LegacyUserID is the API user this key was migrated from. Until that\nuser is disabled, its old username:token still authenticates.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.Int"
+                        }
+                    ]
+                },
+                "legacy_user_status": {
+                    "type": "string"
+                },
+                "legacy_username": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -6178,6 +6295,20 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "last_used_at": {
+                    "type": "string"
+                },
+                "legacy_user_id": {
+                    "description": "LegacyUserID is the API user this key was migrated from. Until that\nuser is disabled, its old username:token still authenticates.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.Int"
+                        }
+                    ]
+                },
+                "legacy_user_status": {
+                    "type": "string"
+                },
+                "legacy_username": {
                     "type": "string"
                 },
                 "name": {
@@ -6263,6 +6394,26 @@ const docTemplate = `{
                 },
                 "num_cpu": {
                     "type": "integer"
+                }
+            }
+        },
+        "ActivityEntry": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
                 }
             }
         },
@@ -6570,6 +6721,35 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "CleanupRun": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "done": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "matched": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "started_at": {
                     "type": "string"
                 }
             }
@@ -7743,6 +7923,14 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "inactive_cleanup": {
+                    "description": "InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive\ncleanup); see internal/cleanup.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Settings"
+                        }
+                    ]
+                },
                 "maintenance.db": {
                     "type": "object",
                     "properties": {
@@ -7930,6 +8118,10 @@ const docTemplate = `{
                         }
                     }
                 },
+                "security.require_2fa": {
+                    "description": "SecurityRequire2FA holds password users at their profile until they\nset up two-step verification (see auth.NeedsTwofaSetup).",
+                    "type": "boolean"
+                },
                 "security.trusted_urls": {
                     "type": "array",
                     "items": {
@@ -8018,6 +8210,10 @@ const docTemplate = `{
                 },
                 "upload.filesystem.upload_uri": {
                     "type": "string"
+                },
+                "upload.max_file_size": {
+                    "description": "UploadMaxFileSize is the largest upload in KB; 0 means no limit.",
+                    "type": "integer"
                 },
                 "upload.provider": {
                     "type": "string"
@@ -8861,6 +9057,33 @@ const docTemplate = `{
                 }
             }
         },
+        "cmd.cleanupStatus": {
+            "type": "object",
+            "properties": {
+                "last_run": {
+                    "$ref": "#/definitions/CleanupRun"
+                },
+                "managed": {
+                    "description": "Managed are Listnun's rules, shown read-only in managed mode.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules"
+                        }
+                    ]
+                },
+                "matching": {
+                    "description": "Matching is how many subscribers the saved rules would act on now.",
+                    "type": "integer"
+                },
+                "next_run": {
+                    "type": "string"
+                },
+                "tracking": {
+                    "description": "Tracking is false when per-subscriber tracking is off, which stops\nthe cleanup from running.",
+                    "type": "boolean"
+                }
+            }
+        },
         "cmd.okResp": {
             "type": "object",
             "properties": {
@@ -8880,6 +9103,62 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {}
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_cleanup.Rules": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "activity": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "list_ids": {
+                    "description": "ListIDs limits the cleanup to subscribers of these lists (and, for\nunsubscribe, to these lists); empty means all lists.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "schedule": {
+                    "description": "Schedule is a standard 5-field cron expression.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_cleanup.Settings": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "activity": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "list_ids": {
+                    "description": "ListIDs limits the cleanup to subscribers of these lists (and, for\nunsubscribe, to these lists); empty means all lists.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "schedule": {
+                    "description": "Schedule is a standard 5-field cron expression.",
+                    "type": "string"
+                }
             }
         },
         "github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign": {

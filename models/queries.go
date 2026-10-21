@@ -123,6 +123,18 @@ type Queries struct {
 
 	InsertActivity *sqlx.Stmt `query:"insert-activity"`
 
+	CountInactiveSubscribers *sqlx.Stmt `query:"count-inactive-subscribers"`
+
+	GetInactiveSubscriberIDs *sqlx.Stmt `query:"get-inactive-subscriber-ids"`
+
+	UnsubscribeInactive *sqlx.Stmt `query:"unsubscribe-inactive"`
+
+	InsertCleanupRun *sqlx.Stmt `query:"insert-cleanup-run"`
+
+	FinishCleanupRun *sqlx.Stmt `query:"finish-cleanup-run"`
+
+	GetLastCleanupRun *sqlx.Stmt `query:"get-last-cleanup-run"`
+
 	GetActivity *sqlx.Stmt `query:"get-activity"`
 
 	PruneActivity *sqlx.Stmt `query:"prune-activity"`

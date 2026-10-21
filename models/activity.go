@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	null "gopkg.in/volatiletech/null.v6"
+)
 
 // Activity log levels.
 const (
@@ -17,3 +21,15 @@ type ActivityEntry struct {
 	Message   string    `db:"message" json:"message"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 } // @name ActivityEntry
+
+// CleanupRun is one inactive-subscriber cleanup run.
+type CleanupRun struct {
+	ID         int       `db:"id" json:"id"`
+	Mode       string    `db:"mode" json:"mode"`
+	Action     string    `db:"action" json:"action"`
+	Matched    int       `db:"matched" json:"matched"`
+	Done       int       `db:"done" json:"done"`
+	Error      string    `db:"error" json:"error"`
+	StartedAt  time.Time `db:"started_at" json:"started_at"`
+	FinishedAt null.Time `db:"finished_at" json:"finished_at"`
+} // @name CleanupRun
