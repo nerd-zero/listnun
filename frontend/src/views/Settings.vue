@@ -3,7 +3,7 @@
     <aside class="settings-side">
       <h1 class="ln-page-title settings-side-title">{{ $t('settings.title') }}</h1>
       <sub-nav :items="navItems" :active="section" :label="$t('settings.title')" />
-      <template v-if="$can('settings:maintain')">
+      <template v-if="maintenanceItems.length">
         <hr class="settings-side-sep">
         <sub-nav :items="maintenanceItems" :active="section" :label="$t('maintenance.title')" />
       </template>
@@ -17,6 +17,7 @@
       </header>
 
       <maintenance v-if="section === 'maintenance'" />
+      <activity-log v-else-if="section === 'logs'" />
 
       <template v-else>
         <table-skeleton v-if="!form" :rows="6" :cols="2" />
@@ -79,6 +80,7 @@ import PrivacySettings from './settings/privacy.vue';
 import SecuritySettings from './settings/security.vue';
 import SmtpSettings from './settings/smtp.vue';
 import Maintenance from './Maintenance.vue';
+import ActivityLog from './settings/ActivityLog.vue';
 
 // The settings object is the server's flat, dotted-key map.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -149,15 +151,22 @@ const maintenanceSection = computed<Section>(() => ({
   key: 'maintenance', label: t('maintenance.title'), help: t('maintenance.help'), keys: [],
 }));
 
+const logsSection = computed<Section>(() => ({
+  key: 'logs', label: t('settings.logs.title'), help: t('settings.logs.help'), keys: [],
+}));
+
 const section = computed(() => {
   if (route.name === 'maintenance') return 'maintenance';
+  if (route.name === 'settingsLogs') return 'logs';
   const s = route.params.section as string | undefined;
   return sections.value.some((x) => x.key === s) ? (s as string) : 'general';
 });
 
-const current = computed(() => (section.value === 'maintenance'
-  ? maintenanceSection.value
-  : sections.value.find((s) => s.key === section.value) || sections.value[0]));
+const current = computed(() => {
+  if (section.value === 'maintenance') return maintenanceSection.value;
+  if (section.value === 'logs') return logsSection.value;
+  return sections.value.find((s) => s.key === section.value) || sections.value[0];
+});
 
 function belongs(sec: Section, k: string): boolean {
   if (sec.key === 'general' && PERFORMANCE_KEYS.includes(k)) return false;
@@ -178,10 +187,10 @@ const navItems = computed<SubNavItem[]>(() => (!$can('settings:get') ? [] : sect
   key: s.key,
   label: s.label,
   to: { name: 'settings', params: { section: s.key } },
-  badge: dirtySections.value.some((d) => d.key === s.key) ? '●' : undefined,
 }))));
 const maintenanceItems = computed<SubNavItem[]>(() => [
-  { key: 'maintenance', label: t('maintenance.title'), to: { name: 'maintenance' } },
+  ...($can('settings:maintain') ? [{ key: 'maintenance', label: t('maintenance.title'), to: { name: 'maintenance' } }] : []),
+  ...($can('settings:get') ? [{ key: 'logs', label: t('settings.logs.title'), to: { name: 'settingsLogs' } }] : []),
 ]);
 
 function isDummy(pwd: string) {
@@ -331,7 +340,7 @@ async function onSubmit() {
 
 // Moving between sections keeps unsaved edits; leaving Settings asks.
 onBeforeRouteLeave((to, _from, next) => {
-  if (!hasFormChanged.value || to.name === 'settings' || to.name === 'maintenance') {
+  if (!hasFormChanged.value || to.name === 'settings' || to.name === 'maintenance' || to.name === 'settingsLogs') {
     next(true);
     return;
   }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/jmoiron/sqlx"
@@ -95,6 +96,14 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		// every tenant's row in the shared matview, matching the
 		// existing documented default (see v6.7.0's migration).
 		PostCB: func(subject string, data any) error {
+			if n, ok := data.(subimporter.ImportNotif); ok {
+				level := models.ActivityInfo
+				if n.Status != subimporter.StatusFinished {
+					level = models.ActivityWarn
+				}
+				t.core.LogActivity(tenantID, level, "import",
+					fmt.Sprintf("%s %s, %d of %d records", n.Name, n.Status, n.Imported, n.Total))
+			}
 			t.core.RefreshMatViews(true)
 			notifs.NotifySystem(subject, notifs.TplImport, data, nil)
 			return nil

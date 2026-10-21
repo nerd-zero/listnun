@@ -76,22 +76,22 @@ type Settings struct {
 	// set up two-step verification (see auth.NeedsTwofaSetup).
 	SecurityRequire2FA bool `json:"security.require_2fa"`
 
-	UploadProvider             string   `json:"upload.provider"`
-	UploadExtensions           []string `json:"upload.extensions"`
+	UploadProvider   string   `json:"upload.provider"`
+	UploadExtensions []string `json:"upload.extensions"`
 	// UploadMaxFileSize is the largest upload in KB; 0 means no limit.
-	UploadMaxFileSize int `json:"upload.max_file_size"`
-	UploadFilesystemUploadPath string   `json:"upload.filesystem.upload_path"`
-	UploadFilesystemUploadURI  string   `json:"upload.filesystem.upload_uri"`
-	UploadS3URL                string   `json:"upload.s3.url"`
-	UploadS3PublicURL          string   `json:"upload.s3.public_url"`
-	UploadS3AwsAccessKeyID     string   `json:"upload.s3.aws_access_key_id"`
-	UploadS3AwsDefaultRegion   string   `json:"upload.s3.aws_default_region"`
-	UploadS3AwsSecretAccessKey string   `json:"upload.s3.aws_secret_access_key,omitempty"`
-	UploadS3Bucket             string   `json:"upload.s3.bucket"`
-	UploadS3BucketDomain       string   `json:"upload.s3.bucket_domain"`
-	UploadS3BucketPath         string   `json:"upload.s3.bucket_path"`
-	UploadS3BucketType         string   `json:"upload.s3.bucket_type"`
-	UploadS3Expiry             string   `json:"upload.s3.expiry"`
+	UploadMaxFileSize          int    `json:"upload.max_file_size"`
+	UploadFilesystemUploadPath string `json:"upload.filesystem.upload_path"`
+	UploadFilesystemUploadURI  string `json:"upload.filesystem.upload_uri"`
+	UploadS3URL                string `json:"upload.s3.url"`
+	UploadS3PublicURL          string `json:"upload.s3.public_url"`
+	UploadS3AwsAccessKeyID     string `json:"upload.s3.aws_access_key_id"`
+	UploadS3AwsDefaultRegion   string `json:"upload.s3.aws_default_region"`
+	UploadS3AwsSecretAccessKey string `json:"upload.s3.aws_secret_access_key,omitempty"`
+	UploadS3Bucket             string `json:"upload.s3.bucket"`
+	UploadS3BucketDomain       string `json:"upload.s3.bucket_domain"`
+	UploadS3BucketPath         string `json:"upload.s3.bucket_path"`
+	UploadS3BucketType         string `json:"upload.s3.bucket_type"`
+	UploadS3Expiry             string `json:"upload.s3.expiry"`
 
 	SMTP []struct {
 		Name          string              `json:"name"`

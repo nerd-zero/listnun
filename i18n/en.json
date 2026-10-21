@@ -1531,5 +1531,10 @@
     "import.skipped": "Skipped",
     "import.skippedHelp": "Malformed or invalid rows. The log lists each line.",
     "import.failed": "Errors",
-    "import.failedHelp": "Rows the database rejected. See the log."
+    "import.failedHelp": "Rows the database rejected. See the log.",
+    "settings.logs.title": "Logs",
+    "settings.logs.help": "Recent app activity for this workspace. Read only.",
+    "settings.logs.lastLines": "Last {n} lines",
+    "settings.logs.autoRefresh": "Auto-refresh",
+    "settings.logs.empty": "Nothing logged yet. Saved settings, campaign starts and finishes, imports and webhook failures show up here."
 }
