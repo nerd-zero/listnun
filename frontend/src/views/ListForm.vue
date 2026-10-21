@@ -10,7 +10,7 @@
     @submit="onSubmit"
   >
     <p v-if="isEditing" class="ln-small list-form-meta">
-      #{{ data.id }} · <copy-text :text="data.uuid" />
+      #{{ data.id }}&emsp;<copy-text :text="data.uuid" />
     </p>
 
     <div class="ln-field">

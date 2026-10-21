@@ -101,7 +101,7 @@
               <template #body="{ data }">
                 <span class="ln-date">
                   {{ ago(data.createdAt) }}
-                  <template v-if="data.status === 'retrying' && data.nextAttemptAt"> · {{ $t('developers.webhooks.retryIn', { t: timeLeft(data.nextAttemptAt) }) }}</template>
+                  <template v-if="data.status === 'retrying' && data.nextAttemptAt">&emsp;{{ $t('developers.webhooks.retryIn', { t: timeLeft(data.nextAttemptAt) }) }}</template>
                 </span>
               </template>
             </PvColumn>

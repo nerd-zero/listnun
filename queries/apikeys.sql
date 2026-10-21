@@ -1,12 +1,14 @@
 -- api keys (Developers area). Secrets are stored as SHA-256 hashes.
 
 -- name: get-api-keys
-SELECT id, name, secret_hint, scopes, status, created_by, created_by_name,
-    prev_expires_at, last_used_at, revoked_at, created_at, updated_at,
+SELECT k.id, k.name, k.secret_hint, k.scopes, k.status, k.created_by, k.created_by_name,
+    k.prev_expires_at, k.last_used_at, k.revoked_at, k.created_at, k.updated_at,
+    k.legacy_user_id, COALESCE(u.username, '') AS legacy_username, COALESCE(u.status::TEXT, '') AS legacy_user_status,
     COUNT(*) OVER () AS total
-    FROM api_keys
-    WHERE ($1 = '' OR name ILIKE '%' || $1 || '%')
-    ORDER BY (status = 'revoked'), created_at DESC;
+    FROM api_keys k
+    LEFT JOIN users u ON (u.id = k.legacy_user_id)
+    WHERE ($1 = '' OR k.name ILIKE '%' || $1 || '%')
+    ORDER BY (k.status = 'revoked'), k.created_at DESC;
 
 -- name: get-api-key
 SELECT id, name, secret_hint, scopes, status, created_by, created_by_name,

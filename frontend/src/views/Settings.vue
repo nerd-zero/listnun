@@ -38,7 +38,6 @@
 
     <!-- Unsaved changes -->
     <div v-if="hasFormChanged && $can('settings:manage')" class="settings-unsaved" role="status">
-      <span class="ln-dot" />
       <span>{{ $t('settings.unsavedIn', { sections: dirtyLabels }) }}</span>
       <PvButton :label="$t('settings.discard')" size="small" severity="secondary" outlined class="settings-unsaved-discard" @click="discard" />
       <PvButton :label="$t('globals.buttons.save')" size="small" :loading="isLoading" class="settings-unsaved-save" data-cy="btn-save" @click="onSubmit" />
@@ -402,7 +401,6 @@ onMounted(() => {
   font-size: 14px;
   box-shadow: var(--ln-shadow-pop);
 
-  .ln-dot { background: var(--ln-warn); }
   .settings-unsaved-discard {
     background: transparent !important;
     color: var(--ln-on-ink) !important;

@@ -1,3 +1,4 @@
+@import url('fonts/fonts.css');
 /*
  * Subscriber-facing pages: subscription form, opt-in, unsubscribe and
  * preferences, messages and the archive. Mobile first. Tokens match the
@@ -61,7 +62,7 @@ html, body {
   min-width: 320px;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;
   line-height: 22px;
   -webkit-font-smoothing: antialiased;
@@ -234,7 +235,7 @@ input[type="checkbox"], input[type="radio"] {
 
 .divider { height: 1px; background: var(--border); margin: 4px 0; border: 0; }
 .small, .help { font-size: 13px; color: var(--text-3); }
-.links { display: flex; flex-wrap: wrap; gap: 4px 6px; font-size: 14px; color: var(--text-3); }
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--text-3); }
 .links a, .links .link-btn { color: var(--text-2); }
 .center { text-align: center; }
 .right { text-align: right; }

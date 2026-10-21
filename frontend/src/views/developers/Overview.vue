@@ -66,7 +66,7 @@
           <div v-if="!isMobile" class="dev-ov-snippet-foot">
             <span class="ln-small">{{ $t('developers.log.key') }} <span class="ln-attr ln-attr--mono">{{ snippetKey }}</span></span>
             <span v-if="snippetTemplate" class="ln-small">{{ $t('developers.log.template') }}
-              <span class="ln-attr ln-attr--mono">{{ snippetTemplate.id }} · {{ snippetTemplate.name }}</span>
+              <span class="ln-attr ln-attr--mono">{{ snippetTemplate.id }}&emsp;{{ snippetTemplate.name }}</span>
             </span>
             <router-link v-if="$can('tx:send')" :to="{ name: 'devSendTest', query: sendQuery }" class="dev-ov-browser">
               {{ $t('developers.overview.orBrowser') }} →
@@ -84,22 +84,22 @@
       <!-- Last 24 hours -->
       <section v-if="$can('tx:logs')" class="ln-tiles" :aria-label="$t('developers.overview.last24h')">
         <div class="ln-tile">
-          <span class="ln-tile-label dev-ov-dot">{{ $t('developers.overview.sent24h') }}</span>
+          <span class="ln-tile-label">{{ $t('developers.overview.sent24h') }}</span>
           <span class="ln-tile-value">{{ stats ? stats.sent.toLocaleString() : '—' }}</span>
           <span class="ln-small">{{ trend }}</span>
         </div>
         <div class="ln-tile">
-          <span class="ln-tile-label dev-ov-dot is-success">{{ $t('developers.log.status.delivered') }}</span>
+          <span class="ln-tile-label is-success">{{ $t('developers.log.status.delivered') }}</span>
           <span class="ln-tile-value">{{ pct(stats?.delivered) }}</span>
           <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.delivered || 0).toLocaleString() }) }}</span>
         </div>
         <div class="ln-tile">
-          <span class="ln-tile-label dev-ov-dot is-warn">{{ $t('developers.log.status.bounced') }}</span>
+          <span class="ln-tile-label is-warn">{{ $t('developers.log.status.bounced') }}</span>
           <span class="ln-tile-value">{{ pct(stats?.bounced) }}</span>
           <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.bounced || 0).toLocaleString() }) }}</span>
         </div>
         <div class="ln-tile">
-          <span class="ln-tile-label dev-ov-dot is-danger">{{ $t('developers.log.status.failed') }}</span>
+          <span class="ln-tile-label is-danger">{{ $t('developers.log.status.failed') }}</span>
           <span class="ln-tile-value">{{ stats ? stats.failed.toLocaleString() : '—' }}</span>
           <span class="ln-small dev-ov-err" :title="stats?.topError">{{ stats?.topError || $t('developers.overview.noFailures') }}</span>
         </div>
@@ -436,16 +436,6 @@ onMounted(() => {
 .dev-ov-browser { margin-left: auto; font-size: 13px; color: var(--ln-text); text-decoration: underline; }
 .dev-ov-action { margin-top: 8px; }
 
-.dev-ov-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  &::before { content: ''; width: 7px; height: 7px; border-radius: 99px; background: var(--ln-text-3); }
-  &.is-success::before { background: var(--ln-success); }
-  &.is-warn::before { background: var(--ln-warn); }
-  &.is-danger::before { background: var(--ln-danger); }
-}
 .dev-ov-err { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .dev-ov-grid {

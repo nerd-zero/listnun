@@ -49,7 +49,7 @@ const details = computed(() => {
   if (!e) return '';
   return [e.status, [e.method?.toUpperCase(), e.url].filter(Boolean).join(' '), e.requestId ? `req ${e.requestId}` : '']
     .filter(Boolean)
-    .join(' · ');
+    .join(' ');
 });
 
 function copy() {

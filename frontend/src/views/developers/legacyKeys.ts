@@ -5,6 +5,8 @@ export const SCOPE_PERMISSIONS: Record<APIKeyScope, string[]> = {
   'tx:send': ['tx:send'],
   'tx:logs': ['tx:logs'],
   'subscribers:read': ['subscribers:get_all'],
+  'keys:manage': ['apikeys:get', 'apikeys:manage'],
+  'webhooks:manage': ['webhooks:get', 'webhooks:manage'],
 };
 
 // The built-in admin role holds every permission.
@@ -12,10 +14,15 @@ const ADMIN_ROLE_ID = 1;
 
 export interface LegacyRole { id: number; permissions?: string[] | null }
 
-// suggestScopes picks the key scopes a legacy API user's role already
-// covers, so the replacement key can do the same things where it can.
+// The scopes an API user can carry over: what keys could do before the
+// newer scopes existed. tx:logs, keys:manage and webhooks:manage stay off
+// until someone turns them on (handover), same as the v6.29 migration.
+const CARRY_OVER: APIKeyScope[] = ['tx:send', 'subscribers:read'];
+
+// suggestScopes picks the carry-over scopes a legacy API user's role
+// already covers, so the replacement key can do the same things.
 export function suggestScopes(role: LegacyRole | null | undefined): APIKeyScope[] {
-  const scopes = Object.keys(SCOPE_PERMISSIONS) as APIKeyScope[];
+  const scopes = CARRY_OVER;
   if (!role) return [];
   if (role.id === ADMIN_ROLE_ID) return scopes;
   const held = new Set(role.permissions || []);

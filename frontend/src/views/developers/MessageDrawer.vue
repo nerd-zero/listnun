@@ -41,7 +41,7 @@
               <dt>{{ $t('globals.terms.subscriber') }}</dt>
               <dd>
                 <router-link :to="{ name: 'subscriber', params: { id: msg.subscriberId } }">#{{ msg.subscriberId }}</router-link>
-                <span v-if="msg.subscriberStatus === 'blocklisted'" class="ln-muted"> · {{ $t('developers.log.nowBlocklisted') }}</span>
+                <span v-if="msg.subscriberStatus === 'blocklisted'" class="ln-muted">&emsp;{{ $t('developers.log.nowBlocklisted') }}</span>
               </dd>
             </template>
           </dl>
@@ -131,7 +131,7 @@ const tab = ref('events');
 
 function statusLabel(m: TxLogMessage): string {
   const s = t(`developers.log.status.${m.status}`);
-  return m.status === 'bounced' && m.bounceType ? `${s} · ${m.bounceType}` : s;
+  return m.status === 'bounced' && m.bounceType ? `${s} ${m.bounceType}` : s;
 }
 
 function eventLabel(e: TxLogEvent): string {

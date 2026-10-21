@@ -64,12 +64,11 @@
         <ul v-else-if="page.results.length" class="dev-log-list">
           <li v-for="m in page.results" :key="m.id">
             <button type="button" class="dev-log-item" @click="open(m.id)">
-              <span class="dev-log-dot" :class="`is-${tone(m.status)}`" aria-hidden="true" />
               <span class="dev-log-item-text">
                 <span class="dev-log-item-to">{{ m.recipient }}</span>
                 <span class="dev-log-item-sub">
                   <span :class="`dev-log-fg is-${tone(m.status)}`">{{ $t(`developers.log.status.${m.status}`) }}</span>
-                  · {{ m.templateName }}
+                  <span>{{ m.templateName }}</span>
                 </span>
               </span>
               <time class="ln-mono dev-log-item-time">{{ hhmm(m.createdAt) }}</time>
@@ -391,17 +390,6 @@ watch(refreshTick, fetchPage);
 
   li:first-child & { border-top: 0; }
   i { color: var(--ln-text-3); font-size: 12px; }
-}
-.dev-log-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 99px;
-  background: var(--ln-neutral);
-
-  &.is-success { background: var(--ln-success); }
-  &.is-warn { background: var(--ln-warn); }
-  &.is-danger { background: var(--ln-danger); }
 }
 .dev-log-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dev-log-item-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
