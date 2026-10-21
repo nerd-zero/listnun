@@ -801,3 +801,18 @@ CREATE MATERIALIZED VIEW mat_list_subscriber_stats AS
     UNION ALL
     SELECT NOW() AS updated_at, subscribers.tenant_id AS tenant_id, 0 AS list_id, NULL AS status, COUNT(id) AS subscriber_count FROM subscribers GROUP BY subscribers.tenant_id;
 DROP INDEX IF EXISTS mat_list_subscriber_stats_idx; CREATE UNIQUE INDEX mat_list_subscriber_stats_idx ON mat_list_subscriber_stats (tenant_id, list_id, status);
+
+-- Per-workspace activity log (Settings › Logs), pruned after 30 days.
+DROP TABLE IF EXISTS activity_log CASCADE;
+CREATE TABLE activity_log (
+    id          BIGSERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    level       TEXT NOT NULL DEFAULT 'info',
+    source      TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_activity_log_tenant ON activity_log(tenant_id, created_at DESC);
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY; ALTER TABLE activity_log FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON activity_log;
+CREATE POLICY tenant_isolation ON activity_log USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);

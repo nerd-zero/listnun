@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/gofrs/uuid/v5"
@@ -90,8 +91,21 @@ func (s *store) GetCampaign(campID int) (*models.Campaign, error) {
 
 // UpdateCampaignStatus updates a campaign's status.
 func (s *store) UpdateCampaignStatus(campID int, status string) error {
-	_, err := s.queries.UpdateCampaignStatus.Exec(campID, status)
-	return err
+	if _, err := s.queries.UpdateCampaignStatus.Exec(campID, status); err != nil {
+		return err
+	}
+
+	// The sending pipeline only changes status when a campaign finishes or
+	// has to stop, so record it in the workspace's activity log.
+	if c, err := s.GetCampaign(campID); err == nil {
+		level := models.ActivityInfo
+		if status != models.CampaignStatusFinished {
+			level = models.ActivityWarn
+		}
+		s.core.LogActivity(c.TenantID, level, "campaign",
+			fmt.Sprintf("“%s” %s (%d sent)", c.Name, campaignStatusVerb(status), c.Sent))
+	}
+	return nil
 }
 
 // SetCampaignPauseReason records why a campaign was auto-paused. Only

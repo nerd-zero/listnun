@@ -63,11 +63,11 @@ type App struct {
 	langs    *i18n.Cache
 	langList []i18nLang
 	// twofa caches each workspace's "require two-step verification" flag.
-	twofa twofaPolicy
-	pg       *paginator.Paginator
-	events   *events.Events
-	log      *log.Logger
-	bufLog   *buflog.BufLog
+	twofa  twofaPolicy
+	pg     *paginator.Paginator
+	events *events.Events
+	log    *log.Logger
+	bufLog *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
@@ -338,6 +338,7 @@ func main() {
 
 	// Prune the transactional message log.
 	go app.pruneTxLog()
+	go app.pruneActivity()
 
 	// Deliver outgoing webhooks.
 	app.runWebhooks(context.Background())

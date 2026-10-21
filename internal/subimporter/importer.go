@@ -159,7 +159,8 @@ type SubReq struct {
 	PreconfirmSubs bool     `json:"preconfirm_subscriptions"`
 } // @name CreateSubscriberReq
 
-type importStatusTpl struct {
+// ImportNotif is what the completion hook (Options.PostCB) receives.
+type ImportNotif struct {
 	Name     string
 	Status   string
 	Imported int
@@ -314,7 +315,7 @@ func (im *Importer) incrementFailed(n int) {
 func (im *Importer) sendNotif(status string) error {
 	var (
 		s   = im.GetStats()
-		out = importStatusTpl{
+		out = ImportNotif{
 			Name:     s.Name,
 			Status:   status,
 			Imported: s.Imported,

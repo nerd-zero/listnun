@@ -121,6 +121,12 @@ type Queries struct {
 
 	InsertMedia *sqlx.Stmt `query:"insert-media"`
 
+	InsertActivity *sqlx.Stmt `query:"insert-activity"`
+
+	GetActivity *sqlx.Stmt `query:"get-activity"`
+
+	PruneActivity *sqlx.Stmt `query:"prune-activity"`
+
 	GetMediaUsage *sqlx.Stmt `query:"get-media-usage"`
 
 	GetUnsizedMedia *sqlx.Stmt `query:"get-unsized-media"`
