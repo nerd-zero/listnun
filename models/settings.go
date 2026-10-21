@@ -1,6 +1,9 @@
 package models
 
-import "gopkg.in/volatiletech/null.v6"
+import (
+	"github.com/nerd-zero/listnun/internal/cleanup"
+	"gopkg.in/volatiletech/null.v6"
+)
 
 // Settings represents the app settings stored in the DB.
 type Settings struct {
@@ -75,6 +78,10 @@ type Settings struct {
 	// SecurityRequire2FA holds password users at their profile until they
 	// set up two-step verification (see auth.NeedsTwofaSetup).
 	SecurityRequire2FA bool `json:"security.require_2fa"`
+
+	// InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive
+	// cleanup); see internal/cleanup.
+	InactiveCleanup cleanup.Settings `json:"inactive_cleanup"`
 
 	UploadProvider   string   `json:"upload.provider"`
 	UploadExtensions []string `json:"upload.extensions"`

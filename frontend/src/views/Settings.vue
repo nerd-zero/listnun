@@ -32,6 +32,7 @@
           <messenger-settings v-else-if="section === 'messengers'" :key="key" :form="form" />
           <appearance-settings v-else-if="section === 'appearance'" :key="key" :form="form" />
           <scrub-settings v-else-if="section === 'scrub'" :key="key" :form="form" />
+          <inactive-settings v-else-if="section === 'inactive'" :key="key" :form="form" />
           <button type="submit" hidden aria-hidden="true" tabindex="-1" />
         </form>
       </template>
@@ -71,6 +72,7 @@ import TableSkeleton from '../components/ui/TableSkeleton.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import AppearanceSettings from './settings/appearance.vue';
 import ScrubSettings from './settings/scrub.vue';
+import InactiveSettings from './settings/inactive.vue';
 import BounceSettings from './settings/bounces.vue';
 import GeneralSettings from './settings/general.vue';
 import MediaSettings from './settings/media.vue';
@@ -144,6 +146,9 @@ const sections = computed<Section[]>(() => [
   },
   {
     key: 'scrub', label: t('settings.scrub.name'), help: t('settings.help.scrub'), keys: ['scrub'],
+  },
+  {
+    key: 'inactive', label: t('settings.inactive.name'), help: t('settings.help.inactive'), keys: ['inactive_cleanup'],
   },
 ]);
 

@@ -355,6 +355,7 @@ INSERT INTO settings (key, value) VALUES
     ('security.oidc', '{"enabled": false, "provider_url": "", "provider_name": "", "client_id": "", "client_secret": "", "auto_create_users": false, "default_user_role_id": null, "default_list_role_id": null}'),
     ('security.trusted_urls', '[]'),
     ('security.require_2fa', 'false'),
+    ('inactive_cleanup', '{"enabled": false, "mode": "managed", "days": 180, "activity": "either", "action": "unsubscribe", "list_ids": [], "schedule": "0 2 * * 0"}'),
     ('upload.provider', '"filesystem"'),
     ('upload.max_file_size', '5000'),
     ('upload.extensions', '["jpg","jpeg","png","gif","svg","*"]'),
@@ -816,3 +817,21 @@ CREATE INDEX idx_activity_log_tenant ON activity_log(tenant_id, created_at DESC)
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY; ALTER TABLE activity_log FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON activity_log;
 CREATE POLICY tenant_isolation ON activity_log USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- Inactive-subscriber cleanup runs (Settings › Inactive cleanup).
+DROP TABLE IF EXISTS inactive_cleanup_runs CASCADE;
+CREATE TABLE inactive_cleanup_runs (
+    id           SERIAL PRIMARY KEY,
+    tenant_id    INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    mode         TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    matched      INTEGER NOT NULL DEFAULT 0,
+    done         INTEGER NOT NULL DEFAULT 0,
+    error        TEXT NOT NULL DEFAULT '',
+    started_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    finished_at  TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE INDEX idx_inactive_cleanup_runs ON inactive_cleanup_runs(tenant_id, started_at DESC);
+ALTER TABLE inactive_cleanup_runs ENABLE ROW LEVEL SECURITY; ALTER TABLE inactive_cleanup_runs FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON inactive_cleanup_runs;
+CREATE POLICY tenant_isolation ON inactive_cleanup_runs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);

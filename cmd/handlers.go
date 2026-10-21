@@ -115,6 +115,8 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		g.GET("/api/settings", pm(a.GetSettings, "settings:get"))
 		g.GET("/api/settings/logs", pm(a.GetActivityLog, "settings:get"))
+		g.GET("/api/settings/inactive-cleanup", pm(a.GetCleanupStatus, "settings:get"))
+		g.POST("/api/settings/inactive-cleanup/preview", pm(a.PreviewCleanup, "settings:get"))
 		g.PUT("/api/settings", pm(a.UpdateSettings, "settings:manage"))
 		g.PUT("/api/settings/:key", pm(a.UpdateSettingsByKey, "settings:manage"))
 		g.POST("/api/settings/smtp/test", pm(a.TestSMTPSettings, "settings:manage"))
