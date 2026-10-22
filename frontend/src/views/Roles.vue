@@ -17,6 +17,7 @@
           type="button"
           class="roles-item"
           :class="{ 'is-on': selected?.id === r.id }"
+          data-cy="role-item"
           :aria-current="selected?.id === r.id ? 'true' : undefined"
           @click="select(r)"
         >

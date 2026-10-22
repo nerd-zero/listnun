@@ -135,6 +135,7 @@
             v-if="username"
             type="button"
             class="ln-account"
+            data-cy="user-menu"
             :aria-label="$t('menu.account')"
             aria-haspopup="true"
             @click="(e) => accountMenu?.toggle(e)"

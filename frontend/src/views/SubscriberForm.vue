@@ -38,7 +38,7 @@
           <PvTab value="0">{{ $t('globals.terms.lists') }}</PvTab>
           <PvTab value="1">{{ `${$t('globals.terms.subscriptions', 2)} (${data.lists ? data.lists.length : 0})` }}</PvTab>
           <PvTab value="2" :disabled="bounces.length === 0">{{ `${$t('globals.terms.bounces')} (${bounces.length})` }}</PvTab>
-          <PvTab value="3">{{ $t('globals.terms.attribs') }}</PvTab>
+          <PvTab value="3" data-cy="tab-attribs">{{ $t('globals.terms.attribs') }}</PvTab>
           <PvTab value="4" :disabled="!isEditing">{{ $t('subscribers.activity') }}</PvTab>
         </PvTabList>
         <PvTabPanels>
@@ -159,7 +159,7 @@
 
     <div class="lm-form-footer">
       <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-      <PvButton v-if="$can('subscribers:manage')" type="submit" severity="primary"
+      <PvButton v-if="$can('subscribers:manage')" type="submit" severity="primary" data-cy="btn-save"
         :loading="loading.subscribers" :label="$t('globals.buttons.save')" />
     </div>
   </form>

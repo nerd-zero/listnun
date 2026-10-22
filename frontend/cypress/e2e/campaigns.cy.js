@@ -1,6 +1,61 @@
 const apiUrl = Cypress.env('apiUrl');
 const headers = '[{"X-Custom": "Custom-Value"}]';
 
+// Labels of the content formats in the editor's format Select.
+const formatLabels = {
+  richtext: 'Rich text', html: 'Raw HTML', markdown: 'Markdown', plain: 'Plain text', visual: 'Visual',
+};
+
+// The campaign ID from the editor's URL (/admin/campaigns/:id).
+const campaignID = (pathname) => pathname.split('/').at(-1).replace(/#.*/, '');
+
+// Replaces the content of the CodeMirror 6 editor inside `sel`. CodeMirror
+// keeps its view on the content node (`cmView`), which is what
+// EditorView.findFromDOM() reads in @codemirror/view 6.x.
+const setCode = (sel, text) => {
+  cy.get(`${sel} .cm-content`).then(($el) => {
+    const { view } = $el[0].cmView.rootView;
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+  });
+};
+
+// Sets the TinyMCE (richtext) body and fires `change` so tinymce-vue
+// updates the bound value.
+const setRichtext = (html) => {
+  cy.window().then((win) => {
+    win.tinymce.editors[0].setContent(html);
+    win.tinymce.editors[0].fire('change');
+  });
+};
+
+// Switching the format of a campaign that has a body asks for confirmation
+// in the global PrimeVue ConfirmDialog; an empty body switches directly.
+const acceptFormatSwitch = () => {
+  cy.wait(300);
+  cy.get('body').then(($body) => {
+    if ($body.find('.p-confirmdialog-accept-button:visible').length) {
+      cy.get('.p-confirmdialog-accept-button:visible').click();
+    }
+  });
+};
+
+// Adds the first not-yet-selected list in the campaign's ListSelector.
+const pickList = () => {
+  cy.get('.list-selector .p-autocomplete-dropdown').click();
+  cy.get('.p-autocomplete-overlay .p-autocomplete-option').first().click();
+};
+
+// Clicks an item in a table row's popup menu.
+const rowMenu = (row, label) => {
+  cy.wrap(row).find('[data-cy=btn-row-menu]').click();
+  cy.get('.p-menu-overlay:visible').contains('.p-menu-item', label).click();
+};
+
+// The text of a campaign's rendered preview (the iframe is sandboxed and
+// inaccessible to JS, so this goes through the API).
+const previewText = (id) => cy.request(`${apiUrl}/api/campaigns/${id}/preview`)
+  .then((resp) => resp.body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim());
+
 describe('Campaigns', () => {
   it('Opens campaigns page', () => {
     cy.resetDB();
@@ -8,52 +63,55 @@ describe('Campaigns', () => {
   });
 
   it('Counts campaigns', () => {
-    cy.get('tbody td[data-label=Status]').should('have.length', 1);
+    cy.get('[data-cy=campaign-name]').should('have.length', 1);
   });
 
   it('Creates campaign', () => {
-    cy.get('a[data-cy=btn-new]').click();
+    cy.get('[data-cy=btn-new]').click();
 
     // Fill fields.
     cy.get('input[name=name]').clear().type('new-attach');
     cy.get('input[name=subject]').clear().type('new-subject');
     cy.get('input[name=from_email]').clear().type('new <from@email>');
-    cy.get('.list-selector input').click();
-    cy.get('.list-selector .autocomplete a').eq(0).click();
+    pickList();
 
-    cy.get('button[data-cy=btn-continue]').click();
-    cy.wait(500);
+    // Creating the campaign opens the Content step.
+    cy.get('[data-cy=btn-continue]').click();
+    cy.location('hash').should('eq', '#content');
 
-    cy.get('a[data-cy=btn-attach]').click();
-    cy.get('button[data-cy=btn-toggle-upload]').click();
-    cy.wait(500);
-    cy.get('input[type=file]').attachFile('example.json');
-    cy.get('form[data-cy="upload"] button').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.wait(500);
-    cy.get('.modal a.thumb-link').click();
-    cy.get('button[data-cy=btn-save]').click();
-    cy.wait(500);
+    // Upload a file in the media picker and attach it.
+    cy.get('[data-cy=btn-attach]').click();
+    cy.get('[data-cy=media] input').focus();
+    cy.dialog().find('input[type=file]').selectFile({
+      contents: Cypress.Buffer.from('{"example": true}'),
+      fileName: 'example.json',
+      mimeType: 'application/json',
+    }, { force: true });
+    cy.dialog().contains('.media-card', 'example').find('.media-thumb').click();
+    cy.get('[data-cy=media]').contains('example');
+
+    // Save; this moves on to the Schedule step.
+    cy.get('[data-cy=btn-next]').click();
+    cy.location('hash').should('eq', '#schedule');
 
     // Re-open and check that the file still exists.
-    cy.loginAndVisit('/admin/campaigns');
-    cy.get('td[data-label=Status] a').eq(0).click();
-    cy.get('.b-tabs nav a').eq(1).click();
-    cy.get('div.field[data-cy=media]').contains('example');
+    cy.visit('/admin/campaigns');
+    cy.get('[data-cy=campaign-name]').first().click();
+    cy.get('[data-cy=step-content]').click();
+    cy.get('[data-cy=media]').contains('example');
 
-    // Start.
-    cy.get('button[data-cy=btn-start]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.wait(500);
-    cy.get('tbody tr').eq(0).within(() => {
-      cy.get('td[data-label=Status] .tag').should(($tag) => {
-        expect($tag.hasClass('running') || $tag.hasClass('finished')).to.be.true;
-      });
+    // Start from the Review step.
+    cy.get('[data-cy=step-review]').click();
+    cy.get('[data-cy=btn-start]').click();
+    cy.confirmAction();
+    cy.location('pathname').should('match', /\/campaigns$/);
+    cy.rows().eq(0).find('.ln-status').should(($tag) => {
+      expect(['running', 'finished']).to.include($tag.attr('data-status'));
     });
   });
 
   it('Edits campaign', () => {
-    cy.get('td[data-label=Status] a').eq(1).click();
+    cy.get('[data-cy=campaign-name][data-id=1]').click();
 
     // Fill fields.
     cy.get('input[name=name]').clear().type('new-name');
@@ -61,44 +119,42 @@ describe('Campaigns', () => {
     cy.get('input[name=from_email]').clear().type('new <from@email>');
 
     // Change the list.
-    cy.get('.list-selector a.delete').click();
-    cy.get('.list-selector input').click();
-    cy.get('.list-selector .autocomplete a').eq(0).click();
+    cy.get('.list-selector .list-tags .pi-times').click({ multiple: true });
+    pickList();
 
     // Clear and redo tags.
-    cy.get('input[name=tags]').type('{backspace}new-tag{enter}');
+    cy.get('[data-cy=tags] input').type('{backspace}new-tag{enter}');
 
-    // Enable schedule.
-    cy.get('[data-cy=btn-send-later] .check').click();
-    cy.wait(100);
-    cy.get('.datepicker input').click();
-    cy.wait(100);
-    cy.get('.datepicker-header .control:nth-child(2) select').select((new Date().getFullYear() + 1).toString());
-    cy.wait(100);
-    cy.get('.datepicker-body a.is-selectable:first').click();
-    cy.wait(100);
-    cy.get('body').click(1, 1);
-
-    // Add custom headers.
-    cy.get('[data-cy=btn-headers]').click();
+    // Add custom headers (under Advanced).
+    cy.get('[data-cy=btn-advanced]').click();
     cy.get('textarea[name=headers]').invoke('val', headers).trigger('input');
 
-    // Switch to content tab.
-    cy.get('.b-tabs nav a').eq(1).click();
+    // Save and go to the Content step.
+    cy.get('[data-cy=btn-next]').click();
+    cy.location('hash').should('eq', '#content');
 
     // Switch format to plain text.
-    cy.get('select[name=content_type]').select('plain');
-    cy.get('.modal button.is-primary:eq(0)').click();
+    cy.pvSelect('[data-cy=check-format]', formatLabels.plain);
+    acceptFormatSwitch();
 
-    // Enter body value.
+    // Enter body value; save and go to the Schedule step.
     cy.get('textarea[name=content]').clear().type('new-content');
-    cy.get('button[data-cy=btn-save]').click();
+    cy.get('[data-cy=btn-next]').click();
+    cy.location('hash').should('eq', '#schedule');
 
-    // Schedule.
-    cy.get('button[data-cy=btn-schedule]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
+    // Send later: pick a day next month.
+    cy.get('[data-cy=btn-send-later]').click();
+    cy.get('#camp-send-at').click();
+    cy.get('.p-datepicker-next-button:visible').click();
+    cy.get('.p-datepicker-day-cell:not(.p-datepicker-other-month) .p-datepicker-day:not(.p-disabled):visible').first().click();
+    cy.get('.camp-schedule .ln-section-title').click();
 
-    cy.wait(250);
+    // Save, then schedule from the Review step.
+    cy.get('[data-cy=btn-next]').click();
+    cy.location('hash').should('eq', '#review');
+    cy.get('[data-cy=btn-schedule]').click();
+    cy.confirmAction();
+    cy.location('pathname').should('match', /\/campaigns$/);
 
     // Verify the changes.
     cy.request(`${apiUrl}/api/campaigns/1`).should((response) => {
@@ -118,96 +174,92 @@ describe('Campaigns', () => {
       expect(data.headers[0]['X-Custom']).to.equal('Custom-Value');
     });
 
-    cy.get('tbody td[data-label=Status] .tag.scheduled');
+    cy.get('.p-datatable-tbody .ln-status[data-status=scheduled]');
   });
 
   it('Unschedules campaign', () => {
-    cy.get('td[data-label=Status] a').eq(1).click();
-    cy.wait(250);
-    cy.get('button[data-cy=btn-unschedule]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.wait(250);
+    cy.get('[data-cy=campaign-name][data-id=1]').click();
+    cy.get('[data-cy=step-review]').click();
+    cy.get('[data-cy=btn-unschedule]').click();
+    cy.confirmAction();
+    cy.get('[data-cy=btn-unschedule]').should('not.exist');
     cy.visit('/admin/campaigns');
 
-    // Check if the status label has the inner text `Draft`.
-    cy.get('td[data-label=Status] .tag.draft').should('have.length', 1);
+    // Only the edited campaign is a draft; the other one was started.
+    cy.get('.p-datatable-tbody .ln-status[data-status=draft]').should('have.length', 1);
   });
 
   it('Switches formats', () => {
     cy.resetDB();
     cy.loginAndVisit('/admin/campaigns');
     const formats = ['html', 'markdown', 'plain'];
-    const htmlBody = '<strong>hello</strong> \{\{ .Subscriber.Name \}\} from {\{ .Subscriber.Attribs.city \}\}';
+    const htmlBody = '<strong>hello</strong> {{ .Subscriber.Name }} from {{ .Subscriber.Attribs.city }}';
     const plainBody = 'hello Demo Subscriber from Bengaluru';
 
     // Set test content the first time.
-    cy.get('td[data-label=Status] a').click();
-    cy.get('.b-tabs nav a').eq(1).click();
-    cy.window().then((win) => {
-      win.tinymce.editors[0].setContent(htmlBody);
-      win.tinymce.editors[0].save();
-    });
-    cy.get('button[data-cy=btn-save]').click();
+    cy.get('[data-cy=campaign-name]').first().click();
+    cy.get('[data-cy=step-content]').click();
+    setRichtext(htmlBody);
+    cy.get('[data-cy=btn-next]').click();
+    cy.location('hash').should('eq', '#schedule');
 
     formats.forEach((c) => {
       cy.visit('/admin/campaigns');
-      cy.get('td[data-label=Status] a').click();
+      cy.get('[data-cy=campaign-name]').first().click();
 
-      // Switch to content tab.
-      cy.get('.b-tabs nav a').eq(1).click();
+      // Switch to the Content step and change the format.
+      cy.get('[data-cy=step-content]').click();
+      cy.pvSelect('[data-cy=check-format]', formatLabels[c]);
+      acceptFormatSwitch();
+      cy.wait(300);
 
-      // Switch format.
-      cy.get('select[name=content_type]').select(c);
-      cy.get('.modal button.is-primary:eq(0)').click();
+      // Save the converted content.
+      cy.get('[data-cy=btn-next]').click();
+      cy.location('hash').should('eq', '#schedule');
 
-      // Check content via the preview API (the iframe is sandboxed and inaccessible to JS).
-      if (c !== 'plain') {
-        cy.location('pathname').then((p) => {
-          cy.request(`${apiUrl}/api/campaigns/${p.split('/').at(-1).replace(/#.*/, '')}/preview`).then((resp) => {
-            // Strip HTML tags and normalize whitespace.
-            const text = resp.body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-            expect(text).to.contain(plainBody);
-          });
-        });
-      }
-
-      cy.visit('/admin/campaigns');
+      // Check the saved format and the rendered content.
+      cy.location('pathname').then((p) => {
+        cy.request(`${apiUrl}/api/campaigns/${campaignID(p)}`).its('body.data.content_type').should('eq', c);
+        if (c !== 'plain') {
+          previewText(campaignID(p)).should('contain', plainBody);
+        }
+      });
     });
   });
 
   it('Clones campaign', () => {
-    cy.loginAndVisit('/admin/campaigns');
-    for (let n = 0; n < 3; n++) {
-      // Clone the campaign.
+    cy.visit('/admin/campaigns');
+    for (let n = 0; n < 3; n += 1) {
+      // Clone the campaign; the clone opens in the editor.
       cy.get('[data-cy=btn-clone]').first().click();
-      cy.get('.modal input').clear().type(`clone${n}`).click();
-      cy.get('.modal button.is-primary:eq(0)').click();
-      cy.wait(250);
-      cy.clickMenu('all-campaigns');
-      cy.wait(100);
+      cy.get('#clone-name').clear().type(`clone${n}`);
+      cy.dialog().find('[data-cy=btn-save]').click();
+      cy.location('pathname').should('match', /\/campaigns\/\d+$/);
+      cy.visit('/admin/campaigns');
 
       // Verify the newly created row.
-      cy.get('tbody td[data-label="Name"]').first().contains(`clone${n}`);
+      cy.get('[data-cy=campaign-name]').first().contains(`clone${n}`);
     }
   });
 
   it('Searches campaigns', () => {
     cy.get('input[name=query]').clear().type('clone2{enter}');
-    cy.get('tbody tr').its('length').should('eq', 1);
-    cy.get('tbody td[data-label="Name"]').first().contains('clone2');
+    cy.get('[data-cy=campaign-name]').should('have.length', 1);
+    cy.get('[data-cy=campaign-name]').first().contains('clone2');
     cy.get('input[name=query]').clear().type('{enter}');
+    cy.get('[data-cy=campaign-name]').should('have.length', 4);
   });
 
   it('Deletes campaigns', () => {
-    cy.wait(1000);
-    // Delete all visible lists.
-    cy.get('tbody tr').each(() => {
-      cy.get('tbody a[data-cy=btn-delete]').first().click();
-      cy.get('.modal button.is-primary:eq(0)').click();
+    // Delete all visible campaigns.
+    cy.rows().each(() => {
+      cy.rows().first().then((row) => rowMenu(row, 'Delete'));
+      cy.confirmAction();
+      cy.wait(250);
     });
 
     // Confirm deletion.
-    cy.get('table tr.is-empty');
+    cy.get('.p-datatable-empty-message');
   });
 
   it('Adds new campaigns', () => {
@@ -219,77 +271,66 @@ describe('Campaigns', () => {
       lists.forEach((l) => {
         // Click the 'new button'
         cy.get('[data-cy=btn-new]').click();
-        cy.wait(100);
+        cy.location('pathname').should('match', /\/campaigns\/new$/);
 
         // Fill fields.
         cy.get('input[name=name]').clear().type(`name${n}`);
         cy.get('input[name=subject]').clear().type(`subject${n}`);
 
-        l.forEach(() => {
-          cy.get('.list-selector input').click();
-          cy.get('.list-selector .autocomplete a').first().click();
-        });
+        l.forEach(() => pickList());
 
         // Add tags.
-        for (let i = 0; i < 3; i++) {
-          cy.get('input[name=tags]').type(`tag${i}{enter}`);
+        for (let i = 0; i < 3; i += 1) {
+          cy.get('[data-cy=tags] input').type(`tag${i}{enter}`);
         }
 
-        // Add headers.
-        cy.get('[data-cy=btn-headers]').click();
+        // Add headers (under Advanced).
+        cy.get('[data-cy=btn-advanced]').click();
         cy.get('textarea[name=headers]').invoke('val', `[{"X-Header-${n}": "Value-${n}"}]`).trigger('input');
 
         // Hit 'Continue'.
-        cy.get('button[data-cy=btn-continue]').click();
-        cy.wait(250);
+        cy.get('[data-cy=btn-continue]').click();
+        cy.location('hash').should('eq', '#content');
 
         // Verify the changes.
-        (function (n) {
-          cy.location('pathname').then((p) => {
-            cy.request(`${apiUrl}/api/campaigns/${p.split('/').at(-1).replace(/#.*/, '')}`).should((response) => {
-              const { data } = response.body;
-              expect(data.status).to.equal('draft');
-              expect(data.name).to.equal(`name${n}`);
-              expect(data.subject).to.equal(`subject${n}`);
-              expect(data.content_type).to.equal('richtext');
-              expect(data.altbody).to.equal(null);
-              expect(data.send_at).to.equal(null);
-              expect(data.headers[0][`X-Header-${n}`]).to.equal(`Value-${n}`);
-            });
+        const idx = n;
+        cy.location('pathname').then((p) => {
+          cy.request(`${apiUrl}/api/campaigns/${campaignID(p)}`).should((response) => {
+            const { data } = response.body;
+            expect(data.status).to.equal('draft');
+            expect(data.name).to.equal(`name${idx}`);
+            expect(data.subject).to.equal(`subject${idx}`);
+            expect(data.content_type).to.equal('richtext');
+            expect(data.altbody).to.equal(null);
+            expect(data.send_at).to.equal(null);
+            expect(data.headers[0][`X-Header-${idx}`]).to.equal(`Value-${idx}`);
           });
-        }(n));
+        });
 
         // Select content type.
-        cy.get('select[name=content_type]').select(c);
+        if (c !== 'richtext') {
+          cy.pvSelect('[data-cy=check-format]', formatLabels[c]);
+          acceptFormatSwitch();
+        }
 
         // Insert content.
-        const htmlBody = `<strong>hello${n}</strong> \{\{ .Subscriber.Name \}\} from {\{ .Subscriber.Attribs.city \}\}`;
+        const htmlBody = `<strong>hello${n}</strong> {{ .Subscriber.Name }} from {{ .Subscriber.Attribs.city }}`;
         const plainBody = `hello${n} Demo Subscriber from Bengaluru`;
         const markdownBody = `**hello${n}** Demo Subscriber from Bengaluru`;
 
         cy.log(`format = ${c}`);
         if (c === 'richtext') {
-          cy.window().then((win) => {
-            win.tinymce.editors[0].setContent(htmlBody);
-            win.tinymce.editors[0].save();
-          });
+          setRichtext(htmlBody);
           cy.wait(500);
         } else if (c === 'html') {
-          // Use CodeMirror 6 via the Vue component's editor instance.
-          cy.get('.code-editor').then(($el) => {
-            const view = $el[0].__vue__.editor;
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: htmlBody } });
-          });
+          setCode('.camp-content', htmlBody);
         } else if (c === 'markdown') {
-          cy.get('.code-editor').then(($el) => {
-            const view = $el[0].__vue__.editor;
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: markdownBody } });
-          });
+          setCode('.camp-content', markdownBody);
         } else if (c === 'plain') {
           cy.get('textarea[name=content]').invoke('val', plainBody).trigger('input');
         } else if (c === 'visual') {
           cy.wait(200);
-          cy.get('iframe').then((el) => {
+          cy.get('.camp-content iframe').then((el) => {
             cy.wait(200);
             cy.wrap(el.contents()).find('table td').click();
             cy.wait(200);
@@ -297,30 +338,28 @@ describe('Campaigns', () => {
           });
         }
 
-        // Save.
-        cy.get('button[data-cy=btn-save]').click();
+        // Save; this moves on to the Schedule step.
+        cy.get('[data-cy=btn-next]').click();
+        cy.location('hash').should('eq', '#schedule');
 
-        // Verify the preview content via the API (the iframe is sandboxed).
+        // Verify the preview content via the API.
         if (c !== 'plain') {
           cy.location('pathname').then((p) => {
-            cy.request(`${apiUrl}/api/campaigns/${p.split('/').at(-1).replace(/#.*/, '')}/preview`).then((resp) => {
-              const text = resp.body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-              expect(text).to.contain(plainBody);
-            });
+            previewText(campaignID(p)).should('contain', plainBody);
           });
         }
 
-        cy.clickMenu('all-campaigns');
-        cy.wait(500);
+        cy.visit('/admin/campaigns');
 
-        // Verify the newly created campaign in the table.
-        cy.get('tbody td[data-label="Name"]').first().contains(`name${n}`);
-        cy.get('tbody td[data-label="Name"]').first().contains(`subject${n}`);
-        cy.get('tbody td[data-label="Lists"]').first().then(($el) => {
-          cy.wrap($el).find('li').should('have.length', l.length);
-        });
+        // Verify the newly created campaign in the table. The row's
+        // sub-line names the campaign's lists, comma-separated.
+        cy.get('[data-cy=campaign-name]').first().contains(`name${n}`);
+        cy.rows().first().find('.ln-row-sub').invoke('text')
+          .then((t) => {
+            expect(t.trim().split(', ').length).to.equal(l.length);
+          });
 
-        n++;
+        n += 1;
       });
     });
 
@@ -329,29 +368,29 @@ describe('Campaigns', () => {
       const { data } = response.body;
       expect(data.total).to.equal(lists.length * cTypes.length);
 
-      let n = 0;
+      let i = 0;
       cTypes.forEach((c) => {
         lists.forEach((l) => {
-          expect(data.results[n].content_type).to.equal(c);
-          expect(data.results[n].lists.map((ls) => ls.id)).to.deep.equal(l);
-          n++;
+          expect(data.results[i].subject).to.equal(`subject${i}`);
+          expect(data.results[i].content_type).to.equal(c);
+          expect(data.results[i].lists.map((ls) => ls.id)).to.deep.equal(l);
+          i += 1;
         });
       });
     });
   });
 
   it('Starts and cancels campaigns', () => {
-    for (let n = 1; n <= 2; n++) {
-      cy.get(`tbody tr:nth-child(${n}) [data-cy=btn-start]`).click();
-      cy.get('.modal button.is-primary:eq(0)').click();
-      cy.wait(250);
-      cy.get(`tbody tr:nth-child(${n}) td[data-label=Status] .tag.running`);
+    for (let n = 1; n <= 2; n += 1) {
+      const row = `.p-datatable-tbody > tr:nth-child(${n})`;
+      cy.get(row).then((el) => rowMenu(el, 'Start campaign'));
+      cy.confirmAction();
+      cy.get(`${row} .ln-status[data-status=running]`);
 
       if (n > 1) {
-        cy.get(`tbody tr:nth-child(${n}) [data-cy=btn-cancel]`).click();
-        cy.get('.modal button.is-primary:eq(0)').click();
-        cy.wait(250);
-        cy.get(`tbody tr:nth-child(${n}) td[data-label=Status] .tag.cancelled`);
+        cy.get(row).then((el) => rowMenu(el, 'Cancel'));
+        cy.confirmAction();
+        cy.get(`${row} .ln-status[data-status=cancelled]`);
       }
     }
   });
@@ -370,8 +409,6 @@ describe('Campaigns', () => {
   });
 
   it('Bulk deletes campaigns', () => {
-    const apiUrl = Cypress.env('apiUrl');
-
     const params = {
       name: 'test-campaign-bulk',
       subject: 'subject',
@@ -386,16 +423,16 @@ describe('Campaigns', () => {
       cy.request('POST', `${apiUrl}/api/campaigns`, params);
     }
 
-    cy.loginAndVisit('/admin/campaigns');
+    cy.visit('/admin/campaigns');
 
-    // Bulk delete with the `all` flag.
+    // Bulk delete with the `all` flag, which asks for the count to be typed.
     cy.window().scrollTo('top');
-    cy.wait(500);
+    cy.get('[data-cy=campaign-name]').should('have.length.at.least', 1);
     cy.get('thead input[type="checkbox"]').click({ force: true });
-    cy.get('a[data-cy=select-all-campaigns]').click();
-    cy.get('a[data-cy=btn-delete-campaigns]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.get('table tr.is-empty');
+    cy.get('[data-cy=select-all-campaigns]').click();
+    cy.get('[data-cy=btn-delete-campaigns]').click();
+    cy.get('.ln-confirm:visible code').invoke('text').then((num) => cy.confirmAction(num.trim()));
+    cy.get('.p-datatable-empty-message');
 
     // Bulk delete with the selected IDs.
     // Create 5 campaigns in a loop.
@@ -404,10 +441,10 @@ describe('Campaigns', () => {
     }
 
     cy.visit('/admin/campaigns');
-    cy.wait(500);
+    cy.get('[data-cy=campaign-name]').should('have.length', 5);
     cy.get('thead input[type="checkbox"]').click({ force: true });
-    cy.get('a[data-cy=btn-delete-campaigns]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.get('table tr.is-empty');
+    cy.get('[data-cy=btn-delete-campaigns]').click();
+    cy.confirmAction();
+    cy.get('.p-datatable-empty-message');
   });
 });

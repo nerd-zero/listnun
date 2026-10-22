@@ -1,3 +1,24 @@
+const apiUrl = Cypress.env('apiUrl');
+
+// The card of the template with the given name.
+const card = (name) => cy.contains('.tpls-card', name);
+
+// Clicks an item in a template card's popup menu.
+const cardMenu = (name, label) => {
+  card(name).find('[data-cy=btn-row-menu]').click();
+  cy.get('.p-menu-overlay:visible').contains('.p-menu-item', label).click();
+};
+
+// Replaces the content of the CodeMirror 6 editor inside `sel`. CodeMirror
+// keeps its view on the content node (`cmView`), which is what
+// EditorView.findFromDOM() reads in @codemirror/view 6.x.
+const setCode = (sel, text) => {
+  cy.get(`${sel} .cm-content`).then(($el) => {
+    const { view } = $el[0].cmView.rootView;
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+  });
+};
+
 describe('Templates', () => {
   it('Opens templates page', () => {
     cy.resetDB();
@@ -5,47 +26,40 @@ describe('Templates', () => {
   });
 
   it('Counts default templates', () => {
-    cy.get('tbody td[data-label=Name]').should('have.length', 4);
+    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 4);
   });
 
   it('Clones campaign template', () => {
-    cy.get('[data-cy=btn-clone]').first().click();
-    cy.get('.modal input').clear().type('cloned campaign').click();
-    cy.get('.modal button.is-primary').click();
-    cy.wait(250);
+    cardMenu('Default campaign template', 'Clone');
+    cy.get('#tpl-clone-name').clear().type('cloned campaign');
+    cy.dialog().find('[data-cy=btn-save]').click();
 
-    // Verify the newly created row.
-    cy.get('tbody td[data-label="Name"]').contains('td', 'cloned campaign');
+    // Verify the newly created card.
+    card('cloned campaign').should('exist');
   });
 
   it('Clones tx template', () => {
-    cy.get('tbody td[data-label="Name"]').contains('td', 'Sample transactional template').then((el) => {
-      cy.wrap(el).parent().find('[data-cy=btn-clone]').click();
-      cy.get('.modal input').clear().type('cloned tx').click();
-      cy.get('.modal button.is-primary').click();
-      cy.wait(250);
-    });
+    cardMenu('Sample transactional template', 'Clone');
+    cy.get('#tpl-clone-name').clear().type('cloned tx');
+    cy.dialog().find('[data-cy=btn-save]').click();
 
-    // Verify the newly created row.
-    cy.get('tbody td[data-label="Name"]').contains('td', 'cloned tx');
+    // Verify the newly created card.
+    card('cloned tx').should('exist');
   });
 
   it('Edits template', () => {
-    cy.get('tbody td.actions [data-cy=btn-edit]').first().click();
-    cy.wait(250);
-    cy.get('input[name=name]').clear().type('edited');
+    cy.get('[data-cy=template-1] [data-cy=btn-edit]').click();
+    cy.dialog().find('input[name=name]').clear().type('edited');
 
     const htmlBody = '<span>test</span><div class="wrap">{{ template "content" . }}</div>';
-    cy.get('[role="textbox"]').invoke('text', htmlBody);
+    setCode('.p-dialog .tpl-form-code', htmlBody);
 
-    cy.get('.modal-card-foot button.is-primary').click();
-    cy.wait(250);
-    cy.get('tbody td[data-label="Name"] a').contains('edited');
+    cy.dialog().find('[data-cy=btn-save]').click();
+    cy.get('.tpl-form-dialog').should('not.exist');
+    cy.get('[data-cy=template-1] .tpls-title').contains('edited');
   });
 
   it('Previews campaign templates', () => {
-    const apiUrl = Cypress.env('apiUrl');
-
     // Edited one should have a bare body.
     cy.request(`${apiUrl}/api/templates/1/preview`).then((resp) => {
       expect(resp.body).to.contain('test');
@@ -60,8 +74,6 @@ describe('Templates', () => {
   });
 
   it('Previews tx templates', () => {
-    const apiUrl = Cypress.env('apiUrl');
-
     // Cloned tx template.
     cy.request(`${apiUrl}/api/templates/6/preview`).then((resp) => {
       expect(resp.body).to.contain('Order number');
@@ -69,29 +81,32 @@ describe('Templates', () => {
   });
 
   it('Sets default', () => {
-    cy.get('tbody td[data-label="Name"]').contains('td', 'cloned campaign').then((el) => {
-      cy.wrap(el).parent().find('[data-cy=btn-set-default]').click();
-      cy.get('.modal button.is-primary').click();
-    });
+    cardMenu('cloned campaign', 'Set as default');
+    cy.confirmAction();
 
-    // The original default shouldn't have default and the new one should have.
-    cy.get('tbody').contains('td', 'edited').parent().find('[data-cy=btn-delete]')
-      .should('exist');
-    cy.get('tbody').contains('td', 'cloned campaign').parent().find('[data-cy=btn-delete]')
-      .should('not.exist');
+    // The new default carries the Default tag; the old one no longer does.
+    card('cloned campaign').find('.tpls-title .ln-status').should('exist');
+    card('edited').find('.tpls-title .ln-status').should('not.exist');
+
+    // The default can't be deleted; the previous default now can.
+    // (Clicking the menu button again closes the popup.)
+    card('cloned campaign').find('[data-cy=btn-row-menu]').click();
+    cy.get('.p-menu-overlay:visible').should('not.contain', 'Delete');
+    card('cloned campaign').find('[data-cy=btn-row-menu]').click();
+    cy.get('.p-menu-overlay').should('not.exist');
+    card('edited').find('[data-cy=btn-row-menu]').click();
+    cy.get('.p-menu-overlay:visible').should('contain', 'Delete');
+    card('edited').find('[data-cy=btn-row-menu]').click();
+    cy.get('.p-menu-overlay').should('not.exist');
   });
 
   it('Deletes template', () => {
-    cy.wait(250);
-
     ['Default archive template', 'Sample transactional template'].forEach((t) => {
-      cy.get('tbody td[data-label="Name"]').contains('td', t).then((el) => {
-        cy.wrap(el).parent().find('[data-cy=btn-delete]').click();
-        cy.get('.modal button.is-primary').click();
-      });
-      cy.wait(250);
+      cardMenu(t, 'Delete');
+      cy.confirmAction();
+      card(t).should('not.exist');
     });
 
-    cy.get('tbody td.actions').should('have.length', 4);
+    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 4);
   });
 });

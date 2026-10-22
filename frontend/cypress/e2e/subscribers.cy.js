@@ -1,5 +1,62 @@
 const apiUrl = Cypress.env('apiUrl');
 
+// Subscriber e-mail links in the table, one per row (each carries data-id).
+const emails = () => cy.get('.p-datatable-tbody [data-cy=email]');
+
+// Opens a ListSelector's dropdown (within `scope`) and picks the first list
+// not already selected.
+const pickFirstList = (scope) => {
+  scope().find('.list-selector .p-autocomplete-dropdown').click();
+  cy.get('.p-autocomplete-overlay .p-autocomplete-option').first().click();
+  cy.get('.p-autocomplete-overlay').should('not.exist');
+};
+
+// The subscription statuses of a subscriber's lists, in API order.
+const listStatuses = (id) => cy.request(`${apiUrl}/api/subscribers/${id}`)
+  .then((resp) => resp.body.data.lists.map((l) => l.subscription_status));
+
+// Opens the row menu of the table row at `index` and clicks `label`.
+const rowAction = (index, label) => {
+  cy.rows().eq(index).find('[data-cy=row-menu]').click();
+  cy.get('.p-menu .p-menu-item').contains(label).click();
+};
+
+// Fills and saves the add / edit subscriber dialog.
+const fillForm = ({
+  email, name, status, numLists, attribs,
+}) => {
+  cy.dialog().find('input[name=email]').clear().type(email);
+  cy.dialog().find('input[name=name]').clear().type(name);
+  if (status) {
+    cy.pvSelect('[name=status]', status === 'blocklisted' ? 'Blocklisted' : 'Enabled');
+  }
+  Cypress._.times(numLists, () => pickFirstList(cy.dialog));
+  cy.dialog().find('[data-cy=tab-attribs]').click();
+  cy.dialog().find('textarea[name=attribs]').clear().type(attribs, { parseSpecialCharSequences: false, delay: 0 });
+  cy.dialog().find('[data-cy=btn-save]').click();
+  cy.get('.subscriber-modal').should('not.exist');
+};
+
+// Asserts a table row (the <tr> holding the subscriber link) shows the
+// subscriber's e-mail, name, blocklisted state and active list count, and
+// that the API reports the expected status on each of its lists.
+const checkRow = ($tr, {
+  id, email, name, status, numLists,
+}) => {
+  cy.wrap($tr).find('[data-cy=email]').should('contain', email.toLowerCase());
+  cy.wrap($tr).find('[data-cy=name]').should('contain', name);
+  cy.wrap($tr).find('[data-cy=blocklisted]').should(status === 'blocklisted' ? 'exist' : 'not.exist');
+
+  // The Lists column leaves out unsubscribed lists.
+  cy.wrap($tr).find('[data-cy=lists] .ln-attr').should('have.length', status === 'blocklisted' ? 0 : numLists);
+
+  // Lists on an enabled subscriber are 'unconfirmed' and on a blocklisted one, 'unsubscribed'.
+  listStatuses(id).then((statuses) => {
+    expect(statuses).to.have.lengthOf(numLists);
+    statuses.forEach((s) => expect(s).to.equal(status === 'blocklisted' ? 'unsubscribed' : 'unconfirmed'));
+  });
+};
+
 describe('Subscribers', () => {
   it('Opens subscribers page', () => {
     cy.resetDB();
@@ -7,7 +64,7 @@ describe('Subscribers', () => {
   });
 
   it('Counts subscribers', () => {
-    cy.get('tbody td[data-label=E-mail]').its('length').should('eq', 2);
+    emails().should('have.length', 2);
   });
 
   it('Searches subscribers', () => {
@@ -19,9 +76,9 @@ describe('Subscribers', () => {
 
     cases.forEach((c) => {
       cy.get('[data-cy=search]').clear().type(c.value);
-      cy.get('tbody td[data-label=E-mail]').its('length').should('eq', c.count);
+      emails().should('have.length', c.count);
       if (c.contains) {
-        cy.get('tbody td[data-label=E-mail]').contains(c.contains);
+        emails().contains(c.contains);
       }
     });
   });
@@ -59,17 +116,18 @@ describe('Subscribers', () => {
     cases.forEach((c) => {
       cy.get('[data-cy=query]').clear().type(c.value);
       cy.get('[data-cy=btn-query]').click();
-      cy.get('tbody td[data-label=E-mail]').its('length').should('eq', c.count);
+      emails().should('have.length', c.count);
     });
 
-    cy.get('[data-cy=btn-query-reset]').click();
-    cy.wait(1000);
-    cy.get('tbody td[data-label=E-mail]').its('length').should('eq', 2);
+    // While the advanced query is open, the same button resets it.
+    cy.get('[data-cy=btn-advanced-search]').click();
+    cy.get('[data-cy=query]').should('not.exist');
+    emails().should('have.length', 2);
   });
 
   it('Does bulk subscriber list add and remove', () => {
     const cases = [
-      // radio: action to perform, rows: table rows to select and perform on: [expected statuses of those rows after thea action]
+      // radio: action to perform, rows: table rows to select and perform on: [expected statuses of those rows' lists after the action]
       { radio: 'check-list-add', lists: [0, 1], rows: { 0: ['confirmed', 'confirmed'] } },
       { radio: 'check-list-unsubscribe', lists: [0, 1], rows: { 0: ['unsubscribed', 'unsubscribed'], 1: ['unsubscribed'] } },
       { radio: 'check-list-remove', lists: [0, 1], rows: { 1: [] } },
@@ -78,40 +136,42 @@ describe('Subscribers', () => {
       { radio: 'check-list-add', lists: [0], rows: { 0: ['unconfirmed', 'unsubscribed'] } },
     ];
 
+    cy.intercept('PUT', '**/api/subscribers/lists').as('manageLists');
+    cy.intercept({ method: 'GET', pathname: '/api/subscribers' }).as('getSubs');
+
     cases.forEach((c, n) => {
-      // Select one of the 2 subscribers in the table.
-      Object.keys(c.rows).forEach((r) => {
-        cy.get('tbody td.checkbox-cell .checkbox').eq(r).click();
+      const rows = Object.keys(c.rows).map(Number);
+
+      // Select the given subscribers in the table.
+      rows.forEach((r) => {
+        cy.rows().eq(r).find('.p-checkbox input').check({ force: true });
       });
 
-      // Open the 'manage lists' modal.
+      // Open the 'manage lists' dialog from the bulk bar.
       cy.get('[data-cy=btn-manage-lists]').click();
 
-      // Check both lists in the modal.
-      c.lists.forEach((l) => {
-        cy.get('.list-selector input').click();
-        cy.get('.list-selector .autocomplete a').first().click();
-      });
+      // Pick the lists in the dialog.
+      c.lists.forEach(() => pickFirstList(cy.dialog));
 
-      // Select the radio option in the modal.
-      cy.get(`[data-cy=${c.radio}] .check`).click();
+      // Select the action.
+      cy.dialog().find(`[data-cy=${c.radio}] input`).check({ force: true });
 
       // For the first test, check the optin preconfirm box.
       if (n === 0) {
-        cy.get('[data-cy=preconfirm]').click();
+        cy.dialog().find('[data-cy=preconfirm] input').check({ force: true });
       }
 
-      // Save.
-      cy.get('.modal button.is-primary').click();
+      // Save, then wait for the change and the table refresh (which also
+      // clears the selection).
+      cy.dialog().find('[data-cy=btn-save]').click();
+      cy.wait('@manageLists');
+      cy.wait('@getSubs');
 
-      // Check the status of the lists on the subscriber.
-      Object.keys(c.rows).forEach((r) => {
-        cy.get('tbody td[data-label=E-mail]').eq(r).find('.tags').then(($el) => {
-          cy.wrap($el).find('.tag').should('have.length', c.rows[r].length);
-          c.rows[r].forEach((status, n) => {
-            // eg: .tag(n).unconfirmed
-            cy.wrap($el).find('.tag').eq(n).should('have.class', status);
-          });
+      // Check the status of the lists on each subscriber. The table only
+      // shows active lists, so read every subscription's status from the API.
+      rows.forEach((r) => {
+        emails().eq(r).invoke('attr', 'data-id').then((id) => {
+          listStatuses(id).should('deep.equal', c.rows[r]);
         });
       });
     });
@@ -127,69 +187,48 @@ describe('Subscribers', () => {
     const json = '{"string": "hello", "ints": [1,2,3], "null": null, "sub": {"bool": true}}';
 
     // Collect values being edited on each sub to confirm the changes in the next step
-    // index by their ID shown in the modal.
+    // index by their ID shown in the dialog.
     const rows = {};
 
-    // Open the edit popup and edit the default lists.
-    cy.get('[data-cy=btn-edit]').each(($el, n) => {
+    emails().should('have.length', 2);
+    status.forEach((st, n) => {
       const email = `email-${n}@EMAIL.com`;
       const name = `name-${n}`;
 
-      // Open the edit modal.
-      cy.wrap($el).click();
+      // Open the edit dialog from the row menu.
+      rowAction(n, 'Edit');
 
       // Get the ID from the header and proceed to fill the form.
-      let id = 0;
-      cy.get('[data-cy=id]').then(($el) => {
-        id = parseInt($el.text());
+      cy.dialog().find('[data-cy=id]').then(($el) => {
+        const id = parseInt($el.text().trim(), 10);
+        rows[id] = { email, name, status: st };
 
-        cy.get('input[name=email]').clear().type(email);
-        cy.get('input[name=name]').clear().type(name);
-
-        if (status[n] === 'blocklisted') {
-          cy.get('select[name=status]').select(status[n]);
-        }
-        cy.get('.list-selector input').click();
-        cy.get('.list-selector .autocomplete a').first().click();
-        cy.get('textarea[name=attribs]').clear().type(json, { parseSpecialCharSequences: false, delay: 0 });
-        cy.get('.modal-card-foot button[type=submit]').click();
-
-        rows[id] = { email, name, status: status[n] };
+        // Each seeded subscriber is on one list; add the other one.
+        fillForm({
+          email, name, status: st === 'blocklisted' ? st : null, numLists: 1, attribs: json,
+        });
       });
     });
 
     // Confirm the edits on the table.
     cy.wait(500);
-    cy.log(rows);
-    cy.get('tbody tr').each(($el) => {
-      cy.wrap($el).find('td[data-id]').invoke('attr', 'data-id').then((idStr) => {
-        const id = parseInt(idStr);
-        cy.wrap($el).find('td[data-label=E-mail]').contains(rows[id].email.toLowerCase());
-        cy.wrap($el).find('td[data-label=Name]').contains(rows[id].name);
-
-        if (rows[id].status === 'blocklisted') {
-          cy.wrap($el).find('[data-cy=blocklisted]');
-        }
-
-        // Both lists on the enabled sub should be 'unconfirmed' and the blocklisted one, 'unsubscribed.'
-        cy.wrap($el).find(`.tags .${rows[id].status === 'enabled' ? 'unconfirmed' : 'unsubscribed'}`)
-          .its('length').should('eq', 2);
-        cy.wrap($el).find('td[data-label=Lists]').then((l) => {
-          cy.expect(parseInt(l.text().trim())).to.equal(rows[id].status === 'blocklisted' ? 0 : 2);
-        });
-      });
+    emails().should('have.length', 2).each(($a) => {
+      const id = parseInt($a.attr('data-id'), 10);
+      checkRow($a.closest('tr'), { id, ...rows[id], numLists: 2 });
     });
   });
 
   it('Deletes subscribers', () => {
-    // Delete all visible lists.
-    cy.get('tbody tr').each(() => {
-      cy.get('tbody a[data-cy=btn-delete]').first().click();
-      cy.get('.modal button.is-primary').click();
+    // Delete all visible subscribers, one at a time from the row menu.
+    emails().each(() => {
+      rowAction(0, 'Delete');
+      cy.confirmAction();
+      cy.get('.ln-confirm').should('not.exist');
     });
 
     // Confirm deletion.
-    cy.get('table tr.is-empty');
+    cy.get('.p-datatable-empty-message');
+    emails().should('not.exist');
   });
 
   it('Creates new subscribers', () => {
@@ -198,48 +237,34 @@ describe('Subscribers', () => {
     const json = '{"string": "hello", "ints": [1,2,3], "null": null, "sub": {"bool": true}}';
 
     // Cycle through each status and each list ID combination and create subscribers.
-    const n = 0;
-    for (let n = 0; n < 6; n++) {
+    Cypress._.times(6, (n) => {
       const email = `email-${n}@EMAIL.com`;
       const name = `name-${n}`;
       const status = statuses[(n + 1) % statuses.length];
       const list = lists[(n + 1) % lists.length];
 
       cy.get('[data-cy=btn-new]').click();
-      cy.get('input[name=email]').type(email);
-      cy.get('input[name=name]').type(name);
-      cy.get('select[name=status]').select(status);
-
-      list.forEach((l) => {
-        cy.get('.list-selector input').click();
-        cy.get('.list-selector .autocomplete a').first().click();
+      fillForm({
+        email, name, status, numLists: list.length, attribs: json,
       });
-      cy.get('textarea[name=attribs]').clear().type(json, { parseSpecialCharSequences: false, delay: 0 });
-      cy.get('.modal-card-foot button[type=submit]').click();
 
-      // Confirm the addition by inspecting the newly created list row,
+      // Confirm the addition by inspecting the newly created subscriber,
       // which is always the first row in the table.
-      cy.wait(250);
-      const tr = cy.get('tbody tr:nth-child(1)').then(($el) => {
-        cy.wrap($el).find('td[data-label=E-mail]').contains(email.toLowerCase());
-        cy.wrap($el).find('td[data-label=Name]').contains(name);
-
-        if (status === 'blocklisted') {
-          cy.wrap($el).find('[data-cy=blocklisted]');
-        }
-        cy.wrap($el).find(`.tags .${status === 'enabled' ? 'unconfirmed' : 'unsubscribed'}`)
-          .its('length').should('eq', list.length);
-        cy.wrap($el).find('td[data-label=Lists]').then((l) => {
-          cy.expect(parseInt(l.text().trim())).to.equal(status === 'blocklisted' ? 0 : list.length);
+      emails().first().should('contain', email.toLowerCase()).then(($a) => {
+        const id = parseInt($a.attr('data-id'), 10);
+        checkRow($a.closest('tr'), {
+          id, email, name, status, numLists: list.length,
         });
       });
-    }
+    });
   });
 
   it('Sorts subscribers', () => {
     const asc = [3, 4, 5, 6, 7, 8];
     const desc = [8, 7, 6, 5, 4, 3];
-    const cases = ['cy-email', 'cy-name', 'cy-created_at', 'cy-updated_at'];
+
+    // Only e-mail and created date are sortable in the redesigned table.
+    const cases = ['cy-email', 'cy-created_at'];
 
     cases.forEach((c) => {
       cy.sortTable(`thead th.${c}`, asc);
@@ -256,8 +281,7 @@ describe('Domain blocklist', () => {
   });
 
   it('Add domains to blocklist', () => {
-    cy.loginAndVisit('/admin/settings');
-    cy.get('.b-tabs nav a').eq(2).click();
+    cy.loginAndVisit('/admin/settings/privacy');
     cy.get('textarea[name="privacy.domain_blocklist"]').clear().type('ban.net\n\nBaN.OrG\n\nban.com\n\n');
     cy.get('[data-cy=btn-save]').click();
     cy.waitForBackend();
@@ -303,7 +327,7 @@ describe('Domain blocklist', () => {
       expect(response.status).to.equal(400);
     });
 
-    // Modify an existinb subscriber to a banned domain.
+    // Modify an existing subscriber to a banned domain.
     cy.request({
       method: 'PUT',
       url: `${apiUrl}/api/subscribers/1`,
@@ -318,9 +342,8 @@ describe('Domain blocklist', () => {
 
   it('Try via import', () => {
     cy.loginAndVisit('/admin/subscribers/import');
-    cy.get('.list-selector input').click();
-    cy.get('.list-selector .autocomplete a').first().click();
 
+    // Step 1: pick the file; the options only appear after.
     cy.fixture('subs-domain-blocklist.csv').then((data) => {
       cy.get('input[type="file"]').attachFile({
         fileContent: data.toString(),
@@ -329,16 +352,21 @@ describe('Domain blocklist', () => {
       });
     });
 
-    cy.get('button.is-primary').click();
-    cy.get('section.wrap .has-text-success');
-    // cy.get('button.is-primary').click();
+    // Step 2: options.
+    pickFirstList(() => cy.get('.imp-options'));
+    cy.get('[data-cy=btn-import]').click();
+
+    // Step 3: progress and log.
+    cy.get('[data-cy=import-status]', { timeout: 10000 }).should('have.attr', 'data-status', 'finished');
     cy.get('.log-view').should('contain', 'ban1-import@BAN.net').and('contain', 'ban2-import@ban.ORG');
-    cy.wait(100);
+
+    // Clear the finished import.
+    cy.get('[data-cy=btn-import-done]').click();
+    cy.get('input[type="file"]').should('exist');
   });
 
   it('Clear blocklist and try', () => {
-    cy.loginAndVisit('/admin/settings');
-    cy.get('.b-tabs nav a').eq(2).click();
+    cy.loginAndVisit('/admin/settings/privacy');
     cy.get('textarea[name="privacy.domain_blocklist"]').clear();
     cy.get('[data-cy=btn-save]').click();
     cy.waitForBackend();
@@ -355,7 +383,7 @@ describe('Domain blocklist', () => {
       expect(response.status).to.equal(200);
     });
 
-    // Modify an existinb subscriber to a banned domain.
+    // Modify an existing subscriber to a banned domain.
     cy.request({
       method: 'PUT',
       url: `${apiUrl}/api/subscribers/1`,

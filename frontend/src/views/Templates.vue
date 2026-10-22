@@ -61,6 +61,7 @@
             class="ln-row-menu"
             :aria-label="$t('globals.buttons.rowActions')"
             aria-haspopup="true"
+            data-cy="btn-row-menu"
             @click="(e) => openMenu(e, tpl)"
           >
             <i class="pi pi-ellipsis-h" />

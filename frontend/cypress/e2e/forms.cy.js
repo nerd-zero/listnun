@@ -7,26 +7,32 @@ describe('Forms', () => {
   });
 
   it('Checks public lists', () => {
-    cy.get('ul[data-cy=lists] li')
+    cy.get('[data-cy=lists] [data-cy=list]')
       .should('contain', 'Opt-in list')
       .its('length')
       .should('eq', 1);
 
-    cy.get('[data-cy=form] [role=textbox]').should('not.exist');
+    // Every public list is preselected, so the form HTML is shown straight away.
+    cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').should('be.checked');
+    cy.get('[data-cy=form] [data-cy=html]').should('exist');
+    cy.get('[data-cy=form] [data-cy=no-selection]').should('not.exist');
   });
 
   it('Selects public list', () => {
-    // Click the list checkbox.
-    cy.get('ul[data-cy=lists] .checkbox').click();
+    cy.request(`${apiUrl}/api/lists?per_page=all`).then((response) => {
+      const { uuid } = response.body.data.results.find((l) => l.name === 'Opt-in list');
 
-    // Check that the ID of the list in the checkbox appears in the HTML.
-    cy.get('ul[data-cy=lists] input').then(($inp) => {
-      cy.get('[role=textbox]').contains($inp.val());
+      // Deselect the list: the HTML goes away.
+      cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').uncheck({ force: true });
+      cy.get('[data-cy=form] [data-cy=html]').should('not.exist');
+      cy.get('[data-cy=form] [data-cy=no-selection]').should('exist');
+      cy.get('[data-cy=form] [data-cy=preview]').should('have.attr', 'srcdoc').and('not.contain', uuid);
+
+      // Select it again: the list's UUID appears in the form HTML.
+      cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').check({ force: true });
+      cy.get('[data-cy=form] [data-cy=html]').should('exist');
+      cy.get('[data-cy=form] [data-cy=preview]').should('have.attr', 'srcdoc').and('contain', uuid);
     });
-
-    // Click the list checkbox.
-    cy.get('ul[data-cy=lists] .checkbox').click();
-    cy.get('[data-cy=form] pre').should('not.exist');
   });
 
   it('Subscribes from public form page', () => {
@@ -34,16 +40,17 @@ describe('Forms', () => {
     cy.request('POST', `${apiUrl}/api/lists`, { name: 'test-list', type: 'public', optin: 'single' });
 
     // Open the public page and subscribe to alternating lists multiple times.
+    // Every list starts checked; unchecking one subscribes to the other.
     // There should be no errors and two new subscribers should be subscribed to two lists.
-    for (let i = 0; i < 2; i++) {
-      for (let j = 0; j < 2; j++) {
+    for (let i = 0; i < 2; i += 1) {
+      for (let j = 0; j < 2; j += 1) {
         cy.loginAndVisit(`${apiUrl}/subscription/form`);
         cy.get('input[name=email]').clear().type(`test${i}@test.com`);
         cy.get('input[name=name]').clear().type(`test${i}`);
-        cy.get('input[type=checkbox]').eq(j).click();
-        cy.get('button').click();
+        cy.get('ul[data-cy=lists] input[type=checkbox]').eq(j).click();
+        cy.get('[data-cy=btn-subscribe]').click();
         cy.wait(250);
-        cy.get('.wrap').contains(/has been sent|successfully|retry/); // If SMTP is not configured, it shows retry message.
+        cy.get('main.wrap').contains(/has been sent|successfully|retry/); // If SMTP is not configured, it shows retry message.
       }
     }
 
@@ -55,7 +62,7 @@ describe('Forms', () => {
       expect(data.total).to.equal(4);
 
       // The two new subscribers should each have two list subscriptions.
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 2; i += 1) {
         expect(data.results.find((s) => s.email === `test${i}@test.com`).lists.length).to.equal(2);
       }
     });
@@ -68,16 +75,17 @@ describe('Forms', () => {
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const subUUID = response.body.data.results[0].uuid;
 
-      cy.request('GET', `${apiUrl}/api/campaigns`).then((response) => {
-        const campUUID = response.body.data.results[0].uuid;
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
         cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}`);
       });
     });
 
     cy.wait(500);
 
-    // Unsubscribe from one list.
-    cy.get('button').click();
+    // Unsubscribe from one list. The page also has export/wipe buttons, so
+    // target the unsubscribe button.
+    cy.get('#btn-unsub').click();
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;
       expect(data.results[0].lists.find((s) => s.id === 2).subscription_status).to.equal('unsubscribed');
@@ -91,7 +99,7 @@ describe('Forms', () => {
 
     // Unsubscribe from all.
     cy.get('#privacy-blocklist').click();
-    cy.get('button').click();
+    cy.get('#btn-unsub').click();
 
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;
@@ -105,17 +113,17 @@ describe('Forms', () => {
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const subUUID = response.body.data.results[1].uuid;
 
-      cy.request('GET', `${apiUrl}/api/campaigns`).then((response) => {
-        const campUUID = response.body.data.results[0].uuid;
-        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}?manage=1`);
-        cy.get('a').contains('Manage').click();
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
+        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}`);
+        cy.get('[data-cy=link-manage]').click();
       });
     });
 
     // Change name and unsubscribe from one list.
-    cy.get('input[name=name]').clear().type('new-name');
-    cy.get('ul.lists input:first').click();
-    cy.get('button:first').click();
+    cy.get('#sub-name').clear().type('new-name');
+    cy.get('ul[data-cy=lists] input[type=checkbox]').first().click();
+    cy.get('#btn-unsub').click();
 
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;

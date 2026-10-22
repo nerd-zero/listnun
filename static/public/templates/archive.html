@@ -7,7 +7,7 @@
     <ul class="archive">
         {{ range $c := .Data.Campaigns }}
             <li>
-                <a href="{{ $c.URL }}">
+                <a href="{{ $c.URL }}" data-cy="archive-item">
                     <span class="archive-title">{{ $c.Subject }}</span>
                     <span class="date">
                         {{ if $c.SendAt.Valid }}

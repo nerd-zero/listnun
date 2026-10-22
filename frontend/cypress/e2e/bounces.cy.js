@@ -1,18 +1,16 @@
 const apiUrl = Cypress.env('apiUrl');
 
 describe('Bounces', () => {
-  const subs = [];
-
   it('Enable bounces', () => {
     cy.resetDB();
 
-    cy.loginAndVisit('/admin/settings');
-    cy.get('.b-tabs nav a').eq(6).click();
-    cy.get('[data-cy=btn-enable-bounce] .switch').click();
-    cy.get('[data-cy=btn-enable-bounce-webhook] .switch').click();
+    cy.loginAndVisit('/admin/settings/bounces');
+    cy.get('[data-cy=btn-enable-bounce] input[role=switch]').check({ force: true });
+    cy.get('[data-cy=btn-enable-bounce-webhook] input[role=switch]').check({ force: true });
 
-    // The last <select> box, pick 'delete' option.
-    cy.get('select[name="bounce.action"]').last().select('delete');
+    // The last action Select (complaint bounces): pick the 'delete' option.
+    cy.get('[name="bounce.action"]').last().closest('.p-select').click();
+    cy.get('.p-select-overlay .p-select-option').contains('Delete').click();
 
     cy.get('[data-cy=btn-save]').click();
 
@@ -21,14 +19,6 @@ describe('Bounces', () => {
 
   it('Post bounces', () => {
     cy.loginAndVisit('/admin/subscribers/bounces');
-
-    // Get campaign.
-    let camp = {};
-    cy.request(`${apiUrl}/api/campaigns`).then((resp) => {
-      camp = resp.body.data.results[0];
-    }).then(() => {
-      console.log('campaign is ', camp.uuid);
-    });
 
     // Get subscribers.
     let subs = [];
@@ -62,7 +52,10 @@ describe('Bounces', () => {
         expect(resp.status).to.eq(400);
       });
 
+      // The remaining bounces are listed against the blocklisted subscriber.
       cy.loginAndVisit('/admin/subscribers/bounces');
+      cy.rows().should('contain', subs[0].email);
+      cy.get('.p-datatable-tbody [data-cy=blocklisted]').should('exist');
     });
   });
 });
