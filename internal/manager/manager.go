@@ -20,7 +20,9 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/messenger/email"
 	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -103,6 +105,7 @@ type Manager struct {
 	cfg        Config
 	store      Store
 	resolver   MessengerResolver
+	usage      *usage.Meter
 	i18n       *i18n.I18n
 	messengers map[string]Messenger
 	fnNotify   func(subject string, data any) error
@@ -260,7 +263,10 @@ func (m *Manager) urlsFor(tenantID int) tenantURLCfg {
 var pushTimeout = time.Second * 3
 
 // New returns a new instance of Mailer.
-func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *log.Logger) *Manager {
+// New returns a Manager. meter, if non-nil, counts every email
+// successfully pushed for a tenant -- listnun's billing ledger, see
+// internal/usage.
+func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter, i *i18n.I18n, l *log.Logger) *Manager {
 	if cfg.BatchSize < 1 {
 		cfg.BatchSize = 1000
 	}
@@ -275,6 +281,7 @@ func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *l
 		cfg:      cfg,
 		store:    store,
 		resolver: resolver,
+		usage:    meter,
 		i18n:     i,
 		fnNotify: func(subject string, data any) error {
 			return notifs.NotifySystem(subject, notifs.TplCampaignStatus, data, nil)
@@ -718,6 +725,9 @@ func (m *Manager) worker() {
 			if err == nil {
 				err = msgr.Push(out)
 			}
+			if err == nil {
+				m.countSent(msgr, out)
+			}
 			if err != nil {
 				m.log.Printf("error sending message in campaign %s: subscriber %d: %v", msg.Campaign.Name, msg.Subscriber.ID, err)
 			}
@@ -752,6 +762,9 @@ func (m *Manager) worker() {
 			if err == nil {
 				err = msgr.Push(msg)
 			}
+			if err == nil {
+				m.countSent(msgr, msg)
+			}
 			if err != nil {
 				m.log.Printf("error sending message '%s': %v", msg.Subject, err)
 			}
@@ -760,6 +773,16 @@ func (m *Manager) worker() {
 			}
 		}
 	}
+}
+
+// countSent records a successfully pushed message as billable email
+// usage: one per recipient, the unit Postmark bills by. Only SMTP
+// messengers count -- postback (HTTP webhook) messengers send no email.
+func (m *Manager) countSent(msgr Messenger, msg models.Message) {
+	if _, ok := msgr.(*email.Emailer); !ok {
+		return
+	}
+	m.usage.Add(msg.TenantID, usage.KindEmailSent, int64(len(msg.To)))
 }
 
 // getCurrentCampaigns returns the IDs of campaigns currently being processed

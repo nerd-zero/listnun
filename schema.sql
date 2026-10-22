@@ -445,6 +445,22 @@ CREATE TABLE scrub_validation_batches (
 DROP INDEX IF EXISTS idx_scrub_validation_batches_tenant; CREATE INDEX idx_scrub_validation_batches_tenant ON scrub_validation_batches(tenant_id);
 DROP INDEX IF EXISTS idx_scrub_validation_batches_job; CREATE INDEX idx_scrub_validation_batches_job ON scrub_validation_batches(job_id) WHERE job_id IS NOT NULL;
 
+-- usage_counters
+-- Append-only billing ledger: emails each tenant sent and Scrub
+-- validations it submitted, bucketed by UTC hour (see internal/usage).
+-- Read cross-tenant by listnun through the Operator API to bill PAYG
+-- usage. Deliberately no FK to tenants: usage already incurred must
+-- outlive the tenant so it can still be invoiced.
+DROP TABLE IF EXISTS usage_counters CASCADE;
+CREATE TABLE usage_counters (
+    tenant_id   INTEGER NOT NULL,
+    kind        TEXT NOT NULL,
+    bucket      TIMESTAMP WITH TIME ZONE NOT NULL,
+    count       BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (tenant_id, kind, bucket)
+);
+DROP INDEX IF EXISTS idx_usage_counters_bucket; CREATE INDEX idx_usage_counters_bucket ON usage_counters(bucket);
+
 -- bounces
 DROP TABLE IF EXISTS bounces CASCADE;
 CREATE TABLE bounces (
@@ -537,6 +553,7 @@ ALTER TABLE link_clicks      ENABLE ROW LEVEL SECURITY; ALTER TABLE link_clicks 
 ALTER TABLE settings         ENABLE ROW LEVEL SECURITY; ALTER TABLE settings         FORCE ROW LEVEL SECURITY;
 ALTER TABLE scrub_validation_jobs ENABLE ROW LEVEL SECURITY; ALTER TABLE scrub_validation_jobs FORCE ROW LEVEL SECURITY;
 ALTER TABLE scrub_validation_batches ENABLE ROW LEVEL SECURITY; ALTER TABLE scrub_validation_batches FORCE ROW LEVEL SECURITY;
+ALTER TABLE usage_counters ENABLE ROW LEVEL SECURITY; ALTER TABLE usage_counters FORCE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS tenant_isolation ON subscribers;
 CREATE POLICY tenant_isolation ON subscribers USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
@@ -572,6 +589,8 @@ DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_jobs;
 CREATE POLICY tenant_isolation ON scrub_validation_jobs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_batches;
 CREATE POLICY tenant_isolation ON scrub_validation_batches USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+DROP POLICY IF EXISTS tenant_isolation ON usage_counters;
+CREATE POLICY tenant_isolation ON usage_counters USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
 -- developers: API keys
 DROP TABLE IF EXISTS api_keys CASCADE;

@@ -37,6 +37,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -246,8 +247,12 @@ func main() {
 		// Initialize all messengers, SMTP and postback.
 		msgrs = append(smtpMsgrs, initPostbackMessengers(ko)...)
 
+		// Billing usage ledger: counts tenant sends and Scrub submissions
+		// into usage_counters for listnun (see internal/usage).
+		usageMeter = usage.New(usageStore{q: queries}, lo)
+
 		// Campaign manager.
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
 		importers = newTenantImporters(queries, db, core, mgr, i18n)
@@ -299,6 +304,7 @@ func main() {
 	// Start the campaign manager workers. The campaign batches (fetch from DB, push out
 	// messages) get processed at the specified interval.
 	go mgr.Run()
+	go usageMeter.Run(usageFlushInterval)
 
 	// =========================================================================
 	// Initialize the App{} with all the global shared components, controllers and fields.
@@ -374,6 +380,11 @@ func main() {
 
 		// Close the campaign manager.
 		mgr.Close()
+
+		// Flush the last buffered usage counts before the DB pool closes.
+		if err := usageMeter.Close(); err != nil {
+			lo.Printf("error flushing usage counters on shutdown: %v", err)
+		}
 
 		// Close the DB pool.
 		db.Close()

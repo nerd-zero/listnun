@@ -42,6 +42,8 @@ type Queries struct {
 	SetSubscribersScrubStatusByEmail *sqlx.Stmt `query:"set-subscribers-scrub-status-by-email"`
 	GetRiskySubscriberIDs            *sqlx.Stmt `query:"get-risky-subscriber-ids"`
 
+	AddUsageCounters *sqlx.Stmt `query:"add-usage-counters"`
+
 	InsertScrubValidationBatch         *sqlx.Stmt `query:"insert-scrub-validation-batch"`
 	GetScrubValidationBatch            *sqlx.Stmt `query:"get-scrub-validation-batch"`
 	GetScrubValidationBatchesByJob     *sqlx.Stmt `query:"get-scrub-validation-batches-by-job"`

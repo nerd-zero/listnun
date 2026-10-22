@@ -52,6 +52,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/messenger/postback"
 	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/internal/tenant"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	flag "github.com/spf13/pflag"
 	"gopkg.in/volatiletech/null.v6"
@@ -618,7 +619,7 @@ func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), 
 // tenantMessengers resolver it wires in, so callers can invalidate a
 // tenant's cached SMTP messengers after a settings save (cmd/settings.go's
 // handleSettingsRestart) without needing a full process restart.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
@@ -645,7 +646,7 @@ func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlCon
 		SlidingWindowRate:     ko.Int("app.message_sliding_window_rate"),
 		ScanInterval:          time.Second * 5,
 		ScanCampaigns:         !ko.Bool("passive"),
-	}, newManagerStore(q, co, md), tm, i, lo)
+	}, newManagerStore(q, co, md), tm, meter, i, lo)
 
 	// Attach all messengers to the campaign manager.
 	for _, m := range msgrs {

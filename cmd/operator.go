@@ -48,6 +48,10 @@ type operatorQueries struct {
 	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
 	SetTenantBounceWebhooks *sqlx.Stmt `query:"operator-set-tenant-bounce-webhooks"`
 	GetTenantScrubUsage     *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
+	GetTenantUsage          *sqlx.Stmt `query:"operator-get-tenant-usage"`
+	GetTenantUsageDaily     *sqlx.Stmt `query:"operator-get-tenant-usage-daily"`
+	GetPlatformUsageTenants *sqlx.Stmt `query:"operator-get-platform-usage-by-tenant"`
+	GetPlatformUsageDaily   *sqlx.Stmt `query:"operator-get-platform-usage-daily"`
 	GetTenant               *sqlx.Stmt `query:"operator-get-tenant"`
 	GetTenants              *sqlx.Stmt `query:"operator-get-tenants"`
 	UpdateTenantStatus      *sqlx.Stmt `query:"operator-update-tenant-status"`
@@ -77,6 +81,37 @@ type operatorTenantScrubUsage struct {
 	Unchecked        int `db:"unchecked" json:"unchecked"`
 	TotalSubscribers int `db:"total_subscribers" json:"total_subscribers"`
 } // @name OperatorTenantScrubUsage
+
+// operatorTenantUsage is a tenant's metered billable usage over a window,
+// summed from usage_counters (see internal/usage).
+type operatorTenantUsage struct {
+	EmailsSent  int64 `db:"emails_sent" json:"emails_sent"`
+	Validations int64 `db:"validations" json:"validations"`
+	// Days is the same usage per UTC day, only with ?group=day; days with
+	// no usage are omitted.
+	Days []operatorUsageDay `db:"-" json:"days,omitempty"`
+} // @name OperatorTenantUsage
+
+// operatorUsageDay is usage on one UTC day (YYYY-MM-DD).
+type operatorUsageDay struct {
+	Day         string `db:"day" json:"day"`
+	EmailsSent  int64  `db:"emails_sent" json:"emails_sent"`
+	Validations int64  `db:"validations" json:"validations"`
+} // @name OperatorUsageDay
+
+// operatorTenantUsageTotal is one tenant's usage in a cross-tenant query.
+type operatorTenantUsageTotal struct {
+	TenantID    int   `db:"tenant_id" json:"tenant_id"`
+	EmailsSent  int64 `db:"emails_sent" json:"emails_sent"`
+	Validations int64 `db:"validations" json:"validations"`
+} // @name OperatorTenantUsageTotal
+
+// operatorPlatformUsage is every tenant's usage over a window, plus the
+// platform-wide per-day series.
+type operatorPlatformUsage struct {
+	Tenants []operatorTenantUsageTotal `json:"tenants"`
+	Days    []operatorUsageDay         `json:"days"`
+} // @name OperatorPlatformUsage
 
 // operatorOrganization is an organization row augmented with a
 // cross-tenant tenant count, only obtainable via the BYPASSRLS operator
@@ -201,6 +236,33 @@ func (s *operatorStore) GetTenant(id int) (operatorTenant, error) {
 func (s *operatorStore) GetTenantScrubUsage(id int) (operatorTenantScrubUsage, error) {
 	var out operatorTenantScrubUsage
 	if err := s.q.GetTenantScrubUsage.Get(&out, id); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantUsage(id int, from, to time.Time) (operatorTenantUsage, error) {
+	var out operatorTenantUsage
+	if err := s.q.GetTenantUsage.Get(&out, id, from, to); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantUsageDaily(id int, from, to time.Time) ([]operatorUsageDay, error) {
+	out := []operatorUsageDay{}
+	if err := s.q.GetTenantUsageDaily.Select(&out, id, from, to); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetPlatformUsage(from, to time.Time) (operatorPlatformUsage, error) {
+	out := operatorPlatformUsage{Tenants: []operatorTenantUsageTotal{}, Days: []operatorUsageDay{}}
+	if err := s.q.GetPlatformUsageTenants.Select(&out.Tenants, from, to); err != nil {
+		return out, err
+	}
+	if err := s.q.GetPlatformUsageDaily.Select(&out.Days, from, to); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -782,6 +844,104 @@ func (a *App) GetOperatorTenantScrubUsage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant scrub usage")
 	}
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorTenantUsage returns a tenant's billable usage -- emails sent
+// and Scrub validations submitted -- over [from, to), as counted by this
+// instance when the work happened (usage_counters), not as reported by
+// Postmark or Scrub. Counts are hourly, attributed by bucket start, so
+// back-to-back windows never count an hour twice. Deleted tenants still
+// answer: their incurred usage outlives them.
+//
+//	@ID			getOperatorTenantUsage
+//	@Summary		Get a tenant's metered usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			from	query		string	true	"Window start, RFC 3339 (inclusive)"
+//	@Param			to		query		string	true	"Window end, RFC 3339 (exclusive)"
+//	@Param			group	query		string	false	"day: also return per-UTC-day usage"	Enums(day)
+//	@Success		200		{object}	operatorTenantUsage
+//	@Failure		400		{object}	echo.HTTPError
+//	@Failure		401		{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/usage [get]
+func (a *App) GetOperatorTenantUsage(c echo.Context) error {
+	id := getID(c)
+
+	from, to, groupByDay, err := parseUsageWindow(c)
+	if err != nil {
+		return err
+	}
+
+	out, err := a.operator.GetTenantUsage(id, from, to)
+	if err != nil {
+		a.log.Printf("error getting tenant usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant usage")
+	}
+	if groupByDay {
+		if out.Days, err = a.operator.GetTenantUsageDaily(id, from, to); err != nil {
+			a.log.Printf("error getting tenant daily usage: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant usage")
+		}
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorPlatformUsage returns every tenant's usage over [from, to)
+// plus the platform-wide per-UTC-day series, in one call -- the admin
+// overview's source, so it needn't ask each tenant separately. Includes
+// deleted tenants.
+//
+//	@ID			getOperatorPlatformUsage
+//	@Summary		Get all tenants' metered usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			from	query		string	true	"Window start, RFC 3339 (inclusive)"
+//	@Param			to		query		string	true	"Window end, RFC 3339 (exclusive)"
+//	@Success		200		{object}	operatorPlatformUsage
+//	@Failure		400		{object}	echo.HTTPError
+//	@Failure		401		{object}	echo.HTTPError
+//	@Router			/api/operator/usage [get]
+func (a *App) GetOperatorPlatformUsage(c echo.Context) error {
+	from, to, _, err := parseUsageWindow(c)
+	if err != nil {
+		return err
+	}
+
+	out, err := a.operator.GetPlatformUsage(from, to)
+	if err != nil {
+		a.log.Printf("error getting platform usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting platform usage")
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// parseUsageWindow reads the usage endpoints' from/to (RFC 3339, from
+// strictly before to) and whether ?group=day was asked for.
+func parseUsageWindow(c echo.Context) (from, to time.Time, groupByDay bool, err error) {
+	from, err = time.Parse(time.RFC3339, c.QueryParam("from"))
+	if err != nil {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "from must be an RFC 3339 timestamp")
+	}
+	to, err = time.Parse(time.RFC3339, c.QueryParam("to"))
+	if err != nil {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "to must be an RFC 3339 timestamp")
+	}
+	if !from.Before(to) {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "from must be before to")
+	}
+	switch c.QueryParam("group") {
+	case "":
+	case "day":
+		groupByDay = true
+	default:
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "group must be day")
+	}
+	return from, to, groupByDay, nil
 }
 
 // CreateOperatorTenant provisions a new tenant and its initial admin user.

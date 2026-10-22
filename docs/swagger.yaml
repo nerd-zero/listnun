@@ -785,6 +785,17 @@ definitions:
       updated_at:
         type: string
     type: object
+  OperatorPlatformUsage:
+    properties:
+      days:
+        items:
+          $ref: '#/definitions/OperatorUsageDay'
+        type: array
+      tenants:
+        items:
+          $ref: '#/definitions/OperatorTenantUsageTotal'
+        type: array
+    type: object
   OperatorSMTPEntry:
     properties:
       auth_protocol:
@@ -872,10 +883,42 @@ definitions:
       undeliverable:
         type: integer
     type: object
+  OperatorTenantUsage:
+    properties:
+      days:
+        description: |-
+          Days is the same usage per UTC day, only with ?group=day; days with
+          no usage are omitted.
+        items:
+          $ref: '#/definitions/OperatorUsageDay'
+        type: array
+      emails_sent:
+        type: integer
+      validations:
+        type: integer
+    type: object
+  OperatorTenantUsageTotal:
+    properties:
+      emails_sent:
+        type: integer
+      tenant_id:
+        type: integer
+      validations:
+        type: integer
+    type: object
   OperatorUpdateTenantStatusReq:
     properties:
       status:
         type: string
+    type: object
+  OperatorUsageDay:
+    properties:
+      day:
+        type: string
+      emails_sent:
+        type: integer
+      validations:
+        type: integer
     type: object
   Organization:
     properties:
@@ -4694,6 +4737,89 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a tenant's media storage usage (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantUsage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Window start, RFC 3339 (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Window end, RFC 3339 (exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      - description: 'day: also return per-UTC-day usage'
+        enum:
+        - day
+        in: query
+        name: group
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorTenantUsage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's metered usage (Operator API)
+      tags:
+      - operator
+  /api/operator/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorPlatformUsage
+      parameters:
+      - description: Window start, RFC 3339 (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Window end, RFC 3339 (exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorPlatformUsage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get all tenants' metered usage (Operator API)
       tags:
       - operator
   /api/profile:

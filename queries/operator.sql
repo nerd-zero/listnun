@@ -149,3 +149,46 @@ UPDATE tenants SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *;
 --- (cmd/operator.go's DeleteOperatorTenant) refuses to run this against
 --- tenant 1, the default tenant every install seeds data against.
 DELETE FROM tenants WHERE id = $1;
+
+-- name: operator-get-tenant-usage
+-- A tenant's metered usage over [$2, $3), summed from usage_counters'
+-- hourly buckets by bucket start -- back-to-back windows therefore count
+-- each hour exactly once. Backs listnun's PAYG billing and console usage.
+SELECT
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE tenant_id = $1 AND bucket >= $2 AND bucket < $3;
+
+-- name: operator-get-tenant-usage-daily
+-- A tenant's usage over [$2, $3) per UTC day, for usage charts. Days with
+-- no usage are omitted; the caller fills gaps.
+SELECT
+    to_char(bucket AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE tenant_id = $1 AND bucket >= $2 AND bucket < $3
+GROUP BY 1 ORDER BY 1;
+
+-- name: operator-get-platform-usage-by-tenant
+-- Every tenant's usage over [$1, $2) in one query -- backs listnun's admin
+-- overview without a call per tenant. Includes deleted tenants, whose
+-- usage_counters rows deliberately outlive them.
+SELECT
+    tenant_id,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE bucket >= $1 AND bucket < $2
+GROUP BY tenant_id ORDER BY tenant_id;
+
+-- name: operator-get-platform-usage-daily
+-- All tenants' usage over [$1, $2) per UTC day.
+SELECT
+    to_char(bucket AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE bucket >= $1 AND bucket < $2
+GROUP BY 1 ORDER BY 1;
