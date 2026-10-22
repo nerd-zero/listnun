@@ -26,16 +26,6 @@
   line-height: 18px;
   overflow-x: auto;
 }
-[data-md-color-scheme="slate"] .ui {
-  --ln-bg: #14171c; --ln-card: #1b1f26; --ln-muted: #181b21; --ln-hover: #22262e;
-  --ln-ink: #ece9e1; --ln-on-ink: #14171c;
-  --ln-text: #ece9e1; --ln-text-2: #c7c3ba; --ln-text-3: #9599a0; --ln-text-4: #6b6f76;
-  --ln-border: #2b2f36; --ln-border-strong: #3a3f47;
-  --ln-success-fg: #6cc39b; --ln-success-bg: rgba(63, 143, 108, .18);
-  --ln-warn-fg: #e8a06b; --ln-warn-bg: rgba(217, 125, 61, .18);
-  --ln-danger-fg: #e58a76; --ln-danger-bg: rgba(193, 80, 59, .2);
-  --ln-neutral-bg: #22262e;
-}
 /* mkdocs-material styles every p/ul/table inside content; previews reset that. */
 .md-typeset .ui p, .md-typeset .ui ul, .md-typeset .ui ol, .md-typeset .ui li { margin: 0; padding: 0; list-style: none; }
 .md-typeset .ui strong { font-weight: 600; }

@@ -2,12 +2,12 @@ site_name: listnun / Documentation
 theme:
   name: material
   # custom_dir: "mkdocs-material/material"
-  logo: "images/favicon.png"
-  favicon: "images/favicon.png"
+  logo: "images/listnun-mark.png"
+  favicon: "images/listnun-mark.png"
   language: "en"
   font:
-    text: 'IBM Plex Sans'
-    code: 'IBM Plex Mono'
+    text: 'Inter'
+    weights: 400
   direction: 'ltr'
   extra:
   search:
@@ -20,20 +20,8 @@ theme:
     - content.code.copy
 
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: "white"
-      accent: "deep orange"
-      toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: "black"
-      accent: "deep orange"
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
+    primary: "white"
+    accent: "red"
 
 site_dir: _out
 docs_dir: content
