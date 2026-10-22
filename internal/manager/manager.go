@@ -125,7 +125,9 @@ type Manager struct {
 	// Links generated using Track() are cached here so as to not query
 	// the database for the link UUID for every message sent. This has to
 	// be locked as it may be used externally when previewing campaigns.
-	links    map[string]string
+	// Keyed by tenant too: each tenant's links rows are its own, so one
+	// tenant's UUID for a URL is meaningless (and invisible) to another.
+	links    map[linkKey]string
 	linksMut sync.RWMutex
 
 	nextPipes chan *pipe
@@ -194,6 +196,12 @@ type Config struct {
 
 // tenantURLCfg mirrors Config's URL template fields, resolved against one
 // tenant's own app.root_url rather than the process-global default.
+// linkKey identifies a tracked link in the cache.
+type linkKey struct {
+	tenantID int
+	url      string
+}
+
 type tenantURLCfg struct {
 	RootURL      string
 	UnsubURL     string
@@ -275,7 +283,7 @@ func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter
 		pipes:        make(map[int]*pipe),
 		tpls:         make(map[int]*models.Template),
 		tenantURLs:   make(map[int]tenantURLCfg),
-		links:        make(map[string]string),
+		links:        make(map[linkKey]string),
 		nextPipes:    make(chan *pipe, 1000),
 		campMsgQ:     make(chan CampaignMessage, cfg.Concurrency*cfg.MessageRate*2),
 		msgQ:         make(chan models.Message, cfg.Concurrency*cfg.MessageRate*2),
@@ -804,8 +812,9 @@ func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string 
 
 	linkTrackURL := m.urlsFor(tenantID).LinkTrackURL
 
+	key := linkKey{tenantID: tenantID, url: url}
 	m.linksMut.RLock()
-	if uu, ok := m.links[url]; ok {
+	if uu, ok := m.links[key]; ok {
 		m.linksMut.RUnlock()
 		return fmt.Sprintf(linkTrackURL, uu, campUUID, subUUID)
 	}
@@ -821,7 +830,7 @@ func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string 
 	}
 
 	m.linksMut.Lock()
-	m.links[url] = uu
+	m.links[key] = uu
 	m.linksMut.Unlock()
 
 	return fmt.Sprintf(linkTrackURL, uu, campUUID, subUUID)
