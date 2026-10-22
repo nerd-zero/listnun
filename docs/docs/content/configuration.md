@@ -21,6 +21,30 @@ Supported variables:
 | `LISTNUN_db__ssl_mode`        | disable        |
 
 
+### listnun-specific settings
+
+These are only in the configuration file (or environment), not in the Settings screens.
+
+| Setting | Default | What it does |
+| :------ | :------ | :----------- |
+| `app.multi_tenancy_enabled` | `false` | Host many workspaces on one instance. See [Workspaces and the operator API](operators/workspaces.md). |
+| `app.root_domain` | | With multi-tenancy, workspaces live at `<slug>.<root_domain>`. |
+| `app.console_url` | | Where a suspended workspace's admin app redirects (`/billing` for suspended, the root for disabled). Empty returns a plain 503. |
+| `app.webhooks_allow_private` | `false` | Let **Developers › Webhooks** call plain HTTP and private or loopback addresses. For local development only: on a shared install it lets workspaces reach internal hosts. |
+| `operator.token` | | Turns on the operator API with this bearer token. Empty keeps it off. |
+| `operator.db_user`, `operator.db_password` | | A separate Postgres role with `BYPASSRLS` for the operator API's cross-workspace reads. |
+| `operator.env` | | `dev` adds a `-dev` suffix to generated workspace hosts, so dev and prod can share a root domain. |
+| `inactive_cleanup.managed.*` | 180 days, either, unsubscribe, Sundays 02:00 | The rules workspaces get in **Inactive cleanup › Managed** mode: `days` (30–3650), `activity` (`opened`, `clicked` or `either`), `action` (`unsubscribe`, `blocklist` or `delete`), `list_ids` (empty for all lists) and `schedule` (a cron expression). Invalid values fall back to the defaults, with a log line. |
+
+```toml
+[inactive_cleanup.managed]
+days = 180
+activity = "either"
+action = "unsubscribe"
+list_ids = []
+schedule = "0 2 * * 0"
+```
+
 ### Customizing system templates
 See [system templates](templating.md#system-templates).
 
@@ -32,7 +56,7 @@ When configuring auth proxies and web application firewalls, use this table.
 
 | Methods | Route              | Description             |
 | ------- | ------------------ | ----------------------- |
-| `*`     | `/api/*`           | Admin APIs              |
+| `*`     | `/api/*`           | Admin APIs, the Developers API and the operator API. Your own systems calling the API need this too. |
 | `GET`   | `/admin/*`         | Admin UI and HTML pages |
 | `POST`  | `/webhooks/bounce` | Admin bounce webhook    |
 
@@ -45,15 +69,18 @@ When configuring auth proxies and web application firewalls, use this table.
 | `GET, `     | `/link/*`             | Tracked link redirection                      |
 | `GET`       | `/campaign/*`         | Pixel tracking image                          |
 | `GET`       | `/public/*`           | Static files for HTML subscription pages      |
-| `POST`      | `/webhooks/service/*` | Bounce webhook endpoints for SES, Azure ACS, Sendgrid, and other supported providers |
+| `GET`       | `/archive*`           | The public campaign archive and its RSS feed (`/archive.xml`) |
+| `POST`      | `/webhooks/service/*` | Bounce webhook endpoints for SES, Azure ACS, Sendgrid, Postmark and other supported providers |
+| `POST`      | `/webhooks/scrub/batch` | Mail Validation (Scrub) results |
 | `GET`       | `/uploads/*`          | The file upload path configured in media settings |
+| `GET`       | `/health`             | Health check for load balancers |
 
 
 ## Media uploads
 
 #### Using filesystem
 
-When configuring `docker` volume mounts for using filesystem media uploads, you can follow either of two approaches. [The second option may be necessary if](https://github.com/knadh/listmonk/issues/1169#issuecomment-1674475945) your setup requires you to use `sudo` for docker commands. 
+When configuring `docker` volume mounts for using filesystem media uploads, you can follow either of two approaches. The second may be necessary if your setup requires `sudo` for docker commands. For S3-compatible storage instead, see [Media storage](operators/media-storage.md).
 
 After making any changes you will need to run `sudo docker compose stop ; sudo docker compose up`. 
 
@@ -120,9 +147,9 @@ Docker logs to `/dev/stdout` and `/dev/stderr`. The logs are collected by the do
 
 listnun logs to `stdout`, which is usually not saved to any file. To save listnun logs to a file use `./listnun > listnun.log`.
 
-Settings -> Logs in admin shows the last 1000 lines of the standard log output but gets erased when listnun is restarted.
+**Settings › Logs** in the admin app is each workspace's own activity log (settings changes, campaign and import events, webhook failures), kept in the database for 30 days. It isn't the server log.
 
-For the [service file](https://github.com/knadh/listmonk/blob/master/listmonk%40.service), you can use `ExecStart=/bin/bash -ce "exec /usr/bin/listnun --config /etc/listnun/config.toml --static-dir /etc/listnun/static >>/etc/listnun/listnun.log 2>&1"` to create a log file that persists after restarts. [More info](https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606).
+For a systemd service, you can use `ExecStart=/bin/bash -ce "exec /usr/bin/listnun --config /etc/listnun/config.toml --static-dir /etc/listnun/static >>/etc/listnun/listnun.log 2>&1"` to create a log file that persists after restarts. [More info](https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606).
 
 
 ## Time zone
@@ -137,7 +164,7 @@ with any Timezone listed [here](https://en.wikipedia.org/wiki/List_of_tz_databas
 ## SMTP
 
 ### Retries
-The `Settings -> SMTP -> Retries` denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.
+**Settings › SMTP › Retries** denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.
 
 ## SMTP ports
 Some server hosts block outgoing SMTP ports (25, 465). You may have to contact your host to unblock them before being able to send e-mails. Eg: [Hetzner](https://docs.hetzner.com/cloud/servers/faq/#why-can-i-not-send-any-mails-from-my-server).

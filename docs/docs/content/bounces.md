@@ -1,9 +1,9 @@
 # Bounce processing
 
-Enable bounce processing in Settings -> Bounces. POP3 bounce scanning and APIs only become available once the setting is enabled.
+Enable bounce processing in **Settings › Bounces**. POP3 bounce scanning and APIs only become available once the setting is enabled.
 
 ## POP3 bounce mailbox
-Configure the bounce mailbox in Settings -> Bounces. Either the "From" e-mail that is set on a campaign (or in settings) should have a POP3 mailbox behind it to receive bounce e-mails, or you should configure a dedicated POP3 mailbox and add that address as the `Return-Path` (envelope sender) header in Settings -> SMTP -> Custom headers box. For example:
+Configure the bounce mailbox in **Settings › Bounces**. Either the "From" e-mail that is set on a campaign (or in settings) should have a POP3 mailbox behind it to receive bounce e-mails, or you should configure a dedicated POP3 mailbox and add that address as the `Return-Path` (envelope sender) header in **Settings › SMTP › Custom** headers box. For example:
 
 ```
 [

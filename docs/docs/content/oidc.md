@@ -1,10 +1,10 @@
 
 ## OIDC Single Sign On
 
-Listnun supports single sign-on with OIDC (OpenID Connect). Any standards compliant OIDC provider can be configured in Settings -> Security -> OIDC
+Listnun supports single sign-on with OIDC (OpenID Connect). Any standards compliant OIDC provider can be configured in **Settings › Security** -> OIDC
 
 ### User auto-creation
-If `Settings -> Security -> OIDC -> Auto-create users` is turned on, when users login via OIDC, an account is auto-created if an existing account is not found (based on the OIDC e-mail ID).
+If **Auto-create users** is turned on in **Settings › Security › OIDC**, when users login via OIDC, an account is auto-created if an existing account is not found (based on the OIDC e-mail ID).
 
 # Tutorials
 
@@ -27,14 +27,14 @@ In the Keycloak admin, use an existing realm, or create a new realm. Create a ne
         - **Standard Flow**: On
         - **Direct Access grants**: On
 - **Login Settings**:
-    - **Root URL**: Copy the **Redirect URL for oAuth provider** value from listnun Admin -> Settings -> Security -> OIDC. It will look like `https://listnun.yoursite.com/auth/oidc`
+    - **Root URL**: Copy the **Redirect URL for oAuth provider** value from **Settings › Security › OIDC**. It will look like `https://listnun.yoursite.com/auth/oidc`
     - **Valid redirect URIs**: Same as the Root URL above
     - **Valid post logout redirect URIs**: *
 
 After the client creation steps above, go to the client's `Credentials` tab and copy the `Client Secret`.
 
 ### 2. Configure Listnun
-2. In Listnun Admin -> Settings -> Security -> OIDC.
+2. In **Settings › Security › OIDC**.
     - **Enable OIDC SSO**: Turn on
     - **Provider URL**: `https://keycloak.yoursite.com/realms/{realm}` (replace `{realm}` with the chosen realm name). This URL is as of v26.3 and may differ across Keycloak versions.
     - **Provider name**: Set a name to show on the listnun login form, eg: `Login with OrgName`
@@ -56,7 +56,7 @@ In the Authentik admin interface, create a new OIDC provider for listnun.
     - **Signing Key**: `authentik Self-signed Certificate`
     - **Client Type**: `Confidential`
     - **Client ID**: `listnun` (or any preferred name)
-    - **Redirect URIs**: Copy the **Redirect URL for oAuth provider** value from listnun Admin -> Settings -> Security -> OIDC. It will look like `https://listnun.yoursite.com/auth/oidc`
+    - **Redirect URIs**: Copy the **Redirect URL for oAuth provider** value from **Settings › Security › OIDC**. It will look like `https://listnun.yoursite.com/auth/oidc`
 
 After creating the provider, copy the **Client Secret**.
 

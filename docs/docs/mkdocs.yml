@@ -6,8 +6,8 @@ theme:
   favicon: "images/favicon.png"
   language: "en"
   font:
-    text: 'Inter'
-    weights: 400
+    text: 'IBM Plex Sans'
+    code: 'IBM Plex Mono'
   direction: 'ltr'
   extra:
   search:
@@ -28,6 +28,9 @@ docs_dir: content
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
+  - tables
   - pymdownx.highlight
   - pymdownx.superfences
   - toc:
@@ -40,34 +43,51 @@ copyright: "CC BY-SA 4.0"
 
 nav:
   - "Introduction": index.md
-  - "Getting Started":
+  - "Using listnun":
+    - "Quickstart": start/quickstart.md
+    - "A tour of your workspace": start/workspace.md
+    - "Lists and forms": guides/lists-and-forms.md
+    - "Subscribers": guides/subscribers.md
+    - "Importing subscribers": guides/import.md
+    - "Writing and sending campaigns": guides/campaigns.md
+    - "Tracking opens and clicks": guides/tracking.md
+    - "Templates and media": guides/templates-and-media.md
+    - "Your team": guides/team.md
+    - "Settings": guides/settings.md
+    - "Reference":
+      - "Concepts": concepts.md
+      - "Templating": templating.md
+      - "Querying and segmenting subscribers": querying-and-segmentation.md
+      - "Roles and permissions": roles-and-permissions.md
+      - "Archives": archives.md
+      - "Bounce processing": bounces.md
+      - "Messengers": messengers.md
+      - "OIDC SSO": oidc.md
+      - "Languages": i18n.md
+  - "Developers":
+    - "Overview": developers/index.md
+    - "API keys": developers/api-keys.md
+    - "Transactional email": developers/transactional.md
+    - "Webhooks": developers/webhooks.md
+    - "Email branding": developers/branding.md
+    - "Integrating with external systems": external-integration.md
+    - "API reference":
+      - "Introduction": apis/apis.md
+      - "SDKs and libs": apis/sdks.md
+      - "Subscribers": apis/subscribers.md
+      - "Lists": apis/lists.md
+      - "Import": apis/import.md
+      - "Campaigns": apis/campaigns.md
+      - "Media": apis/media.md
+      - "Templates": apis/templates.md
+      - "Transactional": apis/transactional.md
+      - "Bounces": apis/bounces.md
+  - "Running listnun":
     - "Installation": installation.md
     - "Configuration": configuration.md
     - "Upgrade": upgrade.md
-  - "Using listnun":
-    - "Concepts": concepts.md
-    - "Templating": templating.md
-    - "Querying and segmenting subscribers": querying-and-segmentation.md
-    - "Bounce processing": bounces.md
-    - "Messengers": "messengers.md"
-    - "Archives": "archives.md"
-    - "Internationalization": "i18n.md"
-    - "Integrating with external systems": external-integration.md
-    - "User roles and permissions": roles-and-permissions.md
-    - "OIDC SSO": oidc.md
-  - "API":
-    - "Introduction": apis/apis.md
-    - "SDKs and libs": apis/sdks.md
-    - "Subscribers": apis/subscribers.md
-    - "Lists": apis/lists.md
-    - "Import": apis/import.md
-    - "Campaigns": apis/campaigns.md
-    - "Media": apis/media.md
-    - "Templates": apis/templates.md
-    - "Transactional": apis/transactional.md
-    - "Bounces": apis/bounces.md
-  - "Maintenance":
+    - "Workspaces and the operator API": operators/workspaces.md
+    - "Media storage": operators/media-storage.md
     - "Performance": maintenance/performance.md
-  - "Contributions":
     - "Developer setup": developer-setup.md
     - "Security reports": security-reports.md

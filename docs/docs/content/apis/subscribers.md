@@ -7,7 +7,7 @@
 | GET    | [/api/subscribers/{subscriber_id}/export](#get-apisubscriberssubscriber_idexport)       | Export a specific subscriber.                  |
 | GET    | [/api/subscribers/{subscriber_id}/bounces](#get-apisubscriberssubscriber_idbounces)     | Retrieve a  subscriber bounce records.         |
 | POST   | [/api/subscribers](#post-apisubscribers)                                                | Create a new subscriber.                       |
-| POST   | [/api/subscribers/{subscriber_id}/optin](#post-apisubscriberssubscriber_idoptin)        | Sends optin confirmation email to subscribers. |
+| POST   | [/api/subscribers/{subscriber_id}/optin](#post-apisubscriberssubscribers_idoptin)        | Sends optin confirmation email to subscribers. |
 | POST   | [/api/public/subscription](#post-apipublicsubscription)                                 | Create a public subscription.                  |
 | PUT    | [/api/subscribers/lists](#put-apisubscriberslists)                                      | Modify subscriber list memberships.            |
 | PUT    | [/api/subscribers/query/lists](#put-apisubscribersquerylists)                           | Bulk modify list memberships using SQL/Search queries. |
