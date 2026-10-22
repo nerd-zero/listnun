@@ -791,7 +791,6 @@ section.lists {
 section.import {
   .delimiter input { max-width: 100px; }
   .status { padding: 60px; }
-  .log-view .lines { max-height: 240px; text-align: left; }
 }
 
 // ============================================================
@@ -857,34 +856,6 @@ section.analytics {
   .settings-wrap { max-width: 1240px; }
   .disabled { opacity: 0.30; }
   .code-editor { height: 20vh; min-height: 350px; }
-}
-
-// ============================================================
-// Log view
-// ============================================================
-.log-view {
-  .lines {
-    height: 70vh;
-    overflow-y: scroll;
-    font-family: monospace;
-    font-size: 0.90rem;
-    padding: 15px;
-    border: 1px solid $grey-lightest;
-
-    .line {
-      display: block;
-      margin-bottom: 2px;
-    }
-    .timestamp, .file {
-      color: $primary;
-      display: inline-block;
-      min-width: 175px;
-      margin-right: 5px;
-      user-select: auto;
-    }
-    .timestamp { margin-right: 15px; }
-    .line:hover { background: $white-bis; }
-  }
 }
 
 // ============================================================

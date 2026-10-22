@@ -576,7 +576,5 @@ onBeforeUnmount(() => window.clearInterval(pollID));
   max-height: 320px;
   overflow: auto;
   padding: 10px 14px;
-  :deep(.log-view) { background: transparent; color: inherit; border: 0; }
-  :deep(.lines) { max-height: none; }
 }
 </style>

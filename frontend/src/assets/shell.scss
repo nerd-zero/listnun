@@ -222,6 +222,12 @@
   overscroll-behavior: contain;
   padding: 2px;
   margin: -2px;
+  // A thin scrollbar that only shows while the pointer is over the menu.
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--ln-dur-base) var(--ln-ease);
+
+  &:hover, &:focus-within { scrollbar-color: var(--ln-border-strong) transparent; }
 }
 
 .ln-sidebar-foot {
