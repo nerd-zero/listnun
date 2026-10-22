@@ -162,7 +162,7 @@ func (a *App) PreviewTxTemplate(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("templates.errorCompiling", "error", err.Error()))
 	}
 
-	m := models.TxMessage{Data: req.Data, AltBody: req.AltBody}
+	m := models.TxMessage{Data: req.Data, AltBody: req.AltBody, Brand: a.brandBlock(c.Request().Context(), tenantID(c))}
 	if err := m.Render(dummySubscriber, &tpl, a.manager.GenericTemplateFuncs()); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("templates.errorRendering", "error", err.Error()))
 	}

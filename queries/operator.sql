@@ -50,8 +50,11 @@ INSERT INTO tenants (slug, name, status, organization_id) VALUES ($1, $2, 'activ
 -- app.root_url is deliberately excluded: it's tenant-1-specific, not a
 -- sensible default for anyone else, and operator-set-tenant-root-url
 -- sets the new tenant's own correct value right after this runs.
+-- branding is tenant 1's own logo, so a new tenant starts without one.
 INSERT INTO settings (tenant_id, key, value)
-SELECT $1, key, value FROM settings WHERE tenant_id = 1 AND key != 'app.root_url'
+SELECT $1, key, value FROM settings WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'branding')
+UNION ALL
+SELECT $1, 'branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB
 ON CONFLICT (tenant_id, key) DO NOTHING;
 
 -- name: operator-set-tenant-root-url

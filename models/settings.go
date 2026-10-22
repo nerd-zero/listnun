@@ -183,4 +183,39 @@ type Settings struct {
 		// Settings > Mail Validation UI greys the whole section out.
 		ManagedByPlatform bool `json:"managed_by_platform"`
 	} `json:"scrub"`
+
+	// Branding is the workspace logo shown in transactional emails through
+	// the brand-logo template block (Developers > Email branding).
+	Branding Branding `json:"branding"`
 } // @name Settings
+
+// Branding alignments.
+const (
+	BrandAlignLeft   = "left"
+	BrandAlignCenter = "center"
+)
+
+// Branding is the logo transactional templates show with
+// {{ template "brand-logo" . }}. It isn't used in campaigns or the app.
+type Branding struct {
+	Logo *BrandLogo `json:"logo"`
+	// LogoDark is used by email clients in dark mode. Without it, Logo sits
+	// on a white tile there.
+	LogoDark *BrandLogo `json:"logo_dark"`
+	// Width is the logo's display width in px.
+	Width   int    `json:"width"`
+	Align   string `json:"align"`
+	LinkURL string `json:"link_url"`
+} // @name Branding
+
+// BrandLogo is an uploaded logo from the media library.
+type BrandLogo struct {
+	MediaID     int    `json:"media_id"`
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int    `json:"size"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	UploadedAt  string `json:"uploaded_at"`
+} // @name BrandLogo

@@ -1081,6 +1081,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/developers/branding": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Get email branding",
+                "operationId": "getBranding",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Save email branding",
+                "operationId": "updateBranding",
+                "parameters": [
+                    {
+                        "description": "Branding",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/developers/keys": {
             "get": {
                 "produces": [
@@ -5765,6 +5823,61 @@ const docTemplate = `{
                 }
             }
         },
+        "BrandLogo": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "media_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "Branding": {
+            "type": "object",
+            "properties": {
+                "align": {
+                    "type": "string"
+                },
+                "link_url": {
+                    "type": "string"
+                },
+                "logo": {
+                    "$ref": "#/definitions/BrandLogo"
+                },
+                "logo_dark": {
+                    "description": "LogoDark is used by email clients in dark mode. Without it, Logo sits\non a white tile there.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/BrandLogo"
+                        }
+                    ]
+                },
+                "width": {
+                    "description": "Width is the logo's display width in px.",
+                    "type": "integer"
+                }
+            }
+        },
         "Campaign": {
             "type": "object",
             "properties": {
@@ -6879,6 +6992,14 @@ const docTemplate = `{
                 },
                 "bounce.webhooks_enabled": {
                     "type": "boolean"
+                },
+                "branding": {
+                    "description": "Branding is the workspace logo shown in transactional emails through\nthe brand-logo template block (Developers \u003e Email branding).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    ]
                 },
                 "maintenance.db": {
                     "type": "object",

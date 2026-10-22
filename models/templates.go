@@ -45,8 +45,13 @@ type Template struct {
 // Compile compiles a template body and subject (only for tx templates) and
 // caches the templat references to be executed later.
 func (t *Template) Compile(f template.FuncMap) error {
-	tpl, err := template.New(BaseTpl).Funcs(f).Parse(t.Body)
+	// The brand-logo block is defined first so every body can include it;
+	// a body that defines its own replaces it.
+	tpl, err := template.New(BaseTpl).Funcs(f).Parse(brandLogoDefine)
 	if err != nil {
+		return fmt.Errorf("error compiling brand-logo block: %v", err)
+	}
+	if tpl, err = tpl.Parse(t.Body); err != nil {
 		return fmt.Errorf("error compiling transactional template: %v", err)
 	}
 	t.Tpl = tpl
