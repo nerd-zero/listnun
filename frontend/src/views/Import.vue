@@ -150,7 +150,7 @@
         <status-tag :status="status.status" :label="statusLabel" data-cy="import-status" />
       </div>
       <div class="imp-body">
-        <PvProgressBar :value="progress" :show-value="false" class="imp-bar" />
+        <PvProgressBar :value="barValue" :show-value="false" class="imp-bar" />
         <p class="ln-small imp-count">
           <span v-if="status.name" class="ln-mono">{{ status.name }}</span>
           {{ $t('import.recordsCount', { num: fmt(written), total: fmt(status.total) }) }}
@@ -237,6 +237,7 @@ import PageHeader from '../components/ui/PageHeader.vue';
 import StatusTag from '../components/ui/StatusTag.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getImport } from '../api/generated/endpoints/import/import';
+import { perceivedProgress } from '../composables/perceivedProgress';
 
 // Import status and list rows are the API's camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -301,6 +302,10 @@ const progress = computed(() => {
   const done = written.value + (status.value.skipped || 0) + (status.value.failed || 0);
   return Math.min(100, Math.ceil((done / status.value.total) * 100));
 });
+
+// The bar eases in (slower early, faster towards the end), which reads as
+// quicker; it's full only once the import is done. The counts stay exact.
+const barValue = computed(() => (isDone() ? 100 : perceivedProgress(progress.value)));
 
 const allLists = computed<Loose[]>(() => (lists.value as Loose).results || []);
 
