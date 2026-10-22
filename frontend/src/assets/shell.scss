@@ -34,7 +34,7 @@
 // .ln-side holds whichever is showing and animates its width between
 // them, clipping the outgoing one; the two cross-fade inside it.
 .ln-side {
-  --ln-side-anim: 220ms cubic-bezier(.2, 0, 0, 1);
+  --ln-side-anim: var(--ln-dur-slow) var(--ln-ease);
   flex: none;
   width: 240px;
   height: 100vh;
@@ -46,7 +46,7 @@
   &.is-rail { width: 60px; }
 }
 .ln-side-swap-enter-active,
-.ln-side-swap-leave-active { transition: opacity 110ms ease; }
+.ln-side-swap-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease); }
 .ln-side-swap-enter-from,
 .ln-side-swap-leave-to { opacity: 0; }
 
@@ -103,7 +103,7 @@
 
 .ln-nav {
   // Timing for the sub-list slide and the chevron turn.
-  --ln-nav-anim: 180ms cubic-bezier(.2, 0, 0, 1);
+  --ln-nav-anim: var(--ln-dur-base) var(--ln-ease);
   display: flex;
   flex-direction: column;
   gap: 16px;

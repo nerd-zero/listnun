@@ -72,9 +72,9 @@
       <table-skeleton :rows="6" :cols="1" />
     </div>
 
-    <div v-else class="camp-body">
+    <div v-else class="camp-body" :class="stepDir">
       <!-- 1. Settings -->
-      <form v-show="step === 'settings'" class="camp-settings" @submit.prevent="onPrimary">
+      <form v-show="step === 'settings'" class="camp-settings ln-step" @submit.prevent="onPrimary">
         <section class="ln-card ln-card-pad camp-fields">
           <div class="ln-field">
             <label for="camp-name">{{ $t('campaigns.name') }}</label>
@@ -185,7 +185,7 @@
       </form>
 
       <!-- 2. Content -->
-      <section v-if="data.id" v-show="step === 'content'" class="camp-content">
+      <section v-if="data.id" v-show="step === 'content'" class="camp-content ln-step">
         <editor
           v-model="form.content"
           :id="data.id"
@@ -232,7 +232,7 @@
       </section>
 
       <!-- 3. Schedule -->
-      <section v-show="step === 'schedule'" class="camp-schedule">
+      <section v-show="step === 'schedule'" class="camp-schedule ln-step">
         <h2 class="ln-section-title">{{ $t('campaigns.whenTitle') }}</h2>
         <div class="camp-when" role="radiogroup" :aria-label="$t('campaigns.whenTitle')">
           <label class="camp-when-card" :class="{ 'is-on': !form.sendLater }">
@@ -336,7 +336,7 @@
       </section>
 
       <!-- 4. Review -->
-      <section v-show="step === 'review'" class="camp-review">
+      <section v-show="step === 'review'" class="camp-review ln-step">
         <h2 class="ln-section-title">{{ $t('campaigns.reviewTitle') }}</h2>
         <ul class="ln-card camp-checks">
           <li v-for="c in checks" :key="c.key" :class="`is-${c.tone}`">
@@ -540,6 +540,9 @@ const steps = computed<{ key: StepKey; label: string }[]>(() => [
   { key: 'review', label: t('campaigns.stepReview') },
 ]);
 const stepIndex = computed(() => steps.value.findIndex((s) => s.key === step.value));
+// Which way the last step change went, so the new step slides in from
+// that side (motion.scss).
+const stepDir = ref<'ln-steps-next' | 'ln-steps-prev'>('ln-steps-next');
 
 const contentTypes = computed(() => Object.freeze({
   richtext: t('campaigns.richText'),
@@ -721,6 +724,8 @@ function onFillArchiveMeta() {
 
 function goStep(k: StepKey) {
   if (isNew.value && k !== 'settings') return;
+  const to = steps.value.findIndex((s) => s.key === k);
+  stepDir.value = to < stepIndex.value ? 'ln-steps-prev' : 'ln-steps-next';
   step.value = k;
   window.history.replaceState(window.history.state, '', `#${k}`);
   if (k === 'content' && (window as Loose).tinymce?.editors?.length > 0) {
@@ -1114,6 +1119,7 @@ onBeforeUnmount(() => {
   font-weight: 500;
   cursor: pointer;
   text-align: left;
+  transition: color var(--ln-dur-base) var(--ln-ease), border-color var(--ln-dur-base) var(--ln-ease);
 
   &:disabled { cursor: not-allowed; opacity: .6; }
   &.is-done { color: var(--ln-text); border-bottom-color: var(--ln-success); }
@@ -1131,8 +1137,9 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   font-size: 11px;
+  transition: background-color var(--ln-dur-base) var(--ln-ease), border-color var(--ln-dur-base) var(--ln-ease), color var(--ln-dur-base) var(--ln-ease);
 
-  i { font-size: 10px; }
+  i { font-size: 10px; animation: ln-pop-in var(--ln-dur-base) var(--ln-ease); }
   .is-done & { background: var(--ln-success); border-color: var(--ln-success); color: #fff; }
   .is-current & { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
 }

@@ -11,39 +11,46 @@
     </aside>
 
     <main class="settings-main">
-      <header class="settings-head">
-        <h2 class="ln-page-title">{{ current.label }}</h2>
-        <p class="settings-head-text">{{ current.help }}</p>
-      </header>
+      <!-- Switching section cross-fades the heading and the content. -->
+      <Transition name="ln-fade" mode="out-in">
+        <div :key="section">
+          <header class="settings-head">
+            <h2 class="ln-page-title">{{ current.label }}</h2>
+            <p class="settings-head-text">{{ current.help }}</p>
+          </header>
 
-      <maintenance v-if="section === 'maintenance'" />
-      <activity-log v-else-if="section === 'logs'" />
+          <maintenance v-if="section === 'maintenance'" />
+          <activity-log v-else-if="section === 'logs'" />
 
-      <template v-else>
-        <table-skeleton v-if="!form" :rows="6" :cols="2" />
-        <form v-else class="ln-settings" @submit.prevent="onSubmit">
-          <general-settings v-if="section === 'general'" :key="key" :form="form" />
-          <performance-settings v-else-if="section === 'performance'" :key="key" :form="form" />
-          <privacy-settings v-else-if="section === 'privacy'" :key="key" :form="form" />
-          <security-settings v-else-if="section === 'security'" :key="key" :form="form" />
-          <media-settings v-else-if="section === 'media'" :key="key" :form="form" />
-          <smtp-settings v-else-if="section === 'smtp'" :key="key" :form="form" />
-          <bounce-settings v-else-if="section === 'bounces'" :key="key" :form="form" />
-          <messenger-settings v-else-if="section === 'messengers'" :key="key" :form="form" />
-          <appearance-settings v-else-if="section === 'appearance'" :key="key" :form="form" />
-          <scrub-settings v-else-if="section === 'scrub'" :key="key" :form="form" />
-          <inactive-settings v-else-if="section === 'inactive'" :key="key" :form="form" />
-          <button type="submit" hidden aria-hidden="true" tabindex="-1" />
-        </form>
-      </template>
+          <template v-else>
+            <table-skeleton v-if="!form" :rows="6" :cols="2" />
+            <form v-else class="ln-settings ln-enter" @submit.prevent="onSubmit">
+              <general-settings v-if="section === 'general'" :form="form" />
+              <performance-settings v-else-if="section === 'performance'" :form="form" />
+              <privacy-settings v-else-if="section === 'privacy'" :form="form" />
+              <security-settings v-else-if="section === 'security'" :form="form" />
+              <media-settings v-else-if="section === 'media'" :form="form" />
+              <smtp-settings v-else-if="section === 'smtp'" :form="form" />
+              <bounce-settings v-else-if="section === 'bounces'" :form="form" />
+              <messenger-settings v-else-if="section === 'messengers'" :form="form" />
+              <appearance-settings v-else-if="section === 'appearance'" :form="form" />
+              <scrub-settings v-else-if="section === 'scrub'" :form="form" />
+              <inactive-settings v-else-if="section === 'inactive'" :form="form" />
+              <button type="submit" hidden aria-hidden="true" tabindex="-1" />
+            </form>
+          </template>
+        </div>
+      </Transition>
     </main>
 
     <!-- Unsaved changes -->
-    <div v-if="hasFormChanged && $can('settings:manage')" class="settings-unsaved" role="status">
-      <span>{{ $t('settings.unsavedIn', { sections: dirtyLabels }) }}</span>
-      <PvButton :label="$t('settings.discard')" size="small" severity="secondary" outlined class="settings-unsaved-discard" @click="discard" />
-      <PvButton :label="$t('globals.buttons.save')" size="small" :loading="isLoading" class="settings-unsaved-save" data-cy="btn-save" @click="onSubmit" />
-    </div>
+    <Transition name="ln-rise">
+      <div v-if="hasFormChanged && $can('settings:manage')" class="settings-unsaved" role="status">
+        <span>{{ $t('settings.unsavedIn', { sections: dirtyLabels }) }}</span>
+        <PvButton :label="$t('settings.discard')" size="small" severity="secondary" outlined class="settings-unsaved-discard" @click="discard" />
+        <PvButton :label="$t('globals.buttons.save')" size="small" :loading="isLoading" class="settings-unsaved-save" data-cy="btn-save" @click="onSubmit" />
+      </div>
+    </Transition>
 
     <confirm-action
       v-model:visible="leave.open"
@@ -107,8 +114,6 @@ const route = useRoute();
 const router = useRouter();
 const { serverConfig } = storeToRefs(useMainStore());
 
-// :key re-renders the sections every time settings are fetched.
-const key = ref(0);
 const isLoading = ref(false);
 // formCopy is the settings as last fetched, to detect changes.
 const formCopy = ref('');
@@ -220,8 +225,7 @@ function fetchSettings() {
     }
     d['privacy.domain_blocklist'] = d['privacy.domain_blocklist'].join('\n');
     d['privacy.domain_allowlist'] = d['privacy.domain_allowlist'].join('\n');
-    key.value += 1;
-    form.value = d;
+    setForm(d);
     formCopy.value = JSON.stringify(d);
     nextTick(() => { isLoading.value = false; });
   });
@@ -229,8 +233,20 @@ function fetchSettings() {
 
 function discard() {
   if (!formCopy.value) return;
-  form.value = JSON.parse(formCopy.value);
-  key.value += 1;
+  setForm(JSON.parse(formCopy.value));
+}
+
+// Updates the form in place, so the open section keeps its components and
+// state when settings are refetched (after saving or discarding) instead
+// of being rebuilt. The sections hold this object, not copies of it.
+function setForm(d: Loose) {
+  if (!form.value) {
+    form.value = d;
+    return;
+  }
+  const f = form.value;
+  Object.keys(f).forEach((k) => { if (!(k in d)) delete f[k]; });
+  Object.assign(f, d);
 }
 
 // Saving settings (when no campaigns are running) makes the backend restart

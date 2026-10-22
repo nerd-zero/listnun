@@ -32,8 +32,8 @@
           <strong>{{ $t('settings.inactive.days') }}</strong>
           <small>{{ $t('settings.inactive.daysHelp') }}</small>
         </div>
-        <locked-value v-if="managed" :text="daysLabel(status?.managed.days)" />
-        <PvSelect v-else v-model="ic.days" :options="dayOptions" option-label="label" option-value="value"
+        <locked-value v-if="managed" class="ln-enter" :text="daysLabel(status?.managed.days)" />
+        <PvSelect v-else class="ln-enter" v-model="ic.days" :options="dayOptions" option-label="label" option-value="value"
           :aria-label="$t('settings.inactive.days')" />
       </div>
 
@@ -42,8 +42,8 @@
           <strong>{{ $t('settings.inactive.activity') }}</strong>
           <small>{{ $t('settings.inactive.activityHelp') }}</small>
         </div>
-        <locked-value v-if="managed" :text="optionLabel(activityOptions, status?.managed.activity)" />
-        <PvSelect v-else v-model="ic.activity" :options="activityOptions" option-label="label" option-value="value"
+        <locked-value v-if="managed" class="ln-enter" :text="optionLabel(activityOptions, status?.managed.activity)" />
+        <PvSelect v-else class="ln-enter" v-model="ic.activity" :options="activityOptions" option-label="label" option-value="value"
           :aria-label="$t('settings.inactive.activity')" />
       </div>
 
@@ -52,36 +52,36 @@
           <strong>{{ $t('settings.inactive.action') }}</strong>
           <small>{{ $t('settings.inactive.actionHelp') }}</small>
         </div>
-        <locked-value v-if="managed" :text="optionLabel(actionOptions, status?.managed.action)" />
-        <PvSelect v-else v-model="ic.action" :options="actionOptions" option-label="label" option-value="value"
+        <locked-value v-if="managed" class="ln-enter" :text="optionLabel(actionOptions, status?.managed.action)" />
+        <PvSelect v-else class="ln-enter" v-model="ic.action" :options="actionOptions" option-label="label" option-value="value"
           :aria-label="$t('settings.inactive.action')" />
       </div>
 
       <div class="ic-row">
         <div><strong>{{ $t('settings.inactive.lists') }}</strong></div>
-        <locked-value v-if="managed" :text="listsLabel(status?.managed.list_ids)" />
-        <PvMultiSelect v-else v-model="ic.list_ids" :options="allLists" option-label="name" option-value="id"
+        <locked-value v-if="managed" class="ln-enter" :text="listsLabel(status?.managed.list_ids)" />
+        <PvMultiSelect v-else class="ln-enter" v-model="ic.list_ids" :options="allLists" option-label="name" option-value="id"
           :placeholder="$t('settings.inactive.allLists')" filter display="comma" :max-selected-labels="3"
           :aria-label="$t('settings.inactive.lists')" />
       </div>
 
       <div class="ic-row">
         <div><strong>{{ $t('settings.inactive.schedule') }}</strong></div>
-        <locked-value v-if="managed" :text="scheduleLabel(status?.managed.schedule)" />
-        <PvSelect v-else v-model="ic.schedule" :options="scheduleOptions" option-label="label" option-value="value"
+        <locked-value v-if="managed" class="ln-enter" :text="scheduleLabel(status?.managed.schedule)" />
+        <PvSelect v-else class="ln-enter" v-model="ic.schedule" :options="scheduleOptions" option-label="label" option-value="value"
           :aria-label="$t('settings.inactive.schedule')" />
       </div>
     </section>
 
-    <p v-if="status && !status.tracking" class="ic-note is-bad" role="alert">
+    <p v-if="status && !status.tracking" class="ic-note is-bad ln-enter" role="alert">
       <i class="pi pi-exclamation-triangle" aria-hidden="true" />
       {{ $t('settings.inactive.noTracking') }}
     </p>
-    <p v-else-if="managed" class="ic-note">
+    <p v-else-if="managed" class="ic-note ln-enter">
       <i class="pi pi-info-circle" aria-hidden="true" />
       {{ $t('settings.inactive.managedNote') }}
     </p>
-    <p v-else class="ic-note is-warn">
+    <p v-else class="ic-note is-warn ln-enter">
       <i class="pi pi-exclamation-triangle" aria-hidden="true" />
       {{ ic.action === 'delete' ? $t('settings.inactive.deleteNote') : $t('settings.inactive.customNote') }}
     </p>
@@ -279,7 +279,9 @@ onMounted(() => {
   cursor: pointer;
   strong { font-weight: 600; }
   small { font-size: 13px; line-height: 20px; color: var(--ln-text-2); margin-top: 2px; }
-  &.is-on { border: 2px solid var(--ln-ink); padding: 17px; }
+  // A 2px ring drawn as border + inset shadow, so selecting doesn't shift
+  // the layout and the change can ease (motion.scss).
+  &.is-on { border-color: var(--ln-ink); box-shadow: inset 0 0 0 1px var(--ln-ink); }
 }
 
 .ic-rules {

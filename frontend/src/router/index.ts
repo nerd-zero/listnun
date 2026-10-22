@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
+// meta.view names a view shared by several routes that reads the URL
+// itself, so App.vue keeps it mounted when moving between them.
 // meta.group marks the nav group a page belongs to. meta.perms lists the
 // permissions that open it (any one is enough); without them App.vue
 // shows NoAccess in place of the page.
@@ -37,7 +39,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/subscribers',
     name: 'subscribers',
-    meta: { title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'] },
+    meta: {
+      view: 'subscribers', title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'],
+    },
     component: () => import('../views/Subscribers.vue'),
   },
   {
@@ -61,7 +65,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/subscribers/:id',
     name: 'subscriber',
-    meta: { title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'] },
+    meta: {
+      view: 'subscribers', title: 'globals.terms.subscribers', group: 'subscribers', perms: ['subscribers:get_all', 'subscribers:get'],
+    },
     component: () => import('../views/Subscribers.vue'),
   },
   {
@@ -127,7 +133,11 @@ const routes: RouteRecordRaw[] = [
     path: '/developers/templates',
     name: 'devTemplates',
     meta: {
-      title: 'developers.templates.title', section: 'developers.title', group: 'developers', perms: ['templates:get'],
+      view: 'devTemplates',
+      title: 'developers.templates.title',
+      section: 'developers.title',
+      group: 'developers',
+      perms: ['templates:get'],
     },
     component: () => import('../views/developers/TxTemplates.vue'),
   },
@@ -135,7 +145,11 @@ const routes: RouteRecordRaw[] = [
     path: '/developers/templates/:id',
     name: 'devTemplate',
     meta: {
-      title: 'developers.templates.title', section: 'developers.title', group: 'developers', perms: ['templates:get'],
+      view: 'devTemplates',
+      title: 'developers.templates.title',
+      section: 'developers.title',
+      group: 'developers',
+      perms: ['templates:get'],
     },
     component: () => import('../views/developers/TxTemplates.vue'),
   },
@@ -172,14 +186,20 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/settings/:section?',
     name: 'settings',
-    meta: { title: 'globals.terms.settings', group: 'settings', perms: ['settings:get'] },
+    meta: {
+      view: 'settings', title: 'globals.terms.settings', group: 'settings', perms: ['settings:get'],
+    },
     component: () => import('../views/Settings.vue'),
   },
   {
     path: '/users',
     name: 'users',
     meta: {
-      title: 'globals.terms.users', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
+      view: 'users',
+      title: 'globals.terms.users',
+      section: 'globals.terms.users',
+      group: 'users',
+      perms: ['users:get'],
     },
     component: () => import('../views/Users.vue'),
   },
@@ -188,7 +208,11 @@ const routes: RouteRecordRaw[] = [
     path: '/users/:id(\\d+)',
     name: 'user',
     meta: {
-      title: 'globals.terms.users', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
+      view: 'users',
+      title: 'globals.terms.users',
+      section: 'globals.terms.users',
+      group: 'users',
+      perms: ['users:get'],
     },
     component: () => import('../views/Users.vue'),
   },
@@ -204,7 +228,11 @@ const routes: RouteRecordRaw[] = [
     path: '/users/roles/users',
     name: 'userRoles',
     meta: {
-      title: 'users.userRoles', section: 'globals.terms.users', group: 'users', perms: ['roles:get'],
+      view: 'roles',
+      title: 'users.userRoles',
+      section: 'globals.terms.users',
+      group: 'users',
+      perms: ['roles:get'],
     },
     component: () => import('../views/Roles.vue'),
   },
@@ -212,20 +240,28 @@ const routes: RouteRecordRaw[] = [
     path: '/users/roles/lists',
     name: 'listRoles',
     meta: {
-      title: 'users.listRoles', section: 'globals.terms.users', group: 'users', perms: ['roles:get'],
+      view: 'roles',
+      title: 'users.listRoles',
+      section: 'globals.terms.users',
+      group: 'users',
+      perms: ['roles:get'],
     },
     component: () => import('../views/Roles.vue'),
   },
   {
     path: '/settings/logs',
     name: 'settingsLogs',
-    meta: { title: 'settings.logs.title', group: 'settings', perms: ['settings:get'] },
+    meta: {
+      view: 'settings', title: 'settings.logs.title', group: 'settings', perms: ['settings:get'],
+    },
     component: () => import('../views/Settings.vue'),
   },
   {
     path: '/settings/maintenance',
     name: 'maintenance',
-    meta: { title: 'maintenance.title', group: 'settings', perms: ['settings:maintain'] },
+    meta: {
+      view: 'settings', title: 'maintenance.title', group: 'settings', perms: ['settings:maintain'],
+    },
     component: () => import('../views/Settings.vue'),
   },
 ];

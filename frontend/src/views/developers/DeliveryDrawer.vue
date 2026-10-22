@@ -54,7 +54,7 @@
         </div>
 
         <footer v-if="d" class="msg-foot">
-          <PvButton :label="copied ? $t('states.copied') : $t('developers.webhooks.copyPayload')" severity="secondary" outlined @click="copyPayload" />
+          <PvButton :class="{ 'ln-copied': copied }" :label="copied ? $t('states.copied') : $t('developers.webhooks.copyPayload')" severity="secondary" outlined @click="copyPayload" />
           <PvButton v-if="$can('webhooks:manage')" :label="$t('developers.webhooks.resendNow')" :loading="retrying" @click="retry" />
         </footer>
       </div>

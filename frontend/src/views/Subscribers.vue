@@ -623,6 +623,17 @@ function openMenu(e: Event, s: Loose) {
 
 watch(refreshTick, () => querySubscribers());
 
+// /subscribers and /subscribers/:id share this view (meta.view), so the
+// drawer follows the id in the URL instead of the page being rebuilt.
+watch(() => route.params.id, (id) => {
+  if (!id) {
+    openSub.value = null;
+    return;
+  }
+  if (openSub.value && String(openSub.value.id) === id) return;
+  getSubscriber(parseInt(id as string, 10)).then((data) => { openSub.value = data as unknown as Loose; });
+});
+
 onMounted(() => {
   if (route.params.listID) queryParams.listID = parseInt(route.params.listID as string, 10);
   if (route.query.subscription_status) queryParams.subStatus = route.query.subscription_status as string;
@@ -637,7 +648,7 @@ onMounted(() => {
 // A double opt-in subscription still waiting for confirmation says so in
 // words (the handover allows no dots).
 .subs-unconf { margin-left: 6px; color: var(--ln-warn-fg); }
-.subs { transition: padding-right .15s; }
+.subs { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
 .subs.has-drawer { padding-right: 440px; }
 
 .subs-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

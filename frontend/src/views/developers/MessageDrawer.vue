@@ -86,7 +86,7 @@
         </template>
 
         <footer v-if="msg" class="msg-foot">
-          <PvButton
+          <PvButton :class="{ 'ln-copied': copied }"
             :label="copied ? $t('states.copied') : $t('developers.log.copyId')"
             severity="secondary"
             outlined

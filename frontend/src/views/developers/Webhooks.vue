@@ -374,7 +374,7 @@ watch(refreshTick, fetchAll);
 </script>
 
 <style scoped lang="scss">
-.dev-hooks { transition: padding-right .15s; }
+.dev-hooks { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
 .dev-hooks.has-drawer { padding-right: 460px; @media (max-width: 991px) { padding-right: 0; } }
 
 .dev-hook { overflow: hidden; }

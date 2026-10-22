@@ -61,7 +61,7 @@
       <!-- Mobile: one row per message, opening the detail drawer. -->
       <template v-if="isMobile">
         <table-skeleton v-if="loading && !page.results.length" :cols="1" />
-        <ul v-else-if="page.results.length" class="dev-log-list">
+        <ul v-else-if="page.results.length" class="dev-log-list ln-enter">
           <li v-for="m in page.results" :key="m.id">
             <button type="button" class="dev-log-item" @click="open(m.id)">
               <span class="dev-log-item-text">
@@ -325,7 +325,7 @@ watch(refreshTick, fetchPage);
 </script>
 
 <style scoped lang="scss">
-.dev-log { transition: padding-right .15s; }
+.dev-log { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
 .dev-log.has-drawer { padding-right: 460px; }
 
 .dev-log-section { display: block; }

@@ -2,7 +2,7 @@
   <PvInputGroup class="ln-copy-field">
     <PvInputGroupAddon v-if="prefix" class="ln-mono">{{ prefix }}</PvInputGroupAddon>
     <PvInputText :id="id" :model-value="value" readonly class="ln-mono" @focus="(e) => (e.target as HTMLInputElement).select()" />
-    <PvButton
+    <PvButton :class="{ 'ln-copied': copied }"
       type="button"
       :icon="copied ? 'pi pi-check' : 'pi pi-copy'"
       :label="iconOnly ? undefined : (copied ? $t('states.copied') : $t('globals.buttons.copy'))"

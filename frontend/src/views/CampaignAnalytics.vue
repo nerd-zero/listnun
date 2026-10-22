@@ -105,7 +105,7 @@
           <div class="ln-card-head"><h2 class="ln-card-title">{{ $t('analytics.topLinks') }}</h2></div>
           <table-skeleton v-if="data.links.loading" :rows="5" :cols="2" :two-line="false" />
           <p v-else-if="!links.length" class="ln-small ana-pad">{{ $t('analytics.noClicks') }}</p>
-          <ul v-else class="ana-link-rows">
+          <ul v-else class="ana-link-rows ln-enter">
             <li v-for="l in links" :key="l.url">
               <a :href="l.url" target="_blank" rel="noopener noreferrer" class="ln-mono ana-link-url" :title="l.url">{{ shortUrl(l.url) }}</a>
               <span class="ana-link-bar"><span :style="{ width: `${(l.count / links[0].count) * 100}%` }" /></span>

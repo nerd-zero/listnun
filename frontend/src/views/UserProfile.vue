@@ -21,7 +21,7 @@
 
     <template v-else>
       <!-- Details -->
-      <form class="ln-card profile-card" @submit.prevent="saveDetails">
+      <form class="ln-card ln-enter profile-card" @submit.prevent="saveDetails">
         <h2 class="ln-card-head ln-card-title">{{ $t('users.details') }}</h2>
         <div class="profile-body">
           <div class="ln-fields-2">
@@ -49,7 +49,7 @@
       </form>
 
       <!-- Password -->
-      <form v-if="data.passwordLogin" class="ln-card profile-card" @submit.prevent="savePassword">
+      <form v-if="data.passwordLogin" class="ln-card ln-enter profile-card" @submit.prevent="savePassword">
         <h2 class="ln-card-head ln-card-title">{{ $t('users.password') }}</h2>
         <div class="profile-body profile-pw">
           <div class="ln-field">
@@ -72,7 +72,7 @@
       </form>
 
       <!-- Two-step verification -->
-      <section v-if="data.passwordLogin" class="ln-card profile-card">
+      <section v-if="data.passwordLogin" class="ln-card ln-enter profile-card">
         <div class="ln-card-head">
           <h2 class="ln-card-title">{{ $t('users.twoFA') }}</h2>
           <status-tag :status="twofaStatus" :label="twofaLabel" />

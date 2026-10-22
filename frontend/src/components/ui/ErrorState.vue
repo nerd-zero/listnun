@@ -6,7 +6,7 @@
     <span v-if="details" class="ln-error-meta ln-mono">{{ details }}</span>
     <div class="ln-error-actions">
       <PvButton :label="$t('states.tryAgain')" size="small" @click="$emit('retry')" />
-      <PvButton
+      <PvButton :class="{ 'ln-copied': copied }"
         v-if="details"
         :label="copied ? $t('states.copied') : $t('states.copyDetails')"
         size="small"

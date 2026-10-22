@@ -191,7 +191,7 @@ ul.no {
   background: $white;
   color: $black;
   box-shadow: 2px 2px 0 $white-ter;
-  transition: border-color 0.15s;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease);
 
   &:focus {
     outline: none;
@@ -221,7 +221,7 @@ select { height: auto; padding: 0.5rem 0.75rem; }
   color: $black;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background-color var(--ln-dur-fast) var(--ln-ease), border-color var(--ln-dur-fast) var(--ln-ease);
 
   &:hover { background: $white-ter; }
   &:not(.is-small) { padding: 10px 20px; height: auto; }
@@ -406,7 +406,7 @@ section {
     margin-bottom: 0;
     gap: 0.4rem;
     white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color var(--ln-dur-fast) var(--ln-ease), color var(--ln-dur-fast) var(--ln-ease), box-shadow var(--ln-dur-fast) var(--ln-ease);
 
     &:hover:not([aria-selected="true"]):not([data-p-disabled="true"]) {
       background: rgba(255, 255, 255, 0.65);

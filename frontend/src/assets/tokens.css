@@ -42,6 +42,14 @@
 
   --ln-radius: 6px;
   --ln-radius-card: 10px;
+
+  /* Motion. Every animation uses these, so reduced motion (below) turns
+     them all off at once. */
+  --ln-dur-fast: 120ms;   /* hover, press, colour changes */
+  --ln-dur-base: 180ms;   /* fades, expand/collapse, tabs */
+  --ln-dur-slow: 240ms;   /* page and step changes, the sidebar */
+  --ln-ease: cubic-bezier(.2, 0, 0, 1);        /* entering and moving */
+  --ln-ease-exit: cubic-bezier(.3, 0, 1, 1);   /* leaving */
   --ln-shadow-pop: 0 8px 24px rgba(20, 23, 28, .12);
   --ln-mask: rgba(20, 23, 28, .4);
 
@@ -95,3 +103,11 @@
 .ln-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; color: var(--ln-text-2); }
 .ln-mono { font-family: var(--ln-mono); font-size: 13px; line-height: 20px; }
 .ln-muted { color: var(--ln-text-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ln-dur-fast: 0ms;
+    --ln-dur-base: 0ms;
+    --ln-dur-slow: 0ms;
+  }
+}

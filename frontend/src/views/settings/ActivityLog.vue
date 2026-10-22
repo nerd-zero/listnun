@@ -12,19 +12,21 @@
     <table-skeleton v-if="loading && !lines.length" :rows="8" :cols="1" />
     <error-state v-else-if="error" :title="$t('states.couldntLoad')" :error="error" @retry="load" />
     <p v-else-if="!lines.length" class="ln-small act-log-empty">{{ $t('settings.logs.empty') }}</p>
-    <ol v-else class="act-log-lines ln-mono" data-cy="activity-log">
+    <!-- After the first load, lines from each refresh rise in and the rest
+         slide down, instead of the whole list being replaced. -->
+    <TransitionGroup v-else tag="ol" :name="animateNew ? 'ln-list' : 'ln-none'" class="act-log-lines ln-mono" data-cy="activity-log">
       <li v-for="l in lines" :key="l.id" :class="`is-${l.level}`">
         <time :datetime="l.createdAt">{{ stamp(l.createdAt) }}</time>
         <span class="act-log-src">{{ l.source }}:</span>
         <span class="act-log-msg">{{ l.message }}</span>
       </li>
-    </ol>
+    </TransitionGroup>
   </section>
 </template>
 
 <script setup lang="ts">
 import {
-  onBeforeUnmount, onMounted, ref, watch,
+  nextTick, onBeforeUnmount, onMounted, ref, watch,
 } from 'vue';
 import dayjs from 'dayjs';
 import axios from 'axios';
@@ -50,6 +52,8 @@ const lines = ref<ActivityLine[]>([]);
 const loading = ref(false);
 const error = ref<RequestError | null>(null);
 const auto = ref(true);
+// Off for the first load, so 500 lines don't all animate in at once.
+const animateNew = ref(false);
 let timer: number | undefined;
 
 function stamp(t: string): string {
@@ -69,6 +73,7 @@ function load() {
         createdAt: x.created_at as string,
       }));
       error.value = null;
+      nextTick(() => { animateNew.value = true; });
     })
     .catch((e) => {
       error.value = {

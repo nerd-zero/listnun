@@ -129,7 +129,7 @@
           <div class="dev-send-req-head">
             <span class="ln-attr ln-attr--mono">POST</span>
             <span class="ln-mono">/api/tx</span>
-            <PvButton
+            <PvButton :class="{ 'ln-copied': copied }"
               :label="copied ? $t('states.copied') : $t('developers.send.copyCurl')"
               size="small"
               severity="secondary"

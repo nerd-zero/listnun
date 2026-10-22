@@ -738,7 +738,7 @@ input.p-inputtext:not(.p-inputtext-sm):not(.p-inputtext-lg) { padding-block: 0; 
   .p-datatable-tbody > tr > td { padding-top: 11px; padding-bottom: 11px; }
   .p-datatable-tbody > tr:last-child > td { border-bottom: 0; }
 
-  .p-datatable-sort-icon { opacity: 0; transition: opacity .12s; }
+  .p-datatable-sort-icon { opacity: 0; transition: opacity var(--ln-dur-fast) var(--ln-ease); }
   th:hover .p-datatable-sort-icon,
   th:focus-visible .p-datatable-sort-icon,
   .p-datatable-column-sorted .p-datatable-sort-icon { opacity: 1; }

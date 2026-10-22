@@ -85,7 +85,7 @@
         <section class="ln-card forms-html">
           <header class="ln-card-head">
             <h2 class="ln-card-title">HTML</h2>
-            <PvButton
+            <PvButton :class="{ 'ln-copied': copied }"
               :icon="copied ? 'pi pi-check' : 'pi pi-copy'"
               :label="copied ? $t('states.copied') : $t('forms.copyHTML')"
               size="small"

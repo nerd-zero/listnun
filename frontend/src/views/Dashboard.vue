@@ -136,7 +136,7 @@
           :action-label="$can('campaigns:manage') ? $t('menu.newCampaign') : ''"
           @action="$router.push({ name: 'campaign', params: { id: 'new' } })"
         />
-        <ul v-else class="dash-rows">
+        <ul v-else class="dash-rows ln-enter">
           <li v-for="c in campaigns" :key="c.id">
             <router-link :to="{ name: 'campaign', params: { id: c.id } }" class="dash-row">
               <span class="dash-row-name">

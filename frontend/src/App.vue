@@ -47,7 +47,13 @@
     </template>
 
     <no-access v-if="denied" :page="pageTitle" />
-    <router-view v-else :key="$route.fullPath" />
+    <router-view v-else v-slot="{ Component, route: r }">
+      <Transition name="ln-page" mode="out-in">
+        <div :key="viewKey(r)" class="ln-view">
+          <component :is="Component" />
+        </div>
+      </Transition>
+    </router-view>
   </app-shell>
 
   <div v-else class="app-loading">
@@ -61,7 +67,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { uris } from './constants';
 import { useMainStore } from './store';
 import { setToastInstance, setConfirmInstance } from './toastService';
@@ -78,6 +84,14 @@ const { $api, $utils, $can } = useGlobal();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+
+// Routes that share a view and update it from the URL themselves (settings
+// sections, the open subscriber or user, roles tabs) name it in meta.view,
+// so moving between them keeps the page instead of rebuilding it. Anything
+// else is rebuilt, and animated in, on every URL change.
+function viewKey(r: RouteLocationNormalizedLoaded): string {
+  return (r.meta.view as string | undefined) || r.fullPath;
+}
 const { serverConfig, profile } = storeToRefs(useMainStore());
 
 const isLoaded = ref(false);
@@ -140,5 +154,6 @@ onMounted(() => {
 @import "assets/style.scss";
 @import "assets/shell.scss";
 @import "assets/patterns.scss";
+@import "assets/motion.scss";
 @import "assets/tinymce.scss";
 </style>

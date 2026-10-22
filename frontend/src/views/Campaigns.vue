@@ -55,7 +55,7 @@
       <!-- Mobile: one card per campaign -->
       <template v-if="isMobile">
         <table-skeleton v-if="loading.campaigns && !rows.length" :cols="1" />
-        <ul v-else-if="rows.length" class="camps-list">
+        <ul v-else-if="rows.length" class="camps-list ln-enter">
           <li v-for="c in rows" :key="c.id">
             <router-link :to="{ name: 'campaign', params: { id: c.id } }" class="camps-item">
               <span class="camps-item-top">

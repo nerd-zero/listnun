@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="smtp-list">
+    <TransitionGroup name="ln-list" tag="div" class="smtp-list">
       <div class="smtp-card" v-for="(item, n) in form.smtp" :key="n">
         <!-- Card header -->
         <div class="smtp-card-header">
@@ -224,7 +224,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
 
     <PvButton @click="addSMTP" icon="pi pi-plus" severity="primary" :label="$t('globals.buttons.addNew')" />
   </div>

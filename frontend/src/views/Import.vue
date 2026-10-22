@@ -16,7 +16,7 @@
         </li>
       </ol>
 
-      <div v-if="step === 1" class="imp-layout">
+      <div v-if="step === 1" class="imp-layout" :class="stepAnim">
         <section class="ln-card ln-card-pad imp-main">
           <h2 class="ln-card-title">{{ $t('import.csvFile') }}</h2>
           <button
@@ -44,7 +44,7 @@
         </aside>
       </div>
 
-      <form v-else class="ln-card imp-options" @submit.prevent="onUpload">
+      <form v-else class="ln-card imp-options" :class="stepAnim" @submit.prevent="onUpload">
         <div class="imp-file">
           <i class="pi pi-file" aria-hidden="true" />
           <span class="imp-file-name">
@@ -144,7 +144,7 @@
     </template>
 
     <!-- Step 3: progress and log -->
-    <section v-else-if="isRunning() || isDone()" class="ln-card imp-run">
+    <section v-else-if="isRunning() || isDone()" class="ln-card imp-run ln-step-next">
       <div class="ln-card-head">
         <h2 class="ln-card-title">{{ runTitle }}</h2>
         <status-tag :status="status.status" :label="statusLabel" data-cy="import-status" />
@@ -264,6 +264,9 @@ const form = reactive({
 });
 
 const step = ref(1);
+// The step that appears slides in from the side the user moved towards
+// (motion.scss); nothing on first load, where the page itself animates in.
+const stepAnim = ref('');
 const dragOver = ref(false);
 const isLoading = ref(true);
 const isProcessing = ref(false);
@@ -321,6 +324,7 @@ watch(() => form.mode, () => {
 function pickFile(f: File | undefined) {
   if (!f) return;
   form.file = f;
+  stepAnim.value = 'ln-step-next';
   step.value = 2;
 }
 
@@ -337,6 +341,7 @@ function onFileDrop(e: DragEvent) {
 
 function changeFile() {
   form.file = null;
+  stepAnim.value = 'ln-step-prev';
   step.value = 1;
 }
 
@@ -479,7 +484,8 @@ onBeforeUnmount(() => window.clearInterval(pollID));
   border: 1px solid var(--ln-border);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  .pi { font-size: 10px; }
+  transition: background-color var(--ln-dur-base) var(--ln-ease), border-color var(--ln-dur-base) var(--ln-ease), color var(--ln-dur-base) var(--ln-ease);
+  .pi { font-size: 10px; animation: ln-pop-in var(--ln-dur-base) var(--ln-ease); }
   .is-on & { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
   .is-done & { background: var(--ln-muted); }
 }
@@ -506,10 +512,12 @@ onBeforeUnmount(() => window.clearInterval(pollID));
   color: var(--ln-text);
   font: inherit;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease), background-color var(--ln-dur-fast) var(--ln-ease);
 
-  .pi { font-size: 28px; color: var(--ln-text-3); margin-bottom: 4px; }
+  .pi { font-size: 28px; color: var(--ln-text-3); margin-bottom: 4px; transition: translate var(--ln-dur-base) var(--ln-ease); }
   &:hover, &.is-over { border-color: var(--ln-text-3); background: var(--ln-hover); }
+  // Dragging a file over lifts the upload icon.
+  &.is-over .pi { translate: 0 -3px; }
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
 .imp-drop-title { font-weight: 500; }

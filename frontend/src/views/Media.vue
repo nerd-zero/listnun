@@ -324,9 +324,13 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
   border-radius: var(--ln-radius-card);
   background: var(--ln-muted);
   cursor: pointer;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease), background-color var(--ln-dur-fast) var(--ln-ease);
 
   > span:last-child { display: flex; flex-direction: column; gap: 2px; }
   &:hover, &.is-over { border-color: var(--ln-ink); }
+  // Dragging a file over lifts the upload icon.
+  &.is-over { background: var(--ln-hover); }
+  &.is-over .media-drop-icon { translate: 0 -3px; }
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
   .app-dark & { background: var(--ln-card); }
 }
@@ -340,6 +344,7 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: translate var(--ln-dur-base) var(--ln-ease);
 }
 .media-store { display: flex; flex-direction: column; gap: 8px; }
 .media-store-row { display: flex; justify-content: space-between; gap: 8px; }
@@ -355,6 +360,7 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease), box-shadow var(--ln-dur-fast) var(--ln-ease);
 
   &.is-selected { border-color: var(--ln-ink); box-shadow: 0 0 0 1px var(--ln-ink); }
 }

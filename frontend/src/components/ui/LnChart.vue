@@ -11,6 +11,13 @@ import {
 import Chart from 'chart.js/auto';
 import type { ChartConfiguration } from 'chart.js';
 
+// How long bars and lines take to grow in on a fresh draw.
+const GROW_MS = 600;
+
+function reducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export interface ChartSeries {
   label: string;
   data: number[];
@@ -53,7 +60,7 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function config(): ChartConfiguration {
+function config(animate: boolean): ChartConfiguration {
   const text3 = cssVar('--ln-text-3');
   const border = cssVar('--ln-border');
   const muted = cssVar('--ln-muted');
@@ -82,7 +89,9 @@ function config(): ChartConfiguration {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: false,
+      // Bars and lines grow in when drawn with new data; redraws for a theme
+      // change don't animate. Reduced motion turns it off.
+      animation: animate && !reducedMotion() ? { duration: GROW_MS, easing: 'easeOutQuart' } : false,
       interaction: { intersect: false, mode: 'index' },
       plugins: {
         legend: { display: false },
@@ -119,18 +128,25 @@ function config(): ChartConfiguration {
   } as ChartConfiguration;
 }
 
-function render() {
+function render(animate: boolean) {
   if (!canvas.value) return;
   chart?.destroy();
-  chart = new Chart(canvas.value, config());
+  chart = new Chart(canvas.value, config(animate));
 }
 
-watch(() => [props.labels, props.series], render, { deep: true });
+watch(() => [props.labels, props.series], () => render(true), { deep: true });
 
 onMounted(() => {
-  render();
-  // Redraw with the new token colours when dark mode is toggled.
-  observer = new MutationObserver(render);
+  render(true);
+  // Redraw with the new token colours when dark mode is toggled. Other
+  // class changes on <html> (the theme cross-fade) don't need a redraw.
+  let dark = document.documentElement.classList.contains('app-dark');
+  observer = new MutationObserver(() => {
+    const now = document.documentElement.classList.contains('app-dark');
+    if (now === dark) return;
+    dark = now;
+    render(false);
+  });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 });
 

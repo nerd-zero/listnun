@@ -39,7 +39,7 @@
               </div>
 
               <table-skeleton v-if="loading" :rows="4" :cols="1" />
-              <ol v-else-if="timeline.length" class="msg-timeline sub-d-timeline">
+              <ol v-else-if="timeline.length" class="msg-timeline sub-d-timeline ln-enter">
                 <li v-for="(e, i) in timeline" :key="i" :class="`is-${e.tone}`">
                   <span class="msg-timeline-dot" aria-hidden="true" />
                   <div class="msg-timeline-body">

@@ -239,6 +239,13 @@ function openMenu(e: Event, u: Loose) {
 
 watch(refreshTick, getUsers);
 
+// /users and /users/:id share this view (meta.view), so the form follows
+// the id in the URL instead of the page being rebuilt.
+watch(() => route.params.id, (id) => {
+  if (!id) return;
+  getUser(parseInt(id as string, 10)).then((data) => { showEditForm(data as unknown as Loose); });
+});
+
 onMounted(() => {
   getUsers();
   if (route.params.id) {
