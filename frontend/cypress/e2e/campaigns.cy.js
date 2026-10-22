@@ -81,7 +81,6 @@ describe('Campaigns', () => {
 
     // Upload a file in the media picker and attach it.
     cy.get('[data-cy=btn-attach]').click();
-    cy.get('[data-cy=media] input').focus();
     cy.dialog().find('input[type=file]').selectFile({
       contents: Cypress.Buffer.from('{"example": true}'),
       fileName: 'example.json',

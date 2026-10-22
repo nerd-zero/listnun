@@ -198,16 +198,25 @@
         <div class="camp-content-extras">
           <div class="ln-field" data-cy="media">
             <span class="ln-field-label">{{ $t('campaigns.attachments') }}</span>
-            <PvAutoComplete
-              v-if="isAttachFieldVisible"
-              v-model="form.media"
-              name="media"
-              option-label="filename"
-              :disabled="!canEdit"
-              multiple
-              @focus="isAttachModalOpen = true"
-            />
-            <button v-else type="button" class="ln-link-btn" data-cy="btn-attach" @click="isAttachFieldVisible = true">
+            <!-- A list plus an explicit button: the old search field opened
+                 the picker on focus, and the dialog hands focus back when it
+                 closes, so the picker kept reopening. -->
+            <TransitionGroup v-if="form.media.length" name="ln-list" tag="ul" class="camp-attach-list">
+              <li v-for="m in form.media" :key="m.id || m.filename" class="camp-attach">
+                <i class="pi pi-paperclip" aria-hidden="true" />
+                <span class="camp-attach-name" :title="m.filename">{{ m.filename }}</span>
+                <button
+                  v-if="canEdit"
+                  type="button"
+                  class="ln-icon-btn camp-attach-remove"
+                  :aria-label="`${$t('globals.buttons.remove')} ${m.filename}`"
+                  @click="removeAttachment(m)"
+                >
+                  <i class="pi pi-times" aria-hidden="true" />
+                </button>
+              </li>
+            </TransitionGroup>
+            <button v-if="canEdit" type="button" class="ln-link-btn" data-cy="btn-attach" @click="isAttachModalOpen = true">
               {{ $t('campaigns.addAttachments') }}
             </button>
           </div>
@@ -482,7 +491,6 @@ const lists = computed(() => (store.lists as Loose) || {});
 const focusEl = ref<Loose | null>(null);
 const isNew = ref(false);
 const isEditing = ref(false);
-const isAttachFieldVisible = ref(false);
 const isAttachModalOpen = ref(false);
 const isPreviewing = ref(false);
 const isPreviewingArchive = ref(false);
@@ -717,6 +725,10 @@ function onAttachSelect(o: Loose) {
   if (!form.media.some((m: Loose) => m.id === o.id)) form.media.push(o);
 }
 
+function removeAttachment(o: Loose) {
+  form.media = form.media.filter((m: Loose) => m !== o);
+}
+
 function onFillArchiveMeta() {
   const sample = { email: 'email@domain.com', name: t('globals.fields.name'), attribs: {} };
   form.archiveMetaStr = ($utils.getPref('campaign.archiveMetaStr') as string) || JSON.stringify(sample, null, 4);
@@ -773,7 +785,6 @@ function fillFrom(d: Loose) {
       contentType: d.contentType, body: d.body, bodySource: d.bodySource, templateId: d.templateId,
     },
   });
-  isAttachFieldVisible.value = form.media.length > 0;
   form.media = form.media.map((f: Loose) => (!f.id ? { ...f, filename: `❌ ${f.filename}` } : f));
 }
 
@@ -1178,6 +1189,27 @@ onBeforeUnmount(() => {
 
 .camp-content { display: flex; flex-direction: column; gap: 16px; }
 .camp-content-extras { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.camp-attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.camp-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  height: 30px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius);
+  background: var(--ln-card);
+  font-size: 13px;
+
+  > .pi-paperclip { font-size: 12px; color: var(--ln-text-3); }
+}
+.camp-attach-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.camp-attach-remove {
+  width: 22px;
+  height: 22px;
+  .pi { font-size: 10px; }
+}
 .camp-alt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 
 .camp-schedule { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
