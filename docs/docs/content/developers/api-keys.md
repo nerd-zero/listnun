@@ -8,6 +8,22 @@ Click **Create API key**, give it a name, and tick its scopes. Names are 2–63 
 
 Secrets start with `lnk_live_`, so they're easy to spot if one leaks into a log or a repository.
 
+<div class="ui">
+<div class="ui-col">
+<div class="ui-card ui-card-pad ui-col" style="gap: 8px;">
+<strong>Copy your secret now</strong>
+<span class="ui-small">This is the only time it's shown. Store it in your secrets manager.</span>
+<div class="ui-row"><span class="ui-input ui-grow ui-mono">lnk_live_8f2c1d6b0e4a9f37c5b2e8d1a6f0c3b7</span><span class="ui-btn">Copy</span></div>
+</div>
+<div class="ui-card ui-divide">
+<div class="ui-line"><span class="ui-grow"><strong>shop-backend</strong><br><span class="ui-small ui-mono">lnk_live_…c3b7</span></span><span class="ui-tag">tx:send</span><span class="ui-small">Last used 2 minutes ago</span><span class="ui-tag is-ok">Active</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>crm-sync</strong><br><span class="ui-small ui-mono">lnk_live_…91ae</span></span><span class="ui-tag">subscribers:read</span><span class="ui-small">Not used yet</span><span class="ui-tag is-ok">Active</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>old-mailer</strong><br><span class="ui-small ui-mono">lnk_live_…07d2</span></span><span class="ui-tag">tx:send</span><span class="ui-small">Last used 3 months ago</span><span class="ui-tag is-bad">Revoked</span></div>
+</div>
+</div>
+<p class="ui-caption">Developers › API keys, just after creating a key.</p>
+</div>
+
 ## Scopes
 
 A key can only do what its scopes allow. It has no other permissions, whatever its creator can do.

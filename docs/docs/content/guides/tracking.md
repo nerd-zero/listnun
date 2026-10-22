@@ -2,6 +2,24 @@
 
 listnun can tell you who opened a campaign and which links they clicked. You set it up per campaign in the **Tracking** card on the **Content** step. Nothing needs adding to the email by hand.
 
+<div class="ui">
+<div class="ui-card" style="max-width: 560px; margin: 0 auto;">
+<div class="ui-card-head">Tracking</div>
+<div class="ui-card-pad ui-col">
+<div class="ui-row"><span class="ui-toggle is-on"></span><span><strong>Track link clicks</strong><br><span class="ui-small">Counts who clicks each link, in every editor. No codes to add.</span></span></div>
+<div>
+<span class="ui-label">Tracking pixels</span>
+<div class="ui-col" style="gap: 6px;">
+<div class="ui-chip"><span class="ui-mono ui-grow">https://www.facebook.com/tr?id=123&amp;ev=PageView&amp;noscript=1</span><span class="ui-x">✕</span></div>
+<div class="ui-row"><span class="ui-input is-area ui-grow ui-mono">Paste a pixel link, or the &lt;img&gt; code from Meta, Google Ads, LinkedIn…</span><span class="ui-btn">Add pixel</span></div>
+<span class="ui-small">For ad and analytics platforms that count opens with an image. Many email apps block images until the reader allows them, so these counts run low.</span>
+</div>
+</div>
+</div>
+</div>
+<p class="ui-caption">The Tracking card on a campaign's Content step, with one pixel added.</p>
+</div>
+
 ## Track link clicks
 
 With **Track link clicks** on, every web link in the email is tracked: when someone clicks, listnun counts it and sends them on to the real address. It works the same in every format, including Visual, Rich text, Raw HTML and Markdown.

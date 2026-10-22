@@ -35,6 +35,19 @@ Commas are the default separator. If your file uses another one, such as `;`, se
 
 ## 3. Import
 
+<div class="ui">
+<div class="ui-card">
+<div class="ui-card-head">Importing 4,250 of 10,000<span class="ui-tag is-warn">Importing</span></div>
+<div class="ui-card-pad ui-col">
+<div class="ui-bar"><span style="width: 36%"></span></div>
+<span class="ui-small"><span class="ui-mono">customers.csv</span>&emsp;4,250 / 10,000 records</span>
+<div class="ui-tiles"><div class="ui-tile"><span class="ui-small">Imported</span><b>4,250</b></div><div class="ui-tile"><span class="ui-small">Skipped</span><b>3</b><span class="ui-small">Malformed or invalid rows. The log lists each line.</span></div><div class="ui-tile"><span class="ui-small">Errors</span><b>0</b></div></div>
+<div class="ui-code"><span class="t">2026/10/22 18:06:41</span>  processing 'customers.csv'<br><span class="t">2026/10/22 18:06:41</span>  skipping line 18: invalid email: ada@@example<br><span class="t">2026/10/22 18:06:42</span>  imported 1000</div>
+</div>
+</div>
+<p class="ui-caption">An import part-way through.</p>
+</div>
+
 The import runs on the server, so you can leave the page and come back. While it runs you see a progress bar, the number written so far, and a live log. When it finishes you see:
 
 - **Imported**: subscribers added or updated.

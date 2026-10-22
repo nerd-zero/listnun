@@ -48,6 +48,21 @@ Choose **Send now** to start as soon as you confirm on the Review step, or **Sch
 
 ## Review
 
+<div class="ui">
+<div class="ui-col">
+<div class="ui-row"><span class="ui-title ui-grow">Spring sale</span><span class="ui-tag">Draft</span><span class="ui-btn is-sm">Send test</span><span class="ui-btn is-sm is-primary">Start campaign</span></div>
+<div class="ui-steps"><div class="ui-step is-done"><span class="ui-step-mark">✓</span>Settings</div><div class="ui-step is-done"><span class="ui-step-mark">✓</span>Content</div><div class="ui-step is-done"><span class="ui-step-mark">✓</span>Schedule</div><div class="ui-step is-current"><span class="ui-step-mark">4</span>Review</div></div>
+<div class="ui-card ui-divide">
+<div class="ui-check is-ok"><span class="ui-check-mark">✓</span><span class="ui-grow"><strong>Subject and sender</strong><span class="ui-small">Spring sale: 20% off everything&emsp;Acme &lt;news@acme.com&gt;</span></span></div>
+<div class="ui-check is-ok"><span class="ui-check-mark">✓</span><span class="ui-grow"><strong>Audience</strong><span class="ui-small">Up to 10,000 subscribers in Newsletter</span></span></div>
+<div class="ui-check is-warn"><span class="ui-check-mark">!</span><span class="ui-grow"><strong>Test email</strong><span class="ui-small">Send yourself a test before you start it.</span></span><span class="ui-btn is-sm">Send test</span></div>
+<div class="ui-check is-info"><span class="ui-check-mark">i</span><span class="ui-grow"><strong>Tracking</strong><span class="ui-small">Link clicks are tracked.</span></span></div>
+<div class="ui-check is-info"><span class="ui-check-mark">i</span><span class="ui-grow"><strong>Schedule</strong><span class="ui-small">Sends as soon as you start it.</span></span></div>
+</div>
+</div>
+<p class="ui-caption">The Review step, before a test has been sent.</p>
+</div>
+
 A checklist of everything worth checking before sending:
 
 - **Subject and sender** are set.

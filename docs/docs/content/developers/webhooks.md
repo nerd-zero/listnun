@@ -10,6 +10,17 @@ Endpoints must be public `https://` addresses. listnun refuses to call private, 
 
 **Send test event** sends a `webhook.test` event so you can check your endpoint before real traffic arrives.
 
+<div class="ui">
+<div class="ui-card ui-divide">
+<div class="ui-card-head"><span class="ui-mono">https://api.acme.com/hooks/listnun</span><span class="ui-row"><span class="ui-btn is-sm">Send test event</span><span class="ui-tag is-ok">Active</span></span></div>
+<div class="ui-line ui-small"><span>message.sent</span><span>message.delivered</span><span>message.bounced</span><span>message.failed</span><span class="ui-grow"></span><span>Last 24 hours: 1,204 delivered, 99.8% OK, median 140 ms</span></div>
+<div class="ui-line"><span class="ui-tag is-ok">200</span><span class="ui-mono ui-grow">message.delivered</span><span class="ui-small">ada@example.com</span><span class="ui-small">1 attempt, 120 ms</span></div>
+<div class="ui-line"><span class="ui-tag is-warn">503</span><span class="ui-mono ui-grow">message.bounced</span><span class="ui-small">alan@example.com</span><span class="ui-small">Retrying: attempt 3 in 1 h</span><span class="ui-btn is-sm">Retry</span></div>
+<div class="ui-line"><span class="ui-tag is-ok">204</span><span class="ui-mono ui-grow">message.sent</span><span class="ui-small">grace@example.com</span><span class="ui-small">1 attempt, 95 ms</span></div>
+</div>
+<p class="ui-caption">A webhook endpoint with its recent deliveries.</p>
+</div>
+
 ## Events
 
 | Event | When |

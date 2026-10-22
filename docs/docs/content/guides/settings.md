@@ -68,6 +68,25 @@ Checks your subscribers' email addresses with Scrub, so campaigns don't go to ad
 
 Subscribers who never open or click hurt how often your emails reach inboxes. Inactive cleanup deals with them on a schedule. It's **off** until you turn on **Run inactive cleanup**.
 
+<div class="ui">
+<div class="ui-col">
+<div class="ui-card ui-row ui-card-pad"><span class="ui-toggle is-on"></span><span><strong>Run inactive cleanup</strong><br><span class="ui-small">Off by default. Nothing happens to subscribers until you turn this on.</span></span></div>
+<div class="ui-grid2">
+<div class="ui-card ui-mode is-on"><span class="ui-radio is-on"></span><span><strong>Managed</strong><small>Listnun sets and maintains the rules. Nothing to configure.</small></span></div>
+<div class="ui-card ui-mode"><span class="ui-radio"></span><span><strong>Custom</strong><small>Set your own inactivity window, action and schedule.</small></span></div>
+</div>
+<div class="ui-card ui-divide">
+<div class="ui-card-head">Managed rules<span class="ui-tag">Set by Listnun</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>Inactive for</strong><br><span class="ui-small">No activity within this window</span></span><span class="ui-input is-locked" style="width: 220px;">180 days</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>Counts as activity</strong></span><span class="ui-input is-locked" style="width: 220px;">Opened or clicked</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>Action</strong></span><span class="ui-input is-locked" style="width: 220px;">Unsubscribe from all lists</span></div>
+<div class="ui-line"><span class="ui-grow"><strong>Runs</strong></span><span class="ui-input is-locked" style="width: 220px;">Weekly, Sunday 02:00</span></div>
+</div>
+<div class="ui-card ui-row ui-card-pad"><span class="ui-grow"><strong>Next run&emsp;Sun 26 Oct, 02:00</strong><br><span class="ui-small">About 640 subscribers match the managed rules today.</span></span><span class="ui-btn">Preview affected subscribers</span></div>
+</div>
+<p class="ui-caption">Settings › Inactive cleanup in Managed mode.</p>
+</div>
+
 Pick **Managed** to use listnun's recommended rules (shown read-only), or **Custom** to set your own:
 
 | Rule | Options |
