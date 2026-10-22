@@ -170,7 +170,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/UserProfile.vue'),
   },
   {
-    path: '/settings',
+    path: '/settings/:section?',
     name: 'settings',
     meta: { title: 'globals.terms.settings', group: 'settings', perms: ['settings:get'] },
     component: () => import('../views/Settings.vue'),
@@ -197,7 +197,7 @@ const routes: RouteRecordRaw[] = [
     path: '/settings/maintenance',
     name: 'maintenance',
     meta: { title: 'maintenance.title', group: 'settings', perms: ['settings:maintain'] },
-    component: () => import('../views/Maintenance.vue'),
+    component: () => import('../views/Settings.vue'),
   },
 ];
 

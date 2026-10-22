@@ -677,6 +677,47 @@ pre.ln-code, .ln-code {
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
 
+// ── Settings sections ───────────────────────────────────
+// The section views (views/settings/*.vue) use generic field markup; this
+// gives them the redesign's cards, labels and help text in one place.
+.ln-settings {
+  > div > .items, > div > .settings-card, .smtp-card, .settings-card {
+    background: var(--ln-card);
+    border: 1px solid var(--ln-border);
+    border-radius: var(--ln-radius-card);
+    padding: 20px;
+    box-shadow: none;
+  }
+  .items { display: flex; flex-direction: column; gap: 16px; }
+  .field { margin-bottom: 0; }
+  label.block, .field > label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ln-text);
+    margin-bottom: 6px;
+  }
+  small.text-color-secondary, .text-color-secondary {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--ln-text-3);
+  }
+  hr { border: 0; border-top: 1px solid var(--ln-border); margin: 4px 0; }
+  .settings-section-label, .smtp-section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: none;
+    color: var(--ln-text-2);
+  }
+  .quick-links a, .settings-link { color: var(--ln-text-2); text-decoration: underline; font-size: 13px; }
+  .smtp-list { display: flex; flex-direction: column; gap: 16px; }
+  .smtp-card { padding: 0; overflow: hidden; }
+  .smtp-card-header { padding: 14px 20px; border-bottom: 1px solid var(--ln-border); }
+  .smtp-card > div:not(.smtp-card-header) { padding: 4px 20px 16px; }
+  .p-inputtext, .p-select, .p-inputnumber, .p-textarea, .p-password { width: 100%; }
+}
+
 // ── Text field height ───────────────────────────────────
 // Design spec: fields are 40px tall on pages and 36px in dialogs, with 12px
 // side padding (theme.ts) and the text vertically centred. Text areas and
