@@ -10,11 +10,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/lib/pq"
 	"github.com/nerd-zero/listnun/internal/scrub"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -92,6 +94,20 @@ func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s mo
 
 	if _, err := q.UpdateScrubValidationBatchProgress.Exec(batchID, models.ScrubBatchStatusPending, sub.SubmittedCount, 0, 0); err != nil {
 		log.Printf("scrub: error updating validation batch progress: %v", err)
+	}
+
+	// Bill what Scrub accepted (its submitted_count, which a quota-capped
+	// batch can make smaller than len(emails)), not what we sent. Written
+	// straight to usage_counters rather than through the buffered meter:
+	// submissions are infrequent, and Scrub has already charged the
+	// platform for this batch, so it must not sit in memory.
+	if err := addUsage(q, []usage.Row{{
+		TenantID: tenantID,
+		Kind:     usage.KindValidation,
+		Bucket:   time.Now().UTC().Truncate(usage.BucketSize),
+		Count:    int64(sub.SubmittedCount),
+	}}); err != nil {
+		log.Printf("scrub: error recording validation usage for tenant %d batch %s (%d emails unbilled): %v", tenantID, batchID, sub.SubmittedCount, err)
 	}
 
 	return batchID, nil
