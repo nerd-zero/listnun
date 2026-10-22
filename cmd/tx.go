@@ -10,134 +10,247 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/models"
 )
 
+// txSendAsHeader lets a signed-in user's test send be attributed to an API
+// key in the message log (Developers > Send test). It's ignored on
+// requests that authenticated with a key or API user.
+const txSendAsHeader = "Listnun-Send-As"
+
+// txOrigin is who sent a transactional message and from where, for the log.
+type txOrigin struct {
+	APIKeyID int
+	Sender   string
+	SourceIP string
+	// Accepted is the first event's detail, e.g. "POST /api/tx from 41.79.x.x".
+	Accepted string
+}
+
+// txPayload is the single-recipient request kept in the message log so a
+// message can be inspected and resent. Attachment contents aren't kept.
+type txPayload struct {
+	SubscriberMode  string         `json:"subscriber_mode"`
+	SubscriberEmail string         `json:"subscriber_email,omitempty"`
+	SubscriberID    int            `json:"subscriber_id,omitempty"`
+	TemplateID      int            `json:"template_id"`
+	Data            map[string]any `json:"data"` // Arbitrary template data supplied by the caller.
+	FromEmail       string         `json:"from_email,omitempty"`
+	Headers         models.Headers `json:"headers,omitempty"`
+	ContentType     string         `json:"content_type,omitempty"`
+	Messenger       string         `json:"messenger,omitempty"`
+	Subject         string         `json:"subject,omitempty"`
+	AltBody         string         `json:"altbody,omitempty"`
+	Attachments     []string       `json:"attachments,omitempty"`
+}
+
+// txLogRef identifies a recorded message: the public ID and its row.
+type txLogRef struct {
+	UUID string
+	ID   int64
+}
+
 // SendTxMessage handles the sending of a transactional message.
+//
+// Every recipient is recorded in the message log. The response carries the
+// log IDs in the Listnun-Message-Id header, comma-separated in recipient
+// order; the body is unchanged.
 func (a *App) SendTxMessage(c echo.Context) error {
-	var m models.TxMessage
-
-	// If it's a multipart form, there may be file attachments.
-	if strings.HasPrefix(c.Request().Header.Get("Content-Type"), "multipart/form-data") {
-		form, err := c.MultipartForm()
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest,
-				a.i18n.Ts("globals.messages.invalidFields", "name", err.Error()))
-		}
-
-		data, ok := form.Value["data"]
-		if !ok || len(data) != 1 {
-			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "data"))
-		}
-
-		// Parse the JSON data.
-		if err := json.Unmarshal([]byte(data[0]), &m); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest,
-				a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("data: %s", err.Error())))
-		}
-
-		// Attach files.
-		for _, f := range form.File["file"] {
-			file, err := f.Open()
-			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError,
-					a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("file: %s", err.Error())))
-			}
-			defer file.Close()
-
-			b, err := io.ReadAll(file)
-			if err != nil {
-				return echo.NewHTTPError(http.StatusInternalServerError,
-					a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("file: %s", err.Error())))
-			}
-
-			m.Attachments = append(m.Attachments, models.Attachment{
-				Name:    f.Filename,
-				Header:  manager.MakeAttachmentHeader(f.Filename, "base64", f.Header.Get("Content-Type")),
-				Content: b,
-			})
-		}
-
-	} else if err := c.Bind(&m); err != nil {
+	m, err := a.parseTxRequest(c)
+	if err != nil {
 		return err
 	}
 
-	// Validate fields.
-	if r, err := a.validateTxMessage(c.Request().Context(), tenantID(c), m); err != nil {
+	ids, err := a.sendTx(c.Request().Context(), tenantID(c), m, a.txOriginFor(c))
+	if len(ids) > 0 {
+		c.Response().Header().Set(models.TxMessageIDHeader, strings.Join(ids, ","))
+	}
+	if err != nil {
 		return err
-	} else {
-		m = r
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// parseTxRequest reads a JSON or multipart (with file attachments) tx request.
+func (a *App) parseTxRequest(c echo.Context) (models.TxMessage, error) {
+	var m models.TxMessage
+
+	if !strings.HasPrefix(c.Request().Header.Get("Content-Type"), "multipart/form-data") {
+		if err := c.Bind(&m); err != nil {
+			return m, err
+		}
+		return m, nil
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		return m, echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidFields", "name", err.Error()))
+	}
+
+	data, ok := form.Value["data"]
+	if !ok || len(data) != 1 {
+		return m, echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "data"))
+	}
+
+	// Parse the JSON data.
+	if err := json.Unmarshal([]byte(data[0]), &m); err != nil {
+		return m, echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("data: %s", err.Error())))
+	}
+
+	// Attach files.
+	for _, f := range form.File["file"] {
+		file, err := f.Open()
+		if err != nil {
+			return m, echo.NewHTTPError(http.StatusInternalServerError,
+				a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("file: %s", err.Error())))
+		}
+		b, err := io.ReadAll(file)
+		file.Close()
+		if err != nil {
+			return m, echo.NewHTTPError(http.StatusInternalServerError,
+				a.i18n.Ts("globals.messages.invalidFields", "name", fmt.Sprintf("file: %s", err.Error())))
+		}
+
+		m.Attachments = append(m.Attachments, models.Attachment{
+			Name:    f.Filename,
+			Header:  manager.MakeAttachmentHeader(f.Filename, "base64", f.Header.Get("Content-Type")),
+			Content: b,
+		})
+	}
+
+	return m, nil
+}
+
+// txOriginFor describes the request for the message log: the API key or
+// user that sent it and the caller's IP.
+func (a *App) txOriginFor(c echo.Context) txOrigin {
+	user := auth.GetUser(c)
+	ip := c.RealIP()
+	o := txOrigin{
+		APIKeyID: user.APIKeyID,
+		Sender:   user.Username,
+		SourceIP: ip,
+		Accepted: fmt.Sprintf("%s %s from %s", c.Request().Method, c.Request().URL.Path, ip),
+	}
+
+	// A signed-in user testing from the browser may send as one of the
+	// workspace's keys, so the log shows the key the test was for.
+	if user.Type == auth.UserTypeAPI {
+		return o
+	}
+	name := strings.TrimSpace(c.Request().Header.Get(txSendAsHeader))
+	if name == "" {
+		return o
+	}
+	keys, err := a.core.GetAPIKeys(c.Request().Context(), tenantID(c), name)
+	if err != nil {
+		return o
+	}
+	for _, k := range keys {
+		if k.Name == name && k.Status == models.APIKeyStatusActive {
+			o.APIKeyID = k.ID
+			o.Sender = k.Name
+			break
+		}
+	}
+	return o
+}
+
+// sendTx validates, renders, logs and queues a transactional message for
+// each of its recipients. It returns the log ID of every recipient it
+// recorded, including ones that failed.
+func (a *App) sendTx(ctx context.Context, tenantID int, m models.TxMessage, origin txOrigin) ([]string, error) {
+	// Validate fields.
+	m, err := a.validateTxMessage(ctx, tenantID, m)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get the cached tx template.
-	tpl, err := a.manager.GetTpl(m.TemplateID)
+	tpl, err := a.manager.GetTpl(tenantID, m.TemplateID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest,
+		return nil, echo.NewHTTPError(http.StatusBadRequest,
 			a.i18n.Ts("globals.messages.notFound", "name", fmt.Sprintf("template %d", m.TemplateID)))
 	}
 
 	var (
 		num      = len(m.SubscriberEmails)
 		isEmails = true
+		ids      []string
 	)
 	if len(m.SubscriberIDs) > 0 {
 		num = len(m.SubscriberIDs)
 		isEmails = false
 	}
+	record := func(sub models.Subscriber, subID int, failure string) txLogRef {
+		ref := a.logTx(ctx, tenantID, m, tpl, origin, sub, subID, failure)
+		if ref.UUID != "" {
+			ids = append(ids, ref.UUID)
+		}
+		return ref
+	}
 
 	notFound := []string{}
 	for n := range num {
-		var sub models.Subscriber
+		var (
+			sub      models.Subscriber
+			subID    int
+			subEmail string
+		)
+		if isEmails {
+			subEmail = m.SubscriberEmails[n]
+		} else {
+			subID = m.SubscriberIDs[n]
+		}
 
 		if m.SubscriberMode == models.TxSubModeExternal {
 			// `external`: Always create an ephemeral "subscriber" and don't
 			// lookup in the DB.
-			sub = models.Subscriber{
-				Email: m.SubscriberEmails[n],
-			}
+			sub = models.Subscriber{Email: subEmail}
 		} else {
 			// Default/fallback mode: lookup subscriber in DB.
-			var (
-				subID    int
-				subEmail string
-			)
-
-			if !isEmails {
-				subID = m.SubscriberIDs[n]
-			} else {
-				subEmail = m.SubscriberEmails[n]
-			}
-
-			var err error
-			sub, err = a.core.GetSubscriber(c.Request().Context(), tenantID(c), subID, "", subEmail)
+			sub, err = a.core.GetSubscriber(ctx, tenantID, subID, "", subEmail)
 			if err != nil {
-				if er, ok := err.(*echo.HTTPError); ok && er.Code == http.StatusBadRequest {
-					// `fallback`: Create an ephemeral "subscriber" if the subscriber wasn't found.
-					if m.SubscriberMode == models.TxSubModeFallback {
-						sub = models.Subscriber{
-							Email: subEmail,
-						}
-					} else {
-						// `default`: log error and continue.
-						notFound = append(notFound, fmt.Sprintf("%v", er.Message))
-						continue
-					}
-				} else {
-					return err
+				er, ok := err.(*echo.HTTPError)
+				if !ok || er.Code != http.StatusBadRequest {
+					return ids, err
 				}
+
+				if m.SubscriberMode != models.TxSubModeFallback {
+					// `default`: log error and continue.
+					msg := fmt.Sprintf("%v", er.Message)
+					notFound = append(notFound, msg)
+					recipient := subEmail
+					if recipient == "" {
+						recipient = fmt.Sprintf("#%d", subID)
+					}
+					record(models.Subscriber{Email: recipient}, subID, msg)
+					continue
+				}
+
+				// `fallback`: Create an ephemeral "subscriber" if the subscriber wasn't found.
+				sub = models.Subscriber{Email: subEmail}
 			}
 		}
 
 		// Render the message.
 		if err := m.Render(sub, tpl, a.manager.GenericTemplateFuncs()); err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest,
-				a.i18n.Ts("templates.errorRendering", "error", err.Error()))
+			msg := a.i18n.Ts("templates.errorRendering", "error", err.Error())
+			record(sub, subID, msg)
+			return ids, echo.NewHTTPError(http.StatusBadRequest, msg)
 		}
+
+		ref := record(sub, subID, "")
 
 		// Prepare the final message.
 		msg := models.Message{}
-		msg.TenantID = tenantID(c)
+		msg.TenantID = tenantID
 		msg.Subscriber = sub
 		msg.To = []string{sub.Email}
 		msg.From = m.FromEmail
@@ -146,6 +259,7 @@ func (a *App) SendTxMessage(c echo.Context) error {
 		msg.Messenger = m.Messenger
 		msg.Body = m.Body
 		msg.AltBody = []byte(m.AltBody)
+		msg.TxMessageID = ref.ID
 		for _, a := range m.Attachments {
 			msg.Attachments = append(msg.Attachments, models.Attachment{
 				Name:     a.Name,
@@ -156,27 +270,96 @@ func (a *App) SendTxMessage(c echo.Context) error {
 		}
 		msg.Attachments = append(msg.Attachments, tpl.Attachments...)
 
-		// Optional headers.
-		if len(m.Headers) != 0 {
-			msg.Headers = make(textproto.MIMEHeader, len(m.Headers))
-			for _, set := range m.Headers {
-				for hdr, val := range set {
-					msg.Headers.Add(hdr, val)
-				}
+		msg.Headers = make(textproto.MIMEHeader, len(m.Headers)+1)
+		for _, set := range m.Headers {
+			for hdr, val := range set {
+				msg.Headers.Add(hdr, val)
 			}
+		}
+		if ref.UUID != "" {
+			msg.Headers.Set(models.TxMessageIDHeader, ref.UUID)
 		}
 
 		if err := a.manager.PushMessage(msg); err != nil {
 			a.log.Printf("error sending message (%s): %v", msg.Subject, err)
-			return err
+			a.core.RecordTxSendResult(tenantID, ref.ID, m.Messenger, err)
+			return ids, err
 		}
 	}
 
 	if len(notFound) > 0 {
-		return echo.NewHTTPError(http.StatusBadRequest, strings.Join(notFound, "; "))
+		return ids, echo.NewHTTPError(http.StatusBadRequest, strings.Join(notFound, "; "))
 	}
 
-	return c.JSON(http.StatusOK, okResp{true})
+	return ids, nil
+}
+
+// logTx records one recipient's message in the log. failure is set when
+// the message won't be sent. A message that can't be recorded is still
+// sent, so the returned ref is empty in that case.
+func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *models.Template, origin txOrigin,
+	sub models.Subscriber, subID int, failure string) txLogRef {
+	p := txPayload{
+		SubscriberMode: m.SubscriberMode,
+		TemplateID:     m.TemplateID,
+		Data:           m.Data,
+		FromEmail:      m.FromEmail,
+		Headers:        m.Headers,
+		ContentType:    m.ContentType,
+		Messenger:      m.Messenger,
+		Subject:        m.Subject,
+		AltBody:        m.AltBody,
+	}
+	if subID > 0 {
+		p.SubscriberID = subID
+	} else {
+		p.SubscriberEmail = sub.Email
+	}
+	for _, att := range m.Attachments {
+		p.Attachments = append(p.Attachments, att.Name)
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		payload = []byte("{}")
+	}
+
+	rec := models.NewTxLogMessage{
+		UUID:         core.NewTxMessageUUID(),
+		APIKeyID:     origin.APIKeyID,
+		Sender:       origin.Sender,
+		TemplateID:   m.TemplateID,
+		TemplateName: tpl.Name,
+		SubscriberID: sub.ID,
+		Recipient:    sub.Email,
+		Subject:      m.Subject,
+		Status:       models.TxStatusQueued,
+		Messenger:    m.Messenger,
+		SourceIP:     origin.SourceIP,
+		Payload:      payload,
+		Body:         string(m.Body),
+		Events:       []models.NewTxLogEvent{{Type: models.TxEventAccepted, Detail: origin.Accepted}},
+	}
+	if rec.Subject == "" {
+		rec.Subject = tpl.Subject
+	}
+
+	if failure != "" {
+		rec.Status = models.TxStatusFailed
+		rec.Error = failure
+		rec.Body = ""
+		rec.Events = append(rec.Events, models.NewTxLogEvent{Type: models.TxEventFailed, Detail: failure})
+	} else {
+		rec.Events = append(rec.Events, models.NewTxLogEvent{
+			Type:   models.TxEventRendered,
+			Detail: fmt.Sprintf("Template #%d with %d variables", m.TemplateID, len(m.Data)),
+		})
+	}
+
+	id, err := a.core.CreateTxMessage(ctx, tenantID, rec)
+	if err != nil {
+		return txLogRef{}
+	}
+	return txLogRef{UUID: rec.UUID, ID: id}
 }
 
 // validateTxMessage validates the tx message fields.

@@ -121,6 +121,16 @@ type Queries struct {
 	QueryMedia  *sqlx.Stmt `query:"query-media"`
 	DeleteMedia *sqlx.Stmt `query:"delete-media"`
 
+	CreateTxMessage         *sqlx.Stmt `query:"create-tx-message"`
+	SetTxMessageStatus      *sqlx.Stmt `query:"set-tx-message-status"`
+	GetTxMessageForBounce   *sqlx.Stmt `query:"get-tx-message-for-bounce"`
+	QueryTxMessages         *sqlx.Stmt `query:"query-tx-messages"`
+	CountTxMessagesByStatus *sqlx.Stmt `query:"count-tx-messages-by-status"`
+	GetTxMessage            *sqlx.Stmt `query:"get-tx-message"`
+	GetTxMessageEvents      *sqlx.Stmt `query:"get-tx-message-events"`
+	GetTxStats              *sqlx.Stmt `query:"get-tx-stats"`
+	PruneTxMessages         *sqlx.Stmt `query:"prune-tx-messages"`
+
 	GetAPIKeys         *sqlx.Stmt `query:"get-api-keys"`
 	GetAPIKey          *sqlx.Stmt `query:"get-api-key"`
 	GetAPIKeyAuth      *sqlx.Stmt `query:"get-api-key-auth"`
