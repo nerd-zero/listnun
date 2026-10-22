@@ -1,123 +1,110 @@
 {{ define "subscription" }}
 {{ template "header" .}}
-<section class="section">
+<section>
     {{ if not .Data.ShowManage }}
         <h2>{{ L.T "public.unsubTitle" }}</h2>
-        <form method="post" class="unsub-form">
-            <div>
-                {{ if .Data.AllowBlocklist }}
-                    <p>{{ L.T "public.unsubHelp" }}</p>
-                    <p>
-                        <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" />
+        <p class="sub">{{ L.T "public.unsubHelp" }}</p>
+        <form method="post" class="unsub-form stack">
+            {{ if .Data.AllowBlocklist }}
+                <div class="check-row">
+                    <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" />
+                    <span>
                         <label for="privacy-blocklist">{{ L.T "public.unsubFull" }}</label>
-                    </p>
-                {{ end }}
+                    </span>
+                </div>
+            {{ end }}
 
-                <p>
-                    <button type="submit" class="button" id="btn-unsub">{{ L.T "public.unsub" }}</button>
-                </p>
+            <button type="submit" class="button" id="btn-unsub">{{ L.T "public.unsub" }}</button>
 
-                {{ if .Data.AllowPreferences }}
-                    <a href="?manage=true">{{ L.T "public.managePrefs" }}</a>
-                {{ end }}
-            </div>
+            {{ if .Data.AllowPreferences }}
+                <p class="links center"><a href="?manage=true">{{ L.T "public.managePrefs" }}</a></p>
+            {{ end }}
         </form>
     {{ else }}
-        <form method="post" class="manage-form">
-            <div>
-                <input type="hidden" name="manage" value="true" />
+        <h2>{{ L.T "public.manageTitle" }}</h2>
+        {{ if .Data.Subscriber.Email }}
+            <p class="sub">{{ L.T "public.manageFor" }} {{ .Data.Subscriber.Email }}</p>
+        {{ end }}
 
-                <h2>{{ L.T "public.managePrefs" }}</h2>
-                <label>{{ L.T "globals.fields.name" }}</label>
-                <input type="text" name="name" value="{{ .Data.Subscriber.Name }}" maxlength="256" required />
+        <form method="post" class="manage-form stack">
+            <input type="hidden" name="manage" value="true" />
 
-                {{ if .Data.Subscriptions }}
-                    <br /><br />
-                    <h3>{{ L.T "public.managePrefsUnsub" }}</h3>
+            <div class="field">
+                <label for="sub-name">{{ L.T "globals.fields.name" }}</label>
+                <input id="sub-name" type="text" name="name" value="{{ .Data.Subscriber.Name }}" maxlength="256" autocomplete="name" required />
+            </div>
+
+            {{ if .Data.Subscriptions }}
+                <div class="field">
+                    <span class="field-label">{{ L.T "globals.terms.lists" }}</span>
+                    <p class="help">{{ L.T "public.managePrefsUnsub" }}</p>
                     <ul class="lists">
                         {{ range $i, $l := .Data.Subscriptions }}
-                            {{ if ne $l.SubscriptionStatus.Value "unsubscribed" }}
+                            {{ if ne $l.SubscriptionStatus.String "unsubscribed" }}
                                 <li>
-                                    <input id="l-{{ $l.UUID}}" type="checkbox" name="l" value="{{ $l.UUID }}" checked />
-                                    <label for="l-{{ $l.UUID}}">{{ $l.Name }}</label>
+                                    <input id="l-{{ $l.UUID }}" type="checkbox" name="l" value="{{ $l.UUID }}" checked />
+                                    <span class="list-text">
+                                        <label for="l-{{ $l.UUID }}">{{ $l.Name }}</label>
+                                        {{ if ne $l.Description "" }}
+                                            <span class="description">{{ $l.Description }}</span>
+                                        {{ end }}
+                                    </span>
                                 </li>
                             {{ end }}
                         {{ end }}
                     </ul>
-                {{ end }}
+                </div>
+            {{ end }}
 
-                {{ if .Data.AllowBlocklist }}
-                    <p>
-                        <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" onchange="unsubAll(event)" />
-                        <label for="privacy-blocklist">{{ L.T "public.unsubFull" }}</label>
-                    </p>
-                {{ end }}
+            {{ if .Data.AllowBlocklist }}
+                <div class="check-row">
+                    <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" onchange="unsubAll(event)" />
+                    <span>
+                        <label for="privacy-blocklist" class="link-danger">{{ L.T "public.unsubEverything" }}</label>
+                        <span class="description">{{ L.T "public.unsubFull" }}</span>
+                    </span>
+                </div>
+            {{ end }}
 
-                <p>
-                    <button type="submit" class="button" id="btn-unsub">{{ L.T "globals.buttons.save" }}</button>
-                </p>
-            </div>
+            <button type="submit" class="button" id="btn-unsub">{{ L.T "public.savePrefs" }}</button>
+        </form>
+    {{ end }}
+
+    {{ if or .Data.AllowExport .Data.AllowWipe }}
+        <hr class="divider" style="margin: 20px 0 16px" />
+        <form id="data-form" class="data-form" method="post" action="">
+            <p class="links">
+                {{ if .Data.AllowExport }}
+                    <button type="submit" class="link-btn" title="{{ L.T "public.privacyExportHelp" }}"
+                        formaction="/subscription/export/{{ .Data.SubUUID }}">{{ L.T "public.privacyExport" }}</button>
+                {{ end }}
+                {{ if and .Data.AllowExport .Data.AllowWipe }}<span aria-hidden="true">·</span>{{ end }}
+                {{ if .Data.AllowWipe }}
+                    <button type="submit" class="link-btn" title="{{ L.T "public.privacyWipeHelp" }}"
+                        formaction="/subscription/wipe/{{ .Data.SubUUID }}" onclick="return confirmWipe()">{{ L.T "public.privacyWipe" }}</button>
+                {{ end }}
+            </p>
         </form>
     {{ end }}
 </section>
 
-{{ if or .Data.AllowExport .Data.AllowWipe }}
-<form id="data-form" class="data-form" method="post" action="" onsubmit="return handleData()">
-    <section>
-        <h2>{{ L.T "public.privacyTitle" }}</h2>
-        {{ if .Data.AllowExport }}
-        <div class="row">
-            <input id="privacy-export" type="radio" name="data-action" value="export" required />
-            <label for="privacy-export"><strong>{{ L.T "public.privacyExport" }}</strong></label>
-            <br />
-            {{ L.T "public.privacyExportHelp" }}
-        </div>
-        {{ end }}
-
-        {{ if .Data.AllowWipe }}
-        <div class="row">
-            <input id="privacy-wipe" type="radio" name="data-action" value="wipe" required />
-            <label for="privacy-wipe"><strong>{{ L.T "public.privacyWipe" }}</strong></label>
-            <br />
-            {{ L.T "public.privacyWipeHelp" }}
-        </div>
-        {{ end }}
-        <p>
-            <input type="submit" value="{{ L.T "globals.buttons.continue" }}" class="button button-outline" />
-        </p>
-    </section>
-</form>
 <script>
-    function handleData() {
-        var a = document.querySelector('input[name="data-action"]:checked').value,
-            f = document.querySelector("#data-form");
-        if (a == "export") {
-            f.action = "/subscription/export/{{ .Data.SubUUID }}";
-            return true;
-        } else if (confirm("{{ L.T "public.privacyConfirmWipe" }}")) {
-            f.action = "/subscription/wipe/{{ .Data.SubUUID }}";
-            return true;
-        }
-        return false;
+    function confirmWipe() {
+        return confirm("{{ L.T "public.privacyConfirmWipe" }}");
     }
 
     function unsubAll(e) {
-        if (e.target.checked) {
-            document.querySelector("input[name=name]").disabled = "disabled";
-        } else {
-            document.querySelector("input[name=name]").removeAttribute("disabled");
+        var off = e.target.checked;
+        var name = document.querySelector("input[name=name]");
+        if (name) {
+            if (off) { name.disabled = "disabled"; } else { name.removeAttribute("disabled"); }
         }
 
         document.querySelectorAll('input[type=checkbox][name=l]').forEach(function(l) {
-            if (e.target.checked) {
-                l.disabled = "disabled";
-            } else {
-                l.removeAttribute("disabled");
-            }
+            if (off) { l.disabled = "disabled"; } else { l.removeAttribute("disabled"); }
         });
     }
 </script>
-{{ end }}
 
 {{ template "footer" .}}
 {{ end }}
