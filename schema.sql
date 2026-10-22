@@ -198,6 +198,9 @@ CREATE TABLE campaigns (
     archive_slug        TEXT NULL UNIQUE,
     archive_template_id INTEGER REFERENCES templates(id) ON DELETE SET NULL,
     archive_meta        JSONB NOT NULL DEFAULT '{}',
+    -- The editor's click-tracking switch and third-party pixels
+    -- (models.CampaignTracking).
+    tracking            JSONB NOT NULL DEFAULT '{}',
 
     started_at       TIMESTAMP WITH TIME ZONE,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

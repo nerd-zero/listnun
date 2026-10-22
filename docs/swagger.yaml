@@ -331,6 +331,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -348,6 +350,19 @@ definitions:
         type: integer
       timestamp:
         type: string
+    type: object
+  CampaignTracking:
+    properties:
+      links:
+        description: Links tracks every web link in the email, as if each had @TrackLink.
+        type: boolean
+      pixels:
+        description: |-
+          Pixels are third-party tracking image URLs added to the end of the
+          email (analytics or ad platforms that count opens with an image).
+        items:
+          type: string
+        type: array
     type: object
   CleanupRun:
     properties:
@@ -454,6 +469,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -1771,6 +1788,8 @@ definitions:
         type: string
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:

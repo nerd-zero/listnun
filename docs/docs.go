@@ -6697,6 +6697,9 @@ const docTemplate = `{
                 "to_send": {
                     "type": "integer"
                 },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -6722,6 +6725,22 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "CampaignTracking": {
+            "type": "object",
+            "properties": {
+                "links": {
+                    "description": "Links tracks every web link in the email, as if each had @TrackLink.",
+                    "type": "boolean"
+                },
+                "pixels": {
+                    "description": "Pixels are third-party tracking image URLs added to the end of the\nemail (analytics or ad platforms that count opens with an image).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -6874,6 +6893,9 @@ const docTemplate = `{
                 },
                 "to_send": {
                     "type": "integer"
+                },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
                 },
                 "type": {
                     "type": "string"
@@ -8815,6 +8837,9 @@ const docTemplate = `{
                 },
                 "to_send": {
                     "type": "integer"
+                },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
                 },
                 "type": {
                     "type": "string"

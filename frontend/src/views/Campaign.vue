@@ -225,6 +225,9 @@
           </a>
         </div>
 
+        <!-- Tracking applies to HTML emails; plain text can't carry it. -->
+        <campaign-tracking v-if="form.content.contentType !== 'plain'" v-model="form.tracking" :disabled="!canEdit" />
+
         <div v-if="form.content.contentType !== 'plain'" class="ln-field camp-alt">
           <div class="camp-alt-head">
             <span class="ln-field-label">{{ $t('campaigns.plainTextVersion') }}</span>
@@ -450,6 +453,7 @@ import CopyText from '../components/CopyText.vue';
 import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
 import MediaPickerDialog from '../components/MediaPickerDialog.vue';
+import CampaignTracking from '../components/CampaignTracking.vue';
 import ScrubHistoryList from '../components/ScrubHistoryList.vue';
 import StatusTag from '../components/ui/StatusTag.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
@@ -528,6 +532,8 @@ const form = reactive<Loose>({
   },
   altbody: null,
   media: [],
+  // New campaigns track link clicks by default; pixels are opt-in.
+  tracking: { links: true, pixels: [] },
   sendAtDate: null,
   sendLater: false,
   archive: false,
@@ -647,7 +653,7 @@ const primaryDisabled = computed(() => {
 function contentSig(): string {
   const src = JSON.stringify([
     form.subject, form.fromEmail, form.content.contentType, form.content.body, form.altbody,
-    form.content.templateId, (form.media as Loose[]).map((m) => m.id),
+    form.content.templateId, (form.media as Loose[]).map((m) => m.id), form.tracking,
   ]);
   let h = 5381;
   for (let i = 0; i < src.length; i += 1) h = ((h * 33) ^ src.charCodeAt(i)) >>> 0; // eslint-disable-line no-bitwise
@@ -724,6 +730,16 @@ const checks = computed<Check[]>(() => {
     });
   }
   if (form.content.contentType !== 'plain') {
+    const px = form.tracking.pixels.length;
+    out.push({
+      key: 'tracking',
+      tone: 'info',
+      title: t('campaigns.tracking.title'),
+      text: [
+        form.tracking.links ? t('campaigns.tracking.checkLinks') : t('campaigns.tracking.checkNoLinks'),
+        px ? t('campaigns.tracking.checkPixels', { n: px }, px) : '',
+      ].filter(Boolean).join('\u2003'),
+    });
     out.push({
       key: 'plain', tone: 'info', title: t('campaigns.plainTextVersion'), text: form.altbody !== null ? t('campaigns.checkPlainCustom') : t('campaigns.plainTextNone'),
     });
@@ -842,6 +858,7 @@ function fillFrom(d: Loose) {
     },
   });
   form.media = form.media.map((f: Loose) => (!f.id ? { ...f, filename: `❌ ${f.filename}` } : f));
+  form.tracking = { links: !!d.tracking?.links, pixels: Array.isArray(d.tracking?.pixels) ? d.tracking.pixels : [] };
   loadLastTest();
 }
 
@@ -876,6 +893,7 @@ function sendTest() {
     altbody: form.content.contentType !== 'plain' ? form.altbody : null,
     subscribers: form.testEmails,
     media: form.media.map((m: Loose) => m.id),
+    tracking: form.tracking,
   })
     .then(() => {
       saveLastTest({ at: new Date().toISOString(), to: form.testEmails.join(', '), sig: contentSig() });
@@ -902,6 +920,7 @@ function createCampaign() {
     headers: form.headers,
     attribs: form.attribs,
     media: form.media.map((m: Loose) => m.id),
+    tracking: form.tracking,
   })
     .then((d) => {
       leaveApproved = true;
@@ -936,6 +955,7 @@ function updateCampaign(typ?: string): Promise<void> {
     archive_template_id: form.archiveTemplateId,
     archive_meta: form.archiveMeta,
     media: form.media.map((m: Loose) => m.id),
+    tracking: form.tracking,
   })
     .then((d) => {
       const c = d as Loose;

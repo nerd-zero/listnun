@@ -801,6 +801,8 @@ func (a *App) TestCampaign(c echo.Context) error {
 	camp.AltBody = req.AltBody
 	camp.Messenger = req.Messenger
 	camp.ContentType = req.ContentType
+	// Test with the editor's tracking, so the test shows what will send.
+	camp.Tracking = req.Tracking.Normalized()
 	camp.Headers = req.Headers
 	camp.TemplateID = req.TemplateID
 	for _, id := range req.MediaIDs {
@@ -991,6 +993,15 @@ func (a *App) validateCampaignFields(ctx context.Context, tenantID int, c campRe
 
 	if len(c.ArchiveMeta) == 0 {
 		c.ArchiveMeta = json.RawMessage("{}")
+	}
+
+	c.Tracking = c.Tracking.Normalized()
+	if err := c.Tracking.Validate(); err != nil {
+		var bad models.InvalidPixelError
+		if errors.As(err, &bad) {
+			return c, errors.New(a.i18n.Ts("campaigns.trackingPixelInvalid", "url", bad.URL))
+		}
+		return c, errors.New(a.i18n.Ts("campaigns.trackingPixelsMax", "num", strconv.Itoa(models.MaxTrackingPixels)))
 	}
 
 	if c.ArchiveSlug.String != "" {

@@ -206,6 +206,7 @@ func (c *Core) CreateCampaign(ctx context.Context, tenantID int, o models.Campai
 			pq.Array(mediaIDs),
 			o.BodySource,
 			tenantID,
+			o.Tracking,
 		)
 	})
 	if err != nil {
@@ -250,6 +251,7 @@ func (c *Core) UpdateCampaign(ctx context.Context, tenantID int, id int, o model
 			pq.Array(mediaIDs),
 			o.BodySource,
 			tenantID,
+			o.Tracking,
 		)
 		return err
 	})

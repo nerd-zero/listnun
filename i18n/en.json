@@ -1515,6 +1515,8 @@
     "campaigns.leaveText": "Your changes to “{name}” will be lost.",
     "campaigns.saveAndLeave": "Save and leave",
     "campaigns.checkTestStale": "Changed since the last test {when}. Send another before you start it.",
+    "campaigns.trackingPixelInvalid": "This tracking pixel isn't a plain web address (https://…): {url}",
+    "campaigns.trackingPixelsMax": "A campaign can have at most {num} tracking pixels.",
     "settings.help.general": "Your workspace's name, URLs, sender and public pages.",
     "settings.help.performance": "How fast campaigns send and how hard the database works.",
     "settings.help.privacy": "What subscribers can see and do, and what's tracked.",
@@ -1581,5 +1583,17 @@
     "settings.inactive.matchCustom": "About {n} subscribers match your custom rules today.",
     "settings.inactive.lastRun": "Last run {date}: {n} subscribers.",
     "settings.inactive.lastRunFailed": "Last run {date} failed: {error}",
-    "settings.inactive.preview": "Preview affected subscribers"
+    "settings.inactive.preview": "Preview affected subscribers",
+    "campaigns.tracking.title": "Tracking",
+    "campaigns.tracking.links": "Track link clicks",
+    "campaigns.tracking.linksHelp": "Counts who clicks each link, in every editor. No codes to add.",
+    "campaigns.tracking.pixels": "Tracking pixels",
+    "campaigns.tracking.pixelPlaceholder": "Paste a pixel link, or the <img> code from Meta, Google Ads, LinkedIn…",
+    "campaigns.tracking.addPixel": "Add pixel",
+    "campaigns.tracking.pixelsHelp": "For ad and analytics platforms that count opens with an image. Many email apps block images until the reader allows them, so these counts run low.",
+    "campaigns.tracking.pixelScript": "Scripts don't run in email. Paste the image version instead: the <img> code, often inside <noscript>.",
+    "campaigns.tracking.pixelInvalid": "That isn't a pixel link. It should start with https:// (or paste the <img> code).",
+    "campaigns.tracking.checkLinks": "Link clicks are tracked.",
+    "campaigns.tracking.checkNoLinks": "Link clicks aren't tracked.",
+    "campaigns.tracking.checkPixels": "1 tracking pixel | {n} tracking pixels"
 }

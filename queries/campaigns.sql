@@ -25,7 +25,7 @@ WITH tpl AS (
 camp AS (
     INSERT INTO campaigns (uuid, type, name, subject, from_email, body, altbody,
         content_type, send_at, headers, attribs, tags, messenger, template_id, to_send,
-        max_subscriber_id, archive, archive_slug, archive_template_id, archive_meta, body_source, tenant_id)
+        max_subscriber_id, archive, archive_slug, archive_template_id, archive_meta, body_source, tenant_id, tracking)
         SELECT $1, $2, $3, $4, $5,
             -- body
             COALESCE(NULLIF($6, ''), (SELECT body FROM tpl), ''),
@@ -42,7 +42,9 @@ camp AS (
             -- body_source
             COALESCE($21, (SELECT body_source FROM tpl)),
             -- tenant_id
-            $22
+            $22,
+            -- tracking
+            $23
         RETURNING id
 ),
 med AS (
@@ -426,6 +428,7 @@ WITH camp AS (
         archive_template_id=(CASE WHEN $7::content_type = 'visual' THEN NULL ELSE $17::INT END),
         archive_meta=$18,
         body_source=$20,
+        tracking=$22,
         updated_at=NOW()
     WHERE id = $1 RETURNING id
 ),
