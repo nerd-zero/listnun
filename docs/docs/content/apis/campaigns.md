@@ -306,6 +306,7 @@ Create a new campaign.
 | tags         | string\[\] |          | Tags to mark campaign.                                                                                                 |
 | headers      | JSON       |          | Key-value pairs to send as SMTP headers. Supports template expressions (e.g., `{{ .Subscriber.UUID }}`). Example: \[{"x-custom-header": "value"}, {"x-subscriber": "{{ .Subscriber.UUID }}"}\]. |
 | attribs      | JSON       |          | Optional JSON object attributes that can be used in the campaign message template. Example `{"location": "Somewhere"}` |
+| tracking     | JSON       |          | Click tracking and tracking pixels, for HTML formats: `{"links": true, "pixels": ["https://px.example.com/p.gif"]}`. `links` tracks every web link; `pixels` are up to 10 http(s) image URLs. Omitted means both off. See [Tracking](../guides/tracking.md). |
 
 ##### Example request
 
