@@ -71,23 +71,51 @@ func (c *Core) CreateTxMessage(ctx context.Context, tenantID int, m models.NewTx
 		c.log.Printf("error recording tx message to %s: %v", m.Recipient, err)
 		return 0, err
 	}
+
+	// A message that failed before it was queued still tells webhooks.
+	if m.Status == models.TxStatusFailed {
+		c.enqueueTxWebhook(tenantID, txStatusRow{
+			ID: id, TenantID: tenantID, UUID: m.UUID, TemplateID: m.TemplateID,
+			Recipient: m.Recipient, Status: m.Status, Error: m.Error,
+		}, m.Error)
+	}
 	return id, nil
 }
 
 // SetTxMessageStatus moves a message to status and records event. A
 // bounced or failed message isn't moved back to sent or delivered.
 func (c *Core) SetTxMessageStatus(ctx context.Context, tenantID int, id int64, status, event, detail, bounceType string) {
+	var (
+		row     txStatusRow
+		changed bool
+	)
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		var out int64
-		err := stmtx(tx, c.q.SetTxMessageStatus).Get(&out, id, status, detail, bounceType, event)
+		err := stmtx(tx, c.q.SetTxMessageStatus).Get(&row, id, status, detail, bounceType, event)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
+		changed = err == nil
 		return err
 	})
 	if err != nil {
 		c.log.Printf("error updating tx message %d to %s: %v", id, status, err)
+		return
 	}
+	if changed {
+		c.enqueueTxWebhook(row.TenantID, row, detail)
+	}
+}
+
+// txStatusRow is a message as it is after a status change.
+type txStatusRow struct {
+	ID         int64  `db:"id"`
+	TenantID   int    `db:"tenant_id"`
+	UUID       string `db:"uuid"`
+	TemplateID int    `db:"template_id"`
+	Recipient  string `db:"recipient"`
+	Status     string `db:"status"`
+	BounceType string `db:"bounce_type"`
+	Error      string `db:"error"`
 }
 
 // RecordTxSendResult records what the messenger did with a queued

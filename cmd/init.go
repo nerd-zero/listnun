@@ -92,7 +92,10 @@ type Config struct {
 	MultiTenancyEnabled           bool     `koanf:"multi_tenancy_enabled"`
 	RootDomain                    string   `koanf:"root_domain"`
 	ConsoleURL                    string   `koanf:"console_url"`
-	Operator                      struct {
+	// WebhooksAllowPrivate lets webhook endpoints use plain HTTP and
+	// private or loopback addresses. For local development only.
+	WebhooksAllowPrivate bool `koanf:"webhooks_allow_private"`
+	Operator             struct {
 		Token      string `koanf:"token"`
 		DBUser     string `koanf:"db_user"`
 		DBPassword string `koanf:"db_password"`

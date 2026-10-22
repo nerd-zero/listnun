@@ -1695,6 +1695,372 @@
                 }
             }
         },
+        "/api/developers/webhooks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List webhook endpoints",
+                "operationId": "listWebhookEndpoints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/WebhookEndpoint"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Add a webhook endpoint",
+                "operationId": "createWebhookEndpoint",
+                "parameters": [
+                    {
+                        "description": "Endpoint",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpoint"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List webhook deliveries",
+                "operationId": "listWebhookDeliveries",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "endpoint_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pending, success, retrying or failed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PageResults"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries/{uuid}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Get a webhook delivery",
+                "operationId": "getWebhookDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delivery ID (whd_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookDelivery"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries/{uuid}/retry": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Resend a webhook delivery",
+                "operationId": "retryWebhookDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delivery ID (whd_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Update a webhook endpoint",
+                "operationId": "updateWebhookEndpoint",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Endpoint",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpoint"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Delete a webhook endpoint",
+                "operationId": "deleteWebhookEndpoint",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}/secret": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Reveal a webhook signing secret",
+                "operationId": "getWebhookEndpointSecret",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookSecret"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Rotate a webhook signing secret",
+                "operationId": "rotateWebhookEndpointSecret",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookSecret"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}/test": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Send a test event",
+                "operationId": "sendWebhookTest",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookTest"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "produces": [
@@ -7938,6 +8304,158 @@
                     "type": "integer"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookAttempt": {
+            "type": "object",
+            "properties": {
+                "attempt": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "response": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "$ref": "#/definitions/null.Int"
+                }
+            }
+        },
+        "WebhookDelivery": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "endpoint_id": {
+                    "type": "integer"
+                },
+                "endpoint_url": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/WebhookAttempt"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_duration_ms": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "last_status_code": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "next_attempt_at": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookEndpoint": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "done_24h": {
+                    "description": "Last 24 hours.",
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "median_ms": {
+                    "type": "integer"
+                },
+                "ok_24h": {
+                    "type": "integer"
+                },
+                "retrying": {
+                    "type": "integer"
+                },
+                "secret_hint": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookEndpointRequest": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "description": "Status is \"active\" or \"disabled\"; empty keeps an endpoint active.",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookSecret": {
+            "type": "object",
+            "properties": {
+                "secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookTest": {
+            "type": "object",
+            "properties": {
+                "delivery_id": {
                     "type": "string"
                 }
             }

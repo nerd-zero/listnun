@@ -115,6 +115,12 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
     });
   }
 
+  if (can('webhooks:get')) {
+    developers.push({
+      key: 'devWebhooks', label: t('developers.webhooks.title'), icon: 'webhook', to: { name: 'devWebhooks' }, names: ['devWebhooks'],
+    });
+  }
+
   const workspace: NavItem[] = [];
   if (can('users:*', 'roles:*')) {
     const kids: NavKid[] = [];
