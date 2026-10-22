@@ -2786,6 +2786,130 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's metered usage (Operator API)",
+                "operationId": "getOperatorTenantUsage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window start, RFC 3339 (inclusive)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window end, RFC 3339 (exclusive)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "day"
+                        ],
+                        "type": "string",
+                        "description": "day: also return per-UTC-day usage",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorTenantUsage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get all tenants' metered usage (Operator API)",
+                "operationId": "getOperatorPlatformUsage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Window start, RFC 3339 (inclusive)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window end, RFC 3339 (exclusive)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorPlatformUsage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/profile": {
             "get": {
                 "produces": [
@@ -5695,6 +5819,23 @@
                 }
             }
         },
+        "OperatorPlatformUsage": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorUsageDay"
+                    }
+                },
+                "tenants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorTenantUsageTotal"
+                    }
+                }
+            }
+        },
         "OperatorSMTPEntry": {
             "type": "object",
             "properties": {
@@ -5827,11 +5968,57 @@
                 }
             }
         },
+        "OperatorTenantUsage": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "description": "Days is the same usage per UTC day, only with ?group=day; days with\nno usage are omitted.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorUsageDay"
+                    }
+                },
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OperatorTenantUsageTotal": {
+            "type": "object",
+            "properties": {
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
+                }
+            }
+        },
         "OperatorUpdateTenantStatusReq": {
             "type": "object",
             "properties": {
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "OperatorUsageDay": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
                 }
             }
         },

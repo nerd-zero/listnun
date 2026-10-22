@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/lib/pq"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -176,6 +178,41 @@ func (s *store) CreateLink(ctx context.Context, tenantID int, url string) (strin
 	}
 
 	return out, nil
+}
+
+// usageFlushInterval is how often the usage meter writes buffered counts
+// -- also the most a crash can lose, so kept short; one batched upsert
+// per interval is cheap.
+const usageFlushInterval = 5 * time.Second
+
+// usageStore implements usage.Store over the primary database.
+type usageStore struct {
+	q *models.Queries
+}
+
+// AddUsage implements usage.Store.
+func (s usageStore) AddUsage(rows []usage.Row) error {
+	return addUsage(s.q, rows)
+}
+
+// addUsage writes rows to usage_counters in one statement -- shared by
+// the meter's batched flushes and the direct, unbuffered writes for Scrub
+// batch submissions (cmd/scrub_batch.go).
+func addUsage(q *models.Queries, rows []usage.Row) error {
+	var (
+		tenantIDs = make(pq.Int64Array, len(rows))
+		kinds     = make(pq.StringArray, len(rows))
+		buckets   = make(pq.StringArray, len(rows))
+		counts    = make(pq.Int64Array, len(rows))
+	)
+	for i, r := range rows {
+		tenantIDs[i] = int64(r.TenantID)
+		kinds[i] = r.Kind
+		buckets[i] = r.Bucket.UTC().Format(time.RFC3339)
+		counts[i] = r.Count
+	}
+	_, err := q.AddUsageCounters.Exec(tenantIDs, kinds, buckets, counts)
+	return err
 }
 
 // GetTenantRootURL returns the tenant's own app.root_url setting, trimmed
