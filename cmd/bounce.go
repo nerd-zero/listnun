@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -43,6 +44,8 @@ func (a *App) GetBounce(c echo.Context) error {
 //	@Produce		json
 //	@Param			campaign_id	query		int		false	"Filter by campaign ID"
 //	@Param			source		query		string	false	"Filter by bounce source"
+//	@Param			type		query		string	false	"Filter by bounce type (soft, hard, complaint)"
+//	@Param			query		query		string	false	"Search subscriber e-mail or campaign name"
 //	@Param			order_by	query		string	false	"Field to order results by"
 //	@Param			order		query		string	false	"Sort order (ASC or DESC)"
 //	@Param			page		query		int		false	"Page number"
@@ -53,15 +56,20 @@ func (a *App) GetBounce(c echo.Context) error {
 func (a *App) GetBounces(c echo.Context) error {
 	var (
 		campID, _ = strconv.Atoi(c.QueryParam("campaign_id"))
-		source    = c.FormValue("source")
 		orderBy   = c.FormValue("order_by")
 		order     = c.FormValue("order")
+		filter    = models.BounceFilter{
+			CampaignID: campID,
+			Source:     c.FormValue("source"),
+			Type:       c.FormValue("type"),
+			Search:     strings.TrimSpace(c.FormValue("query")),
+		}
 
 		pg = a.pg.NewFromURL(c.Request().URL.Query())
 	)
 
 	// Query and fetch bounces from the DB.
-	res, total, err := a.core.QueryBounces(c.Request().Context(), tenantID(c), campID, 0, source, orderBy, order, pg.Offset, pg.Limit)
+	res, total, err := a.core.QueryBounces(c.Request().Context(), tenantID(c), filter, orderBy, order, pg.Offset, pg.Limit)
 	if err != nil {
 		return err
 	}
@@ -81,6 +89,33 @@ func (a *App) GetBounces(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetBounceCounts returns the number of bounces per type for the same
+// campaign, source and search filters as GetBounces.
+//
+//	@ID			getBounceCounts
+//	@Summary		Count bounces per type
+//	@Tags			bounces
+//	@Produce		json
+//	@Param			campaign_id	query		int		false	"Filter by campaign ID"
+//	@Param			source		query		string	false	"Filter by bounce source"
+//	@Param			query		query		string	false	"Search subscriber e-mail or campaign name"
+//	@Success		200			{object}	models.BounceTypeCounts
+//	@Failure		500			{object}	echo.HTTPError
+//	@Router			/api/bounces/counts [get]
+func (a *App) GetBounceCounts(c echo.Context) error {
+	campID, _ := strconv.Atoi(c.QueryParam("campaign_id"))
+	out, err := a.core.GetBounceTypeCounts(c.Request().Context(), tenantID(c), models.BounceFilter{
+		CampaignID: campID,
+		Source:     c.FormValue("source"),
+		Search:     strings.TrimSpace(c.FormValue("query")),
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetSubscriberBounces retrieves a subscriber's bounce records.
 //
 //	@ID			getSubscriberBounces
@@ -95,7 +130,7 @@ func (a *App) GetBounces(c echo.Context) error {
 func (a *App) GetSubscriberBounces(c echo.Context) error {
 	// Query and fetch bounces from the DB.
 	subID := getID(c)
-	out, _, err := a.core.QueryBounces(c.Request().Context(), tenantID(c), 0, subID, "", "", "", 0, 1000)
+	out, _, err := a.core.QueryBounces(c.Request().Context(), tenantID(c), models.BounceFilter{SubscriberID: subID}, "", "", 0, 1000)
 	if err != nil {
 		return err
 	}
