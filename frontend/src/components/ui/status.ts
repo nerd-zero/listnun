@@ -5,6 +5,7 @@ export type StatusTone = 'success' | 'warn' | 'danger' | 'neutral' | 'plain';
 // failures and removals, grey for finished or inert. Drafts have no pill.
 const tones: Record<string, StatusTone> = {
   running: 'success',
+  importing: 'success',
   delivered: 'success',
   active: 'success',
   enabled: 'success',
@@ -20,6 +21,7 @@ const tones: Record<string, StatusTone> = {
   queued: 'warn',
   pending: 'warn',
   retrying: 'warn',
+  stopping: 'warn',
   bounced: 'warn',
   soft: 'warn',
   unconfirmed: 'warn',
@@ -34,6 +36,7 @@ const tones: Record<string, StatusTone> = {
   hard: 'danger',
   complaint: 'danger',
   cancelled: 'danger',
+  stopped: 'danger',
   disabled: 'danger',
   invalid: 'danger',
 

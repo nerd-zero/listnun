@@ -1,146 +1,227 @@
 <template>
-  <div class="import-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ $t('import.title') }}</h1>
-    </div>
+  <div class="ln-page imp">
+    <page-header :title="$t('import.title')" :subtitle="$t('import.intro')" />
 
-    <div v-if="isLoading" class="flex justify-center p-8">
-      <PvProgressSpinner />
-    </div>
+    <PvSkeleton v-if="isLoading" height="320px" />
 
-    <div v-if="isFree()" class="import-layout">
-      <!-- Main form card -->
-      <form @submit.prevent="onUpload" class="box import-form">
-        <!-- Mode & Status row -->
-        <div class="import-row">
-          <div class="import-field">
-            <label class="field-label">{{ $t('import.mode') }}</label>
-            <div class="radio-group">
-              <label class="radio-option">
+    <!-- Steps 1 and 2: pick a file, then set options -->
+    <template v-else-if="isFree()">
+      <ol class="imp-steps" :aria-label="$t('import.steps')">
+        <li v-for="(label, i) in stepLabels" :key="label" :class="{ 'is-on': step === i + 1, 'is-done': step > i + 1 }">
+          <span class="imp-step-num">
+            <i v-if="step > i + 1" class="pi pi-check" aria-hidden="true" />
+            <template v-else>{{ i + 1 }}</template>
+          </span>
+          {{ label }}
+        </li>
+      </ol>
+
+      <div v-if="step === 1" class="imp-layout">
+        <section class="ln-card ln-card-pad imp-main">
+          <h2 class="ln-card-title">{{ $t('import.csvFile') }}</h2>
+          <button
+            type="button"
+            class="imp-drop"
+            :class="{ 'is-over': dragOver }"
+            @dragover.prevent="dragOver = true"
+            @dragleave="dragOver = false"
+            @drop.prevent="onFileDrop"
+            @click="fileInputEl?.click()"
+          >
+            <i class="pi pi-cloud-upload" aria-hidden="true" />
+            <span class="imp-drop-title">{{ $t('import.csvFileHelp') }}</span>
+            <span class="ln-small">{{ $t('import.fileTypes') }}</span>
+          </button>
+          <input ref="fileInputEl" type="file" :aria-label="$t('import.csvFile')" accept=".csv,.zip,text/csv,application/zip" class="imp-file-input" @change="onFileSelect">
+        </section>
+
+        <aside class="ln-card ln-card-pad imp-help">
+          <h2 class="ln-card-title">{{ $t('import.instructions') }}</h2>
+          <p class="ln-small">{{ $t('import.instructionsHelp') }}</p>
+          <code class="ln-mono imp-headers">email, name, attributes</code>
+          <h3 class="ln-field-label">{{ $t('import.csvExample') }}</h3>
+          <pre class="ln-code imp-example" v-text="example" />
+        </aside>
+      </div>
+
+      <form v-else class="ln-card imp-options" @submit.prevent="onUpload">
+        <div class="imp-file">
+          <i class="pi pi-file" aria-hidden="true" />
+          <span class="imp-file-name">
+            <strong>{{ form.file?.name }}</strong>
+            <span class="ln-small">{{ fileSize }}</span>
+          </span>
+          <button type="button" class="ln-link-btn" @click="changeFile">{{ $t('import.changeFile') }}</button>
+        </div>
+
+        <div class="imp-body">
+          <div class="ln-field">
+            <span id="imp-mode" class="ln-field-label">{{ $t('import.mode') }}</span>
+            <div class="imp-modes" role="radiogroup" aria-labelledby="imp-mode">
+              <label class="imp-mode" :class="{ 'is-on': form.mode === 'subscribe' }">
                 <PvRadioButton v-model="form.mode" name="mode" value="subscribe" data-cy="check-subscribe" />
-                <span>{{ $t('import.subscribe') }}</span>
+                <span>
+                  <strong>{{ $t('import.subscribe') }}</strong>
+                  <span class="ln-small">{{ $t('import.subscribeHelp') }}</span>
+                </span>
               </label>
-              <label class="radio-option">
+              <label class="imp-mode" :class="{ 'is-on': form.mode === 'blocklist' }">
                 <PvRadioButton v-model="form.mode" name="mode" value="blocklist" data-cy="check-blocklist" />
-                <span>{{ $t('import.blocklist') }}</span>
+                <span>
+                  <strong>{{ $t('import.blocklist') }}</strong>
+                  <span class="ln-small">{{ $t('import.blocklistHelp') }}</span>
+                </span>
               </label>
             </div>
           </div>
 
-          <div class="import-field">
-            <label class="field-label">{{ $t('globals.fields.status') }}</label>
-            <div class="radio-group">
-              <template v-if="form.mode === 'subscribe'">
-                <label class="radio-option">
-                  <PvRadioButton v-model="form.subStatus" name="subStatus" value="unconfirmed" data-cy="check-unconfirmed" />
-                  <span>{{ $t('subscribers.status.unconfirmed') }}</span>
+          <div class="ln-fields-2">
+            <div class="ln-field">
+              <span id="imp-status" class="ln-field-label">{{ $t('import.subStatus') }}</span>
+              <div class="imp-radios" role="radiogroup" aria-labelledby="imp-status">
+                <template v-if="form.mode === 'subscribe'">
+                  <label class="ln-check-row">
+                    <PvRadioButton v-model="form.subStatus" name="subStatus" value="unconfirmed" data-cy="check-unconfirmed" />
+                    {{ $t('subscribers.status.unconfirmed') }}
+                  </label>
+                  <label class="ln-check-row">
+                    <PvRadioButton v-model="form.subStatus" name="subStatus" value="confirmed" data-cy="check-confirmed" />
+                    {{ $t('subscribers.status.confirmed') }}
+                  </label>
+                </template>
+                <label v-else class="ln-check-row">
+                  <PvRadioButton v-model="form.subStatus" name="subStatus" value="unsubscribed" data-cy="check-unsubscribed" />
+                  {{ $t('subscribers.status.unsubscribed') }}
                 </label>
-                <label class="radio-option">
-                  <PvRadioButton v-model="form.subStatus" name="subStatus" value="confirmed" data-cy="check-confirmed" />
-                  <span>{{ $t('subscribers.status.confirmed') }}</span>
-                </label>
-              </template>
-              <label v-else class="radio-option">
-                <PvRadioButton v-model="form.subStatus" name="subStatus" value="unsubscribed" data-cy="check-unsubscribed" />
-                <span>{{ $t('subscribers.status.unsubscribed') }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="import-field import-field--narrow">
-            <label class="field-label">{{ $t('import.csvDelim') }}</label>
-            <PvInputText v-model="form.delim" name="delim" placeholder="," :maxlength="1" required style="width:80px" />
-            <small class="field-help">{{ $t('import.csvDelimHelp') }}</small>
-          </div>
-        </div>
-
-        <!-- Overwrite options (subscribe mode only) -->
-        <div v-if="form.mode === 'subscribe'" class="import-row">
-          <div class="import-field">
-            <div class="toggle-field">
-              <div class="toggle-field-header">
-                <PvToggleSwitch v-model="form.overwriteUserInfo" name="overwriteUserInfo" data-cy="overwrite-user-info" />
-                <label class="field-label" style="margin-bottom:0">{{ $t('import.overwriteUserInfo') }}</label>
               </div>
-              <small class="field-help">{{ $t('import.overwriteUserInfoHelp') }}</small>
+            </div>
+            <div class="ln-field">
+              <label for="imp-delim">{{ $t('import.csvDelim') }}</label>
+              <PvInputText id="imp-delim" v-model="form.delim" name="delim" placeholder="," :maxlength="1" required class="ln-mono imp-delim" />
+              <p class="ln-help">{{ $t('import.csvDelimHelp') }}</p>
             </div>
           </div>
-          <div class="import-field">
-            <div class="toggle-field">
-              <div class="toggle-field-header">
-                <PvToggleSwitch v-model="form.overwriteSubStatus" name="overwriteSubStatus" data-cy="overwrite-sub-status" />
-                <label class="field-label" style="margin-bottom:0">{{ $t('import.overwriteSubStatus') }}</label>
-              </div>
-              <small class="field-help">{{ $t('import.overwriteSubStatusHelp') }}</small>
-            </div>
-          </div>
-          <div class="import-field import-field--narrow" />
+
+          <template v-if="form.mode === 'subscribe'">
+            <list-selector
+              v-model="form.lists"
+              :label="$t('globals.terms.lists')"
+              :placeholder="$t('import.listSubHelp')"
+              :message="$t('import.listSubHelp')"
+              :selected="form.lists"
+              :all="allLists"
+            />
+
+            <label class="imp-toggle">
+              <PvToggleSwitch v-model="form.overwriteUserInfo" name="overwriteUserInfo" data-cy="overwrite-user-info" />
+              <span>
+                <strong>{{ $t('import.overwriteUserInfo') }}</strong>
+                <span class="ln-small">{{ $t('import.overwriteUserInfoHelp') }}</span>
+              </span>
+            </label>
+            <label class="imp-toggle">
+              <PvToggleSwitch v-model="form.overwriteSubStatus" name="overwriteSubStatus" data-cy="overwrite-sub-status" />
+              <span>
+                <strong>{{ $t('import.overwriteSubStatus') }}</strong>
+                <span class="ln-small">{{ $t('import.overwriteSubStatusHelp') }}</span>
+              </span>
+            </label>
+          </template>
         </div>
 
-        <!-- Lists selector -->
-        <div v-if="form.mode === 'subscribe'" class="field" style="margin-bottom:1.25rem">
-          <list-selector :label="$t('globals.terms.lists')"
-            :placeholder="$t('import.listSubHelp')" :message="$t('import.listSubHelp')" v-model="form.lists"
-            :selected="form.lists" :all="lists.results" />
-        </div>
-
-        <!-- File upload -->
-        <div class="field" style="margin-bottom:0.75rem">
-          <label class="field-label">{{ $t('import.csvFile') }}</label>
-          <div class="upload-drop-area" @dragover.prevent @drop.prevent="onFileDrop" @click="fileInputEl?.click()">
-            <i class="pi pi-cloud-upload upload-icon" />
-            <p class="upload-label">{{ $t('import.csvFileHelp') }}</p>
-            <input ref="fileInputEl" type="file" style="display:none" @change="onFileSelect" />
-          </div>
-        </div>
-
-        <div class="import-footer">
-          <div class="file-tag" v-if="form.file">
-            <PvTag :value="form.file.name" severity="secondary" />
-            <PvButton icon="pi pi-times" severity="secondary" size="small" text rounded @click="clearFile" />
-          </div>
-          <PvButton type="submit" severity="primary" icon="pi pi-upload"
+        <footer class="imp-foot">
+          <PvButton :label="$t('globals.buttons.back')" severity="secondary" outlined @click="changeFile" />
+          <PvButton
+            type="submit"
+            icon="pi pi-upload"
             :disabled="!form.file || (form.mode === 'subscribe' && form.lists.length === 0)"
-            :loading="isProcessing" :label="$t('import.upload')" />
-        </div>
+            :loading="isProcessing"
+            :label="$t('import.start')"
+          />
+        </footer>
       </form>
+    </template>
 
-      <!-- Instructions card -->
-      <div class="box import-help">
-        <h5 class="import-help-title">{{ $t('import.instructions') }}</h5>
-        <p class="import-help-text">{{ $t('import.instructionsHelp') }}</p>
-        <div class="csv-headers">
-          <code><span>email,</span> <span>name,</span> <span>attributes</span></code>
+    <!-- Step 3: progress and log -->
+    <section v-else-if="isRunning() || isDone()" class="ln-card imp-run">
+      <div class="ln-card-head">
+        <h2 class="ln-card-title">{{ runTitle }}</h2>
+        <status-tag :status="status.status" :label="statusLabel" />
+      </div>
+      <div class="imp-body">
+        <PvProgressBar :value="progress" :show-value="false" class="imp-bar" />
+        <p class="ln-small imp-count">
+          <span v-if="status.name" class="ln-mono">{{ status.name }}</span>
+          {{ $t('import.recordsCount', { num: fmt(status.imported), total: fmt(status.total) }) }}
+        </p>
+
+        <div class="ln-tiles">
+          <div class="ln-tile">
+            <span class="ln-tile-label">{{ $t('import.added') }}</span>
+            <span class="ln-tile-value">{{ fmt(status.imported) }}</span>
+          </div>
+          <div class="ln-tile">
+            <span class="ln-tile-label">{{ $t('import.remaining') }}</span>
+            <span class="ln-tile-value">{{ fmt(remaining) }}</span>
+          </div>
+          <div class="ln-tile">
+            <span class="ln-tile-label">{{ $t('import.risky') }}</span>
+            <span class="ln-tile-value">{{ fmt(status.risky) }}</span>
+          </div>
         </div>
 
-        <PvDivider />
-
-        <h5 class="import-help-title">{{ $t('import.csvExample') }}</h5>
-        <pre class="csv-example" v-text="example" />
+        <div class="imp-log-head">
+          <span class="ln-field-label">{{ $t('import.log') }}</span>
+          <button type="button" class="ln-link-btn" :disabled="!logs.length" @click="downloadLog">
+            <i class="pi pi-download" aria-hidden="true" /> {{ $t('import.downloadLog') }}
+          </button>
+        </div>
+        <div id="import-log" class="ln-code imp-log">
+          <log-view :lines="logs" :loading="false" />
+        </div>
       </div>
-    </div>
-
-    <section v-if="isRunning() || isDone()" class="import-status">
-      <PvProgressBar :value="progress" style="height:6px;width:100%" />
-      <p :class="['import-status-text', { 'import-status-text--success': status.status === 'finished', 'import-status-text--danger': (status.status === 'failed' || status.status === 'stopped') }]">
-        {{ status.status }}
-      </p>
-      <p class="import-count">{{ $t('import.recordsCount', { num: status.imported, total: status.total }) }}</p>
-      <p v-if="status.risky" class="import-count import-count--risky">
-        {{ $t('import.riskyCount', { num: status.risky }) }}
-      </p>
-      <PvButton @click="onStopImport" :loading="isProcessing" icon="pi pi-upload" severity="primary"
-        :label="isDone() ? $t('import.importDone') : $t('import.stopImport')" />
-      <div class="import-logs">
-        <log-view :lines="logs" :loading="false" />
-      </div>
+      <footer class="imp-foot">
+        <PvButton
+          v-if="isDone()"
+          :label="$t('import.importDone')"
+          :loading="isProcessing"
+          data-cy="btn-import-done"
+          @click="onStopImport"
+        />
+        <PvButton
+          v-else
+          :label="$t('import.stopImport')"
+          severity="danger"
+          outlined
+          :loading="isProcessing || status.status === 'stopping'"
+          data-cy="btn-stop-import"
+          @click="confirmStop = true"
+        />
+      </footer>
     </section>
+
+    <confirm-action
+      v-model:visible="confirmStop"
+      :title="$t('import.stopTitle')"
+      :text="$t('import.stopText')"
+      :confirm-label="$t('import.stopImport')"
+      danger
+      :busy="isProcessing"
+      @confirm="onConfirmStop"
+    />
+    <confirm-action
+      v-model:visible="confirmOverwrite"
+      :title="$t('import.overwriteSubStatus')"
+      :text="$t('import.subscribeWarning')"
+      :confirm-label="$t('import.start')"
+      @confirm="onConfirmOverwrite"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, watch, onMounted, nextTick,
+  ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -149,13 +230,22 @@ import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import ListSelector from '../components/ListSelector.vue';
 import LogView from '../components/LogView.vue';
+import PageHeader from '../components/ui/PageHeader.vue';
+import StatusTag from '../components/ui/StatusTag.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getImport } from '../api/generated/endpoints/import/import';
+
+// Import status and list rows are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// How often to poll the import status while it runs.
+const POLL_MS = 250;
 
 const { $utils } = useGlobal();
 const {
   getImportLogs, getImportStatus, stopImport, importSubscribers,
 } = getImport();
-const { t } = useI18n();
+const { t, n } = useI18n();
 const route = useRoute();
 const store = useMainStore();
 const { lists } = storeToRefs(store);
@@ -164,24 +254,60 @@ const form = reactive({
   mode: 'subscribe',
   subStatus: 'unconfirmed',
   delim: ',',
-  lists: [] as any[],
+  lists: [] as Loose[],
   overwriteUserInfo: false,
   overwriteSubStatus: false,
   file: null as File | null,
 });
 
+const step = ref(1);
+const dragOver = ref(false);
 const isLoading = ref(true);
 const isProcessing = ref(false);
-const status = ref<any>({ status: '' });
+const confirmStop = ref(false);
+const confirmOverwrite = ref(false);
+const status = ref<Loose>({ status: '' });
 const logs = ref<string[]>([]);
-const pollID = ref<any>(null);
 const example = ref('');
 const fileInputEl = ref<HTMLInputElement | null>(null);
+let pollID: number | undefined;
+
+function fmt(v: unknown): string {
+  return n(Number(v) || 0);
+}
+
+function isFree() { return status.value.status === 'none'; }
+function isRunning() { return status.value.status === 'importing' || status.value.status === 'stopping'; }
+function isDone() {
+  return status.value.status === 'finished' || status.value.status === 'stopped' || status.value.status === 'failed';
+}
+
+const stepLabels = computed(() => [t('import.stepUpload'), t('import.stepOptions'), t('import.stepImport')]);
 
 const progress = computed(() => {
-  if (!status.value || !status.value.total > 0) return 0;
+  if (!status.value || !(status.value.total > 0)) return 0;
   return Math.ceil((status.value.imported / status.value.total) * 100);
 });
+
+const allLists = computed<Loose[]>(() => (lists.value as Loose).results || []);
+
+const remaining = computed(() => Math.max(0, (status.value.total || 0) - (status.value.imported || 0)));
+
+const fileSize = computed(() => {
+  const size = form.file?.size || 0;
+  if (size < 1024 * 1024) return `${n(Math.max(1, Math.round(size / 1024)))} KB`;
+  return `${n(Math.round((size / (1024 * 1024)) * 10) / 10)} MB`;
+});
+
+const statusLabel = computed(() => {
+  const key = `import.status.${status.value.status}`;
+  const label = t(key);
+  return label === key ? status.value.status : label;
+});
+
+const runTitle = computed(() => (isDone()
+  ? t('import.doneTitle')
+  : t('import.runningTitle', { num: fmt(status.value.imported), total: fmt(status.value.total) })));
 
 watch(() => form.mode, () => {
   nextTick(() => {
@@ -189,34 +315,31 @@ watch(() => form.mode, () => {
   });
 });
 
-function clearFile() { form.file = null; }
+function pickFile(f: File | undefined) {
+  if (!f) return;
+  form.file = f;
+  step.value = 2;
+}
 
 function onFileSelect(e: Event) {
   const target = e.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    [form.file] = target.files as any;
-  }
+  pickFile(target.files?.[0]);
+  target.value = '';
 }
 
 function onFileDrop(e: DragEvent) {
-  if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-    [form.file] = e.dataTransfer.files as any;
-  }
+  dragOver.value = false;
+  pickFile(e.dataTransfer?.files?.[0]);
 }
 
-function isFree() { return status.value.status === 'none'; }
-function isRunning() { return status.value.status === 'importing' || status.value.status === 'stopping'; }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isSuccessful() { return status.value.status === 'finished'; }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function isFailed() { return status.value.status === 'stopped' || status.value.status === 'failed'; }
-function isDone() {
-  return status.value.status === 'finished' || status.value.status === 'stopped' || status.value.status === 'failed';
+function changeFile() {
+  form.file = null;
+  step.value = 1;
 }
 
 function getLogs() {
-  getImportLogs().then((data: any) => {
-    logs.value = data.split('\n').map((line: string) => line.replace(/\s+importer\.go:\d+:\s*/, ' *: '));
+  getImportLogs().then((data) => {
+    logs.value = String(data).split('\n').map((line: string) => line.replace(/\s+importer\.go:\d+:\s*/, ' *: '));
     nextTick(() => {
       const el = document.getElementById('import-log');
       if (el) el.scrollTop = el.scrollHeight;
@@ -225,49 +348,56 @@ function getLogs() {
 }
 
 function pollStatus() {
-  clearInterval(pollID.value);
-  pollID.value = setInterval(() => {
-    getImportStatus().then((data: any) => {
+  window.clearInterval(pollID);
+  pollID = window.setInterval(() => {
+    getImportStatus().then((data) => {
       isProcessing.value = false;
       isLoading.value = false;
       const wasRunning = isRunning();
-      status.value = data;
+      status.value = data as unknown as Loose;
       getLogs();
       if (wasRunning && !isRunning()) {
-        clearInterval(pollID.value);
+        window.clearInterval(pollID);
         store.refresh();
       } else if (!isRunning()) {
-        clearInterval(pollID.value);
+        window.clearInterval(pollID);
       }
     }, () => {
       isProcessing.value = false;
       isLoading.value = false;
       status.value = { status: 'none' };
-      clearInterval(pollID.value);
+      window.clearInterval(pollID);
     });
-    return true;
-  }, 250);
+  }, POLL_MS);
 }
 
+// Stops a running import, or clears a finished one so a new one can start.
 function onStopImport() {
   isProcessing.value = true;
-  stopImport().then(() => { pollStatus(); form.file = null; });
+  stopImport().then(() => {
+    pollStatus();
+    changeFile();
+  });
+}
+
+function onConfirmStop() {
+  confirmStop.value = false;
+  onStopImport();
+}
+
+function downloadLog() {
+  const blob = new Blob([logs.value.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `import-${status.value.name || 'log'}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function renderExample() {
   example.value = 'email,name,attributes\n'
     + 'user1@mail.com,"User One","{""age"": 42, ""planet"": ""Mars""}"\n'
     + 'user2@mail.com,"User Two","{""age"": 24, ""job"": ""Time Traveller""}"';
-}
-
-function resetForm() {
-  form.mode = 'subscribe';
-  form.overwriteUserInfo = false;
-  form.overwriteSubStatus = false;
-  form.file = null;
-  form.lists = [];
-  form.subStatus = 'unconfirmed';
-  form.delim = ',';
 }
 
 function onSubmit() {
@@ -278,7 +408,7 @@ function onSubmit() {
       mode: form.mode,
       subscription_status: form.subStatus,
       delim: form.delim,
-      lists: form.lists.map((l: any) => l.id),
+      lists: form.lists.map((l) => l.id),
       overwrite_userinfo: form.overwriteUserInfo,
       overwrite_subscription_status: form.overwriteSubStatus,
     }),
@@ -287,13 +417,18 @@ function onSubmit() {
     pollStatus();
   }, () => {
     isProcessing.value = false;
-    form.file = null;
+    changeFile();
   });
+}
+
+function onConfirmOverwrite() {
+  confirmOverwrite.value = false;
+  onSubmit();
 }
 
 function onUpload() {
   if (form.mode === 'subscribe' && form.overwriteSubStatus) {
-    $utils.confirm(t('import.subscribeWarning'), onSubmit, resetForm);
+    confirmOverwrite.value = true;
     return;
   }
   onSubmit();
@@ -303,125 +438,133 @@ onMounted(() => {
   renderExample();
   pollStatus();
   const ids = $utils.parseQueryIDs(route.query.list_id);
-  if (ids.length > 0 && (lists.value as any).results) {
+  if (ids.length > 0 && (lists.value as Loose).results) {
     nextTick(() => {
-      form.lists = (lists.value as any).results.filter((l: any) => ids.indexOf(l.id) > -1);
+      form.lists = (lists.value as Loose).results.filter((l: Loose) => ids.indexOf(l.id) > -1);
     });
   }
 });
+
+onBeforeUnmount(() => window.clearInterval(pollID));
 </script>
 
 <style scoped lang="scss">
-.import-page { display: flex; flex-direction: column; gap: 1.5rem; }
+.imp-steps {
+  display: flex;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 
-.import-layout {
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ln-text-3);
+    &.is-on { color: var(--ln-text); font-weight: 500; }
+    &.is-done { color: var(--ln-text-2); }
+  }
+}
+.imp-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--ln-border);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  .pi { font-size: 10px; }
+  .is-on & { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
+  .is-done & { background: var(--ln-muted); }
+}
+.imp-layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); }
 }
-
-.import-form { display: flex; flex-direction: column; gap: 1.25rem; }
-
-/* Horizontal row of fields */
-.import-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--lm-border);
-}
-
-.import-field { display: flex; flex-direction: column; }
-.import-field--narrow { max-width: 160px; }
-
-.field-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--lm-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.6rem;
-  display: block;
-}
-.field-help { font-size: 0.8rem; color: var(--lm-text-muted); margin-top: 0.35rem; }
-
-.radio-group { display: flex; flex-direction: column; gap: 0.6rem; }
-.radio-option { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; }
-
-.toggle-field-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; }
-
-.upload-drop-area {
-  border: 2px dashed var(--lm-border);
-  border-radius: 10px;
-  cursor: pointer;
-  padding: 2.5rem 2rem;
+.imp-main, .imp-help { display: flex; flex-direction: column; gap: 12px; }
+.imp-help .ln-small, .imp-help h3 { margin: 0; }
+.imp-drop {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  transition: border-color 0.15s, background 0.15s;
+  justify-content: center;
+  gap: 6px;
+  min-height: 220px;
+  padding: 24px;
+  border: 1.5px dashed var(--ln-border);
+  border-radius: 10px;
+  background: var(--ln-muted);
+  color: var(--ln-text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
 
-  &:hover {
-    border-color: var(--lm-primary);
-    background: var(--lm-primary-light);
-  }
+  .pi { font-size: 28px; color: var(--ln-text-3); margin-bottom: 4px; }
+  &:hover, &.is-over { border-color: var(--ln-text-3); background: var(--ln-hover); }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
-.upload-icon { font-size: 2rem; color: var(--lm-text-muted); }
-.upload-label { font-size: 0.875rem; color: var(--lm-text-muted); margin: 0; }
-
-.import-footer {
+.imp-drop-title { font-weight: 500; }
+.imp-file-input { display: none; }
+.imp-headers { font-size: 13px; padding: 8px 10px; border-radius: 6px; background: var(--ln-muted); }
+.imp-example { white-space: pre; font-size: 12px; }
+.imp-options { display: flex; flex-direction: column; max-width: 760px; }
+.imp-run { display: flex; flex-direction: column; }
+.imp-file {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding-top: 0.25rem;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ln-border);
+  > .pi { font-size: 18px; color: var(--ln-text-3); }
 }
-.file-tag { display: flex; align-items: center; gap: 0.25rem; flex: 1; }
-
-/* Instructions card */
-.import-help { display: flex; flex-direction: column; gap: 0.75rem; }
-.import-help-title { font-size: 0.9rem; font-weight: 600; color: var(--lm-text); margin: 0; }
-.import-help-text { font-size: 0.875rem; color: var(--lm-text-muted); margin: 0; line-height: 1.6; }
-
-.csv-headers {
-  background: var(--lm-bg-subtle);
-  border: 1px solid var(--lm-border);
-  border-radius: 6px;
-  padding: 0.6rem 0.85rem;
-  font-size: 0.8rem;
-
-  code { font-family: 'Fira Code', 'Cascadia Code', monospace; color: var(--lm-primary); }
-  span { margin-right: 0.15rem; }
+.imp-file-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  strong { overflow-wrap: anywhere; font-weight: 500; }
 }
-
-.csv-example {
-  background: var(--lm-bg-subtle);
-  border: 1px solid var(--lm-border);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
-  font-size: 0.78rem;
-  font-family: 'Fira Code', 'Cascadia Code', monospace;
-  color: var(--lm-text);
-  margin: 0;
-  white-space: pre;
-  overflow-x: auto;
+.imp-body { padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.imp-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.imp-mode, .imp-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+  strong { font-weight: 500; }
 }
-
-:deep(.p-tag-secondary) {
-  background: var(--lm-bg-subtle);
-  color: var(--lm-text);
-  border: 1px solid var(--lm-border);
+.imp-mode {
+  padding: 12px 14px;
+  border: 1px solid var(--ln-border);
+  border-radius: 8px;
+  &.is-on { border-color: var(--ln-text-2); background: var(--ln-hover); }
 }
-
-.import-status {
-  background: var(--lm-surface); border: 1px solid var(--lm-border); border-radius: 12px;
-  padding: 2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;
-  text-align: center;
+.imp-radios { display: flex; gap: 8px 18px; flex-wrap: wrap; min-height: 36px; align-items: center; }
+.imp-delim { width: 72px; }
+.imp-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ln-border);
+  background: var(--ln-muted);
+  border-radius: 0 0 var(--ln-radius-card) var(--ln-radius-card);
 }
-.import-status-text { font-size: 1.25rem; font-weight: 600; text-transform: capitalize; color: var(--lm-text); margin: 0; }
-.import-status-text--success { color: #16a34a; }
-.import-status-text--danger { color: #dc2626; }
-.import-count { font-size: 0.875rem; color: var(--lm-text-muted); margin: 0; }
-.import-count--risky { color: #b91c1c; }
-.import-logs { width: 100%; }
+.imp-bar { height: 8px; }
+.imp-count { margin: -8px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
+.imp-log-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: -10px; }
+.imp-log {
+  max-height: 320px;
+  overflow: auto;
+  padding: 10px 14px;
+  :deep(.log-view) { background: transparent; color: inherit; border: 0; }
+  :deep(.lines) { max-height: none; }
+}
 </style>
