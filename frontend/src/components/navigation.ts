@@ -98,6 +98,11 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
       key: 'devTemplates', label: t('developers.templates.title'), icon: 'file', to: { name: 'devTemplates' }, names: ['devTemplates', 'devTemplate'],
     });
   }
+  if (can('tx:send')) {
+    developers.push({
+      key: 'devSendTest', label: t('developers.send.title'), icon: 'send', to: { name: 'devSendTest' }, names: ['devSendTest'],
+    });
+  }
   if (can('tx:logs')) {
     developers.push({
       key: 'devLog', label: t('developers.log.title'), icon: 'log', to: { name: 'devLog' }, names: ['devLog'],
