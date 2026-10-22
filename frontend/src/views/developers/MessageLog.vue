@@ -312,6 +312,8 @@ const EmptyLog = defineComponent({
 });
 
 onMounted(() => {
+  // Completes the "Check the log" quickstart step on the Overview.
+  try { localStorage.setItem('ln-dev-log-seen', '1'); } catch { /* storage unavailable */ }
   fetchPage();
   templatesApi().listTemplates({ no_body: true }).then((list) => {
     templates.value = (list as unknown as { id: number; name: string; type: string }[])
