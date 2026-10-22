@@ -146,5 +146,4 @@ onMounted(() => {
 @import "assets/style.scss";
 @import "assets/shell.scss";
 @import "assets/patterns.scss";
-@import "assets/icons/fontello.css";
 </style>

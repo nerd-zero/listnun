@@ -76,87 +76,42 @@ ul.no {
 // Flexbox / layout utilities  (Tailwind-like, used by migrated templates)
 // ============================================================
 .flex { display: flex; }
-.inline-flex { display: inline-flex; }
+
 .block { display: block; }
-.inline-block { display: inline-block; }
+
 .hidden { display: none !important; }
 
-.flex-row { flex-direction: row; }
 .flex-col { flex-direction: column; }
-.flex-wrap { flex-wrap: wrap; }
-.flex-nowrap { flex-wrap: nowrap; }
-.flex-1 { flex: 1 1 0; }
-.flex-auto { flex: 1 1 auto; }
-.flex-none { flex: 0 0 auto; }
-.flex-grow { flex-grow: 1; }
-.flex-shrink-0 { flex-shrink: 0; }
 
-.items-start   { align-items: flex-start; }
 .items-center  { align-items: center; }
-.items-end     { align-items: flex-end; }
-.items-stretch { align-items: stretch; }
 
-.justify-start   { justify-content: flex-start; }
 .justify-center  { justify-content: center; }
-.justify-end     { justify-content: flex-end; }
-.justify-between { justify-content: space-between; }
 
-.gap-0  { gap: 0; }
-.gap-1  { gap: 0.25rem; }
 .gap-2  { gap: 0.5rem; }
-.gap-3  { gap: 0.75rem; }
+
 .gap-4  { gap: 1rem; }
-.gap-6  { gap: 1.5rem; }
-.gap-8  { gap: 2rem; }
 
 // sizing
 .w-full   { width: 100%; }
-.w-auto   { width: auto; }
-.w-1\/2   { width: 50%; }
-.min-w-0  { min-width: 0; }
-.max-w-full { max-width: 100%; }
-.h-full   { height: 100%; }
 
-// position
-.relative { position: relative; }
-.absolute { position: absolute; }
 .sticky   { position: sticky; }
 
-// overflow
-.overflow-hidden   { overflow: hidden; }
-.overflow-x-auto   { overflow-x: auto; }
-.overflow-y-scroll { overflow-y: scroll; }
-.overflow-y-auto   { overflow-y: auto; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 // ============================================================
 // Spacing utilities
 // ============================================================
 .m-0  { margin: 0; }
-.mt-0 { margin-top: 0; }
+
 .mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 0.75rem; }
 .mt-4 { margin-top: 1rem; }
-.mb-0 { margin-bottom: 0; }
+
 .mb-1 { margin-bottom: 0.25rem; }
 .mb-2 { margin-bottom: 0.5rem; }
-.mb-3 { margin-bottom: 0.75rem; }
-.mb-4 { margin-bottom: 1rem; }
-.mb-5 { margin-bottom: 1.25rem; }
-.mb-6 { margin-bottom: 1.5rem; }
-.ml-0 { margin-left: 0; }
+
 .ml-1 { margin-left: 0.25rem; }
-.ml-2 { margin-left: 0.5rem; }
-.ml-3 { margin-left: 0.75rem; }
-.ml-auto { margin-left: auto; }
-.mr-0 { margin-right: 0; }
-.mr-1 { margin-right: 0.25rem; }
-.mr-2 { margin-right: 0.5rem; }
-.mr-3 { margin-right: 0.75rem; }
-.mx-auto { margin-left: auto; margin-right: auto; }
-.my-2    { margin-top: 0.5rem; margin-bottom: 0.5rem; }
-.my-4    { margin-top: 1rem; margin-bottom: 1rem; }
 
 .p-0  { padding: 0; }
 .p-2  { padding: 0.5rem; }
@@ -164,119 +119,16 @@ ul.no {
 .p-4  { padding: 1rem; }
 .p-5  { padding: 1.25rem; }
 .p-8  { padding: 2rem; }
-.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-.px-4 { padding-left: 1rem; padding-right: 1rem; }
-.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-.py-4 { padding-top: 1rem; padding-bottom: 1rem; }
 
-// ============================================================
-// Typography utilities
-// ============================================================
-.text-xs    { font-size: 0.75rem; }
 .text-sm    { font-size: 0.875rem; }
-.text-base  { font-size: 1rem; }
-.text-lg    { font-size: 1.125rem; }
-.text-xl    { font-size: 1.25rem; }
-.text-2xl   { font-size: 1.5rem; }
 
-.font-normal   { font-weight: 400; }
 .font-medium   { font-weight: 500; }
-.font-semibold { font-weight: 600; }
-.font-bold     { font-weight: 700; }
+
 .italic        { font-style: italic; }
 
-.text-center { text-align: center; }
-.text-right  { text-align: right; }
-.text-left   { text-align: left; }
-
-.uppercase   { text-transform: uppercase; }
-.capitalize  { text-transform: capitalize; }
-
-.is-size-1 { font-size: 3rem; }
-.is-size-2 { font-size: 2.5rem; }
-.is-size-3 { font-size: 2rem; }
-.is-size-4 { font-size: 1.5rem; }
-.is-size-5 { font-size: 1.25rem; }
-.is-size-6 { font-size: 1rem; }
-.is-size-7 { font-size: 0.75rem; }
-
-// ============================================================
-// Colour utilities
-// ============================================================
-.has-text-primary      { color: $primary !important; }
-.has-text-grey         { color: $grey; }
-.has-text-grey-light   { color: $grey-light; }
-.has-text-grey-dark    { color: $grey-dark; }
-.has-text-danger       { color: $red; }
-.has-text-success      { color: $green; }
-.has-text-centered     { text-align: center; }
-.has-text-right        { text-align: right; }
-.has-text-weight-bold  { font-weight: bold; }
-.has-text-weight-semibold { font-weight: 600; }
-.has-text-weight-normal { font-weight: 400; }
 .text-color-secondary  { color: $grey; }
 
-// ============================================================
-// Border & radius utilities
-// ============================================================
-.rounded    { border-radius: 0.25rem; }
-.rounded-md { border-radius: 0.375rem; }
-.rounded-lg { border-radius: 0.5rem; }
-.rounded-full { border-radius: 9999px; }
 .border     { border: 1px solid $grey-lighter; }
-.border-t   { border-top: 1px solid $grey-lighter; }
-
-// ============================================================
-// State utilities
-// ============================================================
-.is-hidden     { display: none !important; }
-.is-clearfix   { &::after { content: ''; display: table; clear: both; } }
-.is-pulled-right { float: right; }
-.is-pulled-left  { float: left; }
-.is-disabled   { opacity: 0.30; }
-.is-capitalized { text-transform: capitalize; }
-.is-italic     { font-style: italic; }
-.is-inline-flex { display: inline-flex; }
-
-// ============================================================
-// Box component
-// ============================================================
-.box {
-  @extend %box;
-  border-radius: 4px;
-  padding: 1.25rem;
-}
-
-// ============================================================
-// Notification component
-// ============================================================
-.notification {
-  padding: 10px 15px;
-  border-left: 10px solid #eee;
-  border-radius: 3px;
-  margin-bottom: 1rem;
-
-  &.is-danger {
-    background: $white-ter;
-    color: $black;
-    border-left-color: $red;
-  }
-  &.is-success {
-    background: $white-ter;
-    color: $black;
-    border-left-color: $green;
-  }
-  &.is-info {
-    background: $white-ter;
-    border-left-color: $primary;
-    color: $grey-dark;
-  }
-  &.is-warning {
-    background: $white-ter;
-    border-left-color: #d97d3d;
-    color: $black;
-  }
-}
 
 // ============================================================
 // Title / subtitle
@@ -323,13 +175,6 @@ ul.no {
     background-color: $white;
     font-size: 0.875rem;
   }
-}
-.has-numberinput .field { margin-bottom: 0; }
-.control { position: relative; }
-.has-addons {
-  display: flex;
-  gap: 0;
-  .input:hover { box-shadow: none; }
 }
 
 // ============================================================
@@ -421,7 +266,7 @@ select { height: auto; padding: 0.5rem 0.75rem; }
   &.is-danger  { background: $red; border-color: $red; color: $white; &:hover { background: color.adjust($red, $lightness: -8%); } }
   &.is-success { background: $green; border-color: $green; color: $white; &:hover { background: color.adjust($green, $lightness: -8%); } }
 }
-.button.is-primary[disabled] { border-color: $grey-light; }
+
 .buttons {
   display: flex;
   flex-wrap: wrap;
@@ -499,13 +344,6 @@ select { height: auto; padding: 0.5rem 0.75rem; }
   .level-item  { display: flex; align-items: center; }
 }
 
-// Tile notification variant
-.tile.notification {
-  @extend %box;
-  padding: 10px;
-  border-left-width: 0;
-}
-
 // ============================================================
 // Content
 // ============================================================
@@ -520,14 +358,6 @@ section {
   &.section-mini { max-width: 500px; }
 }
 
-// ============================================================
-// Misc layout helpers
-// ============================================================
-.spaced-links a {
-  margin-right: 15px;
-  display: inline-block;
-}
-
 .copy-text {
   color: inherit;
   .icon { visibility: hidden; }
@@ -538,27 +368,12 @@ section {
 }
 
 // ============================================================
-// Global notices
-// ============================================================
-.global-notices { margin-bottom: 30px; }
-
-// ============================================================
-// Spinner
-// ============================================================
-.spinner.is-tiny {
-  display: inline-block;
-  height: 10px;
-  width: 10px;
-  position: relative;
-}
-
-// ============================================================
 // Shared pill-style tabs (.lm-tabs)
 // ============================================================
 .lm-tabs {
   .p-tablist {
-    background: var(--lm-bg-subtle);
-    border: 1px solid var(--lm-border);
+    background: var(--ln-muted);
+    border: 1px solid var(--ln-border);
     border-radius: 10px;
     padding: 4px;
     gap: 2px;
@@ -587,7 +402,7 @@ section {
     padding: 0.5rem 1.1rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--lm-text-muted);
+    color: var(--ln-text-3);
     margin-bottom: 0;
     gap: 0.4rem;
     white-space: nowrap;
@@ -595,12 +410,12 @@ section {
 
     &:hover:not([aria-selected="true"]):not([data-p-disabled="true"]) {
       background: rgba(255, 255, 255, 0.65);
-      color: var(--lm-text-secondary);
+      color: var(--ln-text-2);
     }
 
     &[aria-selected="true"] {
-      background: var(--lm-surface);
-      color: var(--lm-primary);
+      background: var(--ln-card);
+      color: var(--ln-ink);
       font-weight: 600;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
       border-bottom: none;
@@ -702,7 +517,6 @@ section {
   td.status .tag { width: 100%; }
 }
 
-
 // ============================================================
 // Main table styles (shared)
 // ============================================================
@@ -760,35 +574,12 @@ section {
   .buttons { justify-content: flex-end; }
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--lm-text);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.page-title-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--lm-primary-light);
-  color: var(--lm-primary-text);
-  border: 1px solid var(--lm-primary-border);
-  font-size: 0.8rem;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 0.1rem 0.65rem;
-}
-
 // ============================================================
 // Shared table card
 // ============================================================
 .table-card {
-  background: var(--lm-surface);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -797,8 +588,8 @@ section {
 // Settings page shared styles
 // ============================================================
 .settings-card {
-  background: var(--lm-surface);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
@@ -807,14 +598,14 @@ section {
 .settings-section-label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--lm-text-muted);
+  color: var(--ln-text-3);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .settings-link {
   font-size: 0.8rem;
-  color: var(--lm-primary);
+  color: var(--ln-ink);
   text-decoration: none;
   &:hover { text-decoration: underline; }
 }
@@ -825,7 +616,7 @@ section {
   gap: 0.25rem 0.75rem;
   a {
     font-size: 0.78rem;
-    color: var(--lm-primary);
+    color: var(--ln-ink);
     text-decoration: none;
     &:hover { text-decoration: underline; }
   }
@@ -840,51 +631,13 @@ section {
 }
 
 // ============================================================
-// Shared row actions (hover-reveal)
-// ============================================================
-.row-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.2rem;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.row-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--lm-text-muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-
-  i { font-size: 0.85rem; }
-
-  &:hover {
-    background: var(--lm-primary-light);
-    color: var(--lm-primary);
-  }
-
-  &--danger:hover {
-    background: var(--lm-danger-bg);
-    color: var(--lm-danger);
-  }
-}
-
-// ============================================================
 // Shared lm-form dialog layout
 // ============================================================
 .lm-form { display: flex; flex-direction: column; }
 
 .lm-form-header {
   padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid var(--lm-border);
+  border-bottom: 1px solid var(--ln-border);
 }
 
 .lm-form-title-row {
@@ -898,13 +651,13 @@ section {
 .lm-form-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--lm-text);
+  color: var(--ln-text);
   margin: 0;
 }
 
 .lm-form-meta {
   font-size: 0.75rem;
-  color: var(--lm-text-subtle);
+  color: var(--ln-text-4);
   margin: 0;
 }
 
@@ -925,11 +678,10 @@ section {
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--lm-border);
+  border-top: 1px solid var(--ln-border);
 }
 
 .page-404 h1 { font-size: 100px; }
-.section-header { margin-bottom: 1rem; }
 
 // ============================================================
 // WYSIWYG / code editor
@@ -951,7 +703,7 @@ section {
   }
   .cm-gutters { margin-right: 10px; }
 }
-.alt-body textarea { height: 30vh; }
+
 .editor {
   margin-bottom: 30px;
   .copy-visual-template-list select { min-width: 200px; }
@@ -992,11 +744,6 @@ section {
 .tox .tox-selectfield select {
   font-family: $body-family !important;
 }
-
-// ============================================================
-// Line chart
-// ============================================================
-.line-chart { min-height: 300px; }
 
 // ============================================================
 // Dashboard
@@ -1126,98 +873,10 @@ section.analytics {
 }
 
 // ============================================================
-// Media gallery
-// ============================================================
-.media-files {
-  img {
-    border-radius: 3px;
-    max-width: 170px;
-    max-height: 170px;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.2s ease;
-    .item:hover & { transform: scale(1.05); }
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 1.5rem;
-    padding: 1rem 0;
-  }
-  .item {
-    @extend %box;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 2px 2px 5px #eee;
-      .actions { opacity: 1; }
-    }
-  }
-  .thumb {
-    position: relative;
-    aspect-ratio: 1;
-    overflow: hidden;
-  }
-  .thumb-link { display: block; width: 100%; height: 100%; }
-  .thumb-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8f9fa;
-  }
-  .thumb-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: $grey-dark;
-    color: white;
-  }
-  .file-ext { text-transform: uppercase; }
-  .actions {
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    .item:hover & { opacity: 1; }
-  }
-  .info {
-    padding: 10px;
-    .filename {
-      margin-bottom: 5px;
-      font-size: 0.9rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .date { font-size: 0.75rem; color: $grey-light; margin-bottom: 0; }
-  }
-}
-
-// ============================================================
 // Template form
 // ============================================================
 .templates {
   td .tag { min-width: 100px; }
-}
-.template-modal {
-  .p-dialog-content { padding: 0; overflow: hidden; }
-  // lm-form-header ~90px + lm-form-footer ~60px = ~150px overhead
-  .lm-form-body { max-height: calc(88vh - 150px); }
 }
 
 .subscriber-modal {
@@ -1268,51 +927,6 @@ section.analytics {
 section.users {
   td .tag { margin: 0 3px; }
 }
-
-.user-api-token .copy-text {
-  background: rgba($green, 0.1);
-  display: block;
-  width: 100%;
-  border-radius: 3px;
-  padding: 15px;
-  font-size: 1.2rem;
-  color: $green;
-}
-
-.permissions-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  label { flex: 1 1 45%; max-width: 45%; display: flex; }
-}
-
-th.role-toggle-select a { font-weight: normal; }
-
-// ============================================================
-// Chart styles
-// ============================================================
-.c3 {
-  .c3-text.c3-empty { font-family: $body-family; font-size: 1rem; }
-  .c3-chart-lines .c3-line { stroke-width: 2px; }
-  .c3-axis-x .tick line, .c3-axis-y .tick line { display: none; }
-  text { fill: $grey; font-family: $body-family; font-size: 11px; }
-  .c3-axis path, .c3-axis line { stroke: #eee; }
-  .c3-tooltip {
-    @extend %box;
-    padding: 10px;
-    empty-cells: show;
-    opacity: 0.95;
-    tr { border: 0; }
-    th { background: $white; }
-  }
-}
-
-// ============================================================
-// Vue transition animations
-// ============================================================
-.slide-enter-active, .slide-leave-active { transition: opacity 50ms; max-height: none; }
-.slide-enter, .slide-leave-to { transition: opacity 50ms; opacity: 0; max-height: none; }
-.slide-leave-active, .slide-leave-to { transition: none; display: none; }
 
 // ============================================================
 // Responsive
@@ -1367,93 +981,92 @@ th.role-toggle-select a { font-weight: normal; }
 // Dark mode token overrides
 // ============================================================
 .app-dark {
-  color: var(--lm-text);
-  body { color: var(--lm-text); background: var(--lm-bg); }
-
+  color: var(--ln-text);
+  body { color: var(--ln-text); background: var(--ln-bg); }
 
   // Box (shared card primitive)
   .box {
-    background: var(--lm-surface);
-    border-color: var(--lm-border);
+    background: var(--ln-card);
+    border-color: var(--ln-border);
     box-shadow: none;
   }
 
   // Table card
-  .table-card { background: var(--lm-surface); border-color: var(--lm-border); }
+  .table-card { background: var(--ln-card); border-color: var(--ln-border); }
 
   // DataTable — all sections use our surface/border tokens
   .p-datatable {
-    background: var(--lm-surface);
+    background: var(--ln-card);
 
     // Header slot (toolbar above columns)
     .p-datatable-header {
-      background: var(--lm-surface);
-      border-color: var(--lm-border);
-      color: var(--lm-text);
+      background: var(--ln-card);
+      border-color: var(--ln-border);
+      color: var(--ln-text);
     }
 
     // Column headers
     .p-datatable-thead > tr > th {
-      background: var(--lm-bg-subtle);
-      border-bottom-color: var(--lm-border);
-      border-top-color: var(--lm-border);
-      color: var(--lm-text-muted);
+      background: var(--ln-muted);
+      border-bottom-color: var(--ln-border);
+      border-top-color: var(--ln-border);
+      color: var(--ln-text-3);
     }
 
     // Rows and cells
-    .p-datatable-tbody > tr { background: var(--lm-surface); }
+    .p-datatable-tbody > tr { background: var(--ln-card); }
     .p-datatable-tbody > tr:hover { background: rgba(255, 255, 255, 0.05); }
     .p-datatable-tbody > tr > td {
-      border-color: var(--lm-border);
-      color: var(--lm-text);
+      border-color: var(--ln-border);
+      color: var(--ln-text);
     }
 
     // Empty state
     .p-datatable-empty-message td {
-      background: var(--lm-surface);
-      color: var(--lm-text-muted);
+      background: var(--ln-card);
+      color: var(--ln-text-3);
     }
 
     // Paginator
     .p-paginator {
-      background: var(--lm-surface);
-      border-color: var(--lm-border);
-      color: var(--lm-text-muted);
+      background: var(--ln-card);
+      border-color: var(--ln-border);
+      color: var(--ln-text-3);
 
       .p-paginator-page,
       .p-paginator-first,
       .p-paginator-prev,
       .p-paginator-next,
       .p-paginator-last {
-        color: var(--lm-text-muted);
+        color: var(--ln-text-3);
         background: transparent;
-        &:hover { background: rgba(255, 255, 255, 0.07); color: var(--lm-text); }
-        &.p-highlight { background: var(--lm-primary-light); color: var(--lm-primary); }
+        &:hover { background: rgba(255, 255, 255, 0.07); color: var(--ln-text); }
+        &.p-highlight { background: var(--ln-muted); color: var(--ln-ink); }
       }
     }
 
     // Sort icons
-    .p-datatable-sort-icon { color: var(--lm-text-muted); }
-    th.p-datatable-column-sorted .p-datatable-sort-icon { color: var(--lm-primary); }
+    .p-datatable-sort-icon { color: var(--ln-text-3); }
+    th.p-datatable-column-sorted .p-datatable-sort-icon { color: var(--ln-ink); }
 
     // Checkboxes
     .p-checkbox .p-checkbox-box {
-      background: var(--lm-bg-subtle);
-      border-color: var(--lm-border);
-      &.p-highlight { background: var(--lm-primary); border-color: var(--lm-primary); }
+      background: var(--ln-muted);
+      border-color: var(--ln-border);
+      &.p-highlight { background: var(--ln-ink); border-color: var(--ln-ink); }
     }
   }
 
   // Pill tabs
   .lm-tabs {
-    .p-tablist { background: var(--lm-bg-subtle); border-color: var(--lm-border); }
-    .p-tab:hover:not([aria-selected="true"]):not([data-p-disabled="true"]) { background: rgba(255, 255, 255, 0.05); color: var(--lm-text); }
-    .p-tab[aria-selected="true"] { background: var(--lm-surface); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+    .p-tablist { background: var(--ln-muted); border-color: var(--ln-border); }
+    .p-tab:hover:not([aria-selected="true"]):not([data-p-disabled="true"]) { background: rgba(255, 255, 255, 0.05); color: var(--ln-text); }
+    .p-tab[aria-selected="true"] { background: var(--ln-card); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
   }
 
   // Dialog shadow
   .p-dialog { box-shadow: 0 0 24px rgba(0,0,0,0.6); }
 
   // Code editor
-  .code-editor, .plain-editor textarea { background: var(--lm-bg-subtle); color: var(--lm-text); border-color: var(--lm-border); }
+  .code-editor, .plain-editor textarea { background: var(--ln-muted); color: var(--ln-text); border-color: var(--ln-border); }
 }

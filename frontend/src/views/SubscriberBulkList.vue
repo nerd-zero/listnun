@@ -65,11 +65,11 @@ function onSubmit() {
 
 <style scoped lang="scss">
 .lm-field { display: flex; flex-direction: column; gap: 0.35rem; }
-.lm-label { font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-.lm-help { font-size: 0.75rem; color: var(--lm-text-subtle); line-height: 1.4; }
+.lm-label { font-size: 0.8rem; font-weight: 600; color: var(--ln-text); }
+.lm-help { font-size: 0.75rem; color: var(--ln-text-4); line-height: 1.4; }
 .check-row { display: flex; align-items: center; gap: 0.5rem; }
-.check-label { font-size: 0.875rem; color: var(--lm-text); cursor: pointer; }
+.check-label { font-size: 0.875rem; color: var(--ln-text); cursor: pointer; }
 
 .radio-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.radio-item { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.875rem; color: var(--lm-text); }
+.radio-item { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.875rem; color: var(--ln-text); }
 </style>

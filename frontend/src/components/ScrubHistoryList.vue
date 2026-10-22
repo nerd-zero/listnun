@@ -119,7 +119,7 @@ onMounted(fetchPage);
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
-  color: var(--lm-text-muted);
+  color: var(--ln-text-3);
 }
 .scrub-history__pager {
   display: flex;
