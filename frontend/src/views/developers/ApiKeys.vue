@@ -108,6 +108,65 @@
     </table-card>
     <PvMenu ref="rowMenu" :model="rowMenuItems" popup />
 
+    <!-- API users from before keys existed. They still authenticate. -->
+    <section v-if="legacy.length" class="ln-card dev-keys-legacy" data-cy="legacy-api-users">
+      <header class="ln-card-head">
+        <div>
+          <h2 class="ln-card-title">{{ $t('developers.keys.legacyTitle') }}</h2>
+          <p class="ln-small">{{ $t('developers.keys.legacyText') }}</p>
+        </div>
+      </header>
+      <ul class="dev-keys-legacy-list">
+        <li v-for="u in legacy" :key="u.id">
+          <span class="dev-keys-legacy-who">
+            <span class="ln-mono ln-row-title">{{ u.username }}</span>
+            <span class="ln-row-sub">{{ u.userRole?.name }}</span>
+          </span>
+          <status-tag :status="u.status === 'enabled' ? 'active' : 'disabled'" :label="$t(`users.status.${u.status}`)" />
+          <PvButton
+            v-if="$can('apikeys:manage')"
+            :label="$t('developers.keys.replace')"
+            size="small"
+            severity="secondary"
+            outlined
+            data-cy="btn-replace"
+            @click="openReplace(u)"
+          />
+        </li>
+      </ul>
+    </section>
+
+    <!-- Replace a legacy API user with a key -->
+    <dialog-form
+      v-model:visible="replace.open"
+      :title="$t('developers.keys.replaceTitle', { name: replace.user?.username })"
+      :submit-label="$t('developers.keys.create')"
+      :busy="saving"
+      :submit-disabled="!validName || form.scopes.length === 0"
+      width="560px"
+      @submit="onReplace"
+    >
+      <div class="ln-field">
+        <label for="replace-name">{{ $t('developers.keys.name') }}</label>
+        <PvInputText id="replace-name" v-model="form.name" class="ln-mono" autocomplete="off" spellcheck="false" :invalid="!!form.name && !validName" />
+      </div>
+      <scope-picker v-model="form.scopes" />
+      <PvMessage v-if="uncovered.length" severity="warn" icon="pi pi-exclamation-triangle">
+        <template v-if="uncovered[0] === '*'">{{ $t('developers.keys.replaceAdmin') }}</template>
+        <template v-else>
+          {{ $t('developers.keys.replaceUncovered') }}
+          <span class="ln-attrs dev-keys-uncovered">
+            <span v-for="p in uncovered" :key="p" class="ln-attr ln-attr--mono">{{ p }}</span>
+          </span>
+        </template>
+      </PvMessage>
+      <label class="ln-check-row" for="replace-disable">
+        <PvCheckbox v-model="replace.disable" binary input-id="replace-disable" />
+        {{ $t('developers.keys.replaceDisable', { name: replace.user?.username }) }}
+      </label>
+      <p class="ln-help">{{ $t('developers.keys.replaceDisableHelp') }}</p>
+    </dialog-form>
+
     <div class="dev-keys-help">
       <section class="ln-card ln-card-pad">
         <h2 class="ln-card-title">{{ $t('developers.keys.rotate') }}</h2>
@@ -260,8 +319,13 @@ import ConfirmAction from '../../components/ui/ConfirmAction.vue';
 import CopyField from '../../components/ui/CopyField.vue';
 import type { RequestError } from '../../components/ui/ErrorState.vue';
 import ScopePicker from './ScopePicker.vue';
+import { keyNameFor, suggestScopes, uncoveredPermissions } from './legacyKeys';
+import { userPayload } from '../userPayload';
+import { getUsers as usersApi } from '../../api/generated/endpoints/users/users';
 
 interface PopupMenu { toggle: (e: Event) => void }
+// Users are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const { t } = useI18n();
 const router = useRouter();
@@ -290,6 +354,11 @@ const rowKey = ref<APIKey | null>(null);
 const confirm = reactive({
   open: false, title: '', text: '', label: '', typed: '', danger: true, run: () => {},
 });
+
+const { listUsers, updateUser } = usersApi();
+const legacy = ref<Loose[]>([]);
+const replace = reactive({ open: false, disable: false, user: null as Loose | null });
+const uncovered = computed(() => uncoveredPermissions(replace.user?.userRole, form.scopes));
 
 const validName = computed(() => /^[a-z0-9][a-z0-9._-]{1,62}$/.test(form.name));
 const hasSendTest = computed(() => router.hasRoute('devSendTest'));
@@ -448,17 +517,66 @@ function openRowMenu(e: Event, k: APIKey) {
   rowMenu.value?.toggle(e);
 }
 
+function fetchLegacy() {
+  if (!$can('users:get')) return;
+  listUsers().then((d) => {
+    legacy.value = (d as unknown as Loose[]).filter((u) => u.type === 'api');
+  });
+}
+
+function openReplace(u: Loose) {
+  replace.user = u;
+  replace.disable = false;
+  form.name = keyNameFor(u.username);
+  form.scopes = suggestScopes(u.userRole);
+  replace.open = true;
+}
+
+function onReplace() {
+  const u = replace.user;
+  if (!u || !validName.value) return;
+  saving.value = true;
+  createAPIKey(form.name.trim(), form.scopes)
+    .then(async (k) => {
+      replace.open = false;
+      showSecret(k, false);
+      fetchKeys();
+      // Only after the key exists, so a failed create never locks anyone out.
+      if (replace.disable && $can('users:manage')) {
+        await updateUser(u.id, { ...userPayload(u), status: 'disabled' } as never);
+        fetchLegacy();
+      }
+    })
+    .finally(() => { saving.value = false; });
+}
+
 function goSendTest() {
   const name = newKey.value?.name;
   secretOpen.value = false;
   router.push({ name: 'devSendTest', query: { key: name } });
 }
 
-watch(refreshTick, fetchKeys);
-onMounted(fetchKeys);
+watch(refreshTick, () => { fetchKeys(); fetchLegacy(); });
+onMounted(() => { fetchKeys(); fetchLegacy(); });
 </script>
 
 <style scoped lang="scss">
+.dev-keys-legacy .ln-card-head .ln-small { margin: 2px 0 0; }
+.dev-keys-legacy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--ln-border);
+    &:last-child { border-bottom: 0; }
+  }
+}
+.dev-keys-legacy-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dev-keys-uncovered { margin-top: 6px; }
 .dev-keys-help {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
