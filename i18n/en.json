@@ -1013,7 +1013,7 @@
     "users.openApiKeys": "Open API keys",
     "users.legacyApiUsers": "Existing API users",
     "users.deleteApiText": "Anything still using this API user's token stops working straight away.",
-    "users.deleteListRoleInUse": "{num} users have this list role. Deleting it also deletes those users, so move them to another list role first.",
+    "users.deleteListRoleInUse": "{num} users have this list role. They keep their accounts and user role, but lose the list access it gave them.",
     "users.details": "Details",
     "users.emailFromSSO": "Set by your single sign-on provider.",
     "users.cantChange": "Can't be changed",
