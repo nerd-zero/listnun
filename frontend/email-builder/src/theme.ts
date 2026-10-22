@@ -151,7 +151,9 @@ export const listnunTheme = (mode: ThemeMode) => {
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {
-          root: { height: 36, padding: '0 14px' },
+          // A minimum, not a fixed height: buttons with more than one line
+          // (the add-block tiles: icon over label) must be able to grow.
+          root: { minHeight: 36, padding: '0 14px' },
           outlinedPrimary: {
             borderColor: c.borderStrong,
             color: c.text,
