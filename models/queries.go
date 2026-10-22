@@ -120,9 +120,33 @@ type Queries struct {
 	DeleteCampaigns           *sqlx.Stmt `query:"delete-campaigns"`
 
 	InsertMedia *sqlx.Stmt `query:"insert-media"`
-	GetMedia    *sqlx.Stmt `query:"get-media"`
-	QueryMedia  *sqlx.Stmt `query:"query-media"`
-	DeleteMedia *sqlx.Stmt `query:"delete-media"`
+
+	InsertActivity *sqlx.Stmt `query:"insert-activity"`
+
+	CountInactiveSubscribers *sqlx.Stmt `query:"count-inactive-subscribers"`
+
+	GetInactiveSubscriberIDs *sqlx.Stmt `query:"get-inactive-subscriber-ids"`
+
+	UnsubscribeInactive *sqlx.Stmt `query:"unsubscribe-inactive"`
+
+	InsertCleanupRun *sqlx.Stmt `query:"insert-cleanup-run"`
+
+	FinishCleanupRun *sqlx.Stmt `query:"finish-cleanup-run"`
+
+	GetLastCleanupRun *sqlx.Stmt `query:"get-last-cleanup-run"`
+
+	GetActivity *sqlx.Stmt `query:"get-activity"`
+
+	PruneActivity *sqlx.Stmt `query:"prune-activity"`
+
+	GetMediaUsage *sqlx.Stmt `query:"get-media-usage"`
+
+	GetUnsizedMedia *sqlx.Stmt `query:"get-unsized-media"`
+
+	SetMediaSize *sqlx.Stmt `query:"set-media-size"`
+	GetMedia     *sqlx.Stmt `query:"get-media"`
+	QueryMedia   *sqlx.Stmt `query:"query-media"`
+	DeleteMedia  *sqlx.Stmt `query:"delete-media"`
 
 	GetWebhookEndpoints         *sqlx.Stmt `query:"get-webhook-endpoints"`
 	GetWebhookEndpointSecret    *sqlx.Stmt `query:"get-webhook-endpoint-secret"`

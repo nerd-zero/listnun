@@ -494,6 +494,9 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 		return err
 	}
 
+	a.core.LogActivity(tenantID(c), models.ActivityInfo, "campaign",
+		fmt.Sprintf("“%s” %s by %s", out.Name, campaignStatusVerb(req.Status), auth.GetUser(c).Username))
+
 	// If the campaign is being stopped, send the signal to the manager to stop it in flight.
 	if req.Status == models.CampaignStatusPaused || req.Status == models.CampaignStatusCancelled {
 		a.manager.StopCampaign(id)
@@ -1128,4 +1131,21 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 		}
 	}
 	return false, "", nil
+}
+
+// campaignStatusVerb describes a status change for the activity log.
+func campaignStatusVerb(status string) string {
+	switch status {
+	case models.CampaignStatusRunning:
+		return "started"
+	case models.CampaignStatusScheduled:
+		return "scheduled"
+	case models.CampaignStatusPaused:
+		return "paused"
+	case models.CampaignStatusCancelled:
+		return "cancelled"
+	case models.CampaignStatusFinished:
+		return "finished"
+	}
+	return "set to " + status
 }

@@ -9,11 +9,13 @@
         <h1 class="ln-page-header-title">{{ data.name || data.username }}</h1>
         <p class="ln-small">
           <template v-if="data.userRole">{{ data.userRole.name }}</template>
-          <template v-if="data.userRole && orgName"> · </template>
+          <template v-if="data.userRole && orgName">&emsp;</template>
           {{ orgName }}
         </p>
       </div>
     </header>
+
+    <PvMessage v-if="twofaRequired && !totpOn" severity="warn" data-cy="twofa-required">{{ $t('users.twofaRequiredBanner') }}</PvMessage>
 
     <PvSkeleton v-if="!loaded" height="240px" />
 
@@ -130,6 +132,7 @@ import {
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import StatusTag from '../components/ui/StatusTag.vue';
@@ -145,6 +148,8 @@ const {
 const { t } = useI18n();
 const store = useMainStore();
 const { serverConfig } = storeToRefs(store);
+// Set when the API sent the user here because the workspace requires 2FA.
+const twofaRequired = useRoute().query.twofa === 'required';
 
 const data = ref<Loose>({});
 const loaded = ref(false);

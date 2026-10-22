@@ -31,6 +31,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/bounce"
 	"github.com/nerd-zero/listnun/internal/buflog"
 	"github.com/nerd-zero/listnun/internal/captcha"
+	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/events"
 	"github.com/nerd-zero/listnun/internal/i18n"
@@ -62,10 +63,14 @@ type App struct {
 	// langList is what the picker offers.
 	langs    *i18n.Cache
 	langList []i18nLang
-	pg       *paginator.Paginator
-	events   *events.Events
-	log      *log.Logger
-	bufLog   *buflog.BufLog
+	// twofa caches each workspace's "require two-step verification" flag.
+	twofa twofaPolicy
+	// managedCleanup are Listnun's inactive-cleanup rules for managed mode.
+	managedCleanup cleanup.Rules
+	pg             *paginator.Paginator
+	events         *events.Events
+	log            *log.Logger
+	bufLog         *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
@@ -333,12 +338,18 @@ func main() {
 		chReload:      chReload,
 	}
 	app.langList, app.langs = initLangCache(fs)
+	app.managedCleanup = initManagedCleanup()
 
 	// Prune the transactional message log.
 	go app.pruneTxLog()
+	go app.pruneActivity()
+	go app.runInactiveCleanups(context.Background())
 
 	// Deliver outgoing webhooks.
 	app.runWebhooks(context.Background())
+
+	// Measure media uploaded before sizes were recorded.
+	go app.backfillMediaSizes(context.Background())
 
 	// Star the update checker.
 	if ko.Bool("app.check_updates") {

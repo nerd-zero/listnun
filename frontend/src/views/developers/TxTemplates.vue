@@ -12,7 +12,7 @@
         />
         <span class="ln-attr ln-attr--filled">{{ $t('developers.templates.transactional') }}</span>
         <span v-if="current && current !== 'new'" class="ln-mono ln-muted">template_id {{ current }}</span>
-        <span v-if="dirty" class="ln-small">· {{ $t('developers.templates.unsaved') }}</span>
+        <span v-if="dirty" class="ln-small">{{ $t('developers.templates.unsaved') }}</span>
       </div>
       <div class="tpl-head-actions">
         <PvButton
@@ -36,7 +36,7 @@
     <div class="tpl-grid">
       <!-- Template list -->
       <aside class="tpl-list" :aria-label="$t('globals.terms.templates')">
-        <span class="ln-label">{{ $t('globals.terms.templates') }} · {{ templates.length }}</span>
+        <span class="ln-label">{{ $t('globals.terms.templates') }}&emsp;{{ templates.length }}</span>
         <table-skeleton v-if="loading" :rows="3" :cols="1" />
         <router-link
           v-for="tpl in templates"

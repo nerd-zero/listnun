@@ -38,6 +38,11 @@
           <span>{{ $t('media.storage') }}</span>
           <strong class="ln-mono">{{ provider }}</strong>
         </div>
+        <div v-if="usage" class="media-store-row" data-cy="storage-used">
+          <span>{{ $t('media.used') }}</span>
+          <strong class="media-used">{{ formatBytes(usage.bytes) }}</strong>
+        </div>
+        <span v-if="usage && usage.unknown" class="ln-small">{{ $t('media.unmeasured', { n: usage.unknown.toLocaleString() }) }}</span>
         <template v-if="uploading.total">
           <PvProgressBar :value="uploadPct" :show-value="false" />
           <span class="ln-small">{{ $t('media.uploading', { n: uploading.total, pct: uploadPct }) }}</span>
@@ -146,6 +151,7 @@ import { makeQueryHandlers } from '../utils';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
+import { getMedia as mediaApi } from '../api/generated/endpoints/media/media';
 
 // Media items are the API's camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -171,6 +177,8 @@ const uploading = reactive({ total: 0, done: 0 });
 const uploadErrors = ref<string[]>([]);
 const queryParams = reactive({ page: 1, query: '' });
 const confirm = reactive({ open: false, busy: false });
+const usage = ref<{ bytes: number; files: number; unknown: number } | null>(null);
+const { getMediaUsage } = mediaApi();
 
 const canManage = computed(() => $can('media:manage'));
 const items = computed<Loose[]>(() => media.value.results || []);
@@ -188,7 +196,7 @@ function meta(m: Loose): string {
   const w = m.meta?.width;
   const h = m.meta?.height;
   const dims = w && h ? `${w} × ${h}` : ext(m.filename);
-  return `${dims} · ${shortDate(m.createdAt)}`;
+  return `${dims}\u2003${shortDate(m.createdAt)}`;
 }
 
 function toggle(id: number) {
@@ -196,8 +204,26 @@ function toggle(id: number) {
   else selected.add(id);
 }
 
+// formatBytes shows a size in the largest unit that keeps it above 1.
+function formatBytes(n: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+function fetchUsage() {
+  if (props.isModal) return;
+  getMediaUsage().then((d) => { usage.value = d as unknown as typeof usage.value; }).catch(() => { usage.value = null; });
+}
+
 function getMedia() {
   $api.getMedia({ page: queryParams.page, query: queryParams.query });
+  fetchUsage();
 }
 
 function onQueryMedia() {
@@ -276,10 +302,11 @@ function doDelete() {
 const { onPageChange } = makeQueryHandlers(queryParams, getMedia);
 
 watch(refreshTick, getMedia);
-onMounted(() => { $api.getMedia(); });
+onMounted(() => { $api.getMedia(); fetchUsage(); });
 </script>
 
 <style scoped lang="scss">
+.media-used { font-variant-numeric: tabular-nums; }
 .media-top {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);

@@ -4,6 +4,7 @@ import { showToast } from '../toastService';
 import { useMainStore } from '../store';
 import { models } from '../constants';
 import Utils from '../utils';
+import { isTwofaRequired, redirectToTwofa } from './twofaGuard';
 
 const http = axios.create({
   baseURL: import.meta.env.VUE_APP_ROOT_URL || '/',
@@ -57,6 +58,13 @@ http.interceptors.response.use((resp) => {
 
   return data;
 }, (err) => {
+  if (isTwofaRequired(err)) {
+    if (err.config && 'loading' in err.config) {
+      useMainStore().setLoading({ model: err.config.loading, status: false });
+    }
+    redirectToTwofa();
+    return Promise.reject(err);
+  }
   if ('loading' in err.config) {
     useMainStore().setLoading({ model: err.config.loading, status: false });
   }

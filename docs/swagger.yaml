@@ -12,6 +12,16 @@ definitions:
         type: integer
       last_used_at:
         type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
+        type: string
       name:
         type: string
       prev_expires_at:
@@ -49,6 +59,16 @@ definitions:
       id:
         type: integer
       last_used_at:
+        type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
         type: string
       name:
         type: string
@@ -105,6 +125,19 @@ definitions:
         type: integer
       num_cpu:
         type: integer
+    type: object
+  ActivityEntry:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      level:
+        type: string
+      message:
+        type: string
+      source:
+        type: string
     type: object
   AppUpdate:
     properties:
@@ -314,6 +347,25 @@ definitions:
       count:
         type: integer
       timestamp:
+        type: string
+    type: object
+  CleanupRun:
+    properties:
+      action:
+        type: string
+      done:
+        type: integer
+      error:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: integer
+      matched:
+        type: integer
+      mode:
+        type: string
+      started_at:
         type: string
     type: object
   CreateCampaignReq:
@@ -614,6 +666,19 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  MediaUsage:
+    properties:
+      bytes:
+        description: Bytes is the total size of the files whose size is known.
+        type: integer
+      files:
+        type: integer
+      unknown:
+        description: |-
+          Unknown files aren't in Bytes: uploaded before sizes were recorded
+          and not measured yet, or their size couldn't be read.
+        type: integer
     type: object
   OperatorBounceWebhooks:
     properties:
@@ -1090,6 +1155,12 @@ definitions:
         description: |-
           Branding is the workspace logo shown in transactional emails through
           the brand-logo template block (Developers > Email branding).
+      inactive_cleanup:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Settings'
+        description: |-
+          InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive
+          cleanup); see internal/cleanup.
       maintenance.db:
         properties:
           vacuum:
@@ -1191,6 +1262,18 @@ definitions:
               secret:
                 type: string
             type: object
+          login:
+            description: Login also asks for the captcha on the admin sign-in page.
+            type: boolean
+          turnstile:
+            properties:
+              enabled:
+                type: boolean
+              key:
+                type: string
+              secret:
+                type: string
+            type: object
         type: object
       security.oidc:
         properties:
@@ -1211,6 +1294,11 @@ definitions:
           provider_url:
             type: string
         type: object
+      security.require_2fa:
+        description: |-
+          SecurityRequire2FA holds password users at their profile until they
+          set up two-step verification (see auth.NeedsTwofaSetup).
+        type: boolean
       security.trusted_urls:
         items:
           type: string
@@ -1270,6 +1358,9 @@ definitions:
         type: string
       upload.filesystem.upload_uri:
         type: string
+      upload.max_file_size:
+        description: UploadMaxFileSize is the largest upload in KB; 0 means no limit.
+        type: integer
       upload.provider:
         type: string
       upload.s3.aws_access_key_id:
@@ -1833,6 +1924,26 @@ definitions:
       delivery_id:
         type: string
     type: object
+  cmd.cleanupStatus:
+    properties:
+      last_run:
+        $ref: '#/definitions/CleanupRun'
+      managed:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+        description: Managed are Listnun's rules, shown read-only in managed mode.
+      matching:
+        description: Matching is how many subscribers the saved rules would act on
+          now.
+        type: integer
+      next_run:
+        type: string
+      tracking:
+        description: |-
+          Tracking is false when per-subscriber tracking is off, which stops
+          the cleanup from running.
+        type: boolean
+    type: object
   cmd.okResp:
     properties:
       data: {}
@@ -1848,6 +1959,48 @@ definitions:
   echo.HTTPError:
     properties:
       message: {}
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Rules:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Settings:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      enabled:
+        type: boolean
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
     type: object
   github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign:
     properties:
@@ -3935,6 +4088,23 @@ paths:
       summary: Get a media item
       tags:
       - media
+  /api/media/usage:
+    get:
+      operationId: getMediaUsage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get media storage usage
+      tags:
+      - media
   /api/operator/organizations:
     get:
       description: Fork-only, off by default (see [operator] config). Requires the
@@ -4469,6 +4639,37 @@ paths:
       summary: Update a tenant's status (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/storage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantStorage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's media storage usage (Operator API)
+      tags:
+      - operator
   /api/profile:
     get:
       operationId: getUserProfile
@@ -4752,6 +4953,73 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update a single setting by key
+      tags:
+      - settings
+  /api/settings/inactive-cleanup:
+    get:
+      operationId: getInactiveCleanupStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.cleanupStatus'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get inactive cleanup status
+      tags:
+      - settings
+  /api/settings/inactive-cleanup/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewInactiveCleanup
+      parameters:
+      - description: Rules to preview
+        in: body
+        name: rules
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview inactive cleanup rules
+      tags:
+      - settings
+  /api/settings/logs:
+    get:
+      operationId: getActivityLog
+      parameters:
+      - description: Lines to return (max 500)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ActivityEntry'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the workspace's activity log
       tags:
       - settings
   /api/settings/scrub/test:

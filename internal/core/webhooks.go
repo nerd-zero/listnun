@@ -308,11 +308,36 @@ func (c *Core) RecordWebhookAttempt(job models.WebhookJob, res webhooks.Result, 
 		nextAt = sql.NullTime{Time: *next, Valid: true}
 	}
 
-	return c.WithTenant(context.Background(), job.TenantID, nil, func(tx *sqlx.Tx) error {
+	err := c.WithTenant(context.Background(), job.TenantID, nil, func(tx *sqlx.Tx) error {
 		_, err := stmtx(tx, c.q.RecordWebhookAttempt).Exec(job.ID, job.TenantID, job.Attempts+1,
 			res.StatusCode, int(res.Duration.Milliseconds()), res.Response, status, nextAt, errMsg)
 		return err
 	})
+	if err != nil {
+		return err
+	}
+
+	// Failures show up in the workspace's activity log (Settings › Logs).
+	switch status {
+	case models.WebhookRetrying:
+		wait := ""
+		if next != nil {
+			wait = ", retrying in " + roughDuration(time.Until(*next))
+		}
+		c.LogActivity(job.TenantID, models.ActivityWarn, "webhook", fmt.Sprintf("%s %s%s", job.URL, webhookOutcome(res), wait))
+	case models.WebhookFailed:
+		c.LogActivity(job.TenantID, models.ActivityError, "webhook",
+			fmt.Sprintf("%s %s, gave up after %d attempts", job.URL, webhookOutcome(res), job.Attempts+1))
+	}
+	return nil
+}
+
+// webhookOutcome describes a failed attempt for the activity log.
+func webhookOutcome(res webhooks.Result) string {
+	if res.Err != nil {
+		return "failed: " + res.Err.Error()
+	}
+	return fmt.Sprintf("returned %d", res.StatusCode)
 }
 
 // PruneWebhookDeliveries deletes finished deliveries past their retention.
@@ -322,4 +347,12 @@ func (c *Core) PruneWebhookDeliveries() (int64, error) {
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// roughDuration reads a wait the way people say it: "4 min", "6 h".
+func roughDuration(d time.Duration) string {
+	if d < time.Hour {
+		return fmt.Sprintf("%d min", max(1, int(d.Round(time.Minute).Minutes())))
+	}
+	return fmt.Sprintf("%d h", int(d.Round(time.Hour).Hours()))
 }

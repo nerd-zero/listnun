@@ -22,12 +22,12 @@ export default function Swatch({ paletteColors, value, onChange }: Props) {
           ...TILE_BUTTON,
           backgroundColor: colorValue,
           border: '1px solid',
-          borderColor: value === colorValue ? 'black' : 'grey.200',
+          borderColor: value === colorValue ? 'text.primary' : 'divider',
           minWidth: 24,
           display: 'inline-flex',
           '&:hover': {
             backgroundColor: colorValue,
-            borderColor: 'grey.500',
+            borderColor: 'text.secondary',
           },
         }}
       />

@@ -1,6 +1,5 @@
 <template>
   <span class="ln-status" :class="`ln-status--${tone}`" :data-status="status">
-    <span class="ln-status-dot" aria-hidden="true" />
     <slot>{{ label || status }}</slot>
   </span>
 </template>
@@ -9,7 +8,8 @@
 import { computed } from 'vue';
 import { statusTone, type StatusTone } from './status';
 
-// StatusTag: a pill with a dot, so status never depends on hue alone.
+// StatusTag: the status word on a light tint with 4px corners. The word
+// carries the meaning; colour only supports it (handover: no dots).
 const props = defineProps<{
   status: string;
   label?: string;

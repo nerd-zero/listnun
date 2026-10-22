@@ -5,7 +5,7 @@
         <div class="field">
           <label class="block mb-1 text-sm font-medium">{{ $t('settings.media.provider') }}</label>
           <PvSelect v-model="data['upload.provider']" name="upload.provider"
-            :options="[{ label: 'filesystem', value: 'filesystem' }, { label: 's3', value: 's3' }]"
+            :options="[{ label: $t('settings.media.providerFilesystem'), value: 'filesystem' }, { label: $t('settings.media.providerS3'), value: 's3' }]"
             option-label="label" option-value="value" class="w-full" />
         </div>
       </div>
@@ -14,6 +14,14 @@
           <label class="block mb-1 text-sm font-medium">{{ $t('settings.media.upload.extensions') }}</label>
           <PvAutoComplete v-model="data['upload.extensions']" name="tags" :typeahead="false"
             :suggestions="[]" multiple placeholder="jpg, png, gif .." class="w-full" />
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="field">
+          <label for="upload-max-size" class="block mb-1 text-sm font-medium">{{ $t('settings.media.maxFileSize') }}</label>
+          <PvInputNumber v-model="data['upload.max_file_size']" input-id="upload-max-size" name="upload.max_file_size"
+            :min="0" :max="10485760" suffix=" KB" class="w-full" />
+          <small class="block mt-1 text-color-secondary">{{ $t('settings.media.maxFileSizeHelp') }}</small>
         </div>
       </div>
     </div>

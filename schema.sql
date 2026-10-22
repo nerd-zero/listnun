@@ -252,10 +252,13 @@ CREATE TABLE media (
     content_type     TEXT NOT NULL DEFAULT 'application/octet-stream',
     thumb            TEXT NOT NULL,
     meta             JSONB NOT NULL DEFAULT '{}',
+    -- Bytes; NULL until measured, -1 if it couldn't be read.
+    size             BIGINT NULL,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_media_filename; CREATE INDEX idx_media_filename ON media(provider, filename);
 DROP INDEX IF EXISTS idx_media_tenant; CREATE INDEX idx_media_tenant ON media(tenant_id);
+DROP INDEX IF EXISTS idx_media_unsized; CREATE INDEX idx_media_unsized ON media(id) WHERE size IS NULL;
 
 -- campaign_media
 DROP TABLE IF EXISTS campaign_media CASCADE;
@@ -351,6 +354,8 @@ INSERT INTO settings (key, value) VALUES
     ('security.captcha', '{"altcha": {"enabled": false, "complexity": 300000}, "hcaptcha": {"enabled": false, "key": "", "secret": ""}, "turnstile": {"enabled": false, "key": "", "secret": ""}, "login": false}'),
     ('security.oidc', '{"enabled": false, "provider_url": "", "provider_name": "", "client_id": "", "client_secret": "", "auto_create_users": false, "default_user_role_id": null, "default_list_role_id": null}'),
     ('security.trusted_urls', '[]'),
+    ('security.require_2fa', 'false'),
+    ('inactive_cleanup', '{"enabled": false, "mode": "managed", "days": 180, "activity": "either", "action": "unsubscribe", "list_ids": [], "schedule": "0 2 * * 0"}'),
     ('upload.provider', '"filesystem"'),
     ('upload.max_file_size', '5000'),
     ('upload.extensions', '["jpg","jpeg","png","gif","svg","*"]'),
@@ -582,9 +587,13 @@ CREATE TABLE api_keys (
     last_used_at      TIMESTAMP WITH TIME ZONE NULL,
     revoked_at        TIMESTAMP WITH TIME ZONE NULL,
     created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    -- The API user this key was migrated from (v6.29); that user's old
+    -- username:token keeps working until it is disabled.
+    legacy_user_id    INTEGER NULL REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(tenant_id, name);
+CREATE UNIQUE INDEX idx_api_keys_legacy_user ON api_keys(legacy_user_id) WHERE legacy_user_id IS NOT NULL;
 DROP INDEX IF EXISTS idx_api_keys_tenant; CREATE INDEX idx_api_keys_tenant ON api_keys(tenant_id);
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY; ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON api_keys;
@@ -793,3 +802,36 @@ CREATE MATERIALIZED VIEW mat_list_subscriber_stats AS
     UNION ALL
     SELECT NOW() AS updated_at, subscribers.tenant_id AS tenant_id, 0 AS list_id, NULL AS status, COUNT(id) AS subscriber_count FROM subscribers GROUP BY subscribers.tenant_id;
 DROP INDEX IF EXISTS mat_list_subscriber_stats_idx; CREATE UNIQUE INDEX mat_list_subscriber_stats_idx ON mat_list_subscriber_stats (tenant_id, list_id, status);
+
+-- Per-workspace activity log (Settings › Logs), pruned after 30 days.
+DROP TABLE IF EXISTS activity_log CASCADE;
+CREATE TABLE activity_log (
+    id          BIGSERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    level       TEXT NOT NULL DEFAULT 'info',
+    source      TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_activity_log_tenant ON activity_log(tenant_id, created_at DESC);
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY; ALTER TABLE activity_log FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON activity_log;
+CREATE POLICY tenant_isolation ON activity_log USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- Inactive-subscriber cleanup runs (Settings › Inactive cleanup).
+DROP TABLE IF EXISTS inactive_cleanup_runs CASCADE;
+CREATE TABLE inactive_cleanup_runs (
+    id           SERIAL PRIMARY KEY,
+    tenant_id    INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    mode         TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    matched      INTEGER NOT NULL DEFAULT 0,
+    done         INTEGER NOT NULL DEFAULT 0,
+    error        TEXT NOT NULL DEFAULT '',
+    started_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    finished_at  TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE INDEX idx_inactive_cleanup_runs ON inactive_cleanup_runs(tenant_id, started_at DESC);
+ALTER TABLE inactive_cleanup_runs ENABLE ROW LEVEL SECURITY; ALTER TABLE inactive_cleanup_runs FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON inactive_cleanup_runs;
+CREATE POLICY tenant_isolation ON inactive_cleanup_runs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);

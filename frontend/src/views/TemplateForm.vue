@@ -44,6 +44,7 @@
             name="body"
             :source="form.bodySource"
             height="65vh"
+            :dark="isDark"
             @change="onChangeVisualEditor"
           />
           <div v-else class="ln-field">
@@ -99,6 +100,7 @@ import {
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useGlobal } from '../composables/useGlobal';
+import { useDarkMode } from '../composables/useDarkMode';
 import CodeEditor from '../components/CodeEditor.vue';
 import VisualEditor from '../components/VisualEditor.vue';
 import { getTemplates as templatesApi } from '../api/generated/endpoints/templates/templates';
@@ -117,6 +119,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits(['finished', 'close', 'make-default']);
 
 const { $utils } = useGlobal();
+const { isDark } = useDarkMode();
 const { createTemplate, updateTemplate } = templatesApi();
 const { t } = useI18n();
 

@@ -16,7 +16,7 @@
             <h2>{{ subscriber.name || subscriber.email }}</h2>
             <span class="ln-small">{{ subscriber.email }}</span>
             <span class="sub-d-state" :class="`is-${tone}`">
-              <span class="ln-dot" />{{ $t(`subscribers.status.${subscriber.status}`) }} · #{{ subscriber.id }}
+              <span>{{ $t(`subscribers.status.${subscriber.status}`) }}</span><span class="ln-mono sub-d-id">#{{ subscriber.id }}</span>
             </span>
           </div>
           <button type="button" class="ln-icon-btn" :aria-label="$t('globals.buttons.close')" @click="$emit('close')">
@@ -71,8 +71,8 @@
                   <span>
                     <router-link v-if="!l.restricted" :to="`/lists/${l.id}`">{{ l.name }}</router-link>
                     <span v-else>{{ l.name }}</span>
-                    <span class="ln-row-sub">{{ $t(`lists.optins.${l.optin}`) }} · {{ shortDate(l.subscriptionCreatedAt) }}
-                      <template v-if="l.subscriptionMeta?.optinIp"> · {{ l.subscriptionMeta.optinIp }}</template>
+                    <span class="ln-row-sub">{{ $t(`lists.optins.${l.optin}`) }}&emsp;{{ shortDate(l.subscriptionCreatedAt) }}
+                      <template v-if="l.subscriptionMeta?.optinIp">&emsp;{{ l.subscriptionMeta.optinIp }}</template>
                     </span>
                   </span>
                   <span :class="`sub-d-sub is-${subTone(l.subscriptionStatus)}`">{{ $t(`subscribers.status.${l.subscriptionStatus}`) }}</span>
@@ -173,7 +173,7 @@ const timeline = computed<TimelineEvent[]>(() => {
   clicks.value.forEach((c) => out.push({
     at: c.lastClickedAt,
     title: t('subscribers.evClicked'),
-    text: [c.campaignName, c.url].filter(Boolean).join(' · '),
+    text: [c.campaignName, c.url].filter(Boolean).join('\u2003'),
     tone: 'delivered',
   }));
   views.value.forEach((v) => out.push({
@@ -182,7 +182,7 @@ const timeline = computed<TimelineEvent[]>(() => {
   txs.value.forEach((m) => out.push({
     at: m.createdAt,
     title: m.status === 'bounced' ? t('subscribers.evTxBounced') : t('subscribers.evTx'),
-    text: `${m.templateName} · ${m.id}`,
+    text: `${m.templateName}\u2003${m.id}`,
     tone: m.status === 'bounced' ? 'bounced' : 'neutral',
   }));
   (props.subscriber?.lists || []).forEach((l: Loose) => {
@@ -263,13 +263,13 @@ watch(() => props.subscriber?.id, () => {
 .sub-d-state {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   font-size: 12px;
   color: var(--ln-text-2);
 
-  .ln-dot { background: var(--ln-neutral); }
-  &.is-success { color: var(--ln-success-fg); .ln-dot { background: var(--ln-success); } }
-  &.is-danger { color: var(--ln-danger-fg); .ln-dot { background: var(--ln-danger); } }
+  &.is-success { color: var(--ln-success-fg); }
+  &.is-danger { color: var(--ln-danger-fg); }
+  .sub-d-id { color: var(--ln-text-3); font-size: 12px; }
 }
 .sub-d-tabs {
   flex: 1;

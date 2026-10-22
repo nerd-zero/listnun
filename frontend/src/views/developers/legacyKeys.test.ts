@@ -7,8 +7,9 @@ describe('legacy API user to key', () => {
     expect(suggestScopes(role)).toEqual(['tx:send']);
   });
 
-  it('gives the admin role every scope and flags it as uncoverable', () => {
-    expect(suggestScopes({ id: 1 })).toEqual(['tx:send', 'tx:logs', 'subscribers:read']);
+  it('gives the admin role the carry-over scopes only and flags it as uncoverable', () => {
+    expect(suggestScopes({ id: 1 })).toEqual(['tx:send', 'subscribers:read']);
+    expect(suggestScopes({ id: 5, permissions: ['tx:send', 'tx:logs', 'webhooks:get', 'webhooks:manage'] })).toEqual(['tx:send']);
     expect(uncoveredPermissions({ id: 1 }, ['tx:send'])).toEqual(['*']);
   });
 

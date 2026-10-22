@@ -102,7 +102,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 					return next(c)
 				}
-			})
+			}, a.requireTwofa)
 		)
 
 		// API endpoints.
@@ -114,6 +114,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/dashboard/overview", a.GetDashboardOverview)
 
 		g.GET("/api/settings", pm(a.GetSettings, "settings:get"))
+		g.GET("/api/settings/logs", pm(a.GetActivityLog, "settings:get"))
+		g.GET("/api/settings/inactive-cleanup", pm(a.GetCleanupStatus, "settings:get"))
+		g.POST("/api/settings/inactive-cleanup/preview", pm(a.PreviewCleanup, "settings:get"))
 		g.PUT("/api/settings", pm(a.UpdateSettings, "settings:manage"))
 		g.PUT("/api/settings/:key", pm(a.UpdateSettingsByKey, "settings:manage"))
 		g.POST("/api/settings/smtp/test", pm(a.TestSMTPSettings, "settings:manage"))
@@ -190,6 +193,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/campaigns/:id", pm(hasID(a.DeleteCampaign), "campaigns:manage_all", "campaigns:manage"))
 
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
+		g.GET("/api/media/usage", pm(a.GetMediaUsage, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
 		g.DELETE("/api/media/:id", pm(hasID(a.DeleteMedia), "media:manage"))
@@ -290,6 +294,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
 

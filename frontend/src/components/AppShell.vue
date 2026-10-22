@@ -107,7 +107,7 @@
             class="ln-restart"
             @click="$emit('restart')"
           >
-            <span class="ln-dot" />{{ $t('settings.needsRestart') }}
+            {{ $t('settings.needsRestart') }}
           </button>
 
           <button

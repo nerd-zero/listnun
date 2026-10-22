@@ -164,7 +164,7 @@
         <PvColumn field="status" :header="$t('globals.fields.status')" header-style="width:134px">
           <template #body="{ data }">
             <span class="subs-status" :class="`is-${data.status}`" :data-cy="data.status === 'blocklisted' ? 'blocklisted' : undefined">
-              <span class="ln-dot" />{{ $t(`subscribers.status.${data.status}`) }}
+              {{ $t(`subscribers.status.${data.status}`) }}
             </span>
           </template>
         </PvColumn>
@@ -178,9 +178,8 @@
                 class="ln-attr"
                 :title="awaitingOptin(l) ? $t('subscribers.status.unconfirmed') : ''"
               >
-                <span v-if="awaitingOptin(l)" class="subs-unconf" aria-hidden="true" />
                 {{ l.name }}
-                <span v-if="awaitingOptin(l)" class="subs-sr">({{ $t('subscribers.status.unconfirmed') }})</span>
+                <span v-if="awaitingOptin(l)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
               </span>
               <span v-if="activeLists(data).length > 2" class="ln-attr ln-attr--filled">+{{ activeLists(data).length - 2 }}</span>
             </span>
@@ -323,7 +322,7 @@ const isFiltered = computed(() => !!(queryParams.search || queryParams.queryExp 
 const advancedHint = computed(() => {
   const help = t('subscribers.advancedQueryHelp');
   if (!queryParams.queryExp || subscribers.value.total === undefined) return help;
-  return `${help} · ${t('subscribers.matchCount', { n: (subscribers.value.total || 0).toLocaleString() })}`;
+  return `${help}\u2003${t('subscribers.matchCount', { n: (subscribers.value.total || 0).toLocaleString() })}`;
 });
 
 const rangeLabel = computed(() => {
@@ -635,24 +634,9 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-// An amber dot marks a subscription that is still waiting for opt-in.
-.subs-unconf {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: var(--ln-warn);
-  vertical-align: 1px;
-}
-.subs-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
+// A double opt-in subscription still waiting for confirmation says so in
+// words (the handover allows no dots).
+.subs-unconf { margin-left: 6px; color: var(--ln-warn-fg); }
 .subs { transition: padding-right .15s; }
 .subs.has-drawer { padding-right: 440px; }
 
@@ -677,9 +661,8 @@ onMounted(() => {
   font-size: 13px;
   color: var(--ln-success-fg);
 
-  .ln-dot { background: var(--ln-success); }
-  &.is-blocklisted { color: var(--ln-danger-fg); .ln-dot { background: var(--ln-danger); } }
-  &.is-disabled { color: var(--ln-text-3); .ln-dot { background: var(--ln-neutral); } }
+  &.is-blocklisted { color: var(--ln-danger-fg); }
+  &.is-disabled { color: var(--ln-text-3); }
 }
 :deep(tr.is-open) { background: var(--ln-hover) !important; box-shadow: inset 3px 0 0 var(--ln-ink); }
 :deep(.p-datatable-tbody > tr) { cursor: pointer; }

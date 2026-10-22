@@ -2,6 +2,7 @@ import Axios, { type AxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import Utils from '../utils';
 import { showToast } from '../toastService';
+import { isTwofaRequired, redirectToTwofa } from './twofaGuard';
 
 // Pass null for i18n — camelKeys doesn't need it.
 const utils = new Utils(null as never);
@@ -26,6 +27,10 @@ http.interceptors.response.use(
     return data as never;
   },
   (err) => {
+    if (isTwofaRequired(err)) {
+      redirectToTwofa();
+      return Promise.reject(err);
+    }
     const msg: string = err.response?.data?.message || err.toString();
     showToast(msg, 'is-danger', 4000);
     return Promise.reject(err);

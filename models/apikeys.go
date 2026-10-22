@@ -20,6 +20,8 @@ var APIKeyScopes = map[string][]string{
 	"tx:send":          {"tx:send"},
 	"tx:logs":          {"tx:logs"},
 	"subscribers:read": {"subscribers:get_all"},
+	"keys:manage":      {"apikeys:get", "apikeys:manage"},
+	"webhooks:manage":  {"webhooks:get", "webhooks:manage"},
 }
 
 // APIKey is a named credential for the HTTP API. The secret itself is never
@@ -36,6 +38,12 @@ type APIKey struct {
 	PrevExpiresAt null.Time      `db:"prev_expires_at" json:"prev_expires_at"`
 	LastUsedAt    null.Time      `db:"last_used_at" json:"last_used_at"`
 	RevokedAt     null.Time      `db:"revoked_at" json:"revoked_at"`
+
+	// LegacyUserID is the API user this key was migrated from. Until that
+	// user is disabled, its old username:token still authenticates.
+	LegacyUserID     null.Int `db:"legacy_user_id" json:"legacy_user_id"`
+	LegacyUsername   string   `db:"legacy_username" json:"legacy_username"`
+	LegacyUserStatus string   `db:"legacy_user_status" json:"legacy_user_status"`
 
 	Total int `db:"total" json:"-"`
 } // @name APIKey

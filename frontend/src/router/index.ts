@@ -217,6 +217,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Roles.vue'),
   },
   {
+    path: '/settings/logs',
+    name: 'settingsLogs',
+    meta: { title: 'settings.logs.title', group: 'settings', perms: ['settings:get'] },
+    component: () => import('../views/Settings.vue'),
+  },
+  {
     path: '/settings/maintenance',
     name: 'maintenance',
     meta: { title: 'maintenance.title', group: 'settings', perms: ['settings:maintain'] },

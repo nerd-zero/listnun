@@ -59,9 +59,9 @@
         <span class="ln-tile-label">{{ $t('dashboard.scrubEmailsValidated') }}</span>
         <span class="ln-tile-value">{{ (scrubValidated + scrubInvalid).toLocaleString() }}</span>
         <span class="ln-tile-sub">
-          {{ scrubValidated.toLocaleString() }} {{ $t('settings.scrub.historyStatus.valid') }} ·
+          {{ scrubValidated.toLocaleString() }} {{ $t('settings.scrub.historyStatus.valid') }}&emsp;
           {{ scrubInvalid.toLocaleString() }} {{ $t('settings.scrub.historyStatus.invalid') }}
-          <template v-if="scrubActiveJobs"> · {{ $t('dashboard.scrubJobsRunning', { count: scrubActiveJobs }) }}</template>
+          <template v-if="scrubActiveJobs">&emsp;{{ $t('dashboard.scrubJobsRunning', { count: scrubActiveJobs }) }}</template>
         </span>
       </div>
       <div class="ln-tile" data-cy="auto-paused">
@@ -158,7 +158,6 @@
         </div>
         <ul v-if="attention.length" class="dash-notes">
           <li v-for="a in attention" :key="a.key" :class="`is-${a.tone}`">
-            <span class="dash-note-dot" aria-hidden="true" />
             <div>
               <component :is="a.to ? 'router-link' : 'strong'" :to="a.to" class="dash-note-title">{{ a.title }}</component>
               <p class="ln-small">{{ a.text }}</p>
@@ -183,7 +182,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import type { RouteLocationRaw } from 'vue-router';
-import dayjs from 'dayjs';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
@@ -473,17 +471,6 @@ onMounted(fetchData);
 
   &:first-child { border-top: 0; }
   .ln-small { margin: 4px 0 0; }
-}
-.dash-note-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  border-radius: 99px;
-  background: var(--ln-neutral);
-
-  .is-warn & { background: var(--ln-warn); }
-  .is-danger & { background: var(--ln-danger); }
 }
 .dash-note-title { font-weight: 500; color: var(--ln-text); text-decoration: none; }
 a.dash-note-title:hover { text-decoration: underline; }

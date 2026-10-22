@@ -84,7 +84,7 @@ const metaLine = computed(() => {
   const kb = l.size ? `${Math.max(1, Math.round(l.size / 1024))} KB` : '';
   const dims = l.width && l.height ? `${l.width} × ${l.height}` : '';
   const when = l.uploadedAt ? t('developers.branding.uploaded', { date: shortDate(l.uploadedAt) }) : '';
-  return [type, kb, dims, when].filter(Boolean).join(' · ');
+  return [type, kb, dims, when].filter(Boolean).join(' ');
 });
 
 function pick() {

@@ -78,7 +78,7 @@ func (c *Core) GetMedia(ctx context.Context, tenantID int, id int, uuid, fileNam
 }
 
 // InsertMedia inserts a new media file into the DB.
-func (c *Core) InsertMedia(ctx context.Context, tenantID int, fileName, thumbName, contentType string, meta models.JSON, provider string, s media.Store) (media.Media, error) {
+func (c *Core) InsertMedia(ctx context.Context, tenantID int, fileName, thumbName, contentType string, meta models.JSON, provider string, size int64, s media.Store) (media.Media, error) {
 	uu, err := uuid.NewV4()
 	if err != nil {
 		c.log.Printf("error generating UUID: %v", err)
@@ -89,7 +89,7 @@ func (c *Core) InsertMedia(ctx context.Context, tenantID int, fileName, thumbNam
 	// Write to the DB.
 	var newID int
 	err = c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.InsertMedia).Get(&newID, uu, fileName, thumbName, contentType, provider, meta, tenantID)
+		return stmtx(tx, c.q.InsertMedia).Get(&newID, uu, fileName, thumbName, contentType, provider, meta, tenantID, size)
 	})
 	if err != nil {
 		c.log.Printf("error inserting uploaded file to db: %v", err)
@@ -113,4 +113,36 @@ func (c *Core) DeleteMedia(ctx context.Context, tenantID int, id int) (string, e
 	}
 
 	return fname, nil
+}
+
+// GetMediaUsage returns the storage a tenant's media takes up.
+func (c *Core) GetMediaUsage(ctx context.Context, tenantID int) (models.MediaUsage, error) {
+	var out models.MediaUsage
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetMediaUsage).Get(&out)
+	})
+	if err != nil {
+		c.log.Printf("error fetching media usage: %v", err)
+		return out, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.media}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// GetUnsizedMedia returns up to limit files, across tenants, whose size
+// hasn't been measured. It runs without a tenant set, which the media
+// table's row-level policy allows for system jobs.
+func (c *Core) GetUnsizedMedia(limit int) ([]models.UnsizedMedia, error) {
+	var out []models.UnsizedMedia
+	if err := c.q.GetUnsizedMedia.Select(&out, limit); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SetMediaSize records a file's size in bytes (media.SizeUnknown if it
+// couldn't be read).
+func (c *Core) SetMediaSize(id int, size int64) error {
+	_, err := c.q.SetMediaSize.Exec(id, size)
+	return err
 }

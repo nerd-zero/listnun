@@ -623,7 +623,7 @@ const checks = computed<Check[]>(() => {
   const out: Check[] = [];
   out.push(form.subject && form.fromEmail
     ? {
-      key: 'subject', tone: 'ok', title: t('campaigns.checkSubject'), text: `${form.subject} · ${form.fromEmail}`,
+      key: 'subject', tone: 'ok', title: t('campaigns.checkSubject'), text: `${form.subject}\u2003${form.fromEmail}`,
     }
     : {
       key: 'subject', tone: 'warn', title: t('campaigns.checkSubject'), text: t('campaigns.checkSubjectMissing'), fix: { label: t('campaigns.fix'), run: () => goStep('settings') },
