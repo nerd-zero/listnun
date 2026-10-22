@@ -43,6 +43,8 @@ type loginTpl struct {
 	OIDCProvider     string
 	OIDCProviderLogo string
 	Error            string
+	// Captcha is set when the sign-in form asks for one.
+	Captcha captchaWidget
 }
 
 type oidcState struct {
@@ -373,6 +375,9 @@ func (a *App) renderLoginPage(c echo.Context, loginErr error) error {
 		OIDCProviderLogo: oidcLogo,
 		NextURI:          next,
 	}
+	if a.captcha.OnLogin() {
+		out.Captcha = a.captchaWidget()
+	}
 
 	// If there was an error in the previous state (POST reqest), set it to render in the template.
 	if loginErr != nil {
@@ -479,6 +484,12 @@ func (a *App) doLogin(c echo.Context) error {
 	}
 	if !strHasLen(password, 8, stdInputMaxLen) {
 		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "password"))
+	}
+
+	// The captcha is checked before the password so it also slows down
+	// password guessing.
+	if a.captcha.OnLogin() && !a.verifyCaptcha(c) {
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).T("public.invalidCaptcha"))
 	}
 
 	// Log the user in by fetching and verifying credentials from the DB.

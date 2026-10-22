@@ -51,6 +51,13 @@ type Settings struct {
 			Key     string `json:"key"`
 			Secret  string `json:"secret"`
 		} `json:"hcaptcha"`
+		Turnstile struct {
+			Enabled bool   `json:"enabled"`
+			Key     string `json:"key"`
+			Secret  string `json:"secret"`
+		} `json:"turnstile"`
+		// Login also asks for the captcha on the admin sign-in page.
+		Login bool `json:"login"`
 	} `json:"security.captcha"`
 
 	OIDC struct {

@@ -159,6 +159,11 @@ function captchaHTML(): string {
       + `    <altcha-widget challengeurl="${sc.value.root_url}/api/public/captcha/altcha"></altcha-widget>\n`
       + `    <${'script'} type="module" src="${sc.value.root_url}/public/static/altcha.umd.js" async defer></${'script'}>\n`;
   }
+  if (ps.captcha_provider === 'turnstile') {
+    return '\n'
+      + `    <div class="cf-turnstile" data-sitekey="${esc(ps.captcha_key)}"></div>\n`
+      + `    <${'script'} src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></${'script'}>\n`;
+  }
   if (ps.captcha_provider === 'hcaptcha') {
     return '\n'
       + `    <div class="h-captcha" data-sitekey="${esc(ps.captcha_key)}"></div>\n`

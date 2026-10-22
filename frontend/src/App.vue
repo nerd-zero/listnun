@@ -146,4 +146,5 @@ onMounted(() => {
 @import "assets/style.scss";
 @import "assets/shell.scss";
 @import "assets/patterns.scss";
+@import "assets/tinymce.scss";
 </style>

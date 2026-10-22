@@ -98,6 +98,10 @@
             <label for="captcha-altcha">ALTCHA</label>
           </div>
           <div class="flex items-center gap-2">
+            <PvRadioButton v-model="selectedProvider" value="turnstile" name="captcha_provider" input-id="captcha-turnstile" />
+            <label for="captcha-turnstile">Cloudflare Turnstile</label>
+          </div>
+          <div class="flex items-center gap-2">
             <PvRadioButton v-model="selectedProvider" value="hcaptcha" name="captcha_provider" input-id="captcha-hcaptcha" />
             <label for="captcha-hcaptcha">hCaptcha (deprecated)</label>
           </div>
@@ -112,6 +116,19 @@
           <small class="block mt-1 text-color-secondary">{{ $t('settings.security.altchaComplexityHelp') }}</small>
         </div>
       </div>
+      <div v-if="selectedProvider === 'turnstile'">
+        <div class="field">
+          <label for="turnstile-key" class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaKey') }}</label>
+          <PvInputText id="turnstile-key" v-model="data['security.captcha']['turnstile']['key']" name="turnstile_key" :maxlength="200"
+            required class="w-full ln-mono" />
+          <small class="block mt-1 text-color-secondary">{{ $t('settings.security.turnstileKeyHelp') }}</small>
+        </div>
+        <div class="field">
+          <label for="turnstile-secret" class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaSecret') }}</label>
+          <PvPassword v-model="data['security.captcha']['turnstile']['secret']" input-id="turnstile-secret" name="turnstile_secret"
+            :maxlength="200" required :feedback="false" class="w-full" />
+        </div>
+      </div>
       <div v-if="selectedProvider === 'hcaptcha'">
         <div class="field">
           <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaKey') }}</label>
@@ -124,6 +141,13 @@
           <PvPassword v-model="data['security.captcha']['hcaptcha']['secret']" name="hcaptcha_secret"
             :maxlength="200" required :feedback="false" class="w-full" />
         </div>
+      </div>
+      <div class="field">
+        <div class="flex items-center gap-2">
+          <PvToggleSwitch v-model="data['security.captcha'].login" input-id="captcha-login" name="captcha_login" />
+          <label for="captcha-login">{{ $t('settings.security.captchaLogin') }}</label>
+        </div>
+        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaLoginHelp') }}</small>
       </div>
     </div>
 
@@ -181,23 +205,34 @@ const trustedURLs = computed({
   },
 });
 
+// Settings saved before Turnstile existed lack its block until the v6.27
+// migration runs; fill it in so the form can bind to it.
+if (!data['security.captcha'].turnstile) {
+  data['security.captcha'].turnstile = { enabled: false, key: '', secret: '' };
+}
+if (data['security.captcha'].login === undefined) data['security.captcha'].login = false;
+
+const CAPTCHA_PROVIDERS = ['altcha', 'turnstile', 'hcaptcha'] as const;
+
 const captchaEnabled = computed({
   get() {
-    return data['security.captcha'].altcha.enabled || data['security.captcha'].hcaptcha.enabled;
+    return CAPTCHA_PROVIDERS.some((p) => data['security.captcha'][p].enabled);
   },
   set(value: boolean) {
+    CAPTCHA_PROVIDERS.forEach((p) => { data['security.captcha'][p].enabled = false; });
     data['security.captcha'].altcha.enabled = !!value;
-    data['security.captcha'].hcaptcha.enabled = false;
+    if (!value) data['security.captcha'].login = false;
   },
 });
 
+// Only one provider is on at a time; the server picks ALTCHA, then
+// Turnstile, then hCaptcha if several were.
 const selectedProvider = computed({
   get() {
-    return data['security.captcha'].hcaptcha.enabled ? 'hcaptcha' : 'altcha';
+    return CAPTCHA_PROVIDERS.find((p) => data['security.captcha'][p].enabled) || 'altcha';
   },
   set(value: string) {
-    data['security.captcha'].hcaptcha.enabled = value === 'hcaptcha';
-    data['security.captcha'].altcha.enabled = value === 'altcha';
+    CAPTCHA_PROVIDERS.forEach((p) => { data['security.captcha'][p].enabled = p === value; });
   },
 });
 

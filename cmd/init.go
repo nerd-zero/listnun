@@ -136,6 +136,12 @@ type Config struct {
 				Key     string `koanf:"key"`
 				Secret  string `koanf:"secret"`
 			} `koanf:"hcaptcha"`
+			Turnstile struct {
+				Enabled bool   `koanf:"enabled"`
+				Key     string `koanf:"key"`
+				Secret  string `koanf:"secret"`
+			} `koanf:"turnstile"`
+			Login bool `koanf:"login"`
 		} `koanf:"captcha"`
 
 		TrustedURLs []string `koanf:"trusted_urls"`
