@@ -573,6 +573,13 @@ definitions:
         type: integer
       name:
         type: string
+      pending:
+        description: |-
+          Pending is the number of rows written in the open transaction but not
+          yet committed (updated every progressStep rows). On commit they move
+          to Imported, or to Failed if the commit fails. It lets progress move
+          within a commitBatchSize batch, which a small file never leaves.
+        type: integer
       risky:
         description: |-
           Risky always reads 0 during the import itself: Scrub validation is

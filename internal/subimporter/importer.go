@@ -34,6 +34,11 @@ import (
 const (
 	// commitBatchSize is the number of inserts to commit in a single SQL transaction.
 	commitBatchSize = 10000
+
+	// progressStep is how many rows go into the open transaction between
+	// updates to Status.Pending: often enough for a smooth progress bar,
+	// rarely enough that the status lock isn't taken for every row.
+	progressStep = 250
 )
 
 // Various import statuses.
@@ -146,9 +151,14 @@ type Status struct {
 	Skipped int `json:"skipped"`
 	// Failed is the number of valid rows the database rejected, i.e. the
 	// rows of a batch whose insert or commit failed.
-	Failed int    `json:"failed"`
-	Status string `json:"status"`
-	logBuf *bytes.Buffer
+	Failed int `json:"failed"`
+	// Pending is the number of rows written in the open transaction but not
+	// yet committed (updated every progressStep rows). On commit they move
+	// to Imported, or to Failed if the commit fails. It lets progress move
+	// within a commitBatchSize batch, which a small file never leaves.
+	Pending int    `json:"pending"`
+	Status  string `json:"status"`
+	logBuf  *bytes.Buffer
 } // @name ImportStatus
 
 // SubReq is a wrapper over the Subscriber model.
@@ -297,6 +307,14 @@ func (im *Importer) incrementImportCount(n int) {
 	im.Unlock()
 }
 
+// setPending sets the Importer's "pending" counter: rows written in the
+// open transaction.
+func (im *Importer) setPending(n int) {
+	im.Lock()
+	im.status.Pending = n
+	im.Unlock()
+}
+
 // incrementSkipped adds n to the Importer's "skipped" counter.
 func (im *Importer) incrementSkipped(n int) {
 	im.Lock()
@@ -380,6 +398,9 @@ func (s *Session) Start() {
 		}
 		cur++
 		total++
+		if cur%progressStep == 0 {
+			s.im.setPending(cur)
+		}
 
 		// Batch size is met. Commit.
 		if cur%commitBatchSize == 0 {
@@ -391,6 +412,7 @@ func (s *Session) Start() {
 				s.im.incrementImportCount(cur)
 				s.log.Printf("imported %d", total)
 			}
+			s.im.setPending(0)
 
 			cur = 0
 		}
@@ -411,6 +433,7 @@ func (s *Session) Start() {
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
 		s.im.incrementFailed(cur)
+		s.im.setPending(0)
 		s.im.setStatus(StatusFailed)
 		s.log.Printf("error committing to DB: %v", err)
 		s.im.sendNotif(StatusFailed)
@@ -418,6 +441,7 @@ func (s *Session) Start() {
 	}
 
 	s.im.incrementImportCount(cur)
+	s.im.setPending(0)
 	s.im.setStatus(StatusFinished)
 	s.log.Printf("imported finished")
 	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr); err != nil {
@@ -536,6 +560,16 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		return err
 	}
 
+	// Count the rows first so progress has the real total from the start;
+	// the rows are only counted as they're read, which runs up to a batch
+	// ahead of the inserts, so the bar would otherwise sit near full and
+	// slip back as the total grew. Reading is cheap next to the inserts.
+	if n := countCSVRows(srcPath, delim); n >= 0 {
+		s.im.Lock()
+		s.im.status.Total = n
+		s.im.Unlock()
+	}
+
 	rd := csv.NewReader(f)
 	rd.Comma = delim
 	rd.ReuseRecord = true
@@ -636,16 +670,12 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			window = window[:0]
 		}
 
-		if i%commitBatchSize == 0 {
-			s.im.Lock()
-			s.im.status.Total = i
-			s.im.Unlock()
-		}
 	}
 
 	s.flushWindow(window)
 
-	// The last pass of the loop read EOF, not a row.
+	// The last pass of the loop read EOF, not a row. This is exact, and
+	// matches the up-front count unless the file failed to parse.
 	s.im.Lock()
 	s.im.status.Total = i - 1
 	s.im.Unlock()
@@ -654,6 +684,37 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 	failed = false
 
 	return nil
+}
+
+// countCSVRows returns the number of data rows (not counting the header)
+// in the CSV at path, including rows with the wrong number of columns,
+// which LoadCSV counts and skips. It returns -1 if the file can't be read;
+// a file that fails to parse partway returns the rows up to that point,
+// since LoadCSV stops there too.
+func countCSVRows(path string, delim rune) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
+
+	rd := csv.NewReader(f)
+	rd.Comma = delim
+	rd.ReuseRecord = true
+	rd.FieldsPerRecord = -1
+
+	n := 0
+	for {
+		if _, err := rd.Read(); err != nil {
+			break
+		}
+		n++
+	}
+	// The first record is the header.
+	if n > 0 {
+		n--
+	}
+	return n
 }
 
 // windowRow pairs a syntactically-valid SubReq with its source line

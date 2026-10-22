@@ -153,13 +153,13 @@
         <PvProgressBar :value="progress" :show-value="false" class="imp-bar" />
         <p class="ln-small imp-count">
           <span v-if="status.name" class="ln-mono">{{ status.name }}</span>
-          {{ $t('import.recordsCount', { num: fmt(status.imported), total: fmt(status.total) }) }}
+          {{ $t('import.recordsCount', { num: fmt(written), total: fmt(status.total) }) }}
         </p>
 
         <div class="ln-tiles">
           <div class="ln-tile">
             <span class="ln-tile-label">{{ $t('import.added') }}</span>
-            <span class="ln-tile-value">{{ fmt(status.imported) }}</span>
+            <span class="ln-tile-value">{{ fmt(written) }}</span>
           </div>
           <div class="ln-tile">
             <span class="ln-tile-label">{{ $t('import.skipped') }}</span>
@@ -290,10 +290,15 @@ function isDone() {
 
 const stepLabels = computed(() => [t('import.stepUpload'), t('import.stepOptions'), t('import.stepImport')]);
 
+// Rows written so far: committed plus those in the open transaction
+// (pending), so the count moves within a batch. Once the import ends,
+// pending is 0 and this is the committed count.
+const written = computed(() => (status.value.imported || 0) + (status.value.pending || 0));
+
 const progress = computed(() => {
   if (!status.value || !(status.value.total > 0)) return 0;
   // Skipped and failed rows are done with too, so they count as progress.
-  const done = (status.value.imported || 0) + (status.value.skipped || 0) + (status.value.failed || 0);
+  const done = written.value + (status.value.skipped || 0) + (status.value.failed || 0);
   return Math.min(100, Math.ceil((done / status.value.total) * 100));
 });
 
@@ -313,7 +318,7 @@ const statusLabel = computed(() => {
 
 const runTitle = computed(() => (isDone()
   ? t('import.doneTitle')
-  : t('import.runningTitle', { num: fmt(status.value.imported), total: fmt(status.value.total) })));
+  : t('import.runningTitle', { num: fmt(written.value), total: fmt(status.value.total) })));
 
 watch(() => form.mode, () => {
   nextTick(() => {

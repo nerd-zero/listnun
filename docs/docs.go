@@ -7050,6 +7050,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "pending": {
+                    "description": "Pending is the number of rows written in the open transaction but not\nyet committed (updated every progressStep rows). On commit they move\nto Imported, or to Failed if the commit fails. It lets progress move\nwithin a commitBatchSize batch, which a small file never leaves.",
+                    "type": "integer"
+                },
                 "risky": {
                     "description": "Risky always reads 0 during the import itself: Scrub validation is\nasynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky\nincluded -- aren't known until the /webhooks/scrub/batch callback\nresolves each submitted batch, well after this Status stops being\npolled. Kept for API/frontend type stability rather than removed.",
                     "type": "integer"
