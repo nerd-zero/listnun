@@ -5915,6 +5915,9 @@ const docTemplate = `{
         "ServerConfig": {
             "type": "object",
             "properties": {
+                "console_url": {
+                    "type": "string"
+                },
                 "from_email": {
                     "type": "string"
                 },
