@@ -2,12 +2,17 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import PrimeVue from 'primevue/config';
-import Aura from '@primeuix/themes/aura';
-import { definePreset } from '@primeuix/themes';
 import ToastService from 'primevue/toastservice';
 import ConfirmationService from 'primevue/confirmationservice';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import './assets/tokens.css';
 
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
@@ -53,32 +58,11 @@ import InputIcon from 'primevue/inputicon';
 import FileUpload from 'primevue/fileupload';
 
 import App from './App.vue';
+import Listnun from './theme';
 import router from './router';
 import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
-
-// Matches listnun-console's own design tokens (web/src/index.css)
-// exactly: ink is primary, paper/warm-tan are the light tints, and
-// dark mode's primary flips to the light "ece9e1" foreground since
-// ink has no contrast against a dark background.
-const ConsoleMatchedPreset = definePreset(Aura, {
-  semantic: {
-    primary: {
-      50: '#f6f3ec',
-      100: '#efebe1',
-      200: '#dedad0',
-      300: '#c7c3ba',
-      400: '#ece9e1',
-      500: '#1b1e24',
-      600: '#2b2f36',
-      700: '#1b1e24',
-      800: '#1b1e24',
-      900: '#1b1e24',
-      950: '#1b1e24',
-    },
-  },
-});
 
 const pinia = createPinia();
 
@@ -97,8 +81,8 @@ app.use(i18n);
 
 app.use(PrimeVue, {
   theme: {
-    preset: ConsoleMatchedPreset,
-    options: { darkModeSelector: '.app-dark' },
+    preset: Listnun,
+    options: { darkModeSelector: '.app-dark', cssLayer: true },
   },
   ripple: true,
 });

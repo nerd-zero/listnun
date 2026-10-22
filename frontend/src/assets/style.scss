@@ -2,86 +2,30 @@
 @use 'sass:color';
 
 // ============================================================
-// CSS Custom Properties (design tokens)
-// ============================================================
-// Ported to match listnun-console's own design tokens exactly
-// (web/src/index.css's warm paper/ink palette) rather than an
-// independently-derived scheme -- ink is primary, paper/tan are the
-// light tints, amber is the one accent (used for focus rings), status
-// colors match console's --status-* one-for-one.
-:root {
-  --ink:                #1b1e24;
-  --paper:              #f6f3ec;
-  --warm-tan:           #efebe1;
-  --amber-accent:       #d97d3d;
-
-  --lm-primary:         #1b1e24;
-  --lm-primary-hover:   #2b2f36;
-  --lm-primary-light:   #efebe1;
-  --lm-primary-border:  #dedad0;
-  --lm-primary-text:    #1b1e24;
-
-  --lm-text:            #1b1e24;
-  --lm-text-secondary:  #4a4e56;
-  --lm-text-muted:      #6b6f76;
-  --lm-text-subtle:     #9599a0;
-
-  --lm-border:          #dedad0;
-  --lm-border-light:    #efebe1;
-  --lm-bg:              #f6f3ec;
-  --lm-bg-subtle:       #efebe1;
-  --lm-surface:         #ffffff;
-
-  --lm-danger:          #c1503b;
-  --lm-danger-bg:       #f3ddd6;
-  --lm-danger-border:   #e6c0b5;
-  --lm-warn:            #d97d3d;
-  --lm-warn-bg:         #f3e2d0;
-  --lm-warn-border:     #e8caa2;
-  --lm-success:         #3f8f6c;
-  --lm-success-bg:      #dcebe3;
-  --lm-success-border:  #b9d7c8;
-}
-
-// ============================================================
 // Variables
 // ============================================================
-$white:        #ffffff;
-$white-bis:    #fafafa;
-$white-ter:    #f5f5f5;
-$grey-lightest:#f3f3f3;
-$grey-lighter: #dbdbdb;
-$grey-light:   #b5b5b5;
-$grey:         #7a7a7a;
-$grey-dark:    #4a4a4a;
-$black:        #363636;
+// Neutrals follow the --ln-* tokens so legacy rules pick up dark mode.
+// $primary/$green/$red stay literal: Sass colour functions need them.
+$white:        var(--ln-card);
+$white-bis:    var(--ln-bg);
+$white-ter:    var(--ln-muted);
+$grey-lightest:var(--ln-border-soft);
+$grey-lighter: var(--ln-border);
+$grey-light:   var(--ln-text-4);
+$grey:         var(--ln-text-3);
+$grey-dark:    var(--ln-text-2);
+$black:        var(--ln-text);
 $primary:      #1b1e24;
 $green:        #3f8f6c;
 $red:          #c1503b;
-$body-family:  "DM Sans", "Inter", "Helvetica Neue", sans-serif;
-$body-size:    15px;
+$body-family:  var(--ln-font);
+$body-size:    14px;
 
 // Box placeholder — used with @extend %box throughout
 %box {
-  background: $white;
-  box-shadow: 2px 2px 0 $grey-lightest;
-  border: 1px solid #e6e6e6;
-}
-
-// ============================================================
-// Fonts
-// ============================================================
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  src: local(''), url('assets/fonts/Inter-Regular.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  src: local(''), url('assets/fonts/Inter-Bold.woff2') format('woff2');
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-card);
 }
 
 // ============================================================
@@ -95,8 +39,9 @@ html, body {
   padding: 0;
   font-family: $body-family;
   font-size: $body-size;
-  color: $black;
-  background: $white-bis;
+  line-height: 20px;
+  color: var(--ln-text);
+  background: var(--ln-bg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -104,7 +49,7 @@ a { color: $primary; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 code {
-  font-family: monospace;
+  font-family: var(--ln-mono);
   font-size: 0.9em;
   color: $grey;
   padding: 2px 4px;
@@ -1751,33 +1696,6 @@ th.role-toggle-select a { font-weight: normal; }
   color: var(--lm-text);
   body { color: var(--lm-text); background: var(--lm-bg); }
 
-  // Matches listnun-console's .dark tokens exactly.
-  --lm-primary:         #ece9e1;
-  --lm-primary-hover:   #f6f3ec;
-  --lm-primary-light:   #181b21;
-  --lm-primary-border:  #2b2f36;
-  --lm-primary-text:    #ece9e1;
-
-  --lm-text:            #ece9e1;
-  --lm-text-secondary:  #c7c3ba;
-  --lm-text-muted:      #9599a0;
-  --lm-text-subtle:     #6b6f76;
-
-  --lm-border:          #2b2f36;
-  --lm-border-light:    #181b21;
-  --lm-bg:              #14171c;
-  --lm-bg-subtle:       #181b21;
-  --lm-surface:         #1b1f26;
-
-  --lm-danger:          #c1503b;
-  --lm-danger-bg:       #3a2320;
-  --lm-danger-border:   #5c332c;
-  --lm-warn:            #d97d3d;
-  --lm-warn-bg:         #3a2c1e;
-  --lm-warn-border:     #5c4530;
-  --lm-success:         #3f8f6c;
-  --lm-success-bg:      #1d3128;
-  --lm-success-border:  #2d4a3c;
 
   // Layout
   .app-shell { background: var(--lm-bg); }
