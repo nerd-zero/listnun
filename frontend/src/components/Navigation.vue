@@ -74,10 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useGlobal } from '../composables/useGlobal';
+import { useNavOpen } from '../composables/useNavOpen';
 import { navGroups, type NavItem, type NavKid } from './navigation';
 import LnIcon from './ui/LnIcon.vue';
 
@@ -87,9 +88,7 @@ const { t } = useI18n();
 const route = useRoute();
 const { $can } = useGlobal();
 
-// Groups the user opened or closed by hand; otherwise a group is open
-// while one of its pages is current.
-const opened = reactive<Record<string, boolean>>({});
+const nav = useNavOpen();
 
 const groups = computed(() => navGroups(t, $can));
 
@@ -117,10 +116,10 @@ function isKidActive(k: NavKid): boolean {
 }
 
 function isOpen(item: NavItem): boolean {
-  return opened[item.key] ?? isItemActive(item);
+  return nav.isOpen(item.key, isItemActive(item));
 }
 
 function toggle(item: NavItem) {
-  opened[item.key] = !isOpen(item);
+  nav.setOpen(item.key, !isOpen(item));
 }
 </script>

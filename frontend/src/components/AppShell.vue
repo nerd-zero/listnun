@@ -1,59 +1,62 @@
 <template>
   <div class="ln-shell" :class="{ 'is-rail': showRail && !isMobile, 'is-mobile': isMobile }">
-    <!-- Full sidebar -->
-    <aside v-if="!isMobile && !showRail" class="ln-sidebar">
-      <router-link :to="{ name: 'dashboard' }" class="ln-brand">
-        <span class="ln-logo">
-          <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
-          <span class="ln-logo-word">listnun</span>
-        </span>
-        <span v-if="orgName" class="ln-brand-org" :title="orgName">{{ orgName }}</span>
-      </router-link>
+    <!-- Sidebar or rail. The wrapper animates its width between the two
+         and the contents cross-fade. -->
+    <div v-if="!isMobile" class="ln-side" :class="{ 'is-rail': showRail }">
+      <Transition name="ln-side-swap" mode="out-in">
+        <aside v-if="!showRail" key="sidebar" class="ln-sidebar">
+          <router-link :to="{ name: 'dashboard' }" class="ln-brand">
+            <span class="ln-logo">
+              <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
+              <span class="ln-logo-word">listnun</span>
+            </span>
+            <span v-if="orgName" class="ln-brand-org" :title="orgName">{{ orgName }}</span>
+          </router-link>
 
-      <navigation />
+          <navigation />
 
-      <div class="ln-sidebar-foot">
-        <a v-if="consoleUrl" :href="consoleUrl" class="ln-nav-item" target="_blank" rel="noopener noreferrer">
-          <ln-icon name="external" class="ln-nav-icon" />
-          <span class="ln-nav-text">{{ $t('menu.billing') }}</span>
-        </a>
-        <button type="button" class="ln-nav-item" @click="setRail(true)">
-          <ln-icon name="collapse" class="ln-nav-icon" />
-          <span class="ln-nav-text">{{ $t('menu.collapse') }}</span>
-        </button>
-      </div>
-    </aside>
-
-    <!-- 60px rail -->
-    <aside v-if="!isMobile && showRail" class="ln-rail">
-      <router-link :to="{ name: 'dashboard' }" class="ln-rail-brand" aria-label="listnun">
-        <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
-      </router-link>
-      <navigation rail />
-      <div class="ln-rail-foot">
-        <a
-          v-if="consoleUrl"
-          v-tooltip.right="$t('menu.billing')"
-          :href="consoleUrl"
-          class="ln-rail-item"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="$t('menu.billing')"
-        >
-          <ln-icon name="external" />
-        </a>
-        <button
-          v-if="!forcedRail"
-          v-tooltip.right="$t('menu.expand')"
-          type="button"
-          class="ln-rail-item"
-          :aria-label="$t('menu.expand')"
-          @click="setRail(false)"
-        >
-          <ln-icon name="expand" />
-        </button>
-      </div>
-    </aside>
+          <div class="ln-sidebar-foot">
+            <a v-if="consoleUrl" :href="consoleUrl" class="ln-nav-item" target="_blank" rel="noopener noreferrer">
+              <ln-icon name="external" class="ln-nav-icon" />
+              <span class="ln-nav-text">{{ $t('menu.billing') }}</span>
+            </a>
+            <button type="button" class="ln-nav-item" @click="setRail(true)">
+              <ln-icon name="collapse" class="ln-nav-icon" />
+              <span class="ln-nav-text">{{ $t('menu.collapse') }}</span>
+            </button>
+          </div>
+        </aside>
+        <aside v-else key="rail" class="ln-rail">
+          <router-link :to="{ name: 'dashboard' }" class="ln-rail-brand" aria-label="listnun">
+            <img src="@/assets/listnun-mark.png" alt="" class="ln-logo-mark" />
+          </router-link>
+          <navigation rail />
+          <div class="ln-rail-foot">
+            <a
+              v-if="consoleUrl"
+              v-tooltip.right="$t('menu.billing')"
+              :href="consoleUrl"
+              class="ln-rail-item"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-label="$t('menu.billing')"
+            >
+              <ln-icon name="external" />
+            </a>
+            <button
+              v-if="!forcedRail"
+              v-tooltip.right="$t('menu.expand')"
+              type="button"
+              class="ln-rail-item"
+              :aria-label="$t('menu.expand')"
+              @click="setRail(false)"
+            >
+              <ln-icon name="expand" />
+            </button>
+          </div>
+        </aside>
+      </Transition>
+    </div>
 
     <!-- Drawer under 992px -->
     <PvDrawer v-if="isMobile" v-model:visible="drawerOpen" position="left" class="ln-drawer" :show-close-icon="false">
