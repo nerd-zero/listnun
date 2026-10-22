@@ -64,8 +64,11 @@ type tplData struct {
 	// OrgName is the workspace's organization name, set on the admin
 	// sign-in pages under multi-tenancy.
 	OrgName string
-	Data    any
-	L       *i18n.I18n
+	// Langs and Lang drive the language picker on the sign-in pages.
+	Langs []i18nLang
+	Lang  string
+	Data  any
+	L     *i18n.I18n
 }
 
 type publicTpl struct {
@@ -148,6 +151,14 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		}
 	}
 
+	// The sign-in pages honour the visitor's picked language.
+	lang := app.i18n
+	var langs []i18nLang
+	if strings.HasPrefix(name, "admin-") {
+		langs = app.langList
+		lang = app.visitorI18n(c)
+	}
+
 	return t.templates.ExecuteTemplate(w, name, tplData{
 		SiteName:            t.SiteName,
 		RootURL:             rootURL,
@@ -159,7 +170,9 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		IndividualTracking:  t.IndividualTracking,
 		OrgName:             orgName,
 		Data:                data,
-		L:                   app.i18n,
+		L:                   lang,
+		Langs:               langs,
+		Lang:                lang.T("_.code"),
 	})
 }
 

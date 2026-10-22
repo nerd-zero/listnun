@@ -85,6 +85,7 @@ import router from './router';
 import * as api from './api';
 import Utils from './utils';
 import eventBus from './eventBus';
+import { pickedLang } from './pickedLang';
 
 const pinia = createPinia();
 
@@ -205,9 +206,18 @@ async function initConfig(instance: typeof app) {
     return;
   }
 
-  const lang = await api.getLang(cfg.lang as string);
-  (i18n.global.locale as unknown as { value: string }).value = cfg.lang as string;
-  i18n.global.setLocaleMessage(cfg.lang as string, lang as Record<string, unknown>);
+  // A language picked on the sign-in page wins over the workspace default;
+  // fall back to the default if that pack can't be loaded.
+  let langCode = pickedLang(document.cookie) || (cfg.lang as string);
+  let lang: unknown;
+  try {
+    lang = await api.getLang(langCode);
+  } catch {
+    langCode = cfg.lang as string;
+    lang = await api.getLang(langCode);
+  }
+  (i18n.global.locale as unknown as { value: string }).value = langCode;
+  i18n.global.setLocaleMessage(langCode, lang as Record<string, unknown>);
 
   const props = instance.config.globalProperties;
   props.$utils = new Utils(i18n.global as ConstructorParameters<typeof Utils>[0]);

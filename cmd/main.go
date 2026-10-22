@@ -58,10 +58,14 @@ type App struct {
 	bounce      *bounce.Manager
 	captcha     *captcha.Captcha
 	i18n        *i18n.I18n
-	pg          *paginator.Paginator
-	events      *events.Events
-	log         *log.Logger
-	bufLog      *buflog.BufLog
+	// langs serves the language a visitor picked on the sign-in pages;
+	// langList is what the picker offers.
+	langs    *i18n.Cache
+	langList []i18nLang
+	pg       *paginator.Paginator
+	events   *events.Events
+	log      *log.Logger
+	bufLog   *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
@@ -328,6 +332,7 @@ func main() {
 		about:         initAbout(queries, db),
 		chReload:      chReload,
 	}
+	app.langList, app.langs = initLangCache(fs)
 
 	// Prune the transactional message log.
 	go app.pruneTxLog()

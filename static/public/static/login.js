@@ -22,6 +22,16 @@
     return v.length < 8 ? Math.min(s, 1) : s;
   }
 
+  // Language picker: remember the choice for a year and reload. The admin
+  // app reads the same cookie (ln_lang).
+  document.querySelectorAll('[data-lang-picker]').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var maxAge = 60 * 60 * 24 * 365;
+      document.cookie = 'ln_lang=' + encodeURIComponent(sel.value) + '; path=/; max-age=' + maxAge + '; samesite=lax';
+      window.location.reload();
+    });
+  });
+
   document.querySelectorAll('[data-strength]').forEach(function (input) {
     var meter = document.getElementById(input.getAttribute('data-strength'));
     if (!meter) return;
