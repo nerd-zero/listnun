@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="items messengers">
+    <TransitionGroup name="ln-list" tag="div" class="items messengers">
       <div class="settings-card" v-for="(item, n) in data.messengers" :key="n">
         <div class="settings-card-header">
           <div class="flex items-center gap-2">
@@ -66,7 +66,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
 
     <PvButton @click="addMessenger" icon="pi pi-plus" severity="primary" :label="$t('globals.buttons.addNew')" />
   </div>

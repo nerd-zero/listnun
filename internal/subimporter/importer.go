@@ -34,7 +34,27 @@ import (
 const (
 	// commitBatchSize is the number of inserts to commit in a single SQL transaction.
 	commitBatchSize = 10000
+
+	// progressStep is how many rows go into the open transaction between
+	// updates to Status.Pending: often enough for a smooth progress bar,
+	// rarely enough that the status lock isn't taken for every row.
+	progressStep = 250
 )
+
+// firstBatchSizes are the sizes of an import's first transactions; every
+// batch after them is commitBatchSize. Small first batches commit (and
+// count as imported) within a second or two, so an import looks quick from
+// the start, while the large batches after keep big imports fast.
+var firstBatchSizes = []int{1000, 3000}
+
+// batchLimit returns how many rows the n-th transaction (from 0) of an
+// import commits.
+func batchLimit(n int) int {
+	if n < len(firstBatchSizes) {
+		return firstBatchSizes[n]
+	}
+	return commitBatchSize
+}
 
 // Various import statuses.
 const (
@@ -140,9 +160,20 @@ type Status struct {
 	// included -- aren't known until the /webhooks/scrub/batch callback
 	// resolves each submitted batch, well after this Status stops being
 	// polled. Kept for API/frontend type stability rather than removed.
-	Risky  int    `json:"risky"`
-	Status string `json:"status"`
-	logBuf *bytes.Buffer
+	Risky int `json:"risky"`
+	// Skipped is the number of CSV rows left out for being malformed or
+	// invalid (bad e-mail, wrong column count). Each one is in the log.
+	Skipped int `json:"skipped"`
+	// Failed is the number of valid rows the database rejected, i.e. the
+	// rows of a batch whose insert or commit failed.
+	Failed int `json:"failed"`
+	// Pending is the number of rows written in the open transaction but not
+	// yet committed (updated every progressStep rows). On commit they move
+	// to Imported, or to Failed if the commit fails. It lets progress move
+	// within a commitBatchSize batch, which a small file never leaves.
+	Pending int    `json:"pending"`
+	Status  string `json:"status"`
+	logBuf  *bytes.Buffer
 } // @name ImportStatus
 
 // SubReq is a wrapper over the Subscriber model.
@@ -153,7 +184,8 @@ type SubReq struct {
 	PreconfirmSubs bool     `json:"preconfirm_subscriptions"`
 } // @name CreateSubscriberReq
 
-type importStatusTpl struct {
+// ImportNotif is what the completion hook (Options.PostCB) receives.
+type ImportNotif struct {
 	Name     string
 	Status   string
 	Imported int
@@ -243,6 +275,9 @@ func (im *Importer) GetStats() Status {
 		Total:    im.status.Total,
 		Imported: im.status.Imported,
 		Risky:    im.status.Risky,
+		Skipped:  im.status.Skipped,
+		Failed:   im.status.Failed,
+		Pending:  im.status.Pending,
 	}
 }
 
@@ -288,11 +323,33 @@ func (im *Importer) incrementImportCount(n int) {
 	im.Unlock()
 }
 
+// setPending sets the Importer's "pending" counter: rows written in the
+// open transaction.
+func (im *Importer) setPending(n int) {
+	im.Lock()
+	im.status.Pending = n
+	im.Unlock()
+}
+
+// incrementSkipped adds n to the Importer's "skipped" counter.
+func (im *Importer) incrementSkipped(n int) {
+	im.Lock()
+	im.status.Skipped += n
+	im.Unlock()
+}
+
+// incrementFailed adds n to the Importer's "failed" counter.
+func (im *Importer) incrementFailed(n int) {
+	im.Lock()
+	im.status.Failed += n
+	im.Unlock()
+}
+
 // sendNotif sends admin notifications for import completions.
 func (im *Importer) sendNotif(status string) error {
 	var (
 		s   = im.GetStats()
-		out = importStatusTpl{
+		out = ImportNotif{
 			Name:     s.Name,
 			Status:   status,
 			Imported: s.Imported,
@@ -313,6 +370,8 @@ func (s *Session) Start() {
 		err   error
 		total = 0
 		cur   = 0
+		// batch counts transactions, for batchLimit.
+		batch = 0
 	)
 
 	listIDs := make([]int, len(s.opt.ListIDs))
@@ -350,22 +409,31 @@ func (s *Session) Start() {
 		if err != nil {
 			s.log.Printf("error executing insert: %v", err)
 			tx.Rollback()
+			// This row. The rest of the rolled-back batch (cur) is counted
+			// when its commit fails below, which also marks the import failed.
+			s.im.incrementFailed(1)
 			break
 		}
 		cur++
 		total++
+		if cur%progressStep == 0 {
+			s.im.setPending(cur)
+		}
 
 		// Batch size is met. Commit.
-		if cur%commitBatchSize == 0 {
+		if cur == batchLimit(batch) {
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
 				s.log.Printf("error committing to DB: %v", err)
+				s.im.incrementFailed(cur)
 			} else {
 				s.im.incrementImportCount(cur)
 				s.log.Printf("imported %d", total)
 			}
+			s.im.setPending(0)
 
 			cur = 0
+			batch++
 		}
 	}
 
@@ -383,6 +451,8 @@ func (s *Session) Start() {
 	// Queue's closed and there are records left to commit.
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
+		s.im.incrementFailed(cur)
+		s.im.setPending(0)
 		s.im.setStatus(StatusFailed)
 		s.log.Printf("error committing to DB: %v", err)
 		s.im.sendNotif(StatusFailed)
@@ -390,6 +460,7 @@ func (s *Session) Start() {
 	}
 
 	s.im.incrementImportCount(cur)
+	s.im.setPending(0)
 	s.im.setStatus(StatusFinished)
 	s.log.Printf("imported finished")
 	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr); err != nil {
@@ -508,6 +579,16 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		return err
 	}
 
+	// Count the rows first so progress has the real total from the start;
+	// the rows are only counted as they're read, which runs up to a batch
+	// ahead of the inserts, so the bar would otherwise sit near full and
+	// slip back as the total grew. Reading is cheap next to the inserts.
+	if n := countCSVRows(srcPath, delim); n >= 0 {
+		s.im.Lock()
+		s.im.status.Total = n
+		s.im.Unlock()
+	}
+
 	rd := csv.NewReader(f)
 	rd.Comma = delim
 	rd.ReuseRecord = true
@@ -560,6 +641,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		} else if err != nil {
 			if err, ok := err.(*csv.ParseError); ok && err.Err == csv.ErrFieldCount {
 				s.log.Printf("skipping line %d. %v", i, err)
+				s.im.incrementSkipped(1)
 				continue
 			} else {
 				s.log.Printf("error reading CSV '%s'", err)
@@ -569,6 +651,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 
 		if len(cols) < lnHdr {
 			s.log.Printf("skipping line %d. column count (%d) does not match minimum header count (%d)", i, len(cols), lnHdr)
+			s.im.incrementSkipped(1)
 			continue
 		}
 
@@ -583,6 +666,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		sub, err = s.im.ValidateFields(sub)
 		if err != nil {
 			s.log.Printf("skipping line %d: %v: %v", i, err, cols)
+			s.im.incrementSkipped(1)
 			continue
 		}
 
@@ -605,23 +689,51 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			window = window[:0]
 		}
 
-		if i%commitBatchSize == 0 {
-			s.im.Lock()
-			s.im.status.Total = i
-			s.im.Unlock()
-		}
 	}
 
 	s.flushWindow(window)
 
+	// The last pass of the loop read EOF, not a row. This is exact, and
+	// matches the up-front count unless the file failed to parse.
 	s.im.Lock()
-	s.im.status.Total = i
+	s.im.status.Total = i - 1
 	s.im.Unlock()
 
 	close(s.subQueue)
 	failed = false
 
 	return nil
+}
+
+// countCSVRows returns the number of data rows (not counting the header)
+// in the CSV at path, including rows with the wrong number of columns,
+// which LoadCSV counts and skips. It returns -1 if the file can't be read;
+// a file that fails to parse partway returns the rows up to that point,
+// since LoadCSV stops there too.
+func countCSVRows(path string, delim rune) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
+
+	rd := csv.NewReader(f)
+	rd.Comma = delim
+	rd.ReuseRecord = true
+	rd.FieldsPerRecord = -1
+
+	n := 0
+	for {
+		if _, err := rd.Read(); err != nil {
+			break
+		}
+		n++
+	}
+	// The first record is the header.
+	if n > 0 {
+		n--
+	}
+	return n
 }
 
 // windowRow pairs a syntactically-valid SubReq with its source line

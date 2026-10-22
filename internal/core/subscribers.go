@@ -593,19 +593,38 @@ func (c *Core) DeleteSubscribersByQuery(ctx context.Context, tenantID int, searc
 	return err
 }
 
-// UnsubscribeByCampaign unsubscribes a given subscriber from lists in a given campaign.
-func (c *Core) UnsubscribeByCampaign(ctx context.Context, tenantID int, subUUID, campUUID string, blocklist bool) error {
+// UnsubscribeByCampaign unsubscribes a given subscriber from lists in a given
+// campaign, or from every list when blocklist is set. It returns the IDs of
+// the lists it unsubscribed them from; lists already unsubscribed aren't in it.
+func (c *Core) UnsubscribeByCampaign(ctx context.Context, tenantID int, subUUID, campUUID string, blocklist bool) ([]int, error) {
+	out := []int{}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		_, err := stmtx(tx, c.q.UnsubscribeByCampaign).Exec(campUUID, subUUID, blocklist)
-		return err
+		return stmtx(tx, c.q.UnsubscribeByCampaign).Select(&out, campUUID, subUUID, blocklist)
 	})
 	if err != nil {
 		c.log.Printf("error unsubscribing: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError,
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
 	}
 
-	return nil
+	return out, nil
+}
+
+// ResubscribeByCampaign re-activates a subscriber's unsubscribed
+// subscriptions to a campaign's lists, undoing UnsubscribeByCampaign. It
+// returns the IDs of the lists it re-activated.
+func (c *Core) ResubscribeByCampaign(ctx context.Context, tenantID int, subUUID, campUUID string) ([]int, error) {
+	out := []int{}
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.ResubscribeByCampaign).Select(&out, campUUID, subUUID)
+	})
+	if err != nil {
+		c.log.Printf("error resubscribing: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
+	}
+
+	return out, nil
 }
 
 // ConfirmOptionSubscription confirms a subscriber's optin subscription.

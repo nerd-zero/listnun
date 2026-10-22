@@ -61,8 +61,14 @@ type tplData struct {
 	EnablePublicSubPage bool
 	EnablePublicArchive bool
 	IndividualTracking  bool
-	Data                any
-	L                   *i18n.I18n
+	// OrgName is the workspace's organization name, set on the admin
+	// sign-in pages under multi-tenancy.
+	OrgName string
+	// Langs and Lang drive the language picker on the sign-in pages.
+	Langs []i18nLang
+	Lang  string
+	Data  any
+	L     *i18n.I18n
 }
 
 type publicTpl struct {
@@ -82,6 +88,18 @@ type unsubTpl struct {
 	ShowManage       bool
 }
 
+// unsubbedTpl is the page shown after unsubscribing from a campaign's lists.
+type unsubbedTpl struct {
+	publicTpl
+	Email            string
+	Left             []string
+	Still            []string
+	CampUUID         string
+	SubUUID          string
+	AllowBlocklist   bool
+	AllowPreferences bool
+}
+
 type optinReq struct {
 	SubUUID   string
 	ListUUIDs []string      `query:"l" form:"l"`
@@ -99,15 +117,46 @@ type msgTpl struct {
 	Message      string
 }
 
+// captchaWidget is what a page needs to render the active captcha widget.
+type captchaWidget struct {
+	Enabled    bool
+	Provider   string
+	Key        string
+	Complexity int
+}
+
+// captchaWidget describes the configured captcha widget, in the same
+// provider order captcha.New picks (ALTCHA, Turnstile, hCaptcha).
+func (a *App) captchaWidget() captchaWidget {
+	cc := a.cfg.Security.Captcha
+	switch {
+	case cc.Altcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderAltcha, Complexity: cc.Altcha.Complexity}
+	case cc.Turnstile.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderTurnstile, Key: cc.Turnstile.Key}
+	case cc.HCaptcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderHCaptcha, Key: cc.HCaptcha.Key}
+	}
+	return captchaWidget{}
+}
+
+// verifyCaptcha checks the captcha response in a submitted form.
+func (a *App) verifyCaptcha(c echo.Context) bool {
+	val := c.FormValue(a.captcha.FormField())
+	if val == "" {
+		return false
+	}
+	err, ok := a.captcha.Verify(val)
+	if err != nil {
+		a.log.Printf("captcha request failed: %v", err)
+	}
+	return ok
+}
+
 type subFormTpl struct {
 	publicTpl
 	Lists   []models.List
-	Captcha struct {
-		Enabled    bool
-		Provider   string
-		Key        string
-		Complexity int
-	}
+	Captcha captchaWidget
 }
 
 var (
@@ -121,6 +170,26 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		rootURL = c.Scheme() + "://" + c.Request().Host
 	}
 
+	app := c.Get("app").(*App)
+
+	// The sign-in pages name the workspace being signed in to.
+	var orgName string
+	if t.MultiTenancyEnabled && strings.HasPrefix(name, "admin-") {
+		if tn, ok := c.Get(models.TenantCtxKey).(*models.Tenant); ok {
+			if n, err := app.core.GetTenantOrganizationName(tn.ID); err == nil {
+				orgName = n
+			}
+		}
+	}
+
+	// The sign-in pages honour the visitor's picked language.
+	lang := app.i18n
+	var langs []i18nLang
+	if strings.HasPrefix(name, "admin-") {
+		langs = app.langList
+		lang = app.visitorI18n(c)
+	}
+
 	return t.templates.ExecuteTemplate(w, name, tplData{
 		SiteName:            t.SiteName,
 		RootURL:             rootURL,
@@ -130,8 +199,11 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		EnablePublicSubPage: t.EnablePublicSubPage,
 		EnablePublicArchive: t.EnablePublicArchive,
 		IndividualTracking:  t.IndividualTracking,
+		OrgName:             orgName,
 		Data:                data,
-		L:                   c.Get("app").(*App).i18n,
+		L:                   lang,
+		Langs:               langs,
+		Lang:                lang.T("_.code"),
 	})
 }
 
@@ -264,6 +336,57 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	return c.Render(http.StatusOK, "subscription", out)
 }
 
+// renderUnsubscribed shows which lists the subscriber just left and which
+// they are still on, with a way to undo it. If the details can't be loaded
+// it falls back to the plain confirmation, since the unsubscribe succeeded.
+func (a *App) renderUnsubscribed(c echo.Context, subUUID, campUUID string, listIDs []int) error {
+	ctx := c.Request().Context()
+	sub, err := a.core.GetSubscriber(ctx, tenantID(c), 0, subUUID, "")
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+	subs, err := a.core.GetSubscriptions(ctx, tenantID(c), 0, subUUID, false)
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+
+	left, still := models.SplitUnsubscribed(subs, listIDs)
+	return c.Render(http.StatusOK, "unsubscribed", unsubbedTpl{
+		publicTpl:        publicTpl{Title: a.i18n.T("public.unsubbedTitle")},
+		Email:            sub.Email,
+		Left:             left,
+		Still:            still,
+		CampUUID:         campUUID,
+		SubUUID:          subUUID,
+		AllowBlocklist:   a.cfg.Privacy.AllowBlocklist,
+		AllowPreferences: a.cfg.Privacy.AllowPreferences,
+	})
+}
+
+// Resubscribe undoes an unsubscribe from a campaign's lists, for the
+// "Unsubscribed by mistake?" link on the page shown after unsubscribing.
+func (a *App) Resubscribe(c echo.Context) error {
+	var (
+		campUUID = c.Param("campUUID")
+		subUUID  = c.Param("subUUID")
+	)
+
+	listIDs, err := a.core.ResubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID)
+	if err != nil {
+		return c.Render(http.StatusInternalServerError, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+	}
+	if len(listIDs) == 0 {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.resubNothingTitle"), "", a.i18n.T("public.resubNothing")))
+	}
+
+	return c.Render(http.StatusOK, tplMessage,
+		makeMsgTpl(a.i18n.T("public.resubTitle"), "", a.i18n.T("public.resubInfo")))
+}
+
 // SubscriptionPrefs renders the subscription management page and
 // s unsubscriptions. This is the view that {{ UnsubscribeURL }} in
 // campaigns link to.
@@ -287,9 +410,14 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 		blocklist = a.cfg.Privacy.AllowBlocklist && req.Blocklist
 	)
 	if !req.Manage || blocklist {
-		if err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist); err != nil {
+		listIDs, err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist)
+		if err != nil {
 			return c.Render(http.StatusInternalServerError, tplMessage,
 				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+		}
+
+		if !blocklist {
+			return a.renderUnsubscribed(c, subUUID, campUUID, listIDs)
 		}
 
 		return c.Render(http.StatusOK, tplMessage,
@@ -460,15 +588,7 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 	out.Lists = lists
 
 	// Captcha configuration for template rendering.
-	if a.cfg.Security.Captcha.Altcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "altcha"
-		out.Captcha.Complexity = a.cfg.Security.Captcha.Altcha.Complexity
-	} else if a.cfg.Security.Captcha.HCaptcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "hcaptcha"
-		out.Captcha.Key = a.cfg.Security.Captcha.HCaptcha.Key
-	}
+	out.Captcha = a.captchaWidget()
 
 	return c.Render(http.StatusOK, "subscription-form", out)
 }
@@ -487,34 +607,9 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 	}
 
 	// Process CAPTCHA.
-	if a.captcha.IsEnabled() {
-		var val string
-
-		// Get the appropriate captcha response field based on provider.
-		switch a.captcha.GetProvider() {
-		case captcha.ProviderHCaptcha:
-			val = c.FormValue("h-captcha-response")
-		case captcha.ProviderAltcha:
-			val = c.FormValue("altcha")
-		default:
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		if val == "" {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		err, ok := a.captcha.Verify(val)
-		if err != nil {
-			a.log.Printf("captcha request failed: %v", err)
-		}
-
-		if !ok {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
+	if a.captcha.IsEnabled() && !a.verifyCaptcha(c) {
+		return c.Render(http.StatusBadRequest, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
 	}
 
 	hasOptin, err := a.processSubForm(c)

@@ -1,5 +1,94 @@
 basePath: /
 definitions:
+  APIKey:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  APIKeyRequest:
+    properties:
+      name:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  APIKeyWithSecret:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret:
+        type: string
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   About:
     properties:
       build:
@@ -36,6 +125,19 @@ definitions:
         type: integer
       num_cpu:
         type: integer
+    type: object
+  ActivityEntry:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      level:
+        type: string
+      message:
+        type: string
+      source:
+        type: string
     type: object
   AppUpdate:
     properties:
@@ -98,6 +200,54 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  BounceTypeCounts:
+    properties:
+      complaint:
+        type: integer
+      hard:
+        type: integer
+      soft:
+        type: integer
+      total:
+        type: integer
+    type: object
+  BrandLogo:
+    properties:
+      content_type:
+        type: string
+      filename:
+        type: string
+      height:
+        type: integer
+      media_id:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+      url:
+        type: string
+      width:
+        type: integer
+    type: object
+  Branding:
+    properties:
+      align:
+        type: string
+      link_url:
+        type: string
+      logo:
+        $ref: '#/definitions/BrandLogo'
+      logo_dark:
+        allOf:
+        - $ref: '#/definitions/BrandLogo'
+        description: |-
+          LogoDark is used by email clients in dark mode. Without it, Logo sits
+          on a white tile there.
+      width:
+        description: Width is the logo's display width in px.
+        type: integer
     type: object
   Campaign:
     properties:
@@ -181,6 +331,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -197,6 +349,38 @@ definitions:
       count:
         type: integer
       timestamp:
+        type: string
+    type: object
+  CampaignTracking:
+    properties:
+      links:
+        description: Links tracks every web link in the email, as if each had @TrackLink.
+        type: boolean
+      pixels:
+        description: |-
+          Pixels are third-party tracking image URLs added to the end of the
+          email (analytics or ad platforms that count opens with an image).
+        items:
+          type: string
+        type: array
+    type: object
+  CleanupRun:
+    properties:
+      action:
+        type: string
+      done:
+        type: integer
+      error:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: integer
+      matched:
+        type: integer
+      mode:
+        type: string
+      started_at:
         type: string
     type: object
   CreateCampaignReq:
@@ -285,6 +469,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -332,6 +518,60 @@ definitions:
       uuid:
         type: string
     type: object
+  DashboardDay:
+    properties:
+      bounced:
+        type: integer
+      date:
+        type: string
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      new_subscribers:
+        type: integer
+    type: object
+  DashboardHotspot:
+    properties:
+      hard:
+        type: integer
+      list_id:
+        type: integer
+      list_name:
+        type: string
+    type: object
+  DashboardOverview:
+    properties:
+      as_of:
+        type: string
+      bounce_hotspot:
+        $ref: '#/definitions/DashboardHotspot'
+      bounce_rate:
+        type: number
+      bounced:
+        type: integer
+      campaigns_started:
+        type: integer
+      days:
+        items:
+          $ref: '#/definitions/DashboardDay'
+        type: array
+      new:
+        type: integer
+      queued:
+        type: integer
+      running:
+        type: integer
+      sent:
+        description: Filled in Go from Days.
+        type: integer
+      stale_drafts:
+        type: integer
+      subscribers:
+        type: integer
+      unsubscribed:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -341,10 +581,22 @@ definitions:
     type: object
   ImportStatus:
     properties:
+      failed:
+        description: |-
+          Failed is the number of valid rows the database rejected, i.e. the
+          rows of a batch whose insert or commit failed.
+        type: integer
       imported:
         type: integer
       name:
         type: string
+      pending:
+        description: |-
+          Pending is the number of rows written in the open transaction but not
+          yet committed (updated every progressStep rows). On commit they move
+          to Imported, or to Failed if the commit fails. It lets progress move
+          within a commitBatchSize batch, which a small file never leaves.
+        type: integer
       risky:
         description: |-
           Risky always reads 0 during the import itself: Scrub validation is
@@ -352,6 +604,11 @@ definitions:
           included -- aren't known until the /webhooks/scrub/batch callback
           resolves each submitted batch, well after this Status stops being
           polled. Kept for API/frontend type stability rather than removed.
+        type: integer
+      skipped:
+        description: |-
+          Skipped is the number of CSV rows left out for being malformed or
+          invalid (bad e-mail, wrong column count). Each one is in the log.
         type: integer
       status:
         type: string
@@ -433,6 +690,19 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  MediaUsage:
+    properties:
+      bytes:
+        description: Bytes is the total size of the files whose size is known.
+        type: integer
+      files:
+        type: integer
+      unknown:
+        description: |-
+          Unknown files aren't in Bytes: uploaded before sizes were recorded
+          and not measured yet, or their size couldn't be read.
+        type: integer
     type: object
   OperatorBounceWebhooks:
     properties:
@@ -675,6 +945,59 @@ definitions:
       total:
         type: integer
     type: object
+  ProfileUpdate:
+    properties:
+      avatar:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      current_password:
+        type: string
+      email:
+        $ref: '#/definitions/null.String'
+      id:
+        type: integer
+      list_role:
+        $ref: '#/definitions/ListRolePermissions'
+      list_role_id:
+        type: integer
+      loggedin_at:
+        type: string
+      name:
+        type: string
+      password:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: For API users, this is the plaintext API token.
+      password_login:
+        type: boolean
+      status:
+        type: string
+      tenant_id:
+        type: integer
+      twofa_type:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_role:
+        description: Non-DB fields filled post-retrieval.
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          permissions:
+            items:
+              type: string
+            type: array
+        type: object
+      user_role_id:
+        type: integer
+      username:
+        type: string
+    type: object
   Role:
     properties:
       created_at:
@@ -698,6 +1021,8 @@ definitions:
     type: object
   ServerConfig:
     properties:
+      console_url:
+        type: string
       from_email:
         type: string
       has_legacy_user:
@@ -891,6 +1216,18 @@ definitions:
         type: boolean
       bounce.webhooks_enabled:
         type: boolean
+      branding:
+        allOf:
+        - $ref: '#/definitions/Branding'
+        description: |-
+          Branding is the workspace logo shown in transactional emails through
+          the brand-logo template block (Developers > Email branding).
+      inactive_cleanup:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Settings'
+        description: |-
+          InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive
+          cleanup); see internal/cleanup.
       maintenance.db:
         properties:
           vacuum:
@@ -992,6 +1329,18 @@ definitions:
               secret:
                 type: string
             type: object
+          login:
+            description: Login also asks for the captcha on the admin sign-in page.
+            type: boolean
+          turnstile:
+            properties:
+              enabled:
+                type: boolean
+              key:
+                type: string
+              secret:
+                type: string
+            type: object
         type: object
       security.oidc:
         properties:
@@ -1012,6 +1361,11 @@ definitions:
           provider_url:
             type: string
         type: object
+      security.require_2fa:
+        description: |-
+          SecurityRequire2FA holds password users at their profile until they
+          set up two-step verification (see auth.NeedsTwofaSetup).
+        type: boolean
       security.trusted_urls:
         items:
           type: string
@@ -1071,6 +1425,9 @@ definitions:
         type: string
       upload.filesystem.upload_uri:
         type: string
+      upload.max_file_size:
+        description: UploadMaxFileSize is the largest upload in KB; 0 means no limit.
+        type: integer
       upload.provider:
         type: string
       upload.s3.aws_access_key_id:
@@ -1189,24 +1546,203 @@ definitions:
     type: object
   Template:
     properties:
+      alt_body:
+        type: string
       body:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
       created_at:
         type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
       id:
         type: integer
       is_default:
         type: boolean
       name:
         type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
       subject:
         description: Subject is only for type=tx.
         type: string
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  TxLogEvent:
+    properties:
+      created_at:
+        type: string
+      detail:
+        type: string
+      type:
+        type: string
+    type: object
+  TxLogMessage:
+    properties:
+      api_key_id:
+        $ref: '#/definitions/null.Int'
+      body:
+        type: string
+      bounce_type:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      error:
+        type: string
+      events:
+        items:
+          $ref: '#/definitions/TxLogEvent'
+        type: array
+      id:
+        type: string
+      messenger:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      recipient:
+        type: string
+      sender:
+        type: string
+      source_ip:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      subscriber_id:
+        $ref: '#/definitions/null.Int'
+      subscriber_status:
+        type: string
+      template_id:
+        $ref: '#/definitions/null.Int'
+      template_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  TxLogPage:
+    properties:
+      counts:
+        additionalProperties:
+          type: integer
+        type: object
+      page:
+        type: integer
+      per_page:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/TxLogMessage'
+        type: array
+      total:
+        type: integer
+    type: object
+  TxPreview:
+    properties:
+      from:
+        type: string
+      html:
+        type: string
+      subject:
+        type: string
+      text:
+        type: string
+    type: object
+  TxPreviewRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      data:
+        additionalProperties: {}
+        description: Arbitrary sample data, as a caller would send in `data`.
+        type: object
+      subject:
+        type: string
+    type: object
+  TxStats:
+    properties:
+      bounced:
+        type: integer
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      sent:
+        type: integer
+      sent_prev:
+        type: integer
+      top_error:
+        type: string
+    type: object
+  TxTemplate:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      body_source:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      id:
+        type: integer
+      is_default:
+        type: boolean
+      name:
+        type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
+      subject:
+        description: Subject is only for type=tx.
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      used_this_week:
+        type: integer
+    type: object
+  TxTemplateRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      name:
+        type: string
+      sample_data:
+        type: object
+      subject:
         type: string
     type: object
   UpdateCampaignContentReq:
@@ -1295,6 +1831,8 @@ definitions:
         type: string
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -1355,6 +1893,126 @@ definitions:
       username:
         type: string
     type: object
+  WebhookAttempt:
+    properties:
+      attempt:
+        type: integer
+      created_at:
+        type: string
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      response:
+        type: string
+      status_code:
+        $ref: '#/definitions/null.Int'
+    type: object
+  WebhookDelivery:
+    properties:
+      attempts:
+        type: integer
+      created_at:
+        type: string
+      endpoint_id:
+        type: integer
+      endpoint_url:
+        type: string
+      event:
+        type: string
+      history:
+        items:
+          $ref: '#/definitions/WebhookAttempt'
+        type: array
+      id:
+        type: string
+      last_duration_ms:
+        $ref: '#/definitions/null.Int'
+      last_status_code:
+        $ref: '#/definitions/null.Int'
+      message_id:
+        type: string
+      next_attempt_at:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  WebhookEndpoint:
+    properties:
+      created_at:
+        type: string
+      done_24h:
+        description: Last 24 hours.
+        type: integer
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      median_ms:
+        type: integer
+      ok_24h:
+        type: integer
+      retrying:
+        type: integer
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookEndpointRequest:
+    properties:
+      events:
+        items:
+          type: string
+        type: array
+      status:
+        description: Status is "active" or "disabled"; empty keeps an endpoint active.
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookSecret:
+    properties:
+      secret:
+        type: string
+    type: object
+  WebhookTest:
+    properties:
+      delivery_id:
+        type: string
+    type: object
+  cmd.cleanupStatus:
+    properties:
+      last_run:
+        $ref: '#/definitions/CleanupRun'
+      managed:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+        description: Managed are Listnun's rules, shown read-only in managed mode.
+      matching:
+        description: Matching is how many subscribers the saved rules would act on
+          now.
+        type: integer
+      next_run:
+        type: string
+      tracking:
+        description: |-
+          Tracking is false when per-subscriber tracking is off, which stops
+          the cleanup from running.
+        type: boolean
+    type: object
   cmd.okResp:
     properties:
       data: {}
@@ -1370,6 +2028,48 @@ definitions:
   echo.HTTPError:
     properties:
       message: {}
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Rules:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Settings:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      enabled:
+        type: boolean
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
     type: object
   github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign:
     properties:
@@ -1485,6 +2185,14 @@ paths:
         in: query
         name: source
         type: string
+      - description: Filter by bounce type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Search subscriber e-mail or campaign name
+        in: query
+        name: query
+        type: string
       - description: Field to order results by
         in: query
         name: order_by
@@ -1579,6 +2287,36 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Blocklist all bounced subscribers
+      tags:
+      - bounces
+  /api/bounces/counts:
+    get:
+      operationId: getBounceCounts
+      parameters:
+      - description: Filter by campaign ID
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Filter by bounce source
+        in: query
+        name: source
+        type: string
+      - description: Search subscriber e-mail or campaign name
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BounceTypeCounts'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count bounces per type
       tags:
       - bounces
   /api/campaigns:
@@ -2008,7 +2746,7 @@ paths:
     get:
       operationId: getCampaignAnalytics
       parameters:
-      - description: Analytics type (views, clicks, bounces, links)
+      - description: Analytics type (views, clicks, bounces, links, bounce_types)
         in: path
         name: type
         required: true
@@ -2124,6 +2862,677 @@ paths:
       summary: Get dashboard counts
       tags:
       - dashboard
+  /api/dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      parameters:
+      - description: 7, 30 or 90 (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DashboardOverview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the dashboard overview
+      tags:
+      - dashboard
+  /api/developers/branding:
+    get:
+      operationId: getBranding
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+      summary: Get email branding
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateBranding
+      parameters:
+      - description: Branding
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Branding'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save email branding
+      tags:
+      - developers
+  /api/developers/keys:
+    get:
+      operationId: listAPIKeys
+      parameters:
+      - description: Filter by name
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/APIKey'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List API keys
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createAPIKey
+      parameters:
+      - description: Key name and scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}:
+    delete:
+      operationId: deleteAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete an API key
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update an API key's scopes
+      tags:
+      - developers
+  /api/developers/keys/{id}/revoke:
+    post:
+      operationId: revokeAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Revoke an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}/rotate:
+    post:
+      operationId: rotateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate an API key
+      tags:
+      - developers
+  /api/developers/messages:
+    get:
+      operationId: listTxMessages
+      parameters:
+      - description: Recipient or message ID
+        in: query
+        name: query
+        type: string
+      - description: queued, sent, delivered, bounced or failed
+        in: query
+        name: status
+        type: string
+      - description: Template ID
+        in: query
+        name: template_id
+        type: integer
+      - description: API key ID
+        in: query
+        name: api_key_id
+        type: integer
+      - description: From (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: To (RFC 3339)
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List transactional messages
+      tags:
+      - developers
+  /api/developers/messages/{uuid}:
+    get:
+      operationId: getTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogMessage'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a transactional message
+      tags:
+      - developers
+  /api/developers/messages/{uuid}/resend:
+    post:
+      operationId: resendTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a transactional message
+      tags:
+      - developers
+  /api/developers/stats:
+    get:
+      operationId: getTxStats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxStats'
+      summary: Transactional email stats, last 24 hours
+      tags:
+      - developers
+  /api/developers/templates:
+    get:
+      operationId: listTxTemplates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/TxTemplate'
+            type: array
+      summary: List transactional templates
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createTxTemplate
+      parameters:
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a transactional template
+      tags:
+      - developers
+  /api/developers/templates/{id}:
+    put:
+      consumes:
+      - application/json
+      operationId: updateTxTemplate
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a transactional template
+      tags:
+      - developers
+  /api/developers/templates/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewTxTemplate
+      parameters:
+      - description: Template and sample data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxPreview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview a transactional template
+      tags:
+      - developers
+  /api/developers/webhooks:
+    get:
+      operationId: listWebhookEndpoints
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/WebhookEndpoint'
+            type: array
+      summary: List webhook endpoints
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createWebhookEndpoint
+      parameters:
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Add a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}:
+    delete:
+      operationId: deleteWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete a webhook endpoint
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/secret:
+    get:
+      operationId: getWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Reveal a webhook signing secret
+      tags:
+      - developers
+    post:
+      operationId: rotateWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate a webhook signing secret
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/test:
+    post:
+      operationId: sendWebhookTest
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookTest'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test event
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      parameters:
+      - description: Endpoint ID
+        in: query
+        name: endpoint_id
+        type: integer
+      - description: pending, success, retrying or failed
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PageResults'
+      summary: List webhook deliveries
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}:
+    get:
+      operationId: getWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookDelivery'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a webhook delivery
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}/retry:
+    post:
+      operationId: retryWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a webhook delivery
+      tags:
+      - developers
   /api/health:
     get:
       operationId: healthCheck
@@ -2748,6 +4157,23 @@ paths:
       summary: Get a media item
       tags:
       - media
+  /api/media/usage:
+    get:
+      operationId: getMediaUsage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get media storage usage
+      tags:
+      - media
   /api/operator/organizations:
     get:
       description: Fork-only, off by default (see [operator] config). Requires the
@@ -3282,6 +4708,37 @@ paths:
       summary: Update a tenant's status (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/storage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantStorage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's media storage usage (Operator API)
+      tags:
+      - operator
   /api/operator/tenants/{id}/usage:
     get:
       description: Fork-only, off by default (see [operator] config). Requires the
@@ -3383,12 +4840,12 @@ paths:
       - application/json
       operationId: updateUserProfile
       parameters:
-      - description: Profile fields
+      - description: Profile fields; current_password is required with a new password
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/User'
+          $ref: '#/definitions/ProfileUpdate'
       produces:
       - application/json
       responses:
@@ -3398,6 +4855,10 @@ paths:
             $ref: '#/definitions/User'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update current user profile
@@ -3644,6 +5105,73 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update a single setting by key
+      tags:
+      - settings
+  /api/settings/inactive-cleanup:
+    get:
+      operationId: getInactiveCleanupStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.cleanupStatus'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get inactive cleanup status
+      tags:
+      - settings
+  /api/settings/inactive-cleanup/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewInactiveCleanup
+      parameters:
+      - description: Rules to preview
+        in: body
+        name: rules
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview inactive cleanup rules
+      tags:
+      - settings
+  /api/settings/logs:
+    get:
+      operationId: getActivityLog
+      parameters:
+      - description: Lines to return (max 500)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ActivityEntry'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the workspace's activity log
       tags:
       - settings
   /api/settings/scrub/test:

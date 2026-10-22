@@ -1,20 +1,27 @@
 <template>
   <div>
-    <div class="smtp-list">
+    <TransitionGroup name="ln-list" tag="div" class="smtp-list">
       <div class="smtp-card" v-for="(item, n) in form.smtp" :key="n">
         <!-- Card header -->
         <div class="smtp-card-header">
           <div class="flex items-center gap-2">
-            <PvToggleSwitch v-model="item.enabled" name="enabled" data-cy="btn-enable-smtp" />
+            <PvToggleSwitch v-model="item.enabled" name="enabled" data-cy="btn-enable-smtp" :aria-label="$t('globals.buttons.enabled')" />
             <span class="smtp-card-title">{{ item.name || `SMTP #${Number(n) + 1}` }}</span>
+            <span v-if="item.host" class="smtp-card-host">{{ item.host }}:{{ item.port }}</span>
+            <span v-if="!item.enabled" class="smtp-card-off">{{ $t('settings.smtp.off') }}</span>
           </div>
-          <a v-if="form.smtp.length > 1" href="#" class="delete-link"
-            @click.prevent="$utils.confirm(null, () => removeSMTP(Number(n)))" data-cy="btn-delete-smtp">
-            <i class="pi pi-trash" /> {{ $t('globals.buttons.delete') }}
-          </a>
+          <div class="flex items-center gap-2">
+            <a v-if="form.smtp.length > 1" href="#" class="delete-link"
+              @click.prevent="$utils.confirm(null, () => removeSMTP(Number(n)))" data-cy="btn-delete-smtp">
+              <i class="pi pi-trash" /> {{ $t('globals.buttons.delete') }}
+            </a>
+            <button type="button" class="smtp-card-toggle" :aria-expanded="isOpen(Number(n))" @click="toggle(Number(n))">
+              {{ isOpen(Number(n)) ? $t('settings.smtp.collapse') : $t('settings.smtp.expand') }}
+            </button>
+          </div>
         </div>
 
-        <div :class="{ disabled: !item.enabled }">
+        <div v-show="isOpen(Number(n))" :class="{ disabled: !item.enabled }">
           <!-- Host / Port -->
           <div class="smtp-section">
             <div class="grid">
@@ -217,7 +224,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
 
     <PvButton @click="addSMTP" icon="pi pi-plus" severity="primary" :label="$t('globals.buttons.addNew')" />
   </div>
@@ -269,6 +276,15 @@ const { t } = useI18n();
 const { settings } = storeToRefs(useMainStore());
 
 const data = props.form;
+
+// Server cards fold to their header; the first starts open.
+const collapsed = ref<Record<number, boolean>>({});
+function isOpen(n: number): boolean {
+  return collapsed.value[n] === undefined ? n === 0 : !collapsed.value[n];
+}
+function toggle(n: number) {
+  collapsed.value = { ...collapsed.value, [n]: isOpen(n) };
+}
 const smtpTestItem = ref<number | null>(null);
 const testEmail = ref('');
 const errMsg = ref('');
@@ -358,8 +374,8 @@ function fillSettings(n: number | string, key: string) {
 .smtp-list { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.25rem; }
 
 .smtp-card {
-  background: var(--lm-surface);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -369,22 +385,25 @@ function fillSettings(n: number | string, key: string) {
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1.25rem;
-  background: var(--lm-bg-subtle);
-  border-bottom: 1px solid var(--lm-border);
+  background: var(--ln-muted);
+  border-bottom: 1px solid var(--ln-border);
 }
 
-.smtp-card-title { font-weight: 600; font-size: 0.95rem; color: var(--lm-text); }
+.smtp-card-title { font-weight: 600; font-size: 0.95rem; color: var(--ln-text); }
+.smtp-card-host { font-family: var(--ln-mono); font-size: 12px; color: var(--ln-text-3); }
+.smtp-card-off { font-size: 12px; color: var(--ln-text-3); }
+.smtp-card-toggle { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; color: var(--ln-text); cursor: pointer; padding: 4px 8px; border-radius: 6px; &:hover { background: var(--ln-hover); } }
 
 .smtp-section {
   padding: 1rem 1.25rem;
-  & + & { border-top: 1px solid var(--lm-border); }
-  &--test { background: var(--lm-bg-subtle); }
+  & + & { border-top: 1px solid var(--ln-border); }
+  &--test { background: var(--ln-muted); }
 }
 
 .smtp-section-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--lm-text-muted);
+  color: var(--ln-text-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.75rem;

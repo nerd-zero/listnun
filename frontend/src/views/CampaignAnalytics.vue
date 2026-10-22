@@ -1,72 +1,154 @@
 <template>
-  <div class="analytics-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ $t('analytics.title') }}</h1>
-    </div>
+  <div class="ln-page ana">
+    <page-header :title="$t('analytics.title')" :subtitle="$t('analytics.subtitle', { n: MAX_CAMPAIGNS })">
+      <PvButton
+        :label="$t('analytics.exportCsv')"
+        severity="secondary"
+        outlined
+        :disabled="!hasData"
+        @click="exportCsv"
+      />
+    </page-header>
 
-    <div v-if="serverConfig.privacy.disable_tracking || !serverConfig.privacy.individual_tracking"
-      class="analytics-notice">
-      <i class="pi pi-info-circle" />
-      <span v-if="serverConfig.privacy.disable_tracking">{{ $t('analytics.trackingDisabled') }}</span>
-      <span v-else-if="!serverConfig.privacy.individual_tracking">{{ $t('analytics.nonIndividualTracking') }}</span>
-    </div>
+    <PvMessage v-if="privacy.disable_tracking" severity="warn" icon="pi pi-exclamation-triangle">{{ $t('analytics.trackingDisabled') }}</PvMessage>
+    <PvMessage v-else-if="!privacy.individual_tracking" severity="info" icon="pi pi-info-circle">{{ $t('analytics.nonIndividualTracking') }}</PvMessage>
 
-    <div class="table-card">
-      <div class="analytics-filters">
-        <form class="filter-form" @submit.prevent="onSubmit">
-          <div class="filter-field">
-            <label class="filter-label">{{ $t('globals.terms.campaigns') }}</label>
-            <PvAutoComplete v-model="form.campaigns" :suggestions="queriedCampaigns" name="campaigns"
-              :placeholder="$t('globals.terms.campaigns')" multiple option-label="name"
-              :loading="isSearchLoading" @complete="(e) => queryCampaigns(e.query)"
-              @focus="queryCampaigns('')" class="w-full" />
-          </div>
-          <div class="filter-field">
-            <label class="filter-label">{{ $t('analytics.fromDate') }}</label>
-            <PvDatePicker v-model="form.from" show-time hour-format="24"
-              :date-format="'yy-mm-dd'" @date-select="onFromDateChange" @update:model-value="onFromDateChange" />
-          </div>
-          <div class="filter-field">
-            <label class="filter-label">{{ $t('analytics.toDate') }}</label>
-            <PvDatePicker v-model="form.to" show-time hour-format="24"
-              :date-format="'yy-mm-dd'" @date-select="onToDateChange" @update:model-value="onToDateChange" />
-          </div>
-          <div class="filter-action">
-            <PvButton type="submit" severity="primary" icon="pi pi-search" :disabled="form.campaigns.length === 0"
-              data-cy="btn-search" />
-          </div>
-        </form>
+    <section class="ln-card ana-filters">
+      <PvAutoComplete
+        v-model="form.campaigns"
+        :suggestions="queriedCampaigns"
+        multiple
+        option-label="name"
+        :placeholder="form.campaigns.length ? '' : $t('analytics.addCampaign')"
+        :loading="isSearchLoading"
+        class="ana-camps"
+        :aria-label="$t('globals.terms.campaigns')"
+        @complete="(e) => queryCampaigns(e.query)"
+        @focus="queryCampaigns('')"
+        @update:model-value="onCampaigns"
+      >
+        <template #chip="{ value, removeCallback }">
+          <span class="ana-chip">
+            <span class="ana-chip-dot" :style="{ background: colorFor(value.id) }" />
+            {{ value.name }}
+            <button type="button" class="ana-chip-x" :aria-label="$t('globals.buttons.delete')" @click="removeCallback">
+              <i class="pi pi-times" />
+            </button>
+          </span>
+        </template>
+      </PvAutoComplete>
+      <PvDatePicker
+        v-model="range"
+        selection-mode="range"
+        :manual-input="false"
+        show-icon
+        icon-display="input"
+        date-format="d M yy"
+        :max-date="new Date()"
+        class="ana-range"
+        :aria-label="$t('analytics.range')"
+        @update:model-value="onRange"
+      />
+    </section>
+
+    <empty-state
+      v-if="!form.campaigns.length"
+      icon="pi-chart-line"
+      :title="$t('analytics.emptyTitle')"
+      :text="$t('analytics.emptyText')"
+    />
+
+    <template v-else>
+      <!-- Metric cards double as the chart's metric picker -->
+      <div class="ana-metrics" role="radiogroup" :aria-label="$t('analytics.metric')">
+        <button
+          v-for="m in metricCards"
+          :key="m.key"
+          type="button"
+          role="radio"
+          class="ln-tile ana-metric"
+          :class="{ 'is-on': metric === m.key }"
+          :aria-checked="metric === m.key"
+          :disabled="m.key === 'links'"
+          @click="metric = m.key as Metric"
+        >
+          <span class="ln-tile-label">{{ m.label }}</span>
+          <span class="ln-tile-value">
+            <PvSkeleton v-if="loadingAny" width="80px" height="28px" />
+            <template v-else>{{ m.value.toLocaleString() }}</template>
+          </span>
+          <span class="ln-small">{{ m.sub }}</span>
+        </button>
       </div>
 
-      <div v-if="hasChartData" class="charts-section">
-        <div v-for="(v, k) in charts" :key="k" class="chart-block">
-          <div class="chart-block-header">
-            <span class="chart-block-title">{{ v.name }}</span>
-            <span v-if="v.type !== 'bar' && v.data" class="chart-block-count">({{ $utils.niceNumber(counts[k]) }})</span>
-          </div>
-          <div v-if="v.loading" class="chart-spinner">
-            <PvProgressSpinner style="width:2rem;height:2rem" />
-          </div>
-          <div v-else-if="v.data" class="chart-block-body" :class="{ 'chart-block-body--bar': v.type === 'bar' }">
-            <div class="chart-main">
-              <chart :type="v.type" :data="v.data" :on-click="v.onClick" />
-            </div>
-            <div v-if="v.type !== 'bar'" class="chart-donut">
-              <chart type="donut" :data="v.donutData" />
-            </div>
-          </div>
-          <div v-else class="chart-empty">
-            <span class="chart-empty-text">{{ $t('globals.messages.emptyState') }}</span>
-          </div>
+      <section class="ln-card ana-chart">
+        <div class="ana-chart-head">
+          <h2 class="ln-card-title">{{ $t('analytics.perDay', { metric: metricLabel }) }}</h2>
+          <ul class="ana-legend">
+            <li v-for="c in form.campaigns" :key="c.id"><span :style="{ background: colorFor(c.id) }" />{{ c.name }}</li>
+          </ul>
         </div>
+        <PvSkeleton v-if="data[metric].loading" height="240px" />
+        <ln-chart
+          v-else-if="chartSeries.some((s) => s.data.some((v) => v > 0))"
+          type="line"
+          :labels="chartLabels"
+          :series="chartSeries"
+          height="240px"
+          :label="metricLabel"
+        />
+        <div v-else class="ana-chart-empty ln-small">{{ $t('analytics.noData') }}</div>
+      </section>
+
+      <div class="ana-lower">
+        <section class="ln-card ana-links">
+          <div class="ln-card-head"><h2 class="ln-card-title">{{ $t('analytics.topLinks') }}</h2></div>
+          <table-skeleton v-if="data.links.loading" :rows="5" :cols="2" :two-line="false" />
+          <p v-else-if="!links.length" class="ln-small ana-pad">{{ $t('analytics.noClicks') }}</p>
+          <ul v-else class="ana-link-rows ln-enter">
+            <li v-for="l in links" :key="l.url">
+              <a :href="l.url" target="_blank" rel="noopener noreferrer" class="ln-mono ana-link-url" :title="l.url">{{ shortUrl(l.url) }}</a>
+              <span class="ana-link-bar"><span :style="{ width: `${(l.count / links[0].count) * 100}%` }" /></span>
+              <span class="ana-link-n">{{ l.count.toLocaleString() }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="ln-card ln-card-pad ana-bounces">
+          <h2 class="ln-card-title">{{ $t('globals.terms.bounces') }}</h2>
+          <div v-if="bounceTypes.total" class="ana-btypes">
+            <div class="ana-bounce-bar" aria-hidden="true">
+              <span v-for="b in bounceTypes.rows" :key="b.type" :class="`is-${b.type}`" :style="{ width: `${b.share}%` }" />
+            </div>
+            <ul class="ana-bounce-rows">
+              <li v-for="b in bounceTypes.rows" :key="b.type">
+                <span><span class="ana-chip-dot" :class="`is-${b.type}`" />{{ $t(`bounces.${b.type}`) }}</span>
+                <strong>{{ b.count.toLocaleString() }}</strong>
+              </li>
+            </ul>
+          </div>
+          <h3 v-if="form.campaigns.length > 1" class="ln-field-label">{{ $t('analytics.byCampaign') }}</h3>
+          <div v-if="form.campaigns.length > 1" class="ana-bounce-bar" aria-hidden="true">
+            <span v-for="c in bounceByCampaign" :key="c.id" :style="{ width: `${c.share}%`, background: colorFor(c.id) }" />
+          </div>
+          <ul v-if="form.campaigns.length > 1" class="ana-bounce-rows">
+            <li v-for="c in bounceByCampaign" :key="c.id">
+              <span><span class="ana-chip-dot" :style="{ background: colorFor(c.id) }" />{{ c.name }}</span>
+              <strong>{{ c.count.toLocaleString() }}</strong>
+            </li>
+          </ul>
+          <router-link v-if="$can('bounces:get')" :to="{ name: 'bounces', query: { campaign_id: form.campaigns[0]?.id } }" class="ana-review">
+            {{ $t('analytics.reviewBounces') }} →
+          </router-link>
+        </section>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, nextTick, onMounted,
+  computed, onMounted, reactive, ref,
 } from 'vue';
 import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
@@ -74,190 +156,358 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import { colors } from '../constants';
-import Chart from '../components/Chart.vue';
+import { useTime } from '../composables/useTime';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import TableSkeleton from '../components/ui/TableSkeleton.vue';
+import LnChart, { type ChartSeries } from '../components/ui/LnChart.vue';
 import { getCampaigns as campaignsApi } from '../api/generated/endpoints/campaigns/campaigns';
+
+// Campaigns and analytics rows are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Metric = 'views' | 'clicks' | 'bounces';
+
+interface Point { campaignId: number; count: number; timestamp: string }
+
+// Comparing more than this many campaigns makes the chart unreadable.
+const MAX_CAMPAIGNS = 5;
+// Series colours, in campaign order (tokens board series order).
+const SERIES: ChartSeries['tone'][] = ['success', 'warn', 'danger', 'neutral', 'ink'];
 
 const { $utils } = useGlobal();
 const { listCampaigns, getCampaign, getCampaignAnalytics } = campaignsApi();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const { shortDate } = useTime();
 const { serverConfig } = storeToRefs(useMainStore());
 
-const chartColorRed = '#ee7d5b';
-const chartColors = [colors.primary, '#FFB50D', '#41AC9C', chartColorRed, '#7FC7BC', '#3a82d6', '#688ED9', '#FFC43D'];
-
+const privacy = computed(() => (serverConfig.value as Loose).privacy || {});
 const isSearchLoading = ref(false);
-const queriedCampaigns = ref<any[]>([]);
-const urls = ref<string[]>([]);
-const counts = reactive({
-  views: 0, clicks: 0, bounces: 0, links: 0,
+const queriedCampaigns = ref<Loose[]>([]);
+const form = reactive({ campaigns: [] as Loose[] });
+const range = ref<Date[] | null>(null);
+const metric = ref<Metric>('views');
+
+// Bounce types in display order, worst first.
+const BOUNCE_TYPES = ['hard', 'soft', 'complaint'] as const;
+
+const data = reactive<Record<Metric | 'links' | 'bounce_types', { loading: boolean; rows: Loose[] }>>({
+  views: { loading: false, rows: [] },
+  clicks: { loading: false, rows: [] },
+  bounces: { loading: false, rows: [] },
+  links: { loading: false, rows: [] },
+  bounce_types: { loading: false, rows: [] },
 });
-const form = reactive({ campaigns: [] as any[], from: null as any, to: null as any });
 
-function formatDateTime(s: any) { return dayjs(s).format('YYYY-MM-DD HH:mm'); }
+const loadingAny = computed(() => Object.values(data).some((d) => d.loading));
+const hasData = computed(() => form.campaigns.length > 0 && !loadingAny.value);
+const metricLabel = computed(() => t(metric.value === 'bounces' ? 'globals.terms.bounces' : `campaigns.${metric.value}`));
 
-function onLinkClick(e: any) {
-  const bars = e.chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-  if (bars.length > 0) window.open(urls.value[bars[0].index], '_blank', 'noopener noreferrer');
+function colorFor(id: number): string {
+  const i = form.campaigns.findIndex((c) => c.id === id);
+  const tone = SERIES[(i < 0 ? 0 : i) % SERIES.length];
+  return `var(--ln-${tone === 'ink' ? 'ink' : tone})`;
 }
 
-function makeLinksChart(_typ: string, _camps: any[], data: any[]) {
-  const labels = data.map((l) => {
-    try {
-      urls.value.push(l.url);
-      const u = new URL(l.url);
-      return l.url.length > 80 ? `${u.hostname}${u.pathname.substr(0, 50)}..` : u.hostname + u.pathname;
-    } catch { return l.url; }
-  });
-  return { points: { labels, datasets: [{ data: data.map((l) => l.count), backgroundColor: chartColors }] }, donut: null };
+function total(rows: Loose[], id?: number): number {
+  return rows.reduce((n, r) => (id === undefined || r.campaignId === id ? n + (r.count || 0) : n), 0);
 }
 
-function makeCharts(_typ: string, campaigns: any[], data: any[]) {
-  const camps = campaigns.reduce((obj: any, c: any) => ({ ...obj, [c.id]: c }), {});
-  const campIDs = Object.keys(camps);
-  const lines = campIDs.map((id, n) => {
-    const cId = parseInt(id, 10);
-    const points = data.filter((item) => item.campaignId === cId);
+// rates describes a total as a share of each campaign's sends.
+function rates(rows: Loose[]): string {
+  return form.campaigns
+    .map((c) => (c.sent ? `${((total(rows, c.id) / c.sent) * 100).toFixed(1)}%` : '—'))
+    .join(t('analytics.and'));
+}
+
+const links = computed(() => data.links.rows.slice(0, 10) as { url: string; count: number }[]);
+
+const metricCards = computed(() => [
+  {
+    key: 'views', label: t('campaigns.views'), value: total(data.views.rows), sub: rates(data.views.rows),
+  },
+  {
+    key: 'clicks', label: t('campaigns.clicks'), value: total(data.clicks.rows), sub: rates(data.clicks.rows),
+  },
+  {
+    key: 'bounces', label: t('globals.terms.bounces'), value: total(data.bounces.rows), sub: t('analytics.ofSends', { rate: rates(data.bounces.rows) }),
+  },
+  {
+    key: 'links', label: t('analytics.links'), value: data.links.rows.length, sub: t('analytics.clickedOnce'),
+  },
+]);
+
+// Ranges under a week come back hourly, longer ones daily.
+const hourly = computed(() => {
+  const [a, b] = range.value || [];
+  return !!a && !!b && dayjs(b).diff(dayjs(a), 'day') < 7;
+});
+
+const buckets = computed(() => {
+  const [a, b] = range.value || [];
+  if (!a || !b) return [] as dayjs.Dayjs[];
+  const unit = hourly.value ? 'hour' : 'day';
+  const out: dayjs.Dayjs[] = [];
+  let cur = dayjs(a).startOf(unit);
+  const end = dayjs(b).endOf(unit);
+  while (cur.isBefore(end) && out.length < 2000) {
+    out.push(cur);
+    cur = cur.add(1, unit);
+  }
+  return out;
+});
+
+const chartLabels = computed(() => buckets.value.map((d) => (hourly.value ? d.format('D MMM HH:mm') : shortDate(d.toDate()))));
+
+const chartSeries = computed<ChartSeries[]>(() => {
+  const unit = hourly.value ? 'hour' : 'day';
+  const rows = data[metric.value].rows as Point[];
+  return form.campaigns.map((c, i) => {
+    const byBucket = new Map<number, number>();
+    rows.filter((r) => r.campaignId === c.id).forEach((r) => {
+      const k = dayjs(r.timestamp).startOf(unit).valueOf();
+      byBucket.set(k, (byBucket.get(k) || 0) + r.count);
+    });
     return {
-      label: camps[id].name,
-      data: points.map((item: any) => ({ x: formatDateTime(item.timestamp), y: item.count })),
-      borderColor: chartColors[n % chartColors.length],
-      borderWidth: 2,
-      pointHoverBorderWidth: 5,
-      pointBorderWidth: 0.5,
+      label: c.name,
+      tone: SERIES[i % SERIES.length],
+      data: buckets.value.map((d) => byBucket.get(d.valueOf()) || 0),
     };
   });
-  const labels: string[] = [];
-  const points = campIDs.map((id) => {
-    labels.push(camps[id].name);
-    const cId = parseInt(id, 10);
-    return data.reduce((a: number, item: any) => (item.campaignId === cId ? a + item.count : a), 0);
-  });
-  return { points: { datasets: lines }, donut: { labels, datasets: [{ data: points, backgroundColor: chartColors, borderWidth: 6 }] } };
-}
-
-const charts = reactive<Record<string, any>>({
-  views: {
-    name: '', type: 'line', data: null, loading: false, chartFnName: 'makeCharts',
-  },
-  clicks: {
-    name: '', type: 'line', data: null, loading: false, chartFnName: 'makeCharts',
-  },
-  bounces: {
-    name: '', type: 'line', data: null, loading: false, donutColor: chartColorRed, chartFnName: 'makeCharts',
-  },
-  links: {
-    name: '', type: 'bar', data: null, loading: false, chartFnName: 'makeLinksChart', onClick: onLinkClick,
-  },
 });
 
-const hasChartData = computed(() => Object.values(charts).some((c) => c.data !== null || c.loading));
+const bounceByCampaign = computed(() => {
+  const all = total(data.bounces.rows) || 1;
+  return form.campaigns.map((c) => {
+    const count = total(data.bounces.rows, c.id);
+    return {
+      id: c.id, name: c.name, count, share: (count / all) * 100,
+    };
+  });
+});
 
-function getData(typ: string, camps: any[]) {
-  charts[typ].loading = true;
-  getCampaignAnalytics(typ, {
-    id: camps.map((c: any) => c.id),
-    from: dayjs(form.from).format('YYYY-MM-DD'),
-    to: dayjs(form.to).format('YYYY-MM-DD'),
-  }).then((data: any) => {
-    (counts as any)[typ] = data.reduce((sum: number, d: any) => sum + d.count, 0);
-    const chartFn = charts[typ].chartFnName === 'makeCharts' ? makeCharts : makeLinksChart;
-    const { points, donut } = chartFn(typ, camps, data);
-    charts[typ].data = points;
-    charts[typ].donutData = donut;
-    charts[typ].loading = false;
+const bounceTypes = computed(() => {
+  const all = total(data.bounce_types.rows);
+  return {
+    total: all,
+    rows: BOUNCE_TYPES.map((type) => {
+      const count = data.bounce_types.rows.filter((r) => r.type === type).reduce((n, r) => n + (r.count || 0), 0);
+      return { type, count, share: all ? (count / all) * 100 : 0 };
+    }).filter((b) => b.count > 0),
+  };
+});
+
+function shortUrl(u: string): string {
+  try {
+    const url = new URL(u);
+    return `${url.hostname}${url.pathname}`.replace(/\/$/, '');
+  } catch {
+    return u;
+  }
+}
+
+function fetchAll() {
+  const [from, to] = range.value || [];
+  if (!form.campaigns.length || !from || !to) return;
+  (['views', 'clicks', 'bounces', 'links', 'bounce_types'] as const).forEach((typ) => {
+    data[typ].loading = true;
+    getCampaignAnalytics(typ, {
+      id: form.campaigns.map((c) => c.id),
+      from: dayjs(from).format('YYYY-MM-DD'),
+      to: dayjs(to).format('YYYY-MM-DD'),
+    } as never).then((rows) => {
+      data[typ].rows = (rows as unknown as Loose[]) || [];
+    }).finally(() => { data[typ].loading = false; });
   });
 }
 
-function onFromDateChange() {
-  if (form.from > form.to) form.to = dayjs(form.from).add(7, 'day').toDate();
+function syncQuery() {
+  const [from, to] = range.value || [];
+  router.replace({
+    query: {
+      id: form.campaigns.map((c) => String(c.id)),
+      ...(from ? { from: String(dayjs(from).unix()) } : {}),
+      ...(to ? { to: String(dayjs(to).unix()) } : {}),
+    },
+  });
 }
 
-function onToDateChange() {
-  if (form.from > form.to) form.from = dayjs(form.to).add(-7, 'day').toDate();
+function onCampaigns(v: Loose[]) {
+  if (v.length > MAX_CAMPAIGNS) {
+    form.campaigns = v.slice(0, MAX_CAMPAIGNS);
+    $utils.toast(t('analytics.maxCampaigns', { n: MAX_CAMPAIGNS }), 'is-danger');
+  }
+  syncQuery();
+  fetchAll();
+}
+
+function onRange(v: Date[] | null) {
+  if (!v || !v[0] || !v[1]) return;
+  syncQuery();
+  fetchAll();
 }
 
 function queryCampaigns(q: string) {
   isSearchLoading.value = true;
-  listCampaigns({ query: q, order_by: 'created_at', order: 'DESC' }).then((data: any) => {
-    isSearchLoading.value = false;
-    queriedCampaigns.value = data.results.map((c: any) => ({ ...c, name: `#${c.id}: ${c.name}` }));
-  });
+  listCampaigns({
+    query: q, order_by: 'created_at', order: 'DESC', no_body: true,
+  } as never).then((page) => {
+    const chosen = new Set(form.campaigns.map((c) => c.id));
+    queriedCampaigns.value = ((page as unknown as Loose).results || []).filter((c: Loose) => !chosen.has(c.id));
+  }).finally(() => { isSearchLoading.value = false; });
 }
 
-function onSubmit() {
-  router.push({ query: { id: form.campaigns.map((c: any) => c.id), from: dayjs(form.from).unix(), to: dayjs(form.to).unix() } });
+// exportCsv downloads the selected campaigns' daily (or hourly) numbers.
+function exportCsv() {
+  const header = ['campaign_id', 'campaign', 'metric', 'timestamp', 'count'];
+  const lines = [header.join(',')];
+  const name = (id: number) => (form.campaigns.find((c) => c.id === id)?.name || '').replace(/"/g, '""');
+  (['views', 'clicks', 'bounces'] as const).forEach((m) => {
+    (data[m].rows as Point[]).forEach((r) => {
+      lines.push([r.campaignId, `"${name(r.campaignId)}"`, m, r.timestamp, r.count].join(','));
+    });
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `campaign-analytics-${dayjs().format('YYYY-MM-DD')}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 onMounted(() => {
-  charts.views.name = t('campaigns.views');
-  charts.clicks.name = t('campaigns.clicks');
-  charts.bounces.name = t('globals.terms.bounces');
-  charts.links.name = t('analytics.links');
+  const now = dayjs().endOf('day');
+  const from = route.query.from ? dayjs.unix(Number(route.query.from)) : now.subtract(10, 'day').startOf('day');
+  const to = route.query.to ? dayjs.unix(Number(route.query.to)) : now;
+  range.value = [from.toDate(), to.toDate()];
 
-  const now = dayjs().set('hour', 23).set('minute', 59).set('seconds', 0);
-  const weekAgo = now.subtract(7, 'day').set('hour', 0).set('minute', 0);
-  form.from = (route.query.from ? dayjs.unix(Number(route.query.from)) : weekAgo).toDate();
-  form.to = (route.query.to ? dayjs.unix(Number(route.query.to)) : now).toDate();
-
-  const ids = $utils.parseQueryIDs(route.query.id);
-  if (ids.length > 0) {
-    isSearchLoading.value = true;
-    Promise.allSettled(ids.map((id: number) => getCampaign(id))).then((data: any[]) => {
-      data.forEach((d) => {
-        if (d.status !== 'fulfilled') return;
-        const camp = d.value;
-        camp.name = `#${camp.id}: ${camp.name}`;
-        form.campaigns.push(camp);
-      });
-      nextTick(() => {
-        isSearchLoading.value = false;
-        Object.keys(charts).forEach((k) => {
-          charts[k].data = null;
-          charts[k].donutData = null;
-          getData(k, form.campaigns);
-        });
-      });
-    });
-  }
+  const ids = $utils.parseQueryIDs(route.query.id) as number[];
+  if (!ids.length) return;
+  isSearchLoading.value = true;
+  Promise.allSettled(ids.slice(0, MAX_CAMPAIGNS).map((id) => getCampaign(id))).then((res) => {
+    res.forEach((r) => { if (r.status === 'fulfilled') form.campaigns.push(r.value as unknown as Loose); });
+    isSearchLoading.value = false;
+    fetchAll();
+  });
 });
 </script>
 
 <style scoped lang="scss">
-.analytics-page { display: flex; flex-direction: column; gap: 1.5rem; }
+.ana-filters {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  flex-wrap: wrap;
 
-.analytics-notice {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.75rem 1rem; background: var(--lm-primary-light); border: 1px solid var(--lm-primary-border);
-  border-radius: 8px; font-size: 0.875rem; color: var(--lm-primary);
-  i { font-size: 1rem; }
+  .ana-camps { flex: 1 1 400px; :deep(.p-autocomplete-input-multiple) { width: 100%; border-color: var(--ln-border); } }
+  .ana-range { width: 260px; }
 }
-
-.analytics-filters { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--lm-bg-subtle); }
-.filter-form { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
-.filter-field { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 180px; }
-.filter-label { font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-.filter-action { padding-bottom: 0; align-self: flex-end; }
-
-.charts-section { display: flex; flex-direction: column; }
-.chart-block { padding: 1.25rem 1.5rem; & + & { border-top: 1px solid var(--lm-border); } }
-.chart-block-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-.chart-block-title { font-size: 0.95rem; font-weight: 600; color: var(--lm-text); }
-.chart-block-count { font-size: 0.85rem; color: var(--lm-text-subtle); }
-
-.chart-block-body {
-  display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 1.5rem;
+.ana-chip {
+  display: inline-flex;
   align-items: center;
-  &--bar { grid-template-columns: 1fr; }
+  gap: 6px;
+  padding: 2px 6px 2px 8px;
+  border-radius: 4px;
+  background: var(--ln-muted);
+  font-size: 13px;
+  .app-dark & { background: var(--ln-hover); }
 }
-.chart-main { height: 220px; position: relative; }
-.chart-donut { height: 200px; position: relative; }
+.ana-chip-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex: none; }
+.ana-chip-x { border: 0; background: none; padding: 0 2px; color: var(--ln-text-2); cursor: pointer; i { font-size: 10px; } }
 
-.chart-spinner { display: flex; justify-content: center; padding: 3rem; }
-.chart-empty { display: flex; justify-content: center; padding: 2rem; }
-.chart-empty-text { font-size: 0.875rem; color: var(--lm-text-subtle); }
+.ana-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ana-metric {
+  text-align: left;
+  font: inherit;
+  color: var(--ln-text);
+  cursor: pointer;
+
+  &:disabled { cursor: default; opacity: 1; }
+  &.is-on { border-color: var(--ln-ink); box-shadow: 0 0 0 1px var(--ln-ink); }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
+}
+.ana-chart { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ana-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ana-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--ln-text-2);
+
+  li { display: inline-flex; align-items: center; gap: 6px; }
+  span { width: 12px; height: 2px; border-radius: 2px; }
+}
+.ana-chart-empty { height: 240px; display: flex; align-items: center; justify-content: center; }
+
+.ana-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+
+  @media (max-width: 1100px) { grid-template-columns: minmax(0, 1fr); }
+}
+.ana-links { overflow: hidden; }
+.ana-pad { padding: 16px 18px; margin: 0; }
+.ana-link-rows { list-style: none; margin: 0; padding: 0; }
+.ana-link-rows li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 64px;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 18px;
+  border-top: 1px solid var(--ln-border);
+
+  &:first-child { border-top: 0; }
+}
+.ana-link-url { font-size: 12px; color: var(--ln-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; &:hover { text-decoration: underline; } }
+.ana-link-bar {
+  height: 4px;
+  border-radius: 99px;
+  background: var(--ln-muted);
+  overflow: hidden;
+
+  span { display: block; height: 100%; background: var(--ln-success); }
+}
+.ana-link-n { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+.ana-bounces { display: flex; flex-direction: column; gap: 12px; }
+.ana-bounce-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--ln-muted);
+}
+.ana-bounce-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+
+  li { display: flex; justify-content: space-between; gap: 8px; }
+  span { display: inline-flex; align-items: center; gap: 8px; }
+}
+.ana-review { font-size: 13px; color: var(--ln-text); text-decoration: underline; }
+.ana-btypes { display: flex; flex-direction: column; gap: 12px; }
+// Hard bounces and complaints need action; soft ones usually clear up.
+.ana-bounce-bar span, .ana-chip-dot {
+  &.is-hard { background: var(--ln-danger); }
+  &.is-soft { background: var(--ln-warn); }
+  &.is-complaint { background: var(--ln-series-5); }
+}
+.ana-bounces h3 { margin: 4px 0 -4px; }
 </style>

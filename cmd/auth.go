@@ -43,6 +43,8 @@ type loginTpl struct {
 	OIDCProvider     string
 	OIDCProviderLogo string
 	Error            string
+	// Captcha is set when the sign-in form asks for one.
+	Captcha captchaWidget
 }
 
 type oidcState struct {
@@ -153,7 +155,7 @@ func (a *App) TwofaPage(c echo.Context) error {
 
 	userID, ok := data.(int)
 	if !ok {
-		return a.renderTwofaPage(c, token, next, a.i18n.T("users.invalidRequest"))
+		return a.renderTwofaPage(c, token, next, a.visitorI18n(c).T("users.invalidRequest"))
 	}
 
 	// Process the 2FA verification POST request.
@@ -186,7 +188,7 @@ func (a *App) OIDCLogin(c echo.Context) error {
 	// Verify that the request came from the login page (CSRF).
 	nonce, err := c.Cookie("nonce")
 	if err != nil || nonce.Value == "" || nonce.Value != c.FormValue("nonce") {
-		return echo.NewHTTPError(http.StatusUnauthorized, a.i18n.T("users.invalidRequest"))
+		return echo.NewHTTPError(http.StatusUnauthorized, a.visitorI18n(c).T("users.invalidRequest"))
 	}
 
 	// Sanitize the URL and make it relative.
@@ -201,7 +203,7 @@ func (a *App) OIDCLogin(c echo.Context) error {
 	b, err := json.Marshal(state)
 	if err != nil {
 		a.log.Printf("error marshalling OIDC state: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 
 	// Redirect to the external OIDC provider.
@@ -213,7 +215,7 @@ func (a *App) OIDCFinish(c echo.Context) error {
 	// Verify that the request actually originated from the login request (which sets the nonce value).
 	nonce, err := c.Cookie("nonce")
 	if err != nil || nonce.Value == "" {
-		return a.renderLoginPage(c, echo.NewHTTPError(http.StatusUnauthorized, a.i18n.T("users.invalidRequest")))
+		return a.renderLoginPage(c, echo.NewHTTPError(http.StatusUnauthorized, a.visitorI18n(c).T("users.invalidRequest")))
 	}
 
 	// Validate the OIDC token.
@@ -227,20 +229,20 @@ func (a *App) OIDCFinish(c echo.Context) error {
 	stateB, err := base64.URLEncoding.DecodeString(c.QueryParam("state"))
 	if err != nil {
 		a.log.Printf("error decoding OIDC state: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 	if err := json.Unmarshal(stateB, &state); err != nil {
 		a.log.Printf("error unmarshalling OIDC state: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 	if state.Nonce != nonce.Value {
-		return a.renderLoginPage(c, echo.NewHTTPError(http.StatusUnauthorized, a.i18n.T("users.invalidRequest")))
+		return a.renderLoginPage(c, echo.NewHTTPError(http.StatusUnauthorized, a.visitorI18n(c).T("users.invalidRequest")))
 	}
 
 	// Validate e-mail from the claim.
 	email := strings.TrimSpace(claims.Email)
 	if email == "" {
-		return a.renderLoginPage(c, errors.New(a.i18n.Ts("globals.messages.invalidFields", "name", "email")))
+		return a.renderLoginPage(c, errors.New(a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "email")))
 	}
 	em, err := mail.ParseAddress(email)
 	if err != nil {
@@ -288,7 +290,7 @@ func (a *App) ForgotPage(c echo.Context) error {
 	}
 
 	// Render the forgot page.
-	out := forgotPasswordTpl{Title: a.i18n.T("users.forgotPassword")}
+	out := forgotPasswordTpl{Title: a.visitorI18n(c).T("users.forgotPassword")}
 	return c.Render(http.StatusOK, "admin-forgot-password", out)
 }
 
@@ -302,18 +304,18 @@ func (a *App) ResetPage(c echo.Context) error {
 	// Validate token and email (don't delete it yet, as we may need it for POST).
 	data, err := tmptokens.Check(email)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	tk, ok := data.(string)
 	if !ok || tk != token {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	// Validate that the user exists.
 	_, err = a.core.GetUser(c.Request().Context(), tenantID(c), 0, "", email)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	// Process the reset password request form with the new passwords.
@@ -367,11 +369,14 @@ func (a *App) renderLoginPage(c echo.Context, loginErr error) error {
 	}
 
 	out := loginTpl{
-		Title:            a.i18n.T("users.login"),
+		Title:            a.visitorI18n(c).T("users.login"),
 		PasswordEnabled:  true,
 		OIDCProvider:     oidcProviderName,
 		OIDCProviderLogo: oidcLogo,
 		NextURI:          next,
+	}
+	if a.captcha.OnLogin() {
+		out.Captcha = a.captchaWidget()
 	}
 
 	// If there was an error in the previous state (POST reqest), set it to render in the template.
@@ -387,7 +392,7 @@ func (a *App) renderLoginPage(c echo.Context, loginErr error) error {
 	nonce, err := utils.GenerateRandomString(16)
 	if err != nil {
 		a.log.Printf("error generating OIDC nonce: %v", err)
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 	c.SetCookie(&http.Cookie{
 		Name:     "nonce",
@@ -410,7 +415,7 @@ func (a *App) renderLoginSetupPage(c echo.Context, loginErr error) error {
 	}
 
 	out := loginTpl{
-		Title:           a.i18n.T("users.login"),
+		Title:           a.visitorI18n(c).T("users.login"),
 		PasswordEnabled: true,
 		NextURI:         next,
 	}
@@ -475,10 +480,16 @@ func (a *App) doLogin(c echo.Context) error {
 	}()
 
 	if !strHasLen(username, 3, stdInputMaxLen) {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "username"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "username"))
 	}
 	if !strHasLen(password, 8, stdInputMaxLen) {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "password"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "password"))
+	}
+
+	// The captcha is checked before the password so it also slows down
+	// password guessing.
+	if a.captcha.OnLogin() && !a.verifyCaptcha(c) {
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).T("public.invalidCaptcha"))
 	}
 
 	// Log the user in by fetching and verifying credentials from the DB.
@@ -493,7 +504,7 @@ func (a *App) doLogin(c echo.Context) error {
 		token, err := generateRandomString(tmpAuthTokenLen)
 		if err != nil {
 			a.log.Printf("error generating 2FA token: %v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+			return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 		}
 
 		// Set the token.
@@ -521,16 +532,16 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 		password2 = strings.TrimSpace(c.FormValue("password2"))
 	)
 	if !utils.ValidateEmail(email) {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "email"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "email"))
 	}
 	if !strHasLen(username, 3, stdInputMaxLen) {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "username"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "username"))
 	}
 	if !strHasLen(password, 8, stdInputMaxLen) {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "password"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "password"))
 	}
 	if password != password2 {
-		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("users.passwordMismatch"))
+		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).T("users.passwordMismatch"))
 	}
 
 	// Create the default "Super Admin" with all permissions if it doesn't
@@ -610,7 +621,7 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 // renderResetPasswordPage renders the reset password page.
 func (a *App) renderResetPasswordPage(c echo.Context, token, email, errMsg string) error {
 	out := resetPasswordTpl{
-		Title: a.i18n.T("users.resetPassword"),
+		Title: a.visitorI18n(c).T("users.resetPassword"),
 		Token: token,
 		Email: email,
 		Error: errMsg,
@@ -626,25 +637,25 @@ func (a *App) doForgotPassword(c echo.Context) error {
 
 	// Validate email format.
 	if !utils.ValidateEmail(email) {
-		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.resetLinkSent")))
+		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.resetLinkSent")))
 	}
 
 	// Get the user by email.
 	user, err := a.core.GetUser(c.Request().Context(), tenantID(c), 0, "", email)
 	if err != nil {
-		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.resetLinkSent")))
+		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.resetLinkSent")))
 	}
 
 	// If the password login is disabled, do not proceed, but show success message to prevent email enumeration.
 	if !user.PasswordLogin {
-		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.resetLinkSent")))
+		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.resetLinkSent")))
 	}
 
 	// Generate a random token.
 	token, err := generateRandomString(tmpAuthTokenLen)
 	if err != nil {
 		a.log.Printf("error generating reset token: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 
 	// Store the reset token in tmptokens.
@@ -666,10 +677,10 @@ func (a *App) doForgotPassword(c echo.Context) error {
 	// Render the email template.
 	if err := notifs.Tpls.ExecuteTemplate(&msg, notifs.TplForgotPassword, data); err != nil {
 		a.log.Printf("error compiling notification template '%s': %v", notifs.TplForgotPassword, err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 
-	subject, body := notifs.GetTplSubject(a.i18n.T("email.forgotPassword.subject"), msg.Bytes())
+	subject, body := notifs.GetTplSubject(a.visitorI18n(c).T("email.forgotPassword.subject"), msg.Bytes())
 
 	// Send the email.
 	if err := a.emailMsgr.Push(models.Message{
@@ -682,7 +693,7 @@ func (a *App) doForgotPassword(c echo.Context) error {
 	}
 
 	// Show the success e-mail nonetheless to prevent e-mail enumeration.
-	return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.resetLinkSent")))
+	return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.resetLinkSent")))
 }
 
 // doResetPassword handles the reset password form submission.
@@ -694,38 +705,38 @@ func (a *App) doResetPassword(c echo.Context, token, email string) error {
 
 	// Validate password.
 	if !strHasLen(password, 8, stdInputMaxLen) {
-		return a.renderResetPasswordPage(c, token, email, a.i18n.Ts("globals.messages.invalidFields", "name", "password"))
+		return a.renderResetPasswordPage(c, token, email, a.visitorI18n(c).Ts("globals.messages.invalidFields", "name", "password"))
 	}
 	if password != password2 {
-		return a.renderResetPasswordPage(c, token, email, a.i18n.T("users.passwordMismatch"))
+		return a.renderResetPasswordPage(c, token, email, a.visitorI18n(c).T("users.passwordMismatch"))
 	}
 
 	// Validate and consume the token (this deletes it).
 	data, err := tmptokens.Get(email)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	tk, ok := data.(string)
 	if !ok || tk != token {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	// Get the user.
 	user, err := a.core.GetUser(c.Request().Context(), tenantID(c), 0, "", email)
 	if err != nil {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("users.invalidResetLink")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("users.invalidResetLink")))
 	}
 
 	// Password login is disabled for the user.
 	if !user.PasswordLogin {
-		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.i18n.T("users.resetPassword"), "", a.i18n.T("public.invalidFeature")))
+		return c.Render(http.StatusBadRequest, tplMessage, makeMsgTpl(a.visitorI18n(c).T("users.resetPassword"), "", a.visitorI18n(c).T("public.invalidFeature")))
 	}
 
 	user.Password = null.NewString(password, true)
 	if _, err := a.core.UpdateUserProfile(c.Request().Context(), tenantID(c), user.ID, user); err != nil {
 		a.log.Printf("error updating user password: %v", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("globals.messages.internalError"))
+		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
 	}
 
 	// Invalidate all existing sessions for the user after password reset.
@@ -745,7 +756,7 @@ func (a *App) doResetPassword(c echo.Context, token, email string) error {
 // renderTwofaPage renders the 2FA verification page.
 func (a *App) renderTwofaPage(c echo.Context, token, next, errMsg string) error {
 	out := twofaTpl{
-		Title:       a.i18n.T("users.twoFA"),
+		Title:       a.visitorI18n(c).T("users.twoFA"),
 		Description: "",
 		Token:       token,
 		NextURI:     next,
@@ -760,24 +771,24 @@ func (a *App) doTwofaVerify(c echo.Context, token string, userID int, next strin
 
 	// Validate.
 	if !strHasLen(totpCode, 6, 6) {
-		return a.renderTwofaPage(c, token, next, a.i18n.T("globals.messages.invalidValue"))
+		return a.renderTwofaPage(c, token, next, a.visitorI18n(c).T("globals.messages.invalidValue"))
 	}
 
 	// Get the user.
 	user, err := a.core.GetUser(c.Request().Context(), tenantID(c), userID, "", "")
 	if err != nil {
-		return a.renderTwofaPage(c, token, next, a.i18n.T("users.invalidRequest"))
+		return a.renderTwofaPage(c, token, next, a.visitorI18n(c).T("users.invalidRequest"))
 	}
 
 	// Verify that TOTP is actually enabled for the user.
 	if user.TwofaType != models.TwofaTypeTOTP {
-		return a.renderTwofaPage(c, token, next, a.i18n.T("users.twoFANotEnabled"))
+		return a.renderTwofaPage(c, token, next, a.visitorI18n(c).T("users.twoFANotEnabled"))
 	}
 
 	// Verify the TOTP code.
 	valid := totp.Validate(totpCode, user.TwofaKey.String)
 	if !valid {
-		return a.renderTwofaPage(c, token, next, a.i18n.T("globals.messages.invalidValue"))
+		return a.renderTwofaPage(c, token, next, a.visitorI18n(c).T("globals.messages.invalidValue"))
 	}
 
 	// Invalidate the token.

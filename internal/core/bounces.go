@@ -15,7 +15,7 @@ var bounceQuerySortFields = []string{"email", "campaign_name", "source", "create
 
 // QueryBounces retrieves paginated bounce entries based on the given params.
 // It also returns the total number of bounce records in the DB.
-func (c *Core) QueryBounces(ctx context.Context, tenantID int, campID, subID int, source, orderBy, order string, offset, limit int) ([]models.Bounce, int, error) {
+func (c *Core) QueryBounces(ctx context.Context, tenantID int, f models.BounceFilter, orderBy, order string, offset, limit int) ([]models.Bounce, int, error) {
 	if !strSliceContains(orderBy, bounceQuerySortFields) {
 		orderBy = "created_at"
 	}
@@ -26,7 +26,7 @@ func (c *Core) QueryBounces(ctx context.Context, tenantID int, campID, subID int
 	out := []models.Bounce{}
 	stmt := strings.ReplaceAll(c.q.QueryBounces, "%order%", orderBy+" "+order)
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return tx.Select(&out, stmt, 0, campID, subID, source, offset, limit)
+		return tx.Select(&out, stmt, 0, f.CampaignID, f.SubscriberID, f.Source, f.Type, f.Search, offset, limit)
 	})
 	if err != nil {
 		c.log.Printf("error fetching bounces: %v", err)
@@ -42,12 +42,28 @@ func (c *Core) QueryBounces(ctx context.Context, tenantID int, campID, subID int
 	return out, total, nil
 }
 
+// GetBounceTypeCounts returns the number of bounces per type matching the
+// filter. The filter's Type and SubscriberID are ignored.
+func (c *Core) GetBounceTypeCounts(ctx context.Context, tenantID int, f models.BounceFilter) (models.BounceTypeCounts, error) {
+	var out models.BounceTypeCounts
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return tx.Get(&out, c.q.GetBounceTypeCounts, f.CampaignID, f.Source, f.Search)
+	})
+	if err != nil {
+		c.log.Printf("error fetching bounce counts: %v", err)
+		return out, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.bounce}", "error", pqErrMsg(err)))
+	}
+
+	return out, nil
+}
+
 // GetBounce retrieves bounce entries based on the given params.
 func (c *Core) GetBounce(ctx context.Context, tenantID int, id int) (models.Bounce, error) {
 	var out []models.Bounce
 	stmt := strings.ReplaceAll(c.q.QueryBounces, "%order%", "id "+SortAsc)
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return tx.Select(&out, stmt, id, 0, 0, "", 0, 1)
+		return tx.Select(&out, stmt, id, 0, 0, "", "", "", 0, 1)
 	})
 	if err != nil {
 		c.log.Printf("error fetching bounces: %v", err)
@@ -79,6 +95,12 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 	count, act, ok := c.bounceAction(b.TenantID, b.Type)
 	if !ok {
 		return echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("globals.messages.invalidData")+": "+b.Type)
+	}
+
+	// Transactional email to addresses that aren't subscribers bounces too,
+	// so the message log is updated before the subscriber lookup below.
+	if b.CampaignUUID == "" {
+		c.markTxBounced(b)
 	}
 
 	_, err := c.q.RecordBounce.Exec(b.SubscriberUUID,

@@ -494,6 +494,9 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 		return err
 	}
 
+	a.core.LogActivity(tenantID(c), models.ActivityInfo, "campaign",
+		fmt.Sprintf("“%s” %s by %s", out.Name, campaignStatusVerb(req.Status), auth.GetUser(c).Username))
+
 	// If the campaign is being stopped, send the signal to the manager to stop it in flight.
 	if req.Status == models.CampaignStatusPaused || req.Status == models.CampaignStatusCancelled {
 		a.manager.StopCampaign(id)
@@ -798,6 +801,8 @@ func (a *App) TestCampaign(c echo.Context) error {
 	camp.AltBody = req.AltBody
 	camp.Messenger = req.Messenger
 	camp.ContentType = req.ContentType
+	// Test with the editor's tracking, so the test shows what will send.
+	camp.Tracking = req.Tracking.Normalized()
 	camp.Headers = req.Headers
 	camp.TemplateID = req.TemplateID
 	for _, id := range req.MediaIDs {
@@ -826,7 +831,7 @@ func (a *App) TestCampaign(c echo.Context) error {
 //	@Summary		Get campaign analytics
 //	@Tags			campaigns
 //	@Produce		json
-//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links)"
+//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links, bounce_types)"
 //	@Param			id		query		[]int		true	"Campaign IDs"
 //	@Param			from	query		string		true	"Start date (YYYY-MM-DD)"
 //	@Param			to		query		string		true	"End date (YYYY-MM-DD)"
@@ -857,6 +862,16 @@ func (a *App) GetCampaignViewAnalytics(c echo.Context) error {
 	// Campaign link stats.
 	if typ == "links" {
 		out, err := a.core.GetCampaignAnalyticsLinks(c.Request().Context(), tenantID(c), ids, typ, from, to)
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, okResp{out})
+	}
+
+	// Bounce counts per type (soft, hard, complaint).
+	if typ == "bounce_types" {
+		out, err := a.core.GetCampaignBounceTypes(c.Request().Context(), tenantID(c), ids, from, to)
 		if err != nil {
 			return err
 		}
@@ -978,6 +993,15 @@ func (a *App) validateCampaignFields(ctx context.Context, tenantID int, c campRe
 
 	if len(c.ArchiveMeta) == 0 {
 		c.ArchiveMeta = json.RawMessage("{}")
+	}
+
+	c.Tracking = c.Tracking.Normalized()
+	if err := c.Tracking.Validate(); err != nil {
+		var bad models.InvalidPixelError
+		if errors.As(err, &bad) {
+			return c, errors.New(a.i18n.Ts("campaigns.trackingPixelInvalid", "url", bad.URL))
+		}
+		return c, errors.New(a.i18n.Ts("campaigns.trackingPixelsMax", "num", strconv.Itoa(models.MaxTrackingPixels)))
 	}
 
 	if c.ArchiveSlug.String != "" {
@@ -1118,4 +1142,21 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 		}
 	}
 	return false, "", nil
+}
+
+// campaignStatusVerb describes a status change for the activity log.
+func campaignStatusVerb(status string) string {
+	switch status {
+	case models.CampaignStatusRunning:
+		return "started"
+	case models.CampaignStatusScheduled:
+		return "scheduled"
+	case models.CampaignStatusPaused:
+		return "paused"
+	case models.CampaignStatusCancelled:
+		return "cancelled"
+	case models.CampaignStatusFinished:
+		return "finished"
+	}
+	return "set to " + status
 }

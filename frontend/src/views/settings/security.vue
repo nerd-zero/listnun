@@ -84,47 +84,42 @@
 
     <div class="field">
       <div class="flex items-center gap-2">
-        <PvToggleSwitch v-model="captchaEnabled" name="security.captcha" />
-        <span>{{ $t('settings.security.enableCaptcha') }}</span>
+        <PvToggleSwitch v-model="captchaEnabled" input-id="captcha-forms" name="security.captcha" />
+        <label for="captcha-forms">{{ $t('settings.security.captchaForms') }}</label>
       </div>
-      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.enableCaptchaHelp') }}</small>
+      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaFormsHelp') }}</small>
+      <small v-if="legacyCaptcha" class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaLegacy', { name: legacyCaptcha }) }}</small>
     </div>
 
     <div v-if="captchaEnabled" class="flex flex-col gap-4">
       <div class="field">
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2">
-            <PvRadioButton v-model="selectedProvider" value="altcha" name="captcha_provider" input-id="captcha-altcha" />
-            <label for="captcha-altcha">ALTCHA</label>
-          </div>
-          <div class="flex items-center gap-2">
-            <PvRadioButton v-model="selectedProvider" value="hcaptcha" name="captcha_provider" input-id="captcha-hcaptcha" />
-            <label for="captcha-hcaptcha">hCaptcha (deprecated)</label>
-          </div>
-        </div>
+        <label for="turnstile-key" class="block mb-1 text-sm font-medium">{{ $t('settings.security.turnstileSiteKey') }}</label>
+        <PvInputText id="turnstile-key" v-model="data['security.captcha']['turnstile']['key']" name="turnstile_key" :maxlength="200"
+          required class="w-full ln-mono" />
+        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.turnstileKeyHelp') }}</small>
       </div>
+      <div class="field">
+        <label for="turnstile-secret" class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaSecret') }}</label>
+        <PvPassword v-model="data['security.captcha']['turnstile']['secret']" input-id="turnstile-secret" name="turnstile_secret"
+          :maxlength="200" required :feedback="false" class="w-full" />
+      </div>
+      <div class="field">
+        <div class="flex items-center gap-2">
+          <PvToggleSwitch v-model="data['security.captcha'].login" input-id="captcha-login" name="captcha_login" />
+          <label for="captcha-login">{{ $t('settings.security.captchaLogin') }}</label>
+        </div>
+        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaLoginHelp') }}</small>
+      </div>
+    </div>
 
-      <div v-if="selectedProvider === 'altcha'">
-        <div class="field">
-          <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.altchaComplexity') }}</label>
-          <PvInputNumber v-model="data['security.captcha']['altcha']['complexity']" name="altcha_complexity"
-            :min="1000" :max="1000000" required class="w-full" />
-          <small class="block mt-1 text-color-secondary">{{ $t('settings.security.altchaComplexityHelp') }}</small>
-        </div>
+    <hr class="m-0" />
+
+    <div class="field">
+      <div class="flex items-center gap-2">
+        <PvToggleSwitch v-model="data['security.require_2fa']" input-id="require-2fa" name="security.require_2fa" />
+        <label for="require-2fa">{{ $t('settings.security.require2fa') }}</label>
       </div>
-      <div v-if="selectedProvider === 'hcaptcha'">
-        <div class="field">
-          <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaKey') }}</label>
-          <PvInputText v-model="data['security.captcha']['hcaptcha']['key']" name="hcaptcha_key" :maxlength="200"
-            required class="w-full" />
-          <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaKeyHelp') }}</small>
-        </div>
-        <div class="field">
-          <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaSecret') }}</label>
-          <PvPassword v-model="data['security.captcha']['hcaptcha']['secret']" name="hcaptcha_secret"
-            :maxlength="200" required :feedback="false" class="w-full" />
-        </div>
-      </div>
+      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.require2faHelp') }}</small>
     </div>
 
     <hr class="m-0" />
@@ -181,23 +176,38 @@ const trustedURLs = computed({
   },
 });
 
-const captchaEnabled = computed({
-  get() {
-    return data['security.captcha'].altcha.enabled || data['security.captcha'].hcaptcha.enabled;
-  },
-  set(value: boolean) {
-    data['security.captcha'].altcha.enabled = !!value;
-    data['security.captcha'].hcaptcha.enabled = false;
-  },
+// Settings saved before Turnstile existed lack its block until the v6.27
+// migration runs; fill it in so the form can bind to it.
+if (!data['security.captcha'].turnstile) {
+  data['security.captcha'].turnstile = { enabled: false, key: '', secret: '' };
+}
+if (data['security.captcha'].login === undefined) data['security.captcha'].login = false;
+
+const LEGACY_CAPTCHAS = { altcha: 'ALTCHA', hcaptcha: 'hCaptcha' } as const;
+
+// Captcha is Cloudflare Turnstile only (handover). An ALTCHA or hCaptcha
+// setup from before keeps working until Turnstile is switched on, which
+// replaces it.
+const legacyCaptcha = computed(() => {
+  const c = data['security.captcha'];
+  if (c.turnstile.enabled) return '';
+  const on = (Object.keys(LEGACY_CAPTCHAS) as (keyof typeof LEGACY_CAPTCHAS)[]).find((p) => c[p]?.enabled);
+  return on ? LEGACY_CAPTCHAS[on] : '';
 });
 
-const selectedProvider = computed({
+const captchaEnabled = computed({
   get() {
-    return data['security.captcha'].hcaptcha.enabled ? 'hcaptcha' : 'altcha';
+    return !!data['security.captcha'].turnstile.enabled;
   },
-  set(value: string) {
-    data['security.captcha'].hcaptcha.enabled = value === 'hcaptcha';
-    data['security.captcha'].altcha.enabled = value === 'altcha';
+  set(value: boolean) {
+    const c = data['security.captcha'];
+    c.turnstile.enabled = !!value;
+    if (value) {
+      c.altcha.enabled = false;
+      c.hcaptcha.enabled = false;
+    } else {
+      c.login = false;
+    }
   },
 });
 

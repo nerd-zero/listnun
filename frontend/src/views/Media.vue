@@ -1,123 +1,160 @@
 <template>
-  <section class="media-page">
-    <div class="page-header">
-      <h1 class="page-title">
-        {{ $t('media.title') }}
-        <span v-if="media.results && media.results.length > 0" class="page-title-count">
-          {{ media.results.length }}
+  <section class="ln-page media" :class="{ 'is-modal': isModal }">
+    <page-header :title="$t('media.title')" :count="countLabel">
+      <template #search>
+        <form class="ln-search" role="search" @submit.prevent="onQueryMedia">
+          <PvIconField>
+            <PvInputIcon class="pi pi-search" />
+            <PvInputText v-model="queryParams.query" :placeholder="$t('media.search')" :aria-label="$t('media.search')" data-cy="query" />
+          </PvIconField>
+        </form>
+      </template>
+      <PvButton v-if="canManage" icon="pi pi-upload" :label="$t('media.upload')" data-cy="btn-toggle-upload" @click="pick" />
+    </page-header>
+
+    <div v-if="canManage" class="media-top">
+      <div
+        class="media-drop"
+        :class="{ 'is-over': dragOver }"
+        role="button"
+        tabindex="0"
+        :aria-label="$t('media.dropLabel')"
+        data-cy="upload"
+        @click="pick"
+        @keydown.enter.prevent="pick"
+        @keydown.space.prevent="pick"
+        @dragover.prevent="dragOver = true"
+        @dragleave.prevent="dragOver = false"
+        @drop.prevent="onDrop"
+      >
+        <span class="media-drop-icon" aria-hidden="true"><i class="pi pi-upload" /></span>
+        <span>
+          <strong>{{ $t('media.dropTitle') }}</strong>
+          <span class="ln-small">{{ extensionsHelp }}</span>
         </span>
-        <span class="provider-label">/ {{ serverConfig.media_provider }}</span>
-      </h1>
-      <PvButton v-if="$can('media:manage')" @click="onToggleForm"
-        :icon="showUploadForm ? 'pi pi-times' : 'pi pi-upload'"
-        :label="showUploadForm ? $t('globals.buttons.cancel') : $t('media.upload')"
-        :severity="showUploadForm ? 'secondary' : 'primary'"
-        data-cy="btn-toggle-upload" />
+      </div>
+      <div class="ln-card ln-card-pad media-store">
+        <div class="media-store-row">
+          <span>{{ $t('media.storage') }}</span>
+          <strong class="ln-mono">{{ provider }}</strong>
+        </div>
+        <div v-if="usage" class="media-store-row" data-cy="storage-used">
+          <span>{{ $t('media.used') }}</span>
+          <strong class="media-used">{{ formatBytes(usage.bytes) }}</strong>
+        </div>
+        <span v-if="usage && usage.unknown" class="ln-small">{{ $t('media.unmeasured', { n: usage.unknown.toLocaleString() }) }}</span>
+        <template v-if="uploading.total">
+          <PvProgressBar :value="uploadPct" :show-value="false" />
+          <span class="ln-small">{{ $t('media.uploading', { n: uploading.total, pct: uploadPct }) }}</span>
+        </template>
+        <span v-else class="ln-small">{{ $t('media.storageHelp') }}</span>
+        <PvMessage v-for="(e, i) in uploadErrors" :key="i" severity="error" closable @close="uploadErrors.splice(i, 1)">{{ e }}</PvMessage>
+      </div>
+      <input ref="fileInput" type="file" multiple class="media-input" tabindex="-1" aria-hidden="true" @change="onPick">
     </div>
 
-    <!-- Upload panel -->
-    <div v-if="$can('media:manage') && showUploadForm" class="upload-card">
-      <form @submit.prevent="onSubmit" data-cy="upload">
-        <PvFileUpload
-          mode="advanced"
-          :multiple="true"
-          :auto="false"
-          :custom-upload="true"
-          @select="onFilesSelect"
-          @remove="onFileRemove"
-          :show-upload-button="false"
-          :show-cancel-button="false"
+    <div v-if="loading.media && !items.length" class="media-grid">
+      <div v-for="n in 8" :key="n" class="ln-card media-card"><PvSkeleton height="190px" /></div>
+    </div>
+
+    <empty-state
+      v-else-if="!items.length"
+      :icon="queryParams.query ? 'pi-search' : 'pi-image'"
+      :title="queryParams.query ? $t('states.noMatches') : $t('media.emptyTitle')"
+      :text="queryParams.query ? $t('states.noMatchesText', { query: queryParams.query }) : $t('media.emptyText')"
+      :action-label="queryParams.query ? $t('states.clearFilters') : (canManage ? $t('media.uploadImages') : '')"
+      :secondary="!!queryParams.query"
+      @action="queryParams.query ? clearQuery() : pick()"
+    />
+
+    <div v-else class="media-grid">
+      <article
+        v-for="item in items"
+        :key="item.id"
+        class="ln-card media-card"
+        :class="{ 'is-selected': selected.has(item.id) }"
+      >
+        <a
+          class="media-thumb"
+          :href="item.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="item.filename"
+          @click="(e) => onMediaSelect(item, e)"
         >
-          <template #empty>
-            <div class="upload-empty">
-              <i class="pi pi-cloud-upload upload-empty__icon" />
-              <p class="upload-empty__text">{{ $t('media.uploadHelp') }}</p>
-            </div>
-          </template>
-        </PvFileUpload>
-
-        <div v-if="form.files.length > 0" class="upload-footer">
-          <div class="upload-tags">
-            <PvTag v-for="(f, i) in form.files" :key="i" class="upload-tag">
-              <template #default>
-                {{ f.name }}
-                <i class="pi pi-times upload-tag__remove" @click="removeUploadFile(i)" />
-              </template>
-            </PvTag>
-          </div>
-          <PvButton type="submit" severity="primary" icon="pi pi-upload"
-            :loading="isProcessing" :label="$t('media.upload')" />
-        </div>
-      </form>
-    </div>
-
-    <!-- Gallery card -->
-    <div class="table-card">
-      <!-- Toolbar -->
-      <div class="gallery-toolbar">
-        <PvIconField class="gallery-search">
-          <PvInputIcon class="pi pi-search" />
-          <PvInputText v-model="queryParams.query" @keyup.enter="onQueryMedia"
-            placeholder="Search…" data-cy="query" ref="query" />
-        </PvIconField>
-      </div>
-
-      <!-- Loading -->
-      <div v-if="loading.media" class="gallery-spinner">
-        <PvProgressSpinner />
-      </div>
-
-      <!-- Grid -->
-      <div v-else-if="media.results && media.results.length > 0" class="media-grid">
-        <div v-for="item in media.results" :key="item.id" class="media-item">
-          <a class="media-item__thumb" @click="(e) => onMediaSelect(item, e)"
-            :href="item.url" target="_blank" rel="noopener noreferrer">
-            <img v-if="item.thumbUrl" :src="item.thumbUrl" :alt="item.filename" />
-            <div v-else class="media-item__placeholder">
-              <span class="media-item__ext">{{ item.filename.split('.').pop().toUpperCase() }}</span>
-            </div>
-            <div class="media-item__overlay">
-              <button type="button" class="media-item__delete" data-cy="btn-delete"
-                @click.prevent.stop="$utils.confirm(null, () => onDeleteMedia(item.id))"
-                :aria-label="$t('globals.buttons.delete')">
-                <i class="pi pi-trash" />
-              </button>
-            </div>
-          </a>
-          <div class="media-item__info">
-            <p class="media-item__filename" :title="item.filename">{{ item.filename }}</p>
-            <p class="media-item__date">{{ $utils.niceDate(item.createdAt, false) }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty -->
-      <div v-else class="gallery-empty">
-        <empty-placeholder />
-      </div>
-
-      <!-- Pagination -->
-      <div v-if="media.total > media.perPage" class="gallery-paginator">
-        <PvPaginator
-          :rows="media.perPage"
-          :total-records="media.total"
-          :first="(media.page - 1) * media.perPage"
-          @page="(e) => onPageChange(e.page + 1)"
+          <img v-if="item.thumbUrl" :src="item.thumbUrl" :alt="item.filename" loading="lazy">
+          <span v-else class="media-ext">{{ ext(item.filename) }}</span>
+        </a>
+        <PvCheckbox
+          v-if="!isModal && canManage"
+          class="media-check"
+          :model-value="selected.has(item.id)"
+          binary
+          :aria-label="$t('media.select', { name: item.filename })"
+          @update:model-value="toggle(item.id)"
         />
-      </div>
+        <div class="media-info">
+          <span class="ln-mono media-name" :title="item.filename">{{ item.filename }}</span>
+          <span class="ln-small">{{ meta(item) }}</span>
+        </div>
+        <button
+          v-if="!isModal"
+          v-tooltip.bottom="$t('media.copyLink')"
+          type="button"
+          class="ln-row-menu media-copy"
+          :aria-label="$t('media.copyLink')"
+          @click="copy([item.url])"
+        >
+          <i class="pi pi-copy" />
+        </button>
+      </article>
     </div>
+
+    <PvPaginator
+      v-if="(media.total || 0) > (media.perPage || 0)"
+      :rows="media.perPage"
+      :total-records="media.total"
+      :first="((media.page || 1) - 1) * (media.perPage || 1)"
+      class="media-pager"
+      @page="(e) => onPageChange(e.page + 1)"
+    />
+
+    <!-- Floating selection bar -->
+    <div v-if="selected.size && !isModal" class="media-bar" role="toolbar" :aria-label="$t('globals.messages.numSelected', { num: selected.size })">
+      <strong>{{ $t('globals.messages.numSelected', { num: selected.size }) }}</strong>
+      <button type="button" class="ln-bulk-btn" @click="copy(selectedUrls)">{{ $t('media.copyLinks') }}</button>
+      <button type="button" class="ln-bulk-btn" data-cy="btn-delete" @click="askDelete">{{ $t('globals.buttons.delete') }}</button>
+      <button type="button" class="ln-bulk-clear" @click="selected.clear()">{{ $t('globals.buttons.clear') }}</button>
+    </div>
+
+    <confirm-action
+      v-model:visible="confirm.open"
+      :title="$t('media.deleteTitle', { n: selected.size })"
+      :text="$t('media.deleteText')"
+      :confirm-label="$t('globals.buttons.delete')"
+      :busy="confirm.busy"
+      @confirm="doDelete"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, watch, onMounted,
+  computed, onMounted, reactive, ref, watch,
 } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useTime } from '../composables/useTime';
 import { makeQueryHandlers } from '../utils';
-import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
+import { getMedia as mediaApi } from '../api/generated/endpoints/media/media';
+
+// Media items are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const props = withDefaults(defineProps<{
   isModal?: boolean;
@@ -125,30 +162,68 @@ const props = withDefaults(defineProps<{
 }>(), { isModal: false, type: '' });
 
 const emit = defineEmits(['selected', 'close']);
-const { $api, $utils } = useGlobal();
-const {
-  refreshTick, loading, media, serverConfig,
-} = storeToRefs(useMainStore());
+const { $api: untypedApi, $utils, $can } = useGlobal();
+const $api = untypedApi as unknown as Record<string, (...args: unknown[]) => Promise<Loose>>;
+const { t } = useI18n();
+const { shortDate } = useTime();
+const store = useMainStore();
+const { refreshTick, loading, serverConfig } = storeToRefs(store);
+const media = computed<Loose>(() => (store.media as Loose) || {});
 
-const form = reactive({ files: [] as File[] });
-const toUpload = ref(0);
-const uploaded = ref(0);
-const showUploadForm = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const dragOver = ref(false);
+const selected = reactive(new Set<number>());
+const uploading = reactive({ total: 0, done: 0 });
+const uploadErrors = ref<string[]>([]);
 const queryParams = reactive({ page: 1, query: '' });
+const confirm = reactive({ open: false, busy: false });
+const usage = ref<{ bytes: number; files: number; unknown: number } | null>(null);
+const { getMediaUsage } = mediaApi();
 
-const isProcessing = computed(() => toUpload.value > 0 && uploaded.value < toUpload.value);
+const canManage = computed(() => $can('media:manage'));
+const items = computed<Loose[]>(() => media.value.results || []);
+const provider = computed(() => (serverConfig.value as Loose).media_provider || '');
+const uploadPct = computed(() => (uploading.total ? Math.round((uploading.done / uploading.total) * 100) : 0));
+const countLabel = computed(() => (media.value.total ? t('media.files', { n: media.value.total.toLocaleString() }) : null));
+const selectedUrls = computed(() => items.value.filter((m) => selected.has(m.id)).map((m) => m.url));
+const extensionsHelp = computed(() => t('media.dropHelp'));
 
-function removeUploadFile(i: number) { form.files.splice(i, 1); }
-function onFilesSelect(event: any) { form.files = event.files ? [...event.files] : []; }
-function onFileRemove(event: any) { form.files = form.files.filter((f) => f !== event.file); }
+function ext(name: string): string {
+  return (name.split('.').pop() || '').toUpperCase();
+}
+
+function meta(m: Loose): string {
+  const w = m.meta?.width;
+  const h = m.meta?.height;
+  const dims = w && h ? `${w} × ${h}` : ext(m.filename);
+  return `${dims}\u2003${shortDate(m.createdAt)}`;
+}
+
+function toggle(id: number) {
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+}
+
+// formatBytes shows a size in the largest unit that keeps it above 1.
+function formatBytes(n: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+function fetchUsage() {
+  if (props.isModal) return;
+  getMediaUsage().then((d) => { usage.value = d as unknown as typeof usage.value; }).catch(() => { usage.value = null; });
+}
 
 function getMedia() {
   $api.getMedia({ page: queryParams.page, query: queryParams.query });
-}
-
-function onToggleForm() {
-  showUploadForm.value = !showUploadForm.value;
-  $utils.setPref('media.upload', showUploadForm.value);
+  fetchUsage();
 }
 
 function onQueryMedia() {
@@ -156,7 +231,12 @@ function onQueryMedia() {
   getMedia();
 }
 
-function onMediaSelect(m: any, e: Event) {
+function clearQuery() {
+  queryParams.query = '';
+  onQueryMedia();
+}
+
+function onMediaSelect(m: Loose, e: Event) {
   if (props.isModal) {
     e.preventDefault();
     emit('selected', m);
@@ -164,249 +244,177 @@ function onMediaSelect(m: any, e: Event) {
   }
 }
 
-function onUploaded() {
-  uploaded.value += 1;
-  if (uploaded.value >= toUpload.value) {
-    toUpload.value = 0;
-    uploaded.value = 0;
-    form.files = [];
-    getMedia();
-  }
+function pick() {
+  fileInput.value?.click();
 }
 
-function onSubmit() {
-  toUpload.value = form.files.length;
-  for (let i = 0; i < toUpload.value; i += 1) {
-    const params = new FormData();
-    params.set('file', form.files[i]);
-    $api.uploadMedia(params).then(() => { onUploaded(); }, () => { onUploaded(); });
-  }
+function upload(files: File[]) {
+  if (!files.length) return;
+  uploading.total = files.length;
+  uploading.done = 0;
+  const finish = () => {
+    uploading.done += 1;
+    if (uploading.done >= uploading.total) {
+      uploading.total = 0;
+      getMedia();
+    }
+  };
+  files.forEach((f) => {
+    const fd = new FormData();
+    fd.set('file', f);
+    $api.uploadMedia(fd).then(finish, (err) => {
+      uploadErrors.value.push(t('media.uploadFailed', { name: f.name, error: err?.response?.data?.message || String(err) }));
+      finish();
+    });
+  });
 }
 
-function onDeleteMedia(id: number) {
-  $api.deleteMedia(id).then(() => { getMedia(); });
+function onPick(e: Event) {
+  const input = e.target as HTMLInputElement;
+  upload(Array.from(input.files || []));
+  input.value = '';
+}
+
+function onDrop(e: DragEvent) {
+  dragOver.value = false;
+  upload(Array.from(e.dataTransfer?.files || []));
+}
+
+function copy(urls: string[]) {
+  navigator.clipboard?.writeText(urls.join('\n')).then(() => $utils.toast(t('states.copied')));
+}
+
+function askDelete() {
+  confirm.open = true;
+}
+
+function doDelete() {
+  confirm.busy = true;
+  Promise.allSettled([...selected].map((id) => $api.deleteMedia(id)))
+    .then(() => {
+      selected.clear();
+      confirm.open = false;
+      getMedia();
+    })
+    .finally(() => { confirm.busy = false; });
 }
 
 const { onPageChange } = makeQueryHandlers(queryParams, getMedia);
 
-watch(() => refreshTick.value, () => { getMedia(); });
-
-onMounted(() => {
-  $api.getMedia();
-  if ($utils.getPref('media.upload')) { showUploadForm.value = true; }
-});
+watch(refreshTick, getMedia);
+onMounted(() => { $api.getMedia(); fetchUsage(); });
 </script>
 
 <style scoped lang="scss">
-.media-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.media-used { font-variant-numeric: tabular-nums; }
+.media-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
+
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); }
+  .is-modal & { grid-template-columns: minmax(0, 1fr); .media-store { display: none; } }
 }
-
-.provider-label {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--lm-text-subtle);
-  margin-left: 0.25rem;
-}
-
-// Upload panel
-.upload-card {
-  border: 1px solid var(--lm-border);
-  border-radius: 10px;
-  background: var(--lm-surface);
-  overflow: hidden;
-
-  :deep(.p-fileupload) {
-    border: none;
-    border-radius: 0;
-    background: transparent;
-  }
-  :deep(.p-fileupload-header) { display: none; }
-  :deep(.p-fileupload-content) {
-    border: 2px dashed var(--lm-border);
-    border-radius: 8px;
-    margin: 1rem;
-    background: var(--lm-bg-subtle);
-    min-height: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.15s;
-    &:hover { border-color: var(--lm-primary); }
-  }
-}
-
-.upload-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  color: var(--lm-text-muted);
-
-  &__icon { font-size: 2rem; color: var(--lm-text-subtle); }
-  &__text { font-size: 0.875rem; }
-}
-
-.upload-footer {
+.media-drop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem 1rem;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px;
+  border: 1px dashed var(--ln-border-strong);
+  border-radius: var(--ln-radius-card);
+  background: var(--ln-muted);
+  cursor: pointer;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease), background-color var(--ln-dur-fast) var(--ln-ease);
+
+  > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+  &:hover, &.is-over { border-color: var(--ln-ink); }
+  // Dragging a file over lifts the upload icon.
+  &.is-over { background: var(--ln-hover); }
+  &.is-over .media-drop-icon { translate: 0 -3px; }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
+  .app-dark & { background: var(--ln-card); }
 }
-
-.upload-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  flex: 1;
-}
-
-.upload-tag {
-  font-size: 0.78rem;
-
-  &__remove {
-    margin-left: 0.4rem;
-    cursor: pointer;
-    opacity: 0.6;
-    &:hover { opacity: 1; }
-  }
-}
-
-// Gallery
-.gallery-toolbar {
-  padding: 0.875rem 1rem;
-  border-bottom: 1px solid var(--lm-border);
-}
-
-.gallery-search {
-  width: 280px;
-}
-
-.gallery-spinner {
-  display: flex;
+.media-drop-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--ln-card);
+  border: 1px solid var(--ln-border);
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  padding: 3rem;
+  transition: translate var(--ln-dur-base) var(--ln-ease);
 }
+.media-store { display: flex; flex-direction: column; gap: 8px; }
+.media-store-row { display: flex; justify-content: space-between; gap: 8px; }
+.media-input { display: none; }
 
-.gallery-empty {
-  padding: 2rem;
-}
-
-.gallery-paginator {
-  border-top: 1px solid var(--lm-border);
-  padding: 0.5rem 0;
-}
-
-// Media grid
 .media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-  padding: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
 }
-
-.media-item {
-  border: 1px solid var(--lm-border);
-  border-radius: 8px;
+.media-card {
+  position: relative;
   overflow: hidden;
-  background: var(--lm-surface);
-  transition: box-shadow 0.15s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--ln-dur-fast) var(--ln-ease), box-shadow var(--ln-dur-fast) var(--ln-ease);
 
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
+  &.is-selected { border-color: var(--ln-ink); box-shadow: 0 0 0 1px var(--ln-ink); }
+}
+.media-thumb {
+  height: 150px;
+  background: var(--ln-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 
-    .media-item__overlay { opacity: 1; }
-  }
+  img { width: 100%; height: 100%; object-fit: cover; }
+  .is-modal & { cursor: pointer; }
+}
+.media-ext { font-family: var(--ln-mono); font-size: 13px; color: var(--ln-text-3); }
+.media-check { position: absolute; top: 10px; left: 10px; }
+.media-info {
+  padding: 10px 44px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.media-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-copy { position: absolute; right: 6px; bottom: 10px; }
+.media-pager { border: 1px solid var(--ln-border); border-radius: var(--ln-radius-card); }
 
-  &__thumb {
-    display: block;
-    position: relative;
-    aspect-ratio: 1 / 1;
-    background: var(--lm-bg-subtle);
-    overflow: hidden;
-    text-decoration: none;
+.media-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 16px;
+  border-radius: 10px;
+  background: var(--ln-ink);
+  color: var(--ln-on-ink);
+  font-size: 14px;
+  box-shadow: var(--ln-shadow-pop);
 
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-  }
-
-  &__placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--lm-bg-subtle);
-  }
-
-  &__ext {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--lm-text-muted);
-    letter-spacing: 0.05em;
-    background: var(--lm-border);
-    padding: 0.25rem 0.4rem;
-    border-radius: 4px;
-  }
-
-  &__overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-
-  &__delete {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    background: rgba(239, 68, 68, 0.85);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .ln-bulk-btn {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: var(--ln-radius);
+    border: 1px solid rgba(127, 127, 127, .5);
+    background: transparent;
+    color: var(--ln-on-ink);
+    font: inherit;
+    font-size: 13px;
     cursor: pointer;
-    font-size: 0.85rem;
-    transition: background 0.15s;
-
-    &:hover { background: rgb(239, 68, 68); }
   }
-
-  &__info {
-    padding: 0.45rem 0.6rem 0.5rem;
-    border-top: 1px solid var(--lm-border);
-    background: var(--lm-surface);
-  }
-
-  &__filename {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--lm-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin: 0;
-  }
-
-  &__date {
-    font-size: 0.68rem;
-    color: var(--lm-text-subtle);
-    margin: 0.1rem 0 0;
-  }
+  .ln-bulk-clear { border: 0; background: none; color: var(--ln-on-ink); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
 }
 </style>

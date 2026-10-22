@@ -63,7 +63,7 @@ const SX: SxProps = {
   input: {
     padding: 1,
     border: '1px solid',
-    borderColor: 'grey.300',
+    borderColor: 'divider',
     borderRadius: '4px',
     width: '100%',
   },

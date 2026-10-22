@@ -18,6 +18,11 @@ root_domain = ""
 # subscriber routes and the API still get the 503. Leave empty to disable.
 console_url = ""
 
+# Developers > Webhooks only calls public HTTPS endpoints. Set this to true
+# to allow plain HTTP and private/loopback addresses, for local development
+# only: on a shared install it lets workspaces reach internal hosts.
+webhooks_allow_private = false
+
 # Database.
 [db]
 host = "localhost"

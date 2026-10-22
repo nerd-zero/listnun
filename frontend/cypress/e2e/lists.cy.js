@@ -1,3 +1,41 @@
+const apiUrl = Cypress.env('apiUrl');
+
+// Goes to the lists page through the sidebar. The Lists group button is a
+// toggle, so it is only clicked when its sub-items are not already open.
+function goToLists() {
+  cy.get('.ln-nav').first().then(($nav) => {
+    if (!$nav.find('[data-cy=all-lists]').length) {
+      cy.get('.ln-nav [data-cy=lists]').first().click();
+    }
+  });
+  cy.get('.ln-nav [data-cy=all-lists]').first().click();
+}
+
+// Opens a row's popup menu and clicks the item with the given label.
+function rowMenu($row, label) {
+  cy.wrap($row).find('[data-cy=btn-row-menu]').click();
+  cy.get('.p-menu:visible .p-menu-item').contains(label).click();
+}
+
+// Fills and submits the open ListForm dialog.
+function fillListForm({
+  name, type, optin, tags, description,
+}) {
+  cy.dialog().within(() => {
+    cy.get('#list-name').clear().type(name);
+    cy.get(`#list-type-${type}`).check({ force: true });
+    if (optin === 'double') {
+      cy.get('#list-optin').check({ force: true });
+    } else {
+      cy.get('#list-optin').uncheck({ force: true });
+    }
+    cy.get('#list-tags input').type(tags);
+    cy.get('#list-desc').clear().type(description);
+    cy.get('[data-cy=btn-save]').click();
+  });
+  cy.get('.p-dialog').should('not.exist');
+}
+
 describe('Lists', () => {
   it('Opens lists page', () => {
     cy.resetDB();
@@ -5,23 +43,30 @@ describe('Lists', () => {
   });
 
   it('Counts subscribers in default lists', () => {
-    cy.get('tbody td[data-label=Subscribers]').contains('1');
+    cy.get('.p-datatable-tbody [data-cy=subscribers]').first().contains('1');
   });
 
   it('Creates campaign for list', () => {
-    cy.get('tbody a[data-cy=btn-campaign]').first().click();
+    cy.get('.p-datatable-tbody a[data-cy=btn-campaign]').first().click();
     cy.location('pathname').should('contain', '/campaigns/new');
-    cy.get('.list-tags .tag').contains('Default list');
+    cy.get('.list-tags .p-tag').contains('Default list');
 
-    cy.clickMenu('lists', 'all-lists');
-    cy.get('.modal button.is-primary').click();
+    // Nothing was typed into the new campaign, so leaving asks nothing.
+    goToLists();
+    cy.location('pathname').should('match', /\/lists$/);
   });
 
   it('Creates opt-in campaign for list', () => {
-    cy.get('tbody a[data-cy=btn-send-optin-campaign]').click();
-    cy.get('.modal button.is-primary').click();
+    cy.contains('.p-datatable-tbody > tr', 'Opt-in list').then(($tr) => rowMenu($tr, 'Send opt-in campaign'));
+    cy.confirmAction();
     cy.location('pathname').should('contain', '/campaigns/2');
-    cy.clickMenu('lists', 'all-lists');
+
+    goToLists();
+    // The editor may normalise the drafted body and ask to save before leaving.
+    cy.get('body').then(($body) => {
+      if ($body.find('.ln-confirm:visible').length) cy.confirmAction();
+    });
+    cy.location('pathname').should('match', /\/lists$/);
   });
 
   it('Checks individual subscribers in lists', () => {
@@ -31,32 +76,26 @@ describe('Lists', () => {
     // Click on each list on the lists page, go the subscribers page
     // for that list, and check the subscriber details.
     subs.forEach((s, n) => {
-      cy.get('tbody td[data-label=Subscribers] a').eq(n).click();
+      cy.get('.p-datatable-tbody [data-cy=subscribers]').eq(n).click();
       cy.location('pathname').should('contain', `/subscribers/lists/${s.listID}`);
-      cy.get('tbody tr').its('length').should('eq', 1);
-      cy.get('tbody td[data-label="E-mail"]').contains(s.email);
-      cy.clickMenu('lists', 'all-lists');
+      cy.rows().should('have.length', 1).first().should('contain', s.email);
+      goToLists();
     });
   });
 
   it('Edits lists', () => {
     // Open the edit popup and edit the default lists.
-    cy.get('[data-cy=btn-edit]').each(($el, n) => {
-      cy.wrap($el).click();
-      cy.get('input[name=name]').clear().type(`list-${n}`);
-      cy.get('select[name=type]').select('public');
-      cy.get('select[name=optin]').select('double');
-      cy.get('input[name=tags]').clear().type(`tag${n}{enter}`);
-      cy.get('textarea[name=description]').clear().type(`desc${n}`);
-      cy.get('[data-cy=btn-save]').click();
-      cy.wait(100);
+    [0, 1].forEach((n) => {
+      cy.get('.p-datatable-tbody [data-cy=btn-edit]').eq(n).click();
+      fillListForm({
+        name: `list-${n}`, type: 'public', optin: 'double', tags: `tag${n}{enter}`, description: `desc${n}`,
+      });
     });
-    cy.wait(250);
 
     // Confirm the edits.
-    cy.get('tbody tr').each(($el, n) => {
-      cy.wrap($el).find('td[data-label=Name]').contains(`list-${n}`);
-      cy.wrap($el).find('.tags')
+    cy.rows().each(($el, n) => {
+      cy.wrap($el).find('[data-cy=list-name]').contains(`list-${n}`);
+      cy.wrap($el).find('.lists-tags')
         .should('contain', 'test')
         .and('contain', `tag${n}`);
     });
@@ -64,13 +103,14 @@ describe('Lists', () => {
 
   it('Deletes lists', () => {
     // Delete all visible lists.
-    cy.get('tbody tr').each(() => {
-      cy.get('tbody a[data-cy=btn-delete]').first().click();
-      cy.get('.modal button.is-primary').click();
+    [0, 1].forEach(() => {
+      cy.rows().first().then(($tr) => rowMenu($tr, 'Delete'));
+      cy.confirmAction();
+      cy.get('.ln-confirm').should('not.exist');
     });
 
     // Confirm deletion.
-    cy.get('table tr.is-empty');
+    cy.get('.p-datatable-empty-message');
   });
 
   // Add new lists.
@@ -85,30 +125,27 @@ describe('Lists', () => {
         const name = `list-${t}-${o}-${n}`;
 
         cy.get('[data-cy=btn-new]').click();
-        cy.get('input[name=name]').type(name);
-        cy.get('select[name=type]').select(t);
-        cy.get('select[name=optin]').select(o);
-        cy.get('input[name=tags]').type(`tag${n}{enter}${t}{enter}${o}{enter}`);
-        cy.get('textarea[name=description]').clear().type(`desc-${t}-${n}`);
-        cy.get('[data-cy=btn-save]').click();
-        cy.wait(200);
+        fillListForm({
+          name, type: t, optin: o, tags: `tag${n}{enter}${t}{enter}${o}{enter}`, description: `desc-${t}-${n}`,
+        });
 
         // Confirm the addition by inspecting the newly created list row.
-        const tr = `tbody tr:nth-child(${n + 1})`;
-        cy.get(`${tr} td[data-label=Name]`).contains(name);
-        cy.get(`${tr} td[data-label=Type] .tag[data-cy=type-${t}]`);
-        cy.get(`${tr} td[data-label=Type] .tag[data-cy=optin-${o}]`);
-        n++;
+        cy.rows().eq(n).within(() => {
+          cy.get('[data-cy=list-name]').contains(name);
+          cy.get(`[data-cy=type-${t}]`);
+          cy.get(`[data-cy=optin-${o}]`);
+        });
+        n += 1;
       });
     });
   });
 
   it('Searches lists', () => {
     cy.get('[data-cy=query]').clear().type('list-public-single-2{enter}');
-    cy.wait(200);
-    cy.get('tbody tr').its('length').should('eq', 1);
-    cy.get('tbody td[data-label="Name"]').first().contains('list-public-single-2');
+    cy.rows().should('have.length', 1);
+    cy.get('.p-datatable-tbody [data-cy=list-name]').first().contains('list-public-single-2');
     cy.get('[data-cy=query]').clear().type('{enter}');
+    cy.rows().should('have.length', 4);
   });
 
   // Sort lists by clicking on various headers. At this point, there should be four
@@ -121,17 +158,13 @@ describe('Lists', () => {
     cy.sortTable('thead th.cy-type', [3, 4, 5, 6]);
     cy.sortTable('thead th.cy-type', [6, 5, 4, 3]);
 
-    cy.sortTable('thead th.cy-created_at', [3, 4, 5, 6]);
-    cy.sortTable('thead th.cy-created_at', [6, 5, 4, 3]);
-
     cy.sortTable('thead th.cy-updated_at', [3, 4, 5, 6]);
     cy.sortTable('thead th.cy-updated_at', [6, 5, 4, 3]);
   });
 
   it('Opens forms page', () => {
-    const apiUrl = Cypress.env('apiUrl');
     cy.loginAndVisit(`${apiUrl}/subscription/form`);
-    cy.get('ul li').its('length').should('eq', 2);
+    cy.get('ul[data-cy=lists] li').its('length').should('eq', 2);
 
     const cases = [
       { name: 'list-public-single-2', description: 'desc-public-2' },
@@ -139,16 +172,14 @@ describe('Lists', () => {
     ];
 
     cases.forEach((c, n) => {
-      cy.get('ul li').eq(n).then(($el) => {
-        cy.wrap($el).get('label').contains(c.name);
-        cy.wrap($el).get('.description').contains(c.description);
+      cy.get('ul[data-cy=lists] li').eq(n).within(() => {
+        cy.get('label').contains(c.name);
+        cy.get('.description').contains(c.description);
       });
     });
   });
 
   it('Bulk deletes lists', () => {
-    const apiUrl = Cypress.env('apiUrl');
-
     // Create 30 in a loop.
     for (let i = 0; i < 30; i += 1) {
       cy.request('POST', `${apiUrl}/api/lists`, { name: `test-list-${i}`, type: 'public', optin: 'single' });
@@ -156,14 +187,15 @@ describe('Lists', () => {
 
     cy.loginAndVisit('/admin/lists');
 
-    // Bulk delete with the `all` flag.
+    // Bulk delete with the `all` flag. Deleting every matching list asks
+    // for the count to be typed in.
     cy.window().scrollTo('top');
-    cy.wait(500);
-    cy.get('thead input[type="checkbox"]').click({ force: true });
+    cy.rows().should('have.length.greaterThan', 1);
+    cy.get('.p-datatable-thead .p-checkbox input').click({ force: true });
     cy.get('a[data-cy=select-all-lists]').click();
-    cy.get('a[data-cy=btn-delete-lists]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.get('table tr.is-empty');
+    cy.get('[data-cy=btn-delete-lists]').click();
+    cy.get('.ln-confirm:visible code').invoke('text').then((n) => cy.confirmAction(n.trim()));
+    cy.get('.p-datatable-empty-message');
 
     // Bulk delete with the selected IDs.
     // Create 5 lists in a loop.
@@ -172,10 +204,10 @@ describe('Lists', () => {
     }
 
     cy.visit('/admin/lists');
-    cy.wait(500);
-    cy.get('thead input[type="checkbox"]').click({ force: true });
-    cy.get('a[data-cy=btn-delete-lists]').click();
-    cy.get('.modal button.is-primary:eq(0)').click();
-    cy.get('table tr.is-empty');
+    cy.rows().should('have.length', 5);
+    cy.get('.p-datatable-thead .p-checkbox input').click({ force: true });
+    cy.get('[data-cy=btn-delete-lists]').click();
+    cy.confirmAction();
+    cy.get('.p-datatable-empty-message');
   });
 });

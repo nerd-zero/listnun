@@ -63,7 +63,24 @@ WHERE ($1 = 0 OR bounces.id = $1)
     AND ($2 = 0 OR bounces.campaign_id = $2)
     AND ($3 = 0 OR bounces.subscriber_id = $3)
     AND ($4 = '' OR bounces.source = $4)
-ORDER BY %order% OFFSET $5 LIMIT (CASE WHEN $6 < 1 THEN NULL ELSE $6 END);
+    AND ($5 = '' OR bounces.type::TEXT = $5)
+    AND ($6 = '' OR subscribers.email ILIKE '%' || $6 || '%' OR campaigns.name ILIKE '%' || $6 || '%')
+ORDER BY %order% OFFSET $7 LIMIT (CASE WHEN $8 < 1 THEN NULL ELSE $8 END);
+
+-- name: get-bounce-type-counts
+-- Bounce counts per type for the filters in query-bounces, minus the type
+-- filter itself, so the type chips can show what each one would return.
+SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE bounces.type = 'hard') AS hard,
+    COUNT(*) FILTER (WHERE bounces.type = 'soft') AS soft,
+    COUNT(*) FILTER (WHERE bounces.type = 'complaint') AS complaint
+FROM bounces
+LEFT JOIN subscribers ON (subscribers.id = bounces.subscriber_id)
+LEFT JOIN campaigns ON (campaigns.id = bounces.campaign_id)
+WHERE ($1 = 0 OR bounces.campaign_id = $1)
+    AND ($2 = '' OR bounces.source = $2)
+    AND ($3 = '' OR subscribers.email ILIKE '%' || $3 || '%' OR campaigns.name ILIKE '%' || $3 || '%');
 
 -- name: delete-bounces
 DELETE FROM bounces WHERE $2 = TRUE OR id = ANY($1);

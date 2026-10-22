@@ -295,7 +295,34 @@ sub AS (
 UPDATE subscriber_lists SET status = 'unsubscribed', updated_at=NOW() WHERE
     subscriber_id = (SELECT id FROM sub) AND status != 'unsubscribed' AND
     -- If $3 is false, unsubscribe from the campaign's lists, otherwise all lists.
-    CASE WHEN $3 IS FALSE THEN list_id = ANY(SELECT list_id FROM lists) ELSE list_id != 0 END;
+    CASE WHEN $3 IS FALSE THEN list_id = ANY(SELECT list_id FROM lists) ELSE list_id != 0 END
+    RETURNING list_id;
+
+-- name: resubscribe-by-campaign
+-- Undoes unsubscribe-by-campaign for a subscriber who unsubscribed by
+-- mistake: the campaign's lists they are unsubscribed from become active
+-- again. The link carrying the subscriber UUID only reaches their inbox, so
+-- following it proves control of the address the way a double opt-in
+-- confirmation does: double opt-in lists go back to confirmed, single
+-- opt-in lists to unconfirmed (their normal state). Blocklisted subscribers
+-- are left alone.
+WITH camp_lists AS (
+    SELECT list_id FROM campaign_lists
+    LEFT JOIN campaigns ON (campaign_lists.campaign_id = campaigns.id)
+    WHERE campaigns.uuid = $1
+),
+sub AS (
+    SELECT id FROM subscribers WHERE uuid = $2 AND status != 'blocklisted'
+)
+UPDATE subscriber_lists AS sl SET
+    status = (CASE WHEN l.optin = 'double' THEN 'confirmed' ELSE 'unconfirmed' END)::subscription_status,
+    updated_at = NOW()
+FROM lists AS l
+WHERE sl.list_id = l.id
+    AND sl.subscriber_id = (SELECT id FROM sub)
+    AND sl.status = 'unsubscribed'
+    AND sl.list_id = ANY(SELECT list_id FROM camp_lists)
+RETURNING sl.list_id;
 
 -- name: delete-unconfirmed-subscriptions
 WITH optins AS (

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -92,8 +93,21 @@ func (s *store) GetCampaign(campID int) (*models.Campaign, error) {
 
 // UpdateCampaignStatus updates a campaign's status.
 func (s *store) UpdateCampaignStatus(campID int, status string) error {
-	_, err := s.queries.UpdateCampaignStatus.Exec(campID, status)
-	return err
+	if _, err := s.queries.UpdateCampaignStatus.Exec(campID, status); err != nil {
+		return err
+	}
+
+	// The sending pipeline only changes status when a campaign finishes or
+	// has to stop, so record it in the workspace's activity log.
+	if c, err := s.GetCampaign(campID); err == nil {
+		level := models.ActivityInfo
+		if status != models.CampaignStatusFinished {
+			level = models.ActivityWarn
+		}
+		s.core.LogActivity(c.TenantID, level, "campaign",
+			fmt.Sprintf("“%s” %s (%d sent)", c.Name, campaignStatusVerb(status), c.Sent))
+	}
+	return nil
 }
 
 // SetCampaignPauseReason records why a campaign was auto-paused. Only
@@ -228,6 +242,11 @@ func (s *store) GetTenantRootURL(tenantID int) (string, error) {
 		return "", err
 	}
 	return strings.TrimSuffix(out, "/"), nil
+}
+
+// RecordTxSendResult records a transactional message's send outcome.
+func (s *store) RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error) {
+	s.core.RecordTxSendResult(tenantID, txMessageID, messenger, err)
 }
 
 // RecordBounce records a bounce event and returns the bounce count.

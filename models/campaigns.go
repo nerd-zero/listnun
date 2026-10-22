@@ -52,17 +52,18 @@ type Campaign struct {
 	Status     string      `db:"status" json:"status"`
 	// Set only when Status='paused' was set automatically (not by a
 	// user) -- see schema.sql's campaigns.pause_reason doc comment.
-	PauseReason       null.String     `db:"pause_reason" json:"pause_reason"`
-	ContentType       string          `db:"content_type" json:"content_type"`
-	Tags              pq.StringArray  `db:"tags" json:"tags"`
-	Headers           Headers         `db:"headers" json:"headers"`
-	Attribs           JSON            `db:"attribs" json:"attribs"`
-	TemplateID        null.Int        `db:"template_id" json:"template_id"`
-	Messenger         string          `db:"messenger" json:"messenger"`
-	Archive           bool            `db:"archive" json:"archive"`
-	ArchiveSlug       null.String     `db:"archive_slug" json:"archive_slug"`
-	ArchiveTemplateID null.Int        `db:"archive_template_id" json:"archive_template_id"`
-	ArchiveMeta       json.RawMessage `db:"archive_meta" json:"archive_meta"`
+	PauseReason       null.String      `db:"pause_reason" json:"pause_reason"`
+	ContentType       string           `db:"content_type" json:"content_type"`
+	Tags              pq.StringArray   `db:"tags" json:"tags"`
+	Headers           Headers          `db:"headers" json:"headers"`
+	Attribs           JSON             `db:"attribs" json:"attribs"`
+	TemplateID        null.Int         `db:"template_id" json:"template_id"`
+	Messenger         string           `db:"messenger" json:"messenger"`
+	Archive           bool             `db:"archive" json:"archive"`
+	ArchiveSlug       null.String      `db:"archive_slug" json:"archive_slug"`
+	ArchiveTemplateID null.Int         `db:"archive_template_id" json:"archive_template_id"`
+	ArchiveMeta       json.RawMessage  `db:"archive_meta" json:"archive_meta"`
+	Tracking          CampaignTracking `db:"tracking" json:"tracking"`
 
 	// TemplateBody is joined in from templates by the next-campaigns query.
 	TemplateBody        string             `db:"template_body" json:"-"`
@@ -183,6 +184,12 @@ func (c *Campaign) CompileTemplate(f template.FuncMap) error {
 		body = b.String()
 	} else {
 		body = c.Body
+	}
+
+	// Switch-on tracking (links, pixels) is for HTML emails; a plain-text
+	// email would show the pixel tags as text.
+	if c.ContentType != CampaignContentTypePlain {
+		body = c.Tracking.Apply(body)
 	}
 
 	// Compile the campaign message.

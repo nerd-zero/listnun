@@ -1,178 +1,277 @@
 <template>
-  <div class="roles-page">
-    <div class="page-header">
-      <h1 class="page-title">
-        {{ $t(isUser ? 'users.userRoles' : 'users.listRoles') }}
-        <span v-if="!isNaN(roles.length)" class="page-title-count">{{ roles.length }}</span>
-      </h1>
-      <PvButton v-if="$can('users:manage')" severity="primary" icon="pi pi-plus"
-        data-cy="btn-new" @click="showNewForm('user')" :label="$t('globals.buttons.new')" />
-    </div>
+  <div class="ln-page roles">
+    <users-tabs>
+      <PvButton v-if="$can('roles:manage')" icon="pi pi-plus" :label="$t('users.newRole')" data-cy="btn-new" @click="startNew" />
+    </users-tabs>
 
-    <div class="table-card">
-      <PvDataTable :value="roles" :loading="isLoading">
-        <PvColumn field="role" :header="$t('users.role')" sortable>
-          <template #body="{ data }">
-            <div class="role-name-cell">
-              <a href="#" class="row-name" @click.prevent="showEditForm(data, 'user')">{{ data.name }}</a>
-              <PvTag v-if="data.id === 1" severity="success" size="small" value="Default" />
-            </div>
-          </template>
-        </PvColumn>
+    <error-state v-if="error" :title="$t('states.couldntLoad')" :error="error" @retry="load" />
 
-        <PvColumn field="created_at" :header="$t('globals.fields.createdAt')"
-          header-class="cy-created_at" sortable style="width:11rem">
-          <template #body="{ data }">{{ $utils.niceDate(data.createdAt) }}</template>
-        </PvColumn>
-
-        <PvColumn field="updated_at" :header="$t('globals.fields.updatedAt')"
-          header-class="cy-updated_at" sortable style="width:11rem">
-          <template #body="{ data }">{{ $utils.niceDate(data.updatedAt) }}</template>
-        </PvColumn>
-
-        <PvColumn style="width:7rem; text-align:right">
-          <template #body="{ data }">
-            <div v-if="$can('roles:manage')" class="row-actions">
-              <button type="button" class="row-action-btn" data-cy="btn-clone"
-                v-tooltip.bottom="$t('globals.buttons.clone')"
-                @click="$utils.prompt($t('globals.buttons.clone'), { placeholder: $t('globals.fields.name'), value: $t('campaigns.copyOf', { name: data.name }) }, (name) => onCloneRole(name, data))">
-                <i class="pi pi-copy" />
-              </button>
-              <template v-if="data.id !== 1">
-                <button type="button" class="row-action-btn" data-cy="btn-edit"
-                  v-tooltip.bottom="$t('globals.buttons.edit')" @click="showEditForm(data, 'user')">
-                  <i class="pi pi-pencil" />
-                </button>
-                <button type="button" class="row-action-btn row-action-btn--danger" data-cy="btn-delete"
-                  v-tooltip.bottom="$t('globals.buttons.delete')" @click="onDeleteRole(data)">
-                  <i class="pi pi-trash" />
-                </button>
-              </template>
-            </div>
-          </template>
-        </PvColumn>
-
-        <template #empty v-if="!isLoading">
-          <empty-placeholder />
+    <div v-else class="roles-split">
+      <nav class="ln-card roles-list" :aria-label="isUser ? $t('users.userRoles') : $t('users.listRoles')">
+        <template v-if="isLoading && !roles.length">
+          <PvSkeleton v-for="n in 3" :key="n" height="22px" class="roles-skel" />
         </template>
-      </PvDataTable>
+        <button
+          v-for="r in roles"
+          :key="r.id"
+          type="button"
+          class="roles-item"
+          :class="{ 'is-on': selected?.id === r.id }"
+          data-cy="role-item"
+          :aria-current="selected?.id === r.id ? 'true' : undefined"
+          @click="select(r)"
+        >
+          <span class="roles-item-name">{{ r.name }}</span>
+          <span v-if="counts[r.id] !== undefined" class="ln-small">{{ $t('users.numUsers', { num: counts[r.id] }, counts[r.id]) }}</span>
+        </button>
+        <button v-if="creating" type="button" class="roles-item is-on">
+          <span class="roles-item-name">{{ $t('users.newRole') }}</span>
+        </button>
+        <p v-if="!isLoading && !roles.length && !creating" class="ln-small roles-none">{{ $t('users.noRoles') }}</p>
+      </nav>
+
+      <role-form
+        v-if="creating || selected"
+        :key="formKey"
+        :data="creating ? draft : selected || {}"
+        :is-editing="!creating"
+        :type="isUser ? 'user' : 'list'"
+        @saved="onSaved"
+        @cancel="creating = false"
+        @delete="askDelete"
+        @clone="askClone"
+      />
+      <empty-state
+        v-else-if="!isLoading"
+        icon="pi-shield"
+        :title="$t('users.pickRole')"
+        :text="isUser ? $t('users.userRolesHelp') : $t('users.listRolesHelp')"
+        :action-label="$can('roles:manage') ? $t('users.newRole') : ''"
+        @action="startNew"
+      />
     </div>
 
-    <!-- Add / edit form modal -->
-    <PvDialog v-model:visible="isFormVisible" :style="{ width: '700px' }" show-header="false" :closable="false" modal @hide="onFormClose">
-      <role-form :data="curItem" :type="curType" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
-    </PvDialog>
+    <dialog-form
+      v-model:visible="clone.open"
+      :title="$t('globals.buttons.clone')"
+      :submit-label="$t('globals.buttons.clone')"
+      :busy="clone.busy"
+      :submit-disabled="!clone.name.trim()"
+      @submit="doClone"
+    >
+      <div class="ln-field">
+        <label for="role-clone-name">{{ $t('globals.fields.name') }}</label>
+        <PvInputText id="role-clone-name" v-model="clone.name" autofocus />
+      </div>
+    </dialog-form>
+
+    <confirm-action
+      v-model:visible="confirm.open"
+      :title="confirm.title"
+      :text="confirm.text"
+      :confirm-label="$t('users.deleteRole')"
+      danger
+      :busy="confirm.busy"
+      @confirm="confirm.run"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import {
+  ref, reactive, computed, watch, onMounted,
+} from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import { useFormDialog } from '../composables/useFormDialog';
-import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
+import UsersTabs from '../components/UsersTabs.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import ErrorState from '../components/ui/ErrorState.vue';
+import DialogForm from '../components/ui/DialogForm.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import RoleForm from './RoleForm.vue';
 import { getRoles as rolesApi } from '../api/generated/endpoints/roles/roles';
+import { getUsers as usersApi } from '../api/generated/endpoints/users/users';
 
-const { $utils } = useGlobal();
+// Roles and users are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+const { $utils, $can } = useGlobal();
 const {
   listUserRoles, listListRoles, createUserRole, createListRole, deleteRole,
 } = rolesApi();
+const { listUsers } = usersApi();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useMainStore();
 const { loading, userRoles, listRoles } = storeToRefs(store);
 
-// Roles keeps its own showEditForm/showNewForm rather than the
-// composable's (it also tracks curType, and showNewForm deliberately
-// doesn't reset curItem) -- but still shares the curItem/isEditing/
-// isFormVisible refs and closeForm helper the other CRUD views use.
-const {
-  curItem, isEditing, isFormVisible, closeForm,
-} = useFormDialog();
-const curType = ref<string | null>(null);
+const error = ref<Loose | null>(null);
+const selected = ref<Loose | null>(null);
+const creating = ref(false);
+const draft = ref<Loose>({});
+const formKey = ref(0);
+const counts = ref<Record<number, number>>({});
+const clone = reactive({
+  open: false, busy: false, name: '', source: null as Loose | null,
+});
+const confirm = reactive({
+  open: false, title: '', text: '', busy: false, run: () => {},
+});
 
-const isUser = computed(() => curType.value === 'user');
-const isLoading = computed(() => (curType.value === 'user' ? loading.value.userRoles : loading.value.listRoles));
-const roles = computed<any[]>(() => (isUser.value ? (userRoles.value as any) : (listRoles.value as any)));
+const isUser = computed(() => route.name === 'userRoles');
+const isLoading = computed(() => (isUser.value ? loading.value.userRoles : loading.value.listRoles));
+const roles = computed<Loose[]>(() => ((isUser.value ? userRoles.value : listRoles.value) as Loose[]) || []);
 
-function fetchRoles() {
-  if (isUser.value) {
-    store.setLoading({ model: 'userRoles', status: true });
-    listUserRoles().then((data: any) => {
-      store.setModelResponse({ model: 'userRoles', data });
-    }).finally(() => { store.setLoading({ model: 'userRoles', status: false }); });
-  } else {
-    store.setLoading({ model: 'listRoles', status: true });
-    listListRoles().then((data: any) => {
-      store.setModelResponse({ model: 'listRoles', data });
-    }).finally(() => { store.setLoading({ model: 'listRoles', status: false }); });
-  }
+function select(r: Loose | null) {
+  creating.value = false;
+  selected.value = r;
+  formKey.value += 1;
+  const id = r ? String(r.id) : undefined;
+  if (route.query.id !== id) router.replace({ query: id ? { id } : {} });
 }
 
-function showEditForm(item: any) {
-  curItem.value = item;
-  curType.value = isUser.value ? 'user' : 'list';
-  isFormVisible.value = true;
-  isEditing.value = true;
+function startNew() {
+  draft.value = {};
+  creating.value = true;
+  selected.value = null;
+  formKey.value += 1;
 }
 
-function showNewForm() {
-  isEditing.value = false;
-  isFormVisible.value = true;
+// Pick the role named in ?id=, else keep the current one, else the first.
+function reselect() {
+  const want = parseInt(String(route.query.id || selected.value?.id || 0), 10);
+  const r = roles.value.find((x) => x.id === want) || roles.value[0] || null;
+  if (r?.id !== selected.value?.id || !selected.value) select(r);
+  else selected.value = r;
 }
 
-function formFinished() {
-  fetchRoles();
+function fetchRoles(): Promise<void> {
+  const model = isUser.value ? 'userRoles' : 'listRoles';
+  const fn = isUser.value ? listUserRoles : listListRoles;
+  error.value = null;
+  store.setLoading({ model, status: true });
+  return fn().then((data) => { store.setModelResponse({ model, data }); })
+    .catch((e) => { error.value = e; })
+    .finally(() => { store.setLoading({ model, status: false }); });
 }
 
-function onFormClose() {
-  if (route.params.id) {
-    router.push({ name: 'users' });
-  }
-}
-
-function onCloneRole(name: string, item: any) {
-  const form: any = { name };
-  let fn: (data: any) => Promise<any>;
-  if (isUser.value) {
-    fn = createUserRole;
-    form.permissions = item.permissions;
-  } else {
-    fn = createListRole;
-    form.lists = item.lists;
-  }
-  fn(form).then(() => {
-    fetchRoles();
-    $utils.toast(t('globals.messages.created', { name }));
+// How many users hold each role, for the role list.
+function fetchCounts() {
+  if (!$can('users:get')) return;
+  listUsers().then((data) => {
+    const c: Record<number, number> = {};
+    (data as unknown as Loose[]).forEach((u) => {
+      const id = isUser.value ? u.userRole?.id : u.listRole?.id;
+      if (id) c[id] = (c[id] || 0) + 1;
+    });
+    roles.value.forEach((r) => { c[r.id] = c[r.id] || 0; });
+    counts.value = c;
   });
 }
 
-function onDeleteRole(item: any) {
-  $utils.confirm(
-    t('globals.messages.confirm'),
-    () => {
-      deleteRole(item.id).then(() => {
-        fetchRoles();
-        $utils.toast(t('globals.messages.deleted', { name: item.name }));
-      });
-    },
-  );
+function load() {
+  creating.value = false;
+  fetchRoles().then(() => { reselect(); fetchCounts(); });
 }
 
-onMounted(() => {
-  curType.value = route.name === 'userRoles' ? 'user' : 'list';
-  fetchRoles();
+function onSaved(role: Loose) {
+  creating.value = false;
+  fetchRoles().then(() => {
+    const r = roles.value.find((x) => x.id === role?.id);
+    select(r || selected.value);
+    fetchCounts();
+  });
+}
+
+// Deleting a user role in use fails (ON DELETE RESTRICT); deleting a list
+// role in use clears it from its users (ON DELETE SET NULL), so say which.
+function deleteText(r: Loose): string {
+  const num = counts.value[r.id];
+  if (!num) return t('users.deleteRoleText');
+  return t(isUser.value ? 'users.deleteRoleInUse' : 'users.deleteListRoleInUse', { num });
+}
+
+function askDelete(r: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('users.deleteRoleTitle', { name: r.name }),
+    text: deleteText(r),
+    run: () => {
+      confirm.busy = true;
+      deleteRole(r.id).then(() => {
+        confirm.open = false;
+        selected.value = null;
+        router.replace({ query: {} });
+        load();
+        $utils.toast(t('globals.messages.deleted', { name: r.name }));
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+function askClone(r: Loose) {
+  clone.source = r;
+  clone.name = t('campaigns.copyOf', { name: r.name });
+  clone.open = true;
+}
+
+function doClone() {
+  const r = clone.source;
+  if (!r) return;
+  clone.busy = true;
+  const req = isUser.value
+    ? createUserRole({ name: clone.name.trim(), permissions: r.permissions } as never)
+    : createListRole({ name: clone.name.trim(), lists: (r.lists || []).map((l: Loose) => ({ id: l.id, permissions: l.permissions })) } as never);
+  req.then((d) => {
+    clone.open = false;
+    onSaved(d as unknown as Loose);
+    $utils.toast(t('globals.messages.created', { name: clone.name }));
+  }).finally(() => { clone.busy = false; });
+}
+
+watch(() => route.name, (name) => {
+  if (name === 'userRoles' || name === 'listRoles') {
+    selected.value = null;
+    load();
+  }
 });
+
+onMounted(load);
 </script>
 
 <style scoped lang="scss">
-.roles-page { display: flex; flex-direction: column; gap: 1.5rem; }
+.roles-split {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  @media (max-width: 860px) { grid-template-columns: minmax(0, 1fr); }
+}
+.roles-list { display: flex; flex-direction: column; padding: 6px; gap: 2px; }
+.roles-skel { margin: 8px 10px; }
+.roles-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ln-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
 
-.role-name-cell { display: flex; align-items: center; gap: 0.5rem; }
-.row-name { color: var(--lm-text); font-weight: 500; text-decoration: none; &:hover { color: var(--lm-primary); } }
+  &:hover { background: var(--ln-hover); }
+  &.is-on { background: var(--ln-hover); font-weight: 500; }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: -2px; }
+}
+.roles-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roles-none { margin: 0; padding: 10px 12px; }
 </style>

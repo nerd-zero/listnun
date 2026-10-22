@@ -1,171 +1,117 @@
 <template>
-  <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed, 'app-dark': isDark }">
-    <PvToast position="bottom-right" />
-    <PvConfirmDialog />
+  <PvToast position="bottom-right" />
+  <PvConfirmDialog />
 
-    <template v-if="isLoaded">
-      <!-- ─── Sidebar ─── -->
-      <aside class="app-sidebar">
-        <div class="sidebar-header">
-          <router-link :to="{ name: 'dashboard' }" class="sidebar-brand">
-            <img src="@/assets/listnun-mark.png" alt="listnun" class="sidebar-logo" />
-            <span class="sidebar-brand-text">
-              <span class="sidebar-brand-name">listnun</span>
-              <span
-                v-if="serverConfig.organization_name"
-                class="sidebar-org-name"
-                :title="serverConfig.organization_name"
-              >{{ serverConfig.organization_name }}</span>
-            </span>
-          </router-link>
+  <app-shell
+    v-if="isLoaded"
+    :org-name="serverConfig.organization_name"
+    :console-url="serverConfig.console_url"
+    :needs-restart="serverConfig.needs_restart"
+    :dark="isDark"
+    :username="profile.username"
+    :name="profile.name"
+    :account-items="accountItems"
+    @refresh="triggerRefresh"
+    @toggle-dark="toggleDark"
+    @restart="$utils.confirm($t('settings.confirmRestart'), reloadApp)"
+  >
+    <template #notices>
+      <template v-if="serverConfig.update">
+        <div
+          v-if="serverConfig.update.update && serverConfig.update.update.is_new"
+          class="app-notice app-notice--success"
+        >
+          <i class="pi pi-arrow-up-right" />
+          <span>
+            {{ $t('settings.updateAvailable', { version: serverConfig.update.update.release_version }) }}
+          </span>
+          <a :href="serverConfig.update.update.url" target="_blank" rel="noopener noreferrer">View release</a>
         </div>
-
-        <nav class="sidebar-nav">
-          <navigation :active-item="activeItem" />
-        </nav>
-</aside>
-
-      <!-- ─── Main ─── -->
-      <div class="app-main">
-        <!-- Topbar -->
-        <header class="app-topbar">
-          <div class="topbar-start">
-            <button type="button" class="topbar-btn" @click="sidebarCollapsed = !sidebarCollapsed">
-              <i class="pi pi-bars" />
-            </button>
-          </div>
-
-          <div class="topbar-end">
-            <PvButton
-              v-if="serverConfig.needs_restart"
-              severity="danger"
-              size="small"
-              icon="pi pi-exclamation-triangle"
-              :label="$t('settings.needsRestart')"
-              @click="$utils.confirm($t('settings.confirmRestart'), reloadApp)"
-            />
-
-            <button
-              type="button"
-              class="topbar-btn"
-              v-tooltip.bottom="$t('globals.buttons.refresh')"
-              data-cy="btn-refresh"
-              @click="triggerRefresh"
-            >
-              <i class="pi pi-refresh" />
-            </button>
-
-            <button type="button" class="topbar-btn" @click="toggleDark" v-tooltip.bottom="isDark ? 'Light mode' : 'Dark mode'">
-              <i :class="['pi', isDark ? 'pi-sun' : 'pi-moon']" />
-            </button>
-
-            <button
-              v-if="profile.username"
-              type="button"
-              class="topbar-user-btn"
-              @click="(e) => userMenuRef.show(e)"
-            >
-              <PvAvatar
-                :label="profile.username[0].toUpperCase()"
-                class="topbar-avatar"
-                shape="circle"
-                size="small"
-              />
-              <span class="topbar-username">{{ profile.username }}</span>
-              <i class="pi pi-chevron-down topbar-chevron" />
-            </button>
-            <PvMenu ref="userMenuRef" :model="userMenuItems" popup />
-          </div>
-        </header>
-
-        <!-- System notices -->
-        <template v-if="serverConfig.update">
-          <div
-            v-if="serverConfig.update.update && serverConfig.update.update.is_new"
-            class="app-notice app-notice--success"
-          >
-            <i class="pi pi-arrow-up-right" />
-            <span>
-              {{ $t('settings.updateAvailable', { version: serverConfig.update.update.release_version }) }}
-            </span>
-            <a :href="serverConfig.update.update.url" target="_blank" rel="noopener noreferrer">View release</a>
-          </div>
-          <div
-            v-for="m in (serverConfig.update.messages || [])"
-            :key="m.title"
-            class="app-notice"
-            :class="m.priority === 'high' ? 'app-notice--danger' : 'app-notice--info'"
-          >
-            <i class="pi pi-info-circle" />
-            <strong v-if="m.title">{{ m.title }}</strong>
-            <span>{{ m.description }}</span>
-            <a v-if="m.url" :href="m.url" target="_blank" rel="noopener noreferrer">View</a>
-          </div>
-        </template>
-        <div v-if="serverConfig.has_legacy_user" class="app-notice app-notice--danger">
-          <i class="pi pi-exclamation-triangle" />
-          Remove <code>admin_username</code> / <code>admin_password</code> from config.
-          <router-link :to="{ name: 'users' }">Go to Users</router-link>
+        <div
+          v-for="m in (serverConfig.update.messages || [])"
+          :key="m.title"
+          class="app-notice"
+          :class="m.priority === 'high' ? 'app-notice--danger' : 'app-notice--info'"
+        >
+          <i class="pi pi-info-circle" />
+          <strong v-if="m.title">{{ m.title }}</strong>
+          <span>{{ m.description }}</span>
+          <a v-if="m.url" :href="m.url" target="_blank" rel="noopener noreferrer">View</a>
         </div>
-
-        <!-- Page content -->
-        <div class="app-content">
-          <router-view :key="$route.fullPath" />
-        </div>
+      </template>
+      <div v-if="serverConfig.has_legacy_user" class="app-notice app-notice--danger">
+        <i class="pi pi-exclamation-triangle" />
+        Remove <code>admin_username</code> / <code>admin_password</code> from config.
+        <router-link :to="{ name: 'users' }">Go to Users</router-link>
       </div>
-
-      <!-- Mobile overlay -->
-      <div class="sidebar-overlay" @click="sidebarCollapsed = true" />
     </template>
 
-    <div v-if="!isLoaded" class="app-loading">
-      <PvProgressSpinner style="width:48px;height:48px" stroke-width="3" />
-    </div>
+    <no-access v-if="denied" :page="pageTitle" />
+    <router-view v-else v-slot="{ Component, route: r }">
+      <Transition name="ln-page" mode="out-in">
+        <div :key="viewKey(r)" class="ln-view">
+          <component :is="Component" />
+        </div>
+      </Transition>
+    </router-view>
+  </app-shell>
+
+  <div v-else class="app-loading">
+    <PvProgressSpinner style="width:48px;height:48px" stroke-width="3" />
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  ref, computed, watch, onMounted,
-} from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { uris } from './constants';
 import { useMainStore } from './store';
 import { setToastInstance, setConfirmInstance } from './toastService';
 import { useGlobal } from './composables/useGlobal';
-import Navigation from './components/Navigation.vue';
+import { useDarkMode } from './composables/useDarkMode';
+import AppShell from './components/AppShell.vue';
+import NoAccess from './views/NoAccess.vue';
+import { translateOr } from './composables/translateOr';
 
 setToastInstance(useToast());
 setConfirmInstance(useConfirm());
 
-const { $api, $utils } = useGlobal();
+const { $api, $utils, $can } = useGlobal();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+
+// Routes that share a view and update it from the URL themselves (settings
+// sections, the open subscriber or user, roles tabs) name it in meta.view,
+// so moving between them keeps the page instead of rebuilding it. Anything
+// else is rebuilt, and animated in, on every URL change.
+function viewKey(r: RouteLocationNormalizedLoaded): string {
+  return (r.meta.view as string | undefined) || r.fullPath;
+}
 const { serverConfig, profile } = storeToRefs(useMainStore());
 
 const isLoaded = ref(false);
-const isDark = ref(localStorage.getItem('lm-dark') === '1');
-if (isDark.value) document.documentElement.classList.add('app-dark');
-const sidebarCollapsed = ref(window.innerWidth < 992);
-const activeItem = ref<Record<string, boolean>>({});
-const userMenuRef = ref<any>(null);
 
-const userMenuItems = computed(() => [
+const denied = computed(() => {
+  const perms = route.meta.perms as string[] | undefined;
+  return !!perms?.length && !$can(...perms);
+});
+
+const pageTitle = computed(() => {
+  const title = route.meta.title as string | undefined;
+  return title ? translateOr(t, title, title) : '';
+});
+const { isDark, toggleDark } = useDarkMode();
+
+const accountItems = computed(() => [
   { label: t('users.profile'), icon: 'pi pi-user', command: () => router.push('/user/profile') },
   { separator: true },
   { label: t('users.logout'), icon: 'pi pi-sign-out', command: () => doLogout() },
 ]);
-
-function toggleDark() {
-  isDark.value = !isDark.value;
-  document.documentElement.classList.toggle('app-dark', isDark.value);
-  localStorage.setItem('lm-dark', isDark.value ? '1' : '');
-}
 
 function triggerRefresh() { useMainStore().refresh(); }
 
@@ -197,23 +143,17 @@ function listenEvents() {
   };
 }
 
-watch(() => route.name, (name) => {
-  activeItem.value = { [name as string]: true };
-  if (window.innerWidth < 992) sidebarCollapsed.value = true;
-});
-
 onMounted(() => {
   isLoaded.value = true;
   $api.getLists({ minimal: true, per_page: 'all', status: 'active' });
   listenEvents();
-  activeItem.value = { [route.name as string]: true };
-  window.addEventListener('resize', () => {
-    if (window.innerWidth >= 992) sidebarCollapsed.value = false;
-  });
 });
 </script>
 
 <style lang="scss">
 @import "assets/style.scss";
-@import "assets/icons/fontello.css";
+@import "assets/shell.scss";
+@import "assets/patterns.scss";
+@import "assets/motion.scss";
+@import "assets/tinymce.scss";
 </style>

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nerd-zero/listnun/internal/captcha"
 	null "gopkg.in/volatiletech/null.v6"
 )
 
@@ -38,6 +38,7 @@ type serverConfig struct {
 	ScrubEnabled     bool            `json:"scrub_enabled"`
 	Version          string          `json:"version"`
 	OrganizationName string          `json:"organization_name,omitempty"`
+	ConsoleURL       string          `json:"console_url,omitempty"`
 } // @name ServerConfig
 
 // GetServerConfig returns general server config.
@@ -64,6 +65,7 @@ func (a *App) GetServerConfig(c echo.Context) error {
 		Lang:          a.cfg.Lang,
 		Permissions:   a.cfg.PermissionsRaw,
 		HasLegacyUser: a.cfg.HasLegacyUser,
+		ConsoleURL:    a.cfg.ConsoleURL,
 		Privacy: struct {
 			DisableTracking    bool `json:"disable_tracking"`
 			IndividualTracking bool `json:"individual_tracking"`
@@ -81,14 +83,13 @@ func (a *App) GetServerConfig(c echo.Context) error {
 	}
 
 	// CAPTCHA.
-	if a.cfg.Security.Captcha.Altcha.Enabled {
+	if w := a.captchaWidget(); w.Enabled {
 		out.PublicSubscription.CaptchaEnabled = true
-		out.PublicSubscription.CaptchaProvider = null.StringFrom(captcha.ProviderAltcha)
-		out.PublicSubscription.AltchaComplexity = a.cfg.Security.Captcha.Altcha.Complexity
-	} else if a.cfg.Security.Captcha.HCaptcha.Enabled {
-		out.PublicSubscription.CaptchaEnabled = true
-		out.PublicSubscription.CaptchaProvider = null.StringFrom(captcha.ProviderHCaptcha)
-		out.PublicSubscription.CaptchaKey = null.StringFrom(a.cfg.Security.Captcha.HCaptcha.Key)
+		out.PublicSubscription.CaptchaProvider = null.StringFrom(w.Provider)
+		out.PublicSubscription.AltchaComplexity = w.Complexity
+		if w.Key != "" {
+			out.PublicSubscription.CaptchaKey = null.StringFrom(w.Key)
+		}
 	}
 
 	if _, settings, err := a.media.Get(c.Request().Context(), tenantID(c)); err == nil {
@@ -173,6 +174,38 @@ func (a *App) GetDashboardCounts(c echo.Context) error {
 		return err
 	}
 
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// dashboardPeriods are the periods the dashboard can show, in days.
+var dashboardPeriods = map[int]bool{7: true, 30: true, 90: true}
+
+// GetDashboardOverview returns live dashboard numbers for a period: sends,
+// bounces and failures per day, subscriber growth, queue and the counts
+// behind "Needs attention".
+//
+//	@ID				getDashboardOverview
+//	@Summary		Get the dashboard overview
+//	@Tags			dashboard
+//	@Produce		json
+//	@Param			days	query		int	false	"7, 30 or 90 (default 30)"
+//	@Success		200		{object}	models.DashboardOverview
+//	@Failure		400		{object}	echo.HTTPError
+//	@Router			/api/dashboard/overview [get]
+func (a *App) GetDashboardOverview(c echo.Context) error {
+	days := 30
+	if v := c.QueryParam("days"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || !dashboardPeriods[n] {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "days"))
+		}
+		days = n
+	}
+
+	out, err := a.core.GetDashboardOverview(c.Request().Context(), tenantID(c), days)
+	if err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, okResp{out})
 }
 

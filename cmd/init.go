@@ -93,7 +93,10 @@ type Config struct {
 	MultiTenancyEnabled           bool     `koanf:"multi_tenancy_enabled"`
 	RootDomain                    string   `koanf:"root_domain"`
 	ConsoleURL                    string   `koanf:"console_url"`
-	Operator                      struct {
+	// WebhooksAllowPrivate lets webhook endpoints use plain HTTP and
+	// private or loopback addresses. For local development only.
+	WebhooksAllowPrivate bool `koanf:"webhooks_allow_private"`
+	Operator             struct {
 		Token      string `koanf:"token"`
 		DBUser     string `koanf:"db_user"`
 		DBPassword string `koanf:"db_password"`
@@ -134,6 +137,12 @@ type Config struct {
 				Key     string `koanf:"key"`
 				Secret  string `koanf:"secret"`
 			} `koanf:"hcaptcha"`
+			Turnstile struct {
+				Enabled bool   `koanf:"enabled"`
+				Key     string `koanf:"key"`
+				Secret  string `koanf:"secret"`
+			} `koanf:"turnstile"`
+			Login bool `koanf:"login"`
 		} `koanf:"captcha"`
 
 		TrustedURLs []string `koanf:"trusted_urls"`
@@ -1156,6 +1165,14 @@ func initAuth(co *core.Core, db *sql.DB, ko *koanf.Koanf) *auth.Auth {
 		},
 		GetUser: func(id int) (auth.User, error) {
 			return co.GetUserUnscoped(id)
+		},
+
+		AuthenticateAPIKey: func(tenantID int, name, secret string) (auth.User, bool) {
+			k, ok := co.AuthenticateAPIKey(context.Background(), tenantID, name, secret)
+			if !ok {
+				return auth.User{}, false
+			}
+			return apiKeyUser(k), true
 		},
 
 		// GetOIDCConfig resolves the given tenant's own OIDC settings

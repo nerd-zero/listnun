@@ -1,6 +1,9 @@
 package models
 
-import "gopkg.in/volatiletech/null.v6"
+import (
+	"github.com/nerd-zero/listnun/internal/cleanup"
+	"gopkg.in/volatiletech/null.v6"
+)
 
 // Settings represents the app settings stored in the DB.
 type Settings struct {
@@ -51,6 +54,13 @@ type Settings struct {
 			Key     string `json:"key"`
 			Secret  string `json:"secret"`
 		} `json:"hcaptcha"`
+		Turnstile struct {
+			Enabled bool   `json:"enabled"`
+			Key     string `json:"key"`
+			Secret  string `json:"secret"`
+		} `json:"turnstile"`
+		// Login also asks for the captcha on the admin sign-in page.
+		Login bool `json:"login"`
 	} `json:"security.captcha"`
 
 	OIDC struct {
@@ -65,21 +75,30 @@ type Settings struct {
 	} `json:"security.oidc"`
 
 	SecurityTrustedURLs []string `json:"security.trusted_urls"`
+	// SecurityRequire2FA holds password users at their profile until they
+	// set up two-step verification (see auth.NeedsTwofaSetup).
+	SecurityRequire2FA bool `json:"security.require_2fa"`
 
-	UploadProvider             string   `json:"upload.provider"`
-	UploadExtensions           []string `json:"upload.extensions"`
-	UploadFilesystemUploadPath string   `json:"upload.filesystem.upload_path"`
-	UploadFilesystemUploadURI  string   `json:"upload.filesystem.upload_uri"`
-	UploadS3URL                string   `json:"upload.s3.url"`
-	UploadS3PublicURL          string   `json:"upload.s3.public_url"`
-	UploadS3AwsAccessKeyID     string   `json:"upload.s3.aws_access_key_id"`
-	UploadS3AwsDefaultRegion   string   `json:"upload.s3.aws_default_region"`
-	UploadS3AwsSecretAccessKey string   `json:"upload.s3.aws_secret_access_key,omitempty"`
-	UploadS3Bucket             string   `json:"upload.s3.bucket"`
-	UploadS3BucketDomain       string   `json:"upload.s3.bucket_domain"`
-	UploadS3BucketPath         string   `json:"upload.s3.bucket_path"`
-	UploadS3BucketType         string   `json:"upload.s3.bucket_type"`
-	UploadS3Expiry             string   `json:"upload.s3.expiry"`
+	// InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive
+	// cleanup); see internal/cleanup.
+	InactiveCleanup cleanup.Settings `json:"inactive_cleanup"`
+
+	UploadProvider   string   `json:"upload.provider"`
+	UploadExtensions []string `json:"upload.extensions"`
+	// UploadMaxFileSize is the largest upload in KB; 0 means no limit.
+	UploadMaxFileSize          int    `json:"upload.max_file_size"`
+	UploadFilesystemUploadPath string `json:"upload.filesystem.upload_path"`
+	UploadFilesystemUploadURI  string `json:"upload.filesystem.upload_uri"`
+	UploadS3URL                string `json:"upload.s3.url"`
+	UploadS3PublicURL          string `json:"upload.s3.public_url"`
+	UploadS3AwsAccessKeyID     string `json:"upload.s3.aws_access_key_id"`
+	UploadS3AwsDefaultRegion   string `json:"upload.s3.aws_default_region"`
+	UploadS3AwsSecretAccessKey string `json:"upload.s3.aws_secret_access_key,omitempty"`
+	UploadS3Bucket             string `json:"upload.s3.bucket"`
+	UploadS3BucketDomain       string `json:"upload.s3.bucket_domain"`
+	UploadS3BucketPath         string `json:"upload.s3.bucket_path"`
+	UploadS3BucketType         string `json:"upload.s3.bucket_type"`
+	UploadS3Expiry             string `json:"upload.s3.expiry"`
 
 	SMTP []struct {
 		Name          string              `json:"name"`
@@ -183,4 +202,39 @@ type Settings struct {
 		// Settings > Mail Validation UI greys the whole section out.
 		ManagedByPlatform bool `json:"managed_by_platform"`
 	} `json:"scrub"`
+
+	// Branding is the workspace logo shown in transactional emails through
+	// the brand-logo template block (Developers > Email branding).
+	Branding Branding `json:"branding"`
 } // @name Settings
+
+// Branding alignments.
+const (
+	BrandAlignLeft   = "left"
+	BrandAlignCenter = "center"
+)
+
+// Branding is the logo transactional templates show with
+// {{ template "brand-logo" . }}. It isn't used in campaigns or the app.
+type Branding struct {
+	Logo *BrandLogo `json:"logo"`
+	// LogoDark is used by email clients in dark mode. Without it, Logo sits
+	// on a white tile there.
+	LogoDark *BrandLogo `json:"logo_dark"`
+	// Width is the logo's display width in px.
+	Width   int    `json:"width"`
+	Align   string `json:"align"`
+	LinkURL string `json:"link_url"`
+} // @name Branding
+
+// BrandLogo is an uploaded logo from the media library.
+type BrandLogo struct {
+	MediaID     int    `json:"media_id"`
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int    `json:"size"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	UploadedAt  string `json:"uploaded_at"`
+} // @name BrandLogo

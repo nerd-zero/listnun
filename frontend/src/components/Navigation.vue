@@ -1,178 +1,125 @@
 <template>
-  <div class="nav-sections">
-    <div class="nav-section">
-      <router-link :to="{ name: 'dashboard' }" class="nav-item" exact-active-class="nav-item--active">
-        <i class="pi pi-home nav-icon" />
-        <span>{{ $t('menu.dashboard') }}</span>
+  <nav :aria-label="$t('menu.main')" class="ln-nav" :class="{ 'ln-nav--rail': rail }">
+    <template v-if="rail">
+      <router-link
+        v-for="item in railItems"
+        :key="item.key"
+        v-tooltip.right="item.label"
+        :to="item.to"
+        class="ln-rail-item"
+        :class="{ 'is-active': isItemActive(item) }"
+        :aria-label="item.label"
+        :data-cy="item.cy || item.key"
+      >
+        <ln-icon :name="item.icon" />
       </router-link>
-    </div>
+    </template>
 
-    <div class="nav-section">
-      <p class="nav-label">{{ $t('globals.terms.lists') }}</p>
-      <router-link :to="{ name: 'lists' }" class="nav-item" exact-active-class="nav-item--active" data-cy="all-lists">
-        <i class="pi pi-list nav-icon" />
-        <span>{{ $t('menu.allLists') }}</span>
-      </router-link>
-      <router-link :to="{ name: 'forms' }" class="nav-item" exact-active-class="nav-item--active">
-        <i class="pi pi-globe nav-icon" />
-        <span>{{ $t('menu.forms') }}</span>
-      </router-link>
-    </div>
+    <template v-else>
+      <div v-for="group in groups" :key="group.key" class="ln-nav-group">
+        <span v-if="group.label" class="ln-nav-label">{{ group.label }}</span>
 
-    <div v-if="$can('subscribers:*')" class="nav-section">
-      <p class="nav-label">{{ $t('globals.terms.subscribers') }}</p>
-      <router-link
-        v-if="$can('subscribers:get_all', 'subscribers:get')"
-        :to="{ name: 'subscribers' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="all-subscribers"
-      >
-        <i class="pi pi-users nav-icon" />
-        <span>{{ $t('menu.allSubscribers') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('subscribers:import')"
-        :to="{ name: 'import' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="import"
-      >
-        <i class="pi pi-upload nav-icon" />
-        <span>{{ $t('menu.import') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('bounces:get')"
-        :to="{ name: 'bounces' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="bounces"
-      >
-        <i class="pi pi-times-circle nav-icon" />
-        <span>{{ $t('globals.terms.bounces') }}</span>
-      </router-link>
-    </div>
+        <template v-for="item in group.items" :key="item.key">
+          <button
+            v-if="item.kids"
+            type="button"
+            class="ln-nav-item"
+            :class="{ 'is-current': isItemActive(item) }"
+            :aria-expanded="isOpen(item)"
+            :data-cy="item.cy || item.key"
+            @click="toggle(item)"
+          >
+            <ln-icon :name="item.icon" class="ln-nav-icon" />
+            <span class="ln-nav-text">{{ item.label }}</span>
+            <ln-icon name="chevronRight" :size="12" :stroke="1.6" class="ln-nav-chevron" />
+          </button>
+          <router-link
+            v-else
+            :to="item.to"
+            class="ln-nav-item"
+            :class="{ 'is-active': isItemActive(item) }"
+            :aria-current="isItemActive(item) ? 'page' : undefined"
+            :data-cy="item.cy || item.key"
+          >
+            <ln-icon :name="item.icon" class="ln-nav-icon" />
+            <span class="ln-nav-text">{{ item.label }}</span>
+          </router-link>
 
-    <div v-if="$can('campaigns:*')" class="nav-section">
-      <p class="nav-label">{{ $t('globals.terms.campaigns') }}</p>
-      <router-link
-        v-if="$can('campaigns:get')"
-        :to="{ name: 'campaigns' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="all-campaigns"
-      >
-        <i class="pi pi-send nav-icon" />
-        <span>{{ $t('menu.allCampaigns') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('campaigns:manage')"
-        :to="{ name: 'campaign', params: { id: 'new' } }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="new-campaign"
-      >
-        <i class="pi pi-plus-circle nav-icon" />
-        <span>{{ $t('menu.newCampaign') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('media:*')"
-        :to="{ name: 'media' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="media"
-      >
-        <i class="pi pi-image nav-icon" />
-        <span>{{ $t('menu.media') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('templates:get')"
-        :to="{ name: 'templates' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="templates"
-      >
-        <i class="pi pi-file nav-icon" />
-        <span>{{ $t('globals.terms.templates') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('campaigns:get_analytics')"
-        :to="{ name: 'campaignAnalytics' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="analytics"
-      >
-        <i class="pi pi-chart-line nav-icon" />
-        <span>{{ $t('globals.terms.analytics') }}</span>
-      </router-link>
-    </div>
-
-    <div v-if="$can('users:*', 'roles:*')" class="nav-section">
-      <p class="nav-label">{{ $t('globals.terms.users') }}</p>
-      <router-link
-        v-if="$can('users:get')"
-        :to="{ name: 'users' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="users"
-      >
-        <i class="pi pi-user nav-icon" />
-        <span>{{ $t('globals.terms.users') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('roles:get')"
-        :to="{ name: 'userRoles' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="userRoles"
-      >
-        <i class="pi pi-shield nav-icon" />
-        <span>{{ $t('users.userRoles') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('roles:get')"
-        :to="{ name: 'listRoles' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="listRoles"
-      >
-        <i class="pi pi-key nav-icon" />
-        <span>{{ $t('users.listRoles') }}</span>
-      </router-link>
-    </div>
-
-    <div v-if="$can('settings:*')" class="nav-section">
-      <p class="nav-label">System</p>
-      <router-link
-        v-if="$can('settings:get')"
-        :to="{ name: 'settings' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="all-settings"
-      >
-        <i class="pi pi-cog nav-icon" />
-        <span>{{ $t('menu.settings') }}</span>
-      </router-link>
-      <router-link
-        v-if="$can('settings:maintain')"
-        :to="{ name: 'maintenance' }"
-        class="nav-item"
-        exact-active-class="nav-item--active"
-        data-cy="maintenance"
-      >
-        <i class="pi pi-wrench nav-icon" />
-        <span>{{ $t('menu.maintenance') }}</span>
-      </router-link>
-    </div>
-  </div>
+          <!-- Always rendered so opening and closing can animate; inert
+               keeps the hidden links out of the tab order. -->
+          <div
+            v-if="item.kids"
+            class="ln-nav-kids-wrap"
+            :class="{ 'is-open': isOpen(item) }"
+            :inert="!isOpen(item) || undefined"
+          >
+            <div class="ln-nav-kids">
+              <router-link
+                v-for="k in item.kids"
+                :key="k.key"
+                :to="k.to"
+                class="ln-nav-kid"
+                :class="{ 'is-active': isKidActive(k) }"
+                :aria-current="isKidActive(k) ? 'page' : undefined"
+                :data-cy="k.cy || k.key"
+              >
+                {{ k.label }}
+              </router-link>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+  </nav>
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
-  activeItem?: Record<string, unknown>;
-}>(), {
-  activeItem: () => ({}),
-});
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import { useGlobal } from '../composables/useGlobal';
+import { useNavOpen } from '../composables/useNavOpen';
+import { navGroups, type NavItem, type NavKid } from './navigation';
+import LnIcon from './ui/LnIcon.vue';
 
-defineEmits(['toggle-group']);
+withDefaults(defineProps<{ rail?: boolean }>(), { rail: false });
+
+const { t } = useI18n();
+const route = useRoute();
+const { $can } = useGlobal();
+
+const nav = useNavOpen();
+
+const groups = computed(() => navGroups(t, $can));
+
+// The rail shows top-level destinations only; groups link to their first page.
+// The Developers group collapses to a single entry.
+const railItems = computed<NavItem[]>(() => groups.value.flatMap((g) => {
+  if (g.key === 'developers') {
+    return [{
+      key: 'developers', label: g.label, icon: 'code', to: g.items[0].to, group: 'developers',
+    }];
+  }
+  return g.items.map((item) => ({
+    ...item,
+    to: item.kids?.length ? item.kids[0].to : item.to,
+  }));
+}));
+
+function isItemActive(item: NavItem): boolean {
+  if (item.names?.includes(route.name as string)) return true;
+  return !!item.group && route.meta.group === item.group;
+}
+
+function isKidActive(k: NavKid): boolean {
+  return k.names.includes(route.name as string);
+}
+
+function isOpen(item: NavItem): boolean {
+  return nav.isOpen(item.key, isItemActive(item));
+}
+
+function toggle(item: NavItem) {
+  nav.setOpen(item.key, !isOpen(item));
+}
 </script>

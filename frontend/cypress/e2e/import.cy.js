@@ -1,3 +1,23 @@
+// Step 1 of the import flow: pick the CSV. The file input is hidden; the
+// options (step 2) only render once a file is picked.
+const attachCSV = () => {
+  cy.fixture('subs.csv').then((data) => {
+    cy.get('input[type="file"]').attachFile({
+      fileContent: data.toString(),
+      fileName: 'subs.csv',
+      mimeType: 'text/csv',
+    });
+  });
+  cy.get('.imp-options').should('exist');
+};
+
+// Picks the first list in the options step's ListSelector.
+const pickFirstList = () => {
+  cy.get('.imp-options .list-selector .p-autocomplete-dropdown').click();
+  cy.get('.p-autocomplete-overlay .p-autocomplete-option').first().click();
+  cy.get('.p-autocomplete-overlay').should('not.exist');
+};
+
 describe('Import', () => {
   it('Opens import page', () => {
     cy.resetDB();
@@ -21,52 +41,40 @@ describe('Import', () => {
     ];
 
     cases.forEach((c) => {
-      cy.get(`[data-cy=check-${c.chkMode}] .check`).click();
-      cy.get(`[data-cy=check-${c.chkSubStatus}] .check`).click();
+      attachCSV();
+
+      cy.get(`[data-cy=check-${c.chkMode}] input`).check({ force: true });
+      cy.get(`[data-cy=check-${c.chkSubStatus}] input`).check({ force: true });
 
       if (c.overwrite) {
-        cy.get('[data-cy=overwrite-user-info]').click();
-        cy.get('[data-cy=overwrite-sub-status]').click();
+        cy.get('[data-cy=overwrite-user-info] input').check({ force: true });
+        cy.get('[data-cy=overwrite-sub-status] input').check({ force: true });
       }
 
       if (c.status === 'enabled') {
-        cy.get('.list-selector input').click();
-        cy.get('.list-selector .autocomplete a').first().click();
+        pickFirstList();
       }
 
-      cy.fixture('subs.csv').then((data) => {
-        cy.get('input[type="file"]').attachFile({
-          fileContent: data.toString(),
-          fileName: 'subs.csv',
-          mimeType: 'text/csv',
-        });
-      });
+      cy.get('[data-cy=btn-import]').click();
 
-      cy.get('button.is-primary').click();
-
-      // ONLY if .modal button.is-primary is present, click it.
+      // Overwriting subscription statuses asks for confirmation first.
       if (c.overwrite) {
-        cy.get('.modal button.is-primary').click();
+        cy.confirmAction();
       }
 
-      cy.get('section.wrap .has-text-success');
-      cy.get('button.is-primary').click();
-      cy.wait(100);
+      cy.get('[data-cy=import-status]', { timeout: 10000 }).should('have.attr', 'data-status', 'finished');
+
+      // Clear the finished import so the next one can start.
+      cy.get('[data-cy=btn-import-done]').click();
+      cy.get('input[type="file"]').should('exist');
 
       // Verify that 100 (+2 default) subs are imported.
       cy.loginAndVisit('/admin/subscribers');
-      cy.wait(100);
-      cy.get('[data-cy=count]').then(($el) => {
-        cy.expect(parseInt($el.text().trim())).to.equal(c.count);
+      cy.get('.ln-page-header .ln-page-count').should(($el) => {
+        expect(parseInt($el.text().trim(), 10)).to.equal(c.count);
       });
 
-      // Subscription status.
-      // cy.get('tbody td[data-label=E-mail]').each(($el) => {
-      // cy.wrap($el).find(`.tag.${c.subStatus}`);
-      // });
-
       cy.loginAndVisit('/admin/subscribers/import');
-      cy.wait(100);
     });
   });
 
@@ -76,20 +84,14 @@ describe('Import', () => {
     cy.wait(1000);
     cy.loginAndVisit('/admin/subscribers/import');
 
-    cy.get('.list-selector input').click();
-    cy.get('.list-selector .autocomplete a').first().click();
+    attachCSV();
+    pickFirstList();
     cy.get('input[name=delim]').clear().type('|');
 
-    cy.fixture('subs.csv').then((data) => {
-      cy.get('input[type="file"]').attachFile({
-        fileContent: data.toString(),
-        fileName: 'subs.csv',
-        mimeType: 'text/csv',
-      });
-    });
-
-    cy.get('button.is-primary').click();
-    cy.wait(250);
-    cy.get('section.wrap .has-text-danger');
+    cy.get('[data-cy=btn-import]').click();
+    // A wrong delimiter ends the import as failed (or stopped).
+    cy.get('[data-cy=import-status]', { timeout: 10000 })
+      .should('have.attr', 'data-status')
+      .and('match', /^(failed|stopped)$/);
   });
 });

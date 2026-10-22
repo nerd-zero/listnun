@@ -1,276 +1,335 @@
 <template>
-  <section class="user-profile">
-    <div v-if="loading.users" class="flex justify-center p-8">
-      <PvProgressSpinner />
-    </div>
-
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title">@{{ data.username }}</h1>
-        <PvTag v-if="data.userRole" severity="secondary">{{ data.userRole.name }}</PvTag>
+  <div class="ln-page profile">
+    <header class="profile-head">
+      <span class="profile-avatar" aria-hidden="true">
+        <img v-if="data.avatar" :src="data.avatar" alt="">
+        <template v-else>{{ initials }}</template>
+      </span>
+      <div>
+        <h1 class="ln-page-header-title">{{ data.name || data.username }}</h1>
+        <p class="ln-small">
+          <template v-if="data.userRole">{{ data.userRole.name }}</template>
+          <template v-if="data.userRole && orgName">&emsp;</template>
+          {{ orgName }}
+        </p>
       </div>
-      <PvButton severity="primary" icon="pi pi-save" type="submit" form="profile-form"
-        data-cy="btn-save" :label="$t('globals.buttons.save')" />
-    </div>
+    </header>
 
-    <form id="profile-form" @submit.prevent="onSubmit" class="profile-form">
-      <div class="settings-card">
-        <div v-if="data.type !== 'api'" class="field">
-          <label class="block mb-1 text-sm font-medium">{{ $t('subscribers.email') }}</label>
-          <PvInputText :maxlength="200" v-model="form.email" name="email"
-            :placeholder="$t('subscribers.email')" :disabled="!data.passwordLogin"
-            required autofocus class="w-full" />
-        </div>
+    <PvMessage v-if="twofaRequired && !totpOn" severity="warn" data-cy="twofa-required">{{ $t('users.twofaRequiredBanner') }}</PvMessage>
 
-        <div class="field">
-          <label class="block mb-1 text-sm font-medium">{{ $t('globals.fields.name') }}</label>
-          <PvInputText :maxlength="200" v-model="form.name" name="name"
-            :placeholder="$t('globals.fields.name')" class="w-full" />
-        </div>
+    <PvSkeleton v-if="!loaded" height="240px" />
 
-        <div v-if="data.passwordLogin" class="grid">
-          <div class="col-6">
-            <div class="field">
-              <label class="block mb-1 text-sm font-medium">{{ $t('users.password') }}</label>
-              <PvPassword minlength="8" :maxlength="200" v-model="form.password" name="password"
-                :placeholder="$t('users.password')" :feedback="false" class="w-full" />
+    <template v-else>
+      <!-- Details -->
+      <form class="ln-card ln-enter profile-card" @submit.prevent="saveDetails">
+        <h2 class="ln-card-head ln-card-title">{{ $t('users.details') }}</h2>
+        <div class="profile-body">
+          <div class="ln-fields-2">
+            <div class="ln-field">
+              <label for="profile-name">{{ $t('globals.fields.name') }}</label>
+              <PvInputText id="profile-name" v-model="form.name" name="name" :maxlength="200" />
+            </div>
+            <div v-if="data.type !== 'api'" class="ln-field">
+              <label for="profile-email">{{ $t('subscribers.email') }}</label>
+              <PvInputText id="profile-email" v-model="form.email" name="email" type="email" :maxlength="200" :disabled="!data.passwordLogin" required />
+              <p v-if="!data.passwordLogin" class="ln-help">{{ $t('users.emailFromSSO') }}</p>
             </div>
           </div>
-          <div class="col-6">
-            <div class="field">
-              <label class="block mb-1 text-sm font-medium">{{ $t('users.passwordRepeat') }}</label>
-              <PvPassword minlength="8" :maxlength="200" v-model="form.password2" name="password2"
-                :feedback="false" class="w-full" />
+          <div class="ln-fields-2">
+            <div class="ln-field">
+              <label for="profile-username">{{ $t('users.username') }}</label>
+              <PvInputText id="profile-username" :model-value="data.username" class="ln-mono" disabled />
+              <p class="ln-help">{{ $t('users.cantChange') }}</p>
             </div>
           </div>
         </div>
-      </div>
+        <footer class="profile-foot">
+          <PvButton type="submit" :label="$t('users.saveDetails')" :loading="busy === 'details'" :disabled="!detailsDirty" data-cy="btn-save" />
+        </footer>
+      </form>
 
-      <!-- 2FA -->
-      <section v-if="data.passwordLogin">
-        <!-- TOTP disabled -->
-        <div v-if="data.twofaType === 'none'" class="settings-card">
-          <div class="twofa-header">
-            <div>
-              <p class="settings-section-label">{{ $t('users.twoFA') }}</p>
-              <p class="text-color-secondary text-sm">{{ $t('users.twoFANotEnabled') }}</p>
-            </div>
-            <PvToggleSwitch v-if="!isTotpVisible" v-model="twofaEnabled" @change="onToggleEnableTotp" />
+      <!-- Password -->
+      <form v-if="data.passwordLogin" class="ln-card ln-enter profile-card" @submit.prevent="savePassword">
+        <h2 class="ln-card-head ln-card-title">{{ $t('users.password') }}</h2>
+        <div class="profile-body profile-pw">
+          <div class="ln-field">
+            <label for="profile-pw-current">{{ $t('users.currentPassword') }}</label>
+            <PvPassword v-model="pw.current" input-id="profile-pw-current" :feedback="false" required autocomplete="current-password" />
           </div>
+          <div class="ln-field">
+            <label for="profile-pw-new">{{ $t('users.newPassword') }}</label>
+            <PvPassword v-model="pw.next" input-id="profile-pw-new" :feedback="false" :minlength="8" :maxlength="200" required autocomplete="new-password" />
+          </div>
+          <div class="ln-field">
+            <label for="profile-pw-confirm">{{ $t('users.confirmPassword') }}</label>
+            <PvPassword v-model="pw.confirm" input-id="profile-pw-confirm" :feedback="false" required autocomplete="new-password" />
+          </div>
+          <p v-if="pwError" class="ln-field-error profile-pw-error" role="alert">{{ pwError }}</p>
+        </div>
+        <footer class="profile-foot">
+          <PvButton type="submit" severity="secondary" outlined :label="$t('users.changePassword')" :loading="busy === 'password'" />
+        </footer>
+      </form>
 
-          <div v-if="isTotpVisible" class="totp-setup">
-            <div v-if="totpQR">
-              <p class="text-color-secondary text-sm mb-3">{{ $t('users.totpScanQR') }}</p>
-              <img :src="'data:image/png;base64,' + totpQR" alt="QR Code" class="totp-qr" />
-              <p class="mt-3 mb-4">
-                <strong>{{ $t('users.totpSecret') }}</strong><br />
-                <code><copy-text :text="`${totpSecret}`" /></code>
-              </p>
-              <form @submit.prevent="confirmTOTP">
-                <div class="field">
-                  <label class="block mb-1 text-sm font-medium">{{ $t('users.totpCode') }}</label>
-                  <PvInputText ref="totpCodeInputEl" v-model="totpCode" maxlength="6"
-                    pattern="[0-9]{6}" placeholder="000000" required class="w-full" />
-                </div>
-                <div class="flex gap-2 mt-3">
-                  <PvButton severity="primary" type="submit" :label="$t('globals.buttons.enable')" />
-                  <PvButton severity="secondary" outlined type="button" @click="onCancelTOTPSetup"
-                    :label="$t('globals.buttons.cancel')" />
-                </div>
-              </form>
-            </div>
-          </div>
+      <!-- Two-step verification -->
+      <section v-if="data.passwordLogin" class="ln-card ln-enter profile-card">
+        <div class="ln-card-head">
+          <h2 class="ln-card-title">{{ $t('users.twoFA') }}</h2>
+          <status-tag :status="twofaStatus" :label="twofaLabel" />
         </div>
 
-        <!-- TOTP enabled -->
-        <div v-if="data.twofaType === 'totp'" class="settings-card">
-          <div class="twofa-header">
-            <div>
-              <p class="settings-section-label">
-                <i class="pi pi-check-circle text-green-500 mr-1" />{{ $t('users.twoFAEnabled') }}
-              </p>
-              <p class="text-color-secondary text-sm">
-                {{ $t('users.twoFAEnabledDesc', { type: data.twofaType.toUpperCase() }) }}
-              </p>
-            </div>
-            <PvToggleSwitch v-if="!showDisableTOTP" v-model="twofaEnabled" @change="toggleDisableTOTP" />
+        <div v-if="totpOn" class="profile-body profile-row">
+          <p class="ln-small profile-grow">{{ $t('users.twoFAEnabledDesc', { type: 'TOTP' }) }}</p>
+          <PvButton v-if="!disabling" :label="$t('users.turnOff')" severity="danger" outlined @click="startDisable" />
+        </div>
+        <form v-if="totpOn && disabling" class="profile-body profile-row" @submit.prevent="confirmDisable">
+          <div class="ln-field profile-grow">
+            <label for="profile-2fa-pw">{{ $t('users.confirmWithPassword') }}</label>
+            <PvPassword ref="disablePwEl" v-model="disablePw" input-id="profile-2fa-pw" :feedback="false" required />
           </div>
+          <PvButton type="submit" :label="$t('users.turnOff')" severity="danger" :loading="busy === '2fa'" />
+          <PvButton type="button" :label="$t('globals.buttons.cancel')" text @click="resetTotp" />
+        </form>
 
-          <form v-if="showDisableTOTP" class="mt-4" @submit.prevent="confirmDisableTOTP">
-            <div class="field">
-              <label class="block mb-1 text-sm font-medium">{{ $t('users.password') }}</label>
-              <PvPassword ref="disablePasswordInputEl" v-model="disableTOTPPassword"
-                minlength="8" required :feedback="false" class="w-full" />
-            </div>
-            <div class="flex gap-2 mt-3">
-              <PvButton severity="danger" type="submit" :label="$t('globals.buttons.disable')" />
-              <PvButton severity="secondary" outlined type="button" @click="onCancelTOTPSetup"
-                :label="$t('globals.buttons.cancel')" />
+        <div v-if="!totpOn && !totpQR" class="profile-body profile-row">
+          <p class="ln-small profile-grow">{{ $t('users.twoFAOffText') }}</p>
+          <PvButton :label="$t('users.setUp2fa')" :loading="busy === '2fa'" @click="startSetup" />
+        </div>
+        <div v-if="!totpOn && totpQR" class="profile-body profile-setup">
+          <img :src="`data:image/png;base64,${totpQR}`" :alt="$t('users.totpScanQR')" class="profile-qr">
+          <form class="profile-steps" @submit.prevent="confirmSetup">
+            <ol>
+              <li>{{ $t('users.totpStep1') }}</li>
+              <li>{{ $t('users.totpStep2') }} <code class="ln-mono profile-secret">{{ groupedSecret }}</code></li>
+              <li>{{ $t('users.totpStep3') }}</li>
+            </ol>
+            <div class="profile-row">
+              <PvInputText
+                ref="codeEl"
+                v-model="totpCode"
+                class="ln-mono profile-code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                placeholder="000000"
+                :aria-label="$t('users.totpCode')"
+                required
+              />
+              <PvButton type="submit" :label="$t('users.turnOn')" :loading="busy === '2fa'" />
+              <PvButton type="button" :label="$t('globals.buttons.cancel')" text @click="resetTotp" />
             </div>
           </form>
         </div>
       </section>
-    </form>
-  </section>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, nextTick, onMounted,
+  ref, reactive, computed, nextTick, onMounted,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import CopyText from '../components/CopyText.vue';
+import StatusTag from '../components/ui/StatusTag.vue';
 import { getUsers as usersApi } from '../api/generated/endpoints/users/users';
+
+// The profile is the API's camelCased user.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const { $utils } = useGlobal();
 const {
   getUserProfile, updateUserProfile, generateTotpQr, enableTotp, disableTotp,
 } = usersApi();
 const { t } = useI18n();
-const { loading } = storeToRefs(useMainStore());
+const store = useMainStore();
+const { serverConfig } = storeToRefs(store);
+// Set when the API sent the user here because the workspace requires 2FA.
+const twofaRequired = useRoute().query.twofa === 'required';
 
-const form = reactive<any>({});
-const data = ref<any>({});
-const isTotpVisible = ref(false);
-const totpQR = ref<string | null>(null);
-const totpSecret = ref<string | null>(null);
+const data = ref<Loose>({});
+const loaded = ref(false);
+const busy = ref<'' | 'details' | 'password' | '2fa'>('');
+const form = reactive({ name: '', email: '' });
+const pw = reactive({ current: '', next: '', confirm: '' });
+const pwError = ref('');
+const totpQR = ref('');
+const totpSecret = ref('');
 const totpCode = ref('');
-const showDisableTOTP = ref(false);
-const disableTOTPPassword = ref('');
-const twofaEnabled = ref(false);
-const totpCodeInputEl = ref<any>(null);
-const disablePasswordInputEl = ref<any>(null);
+const disabling = ref(false);
+const disablePw = ref('');
+const codeEl = ref<Loose | null>(null);
+const disablePwEl = ref<Loose | null>(null);
 
-function onSubmit() {
-  const params: any = { name: form.name, email: form.email };
-  if (data.value.passwordLogin && form.password) {
-    if (form.password !== form.password2) {
-      $utils.toast(t('users.passwordMismatch'), 'is-danger');
-      return;
-    }
-    params.password = form.password;
-    params.password2 = form.password2;
-  }
-  updateUserProfile(params).then(() => {
-    form.password = '';
-    form.password2 = '';
+const orgName = computed(() => (serverConfig.value as Loose).organization_name || '');
+const totpOn = computed(() => data.value.twofaType === 'totp');
+const detailsDirty = computed(() => form.name !== (data.value.name || '') || form.email !== (data.value.email || ''));
+const twofaStatus = computed(() => {
+  if (totpOn.value) return 'active';
+  return totpQR.value ? 'pending' : 'disabled';
+});
+const twofaLabel = computed(() => {
+  if (totpOn.value) return t('users.on');
+  return totpQR.value ? t('users.settingUp') : t('users.off');
+});
+const groupedSecret = computed(() => (totpSecret.value.match(/.{1,4}/g) || []).join(' '));
+const initials = computed(() => {
+  const src = String(data.value.name || data.value.username || '?').trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : src.slice(0, 2)).toUpperCase();
+});
+
+function setProfile(p: Loose) {
+  data.value = { ...p };
+  form.name = p.name || '';
+  form.email = p.email || '';
+  store.setModelResponse({ model: 'profile', data: p });
+}
+
+function reload() {
+  return getUserProfile().then((p) => { setProfile(p as unknown as Loose); });
+}
+
+function saveDetails() {
+  busy.value = 'details';
+  updateUserProfile({ name: form.name, email: form.email } as never).then((p) => {
+    setProfile(p as unknown as Loose);
     $utils.toast(t('globals.messages.updated', { name: data.value.username }));
-  });
+  }).finally(() => { busy.value = ''; });
 }
 
-function onToggleEnableTotp() {
-  generateTotpQr(data.value.id).then((d: any) => {
-    totpQR.value = d.qr;
-    totpSecret.value = d.secret;
-    isTotpVisible.value = true;
-    nextTick(() => { totpCodeInputEl.value?.focus(); });
-  }).catch(() => {
-    $utils.toast(t('globals.messages.errorFetching'), 'is-danger');
-  });
+function savePassword() {
+  pwError.value = '';
+  if (pw.next.length < 8) {
+    pwError.value = t('users.passwordTooShort');
+    return;
+  }
+  if (pw.next !== pw.confirm) {
+    pwError.value = t('users.passwordMismatch');
+    return;
+  }
+  busy.value = 'password';
+  // Name and e-mail go as saved, so unsaved detail edits aren't applied here.
+  updateUserProfile({
+    name: data.value.name, email: data.value.email, password: pw.next, password2: pw.confirm, current_password: pw.current,
+  } as never).then(() => {
+    Object.assign(pw, { current: '', next: '', confirm: '' });
+    $utils.toast(t('users.passwordChanged'));
+  }).finally(() => { busy.value = ''; });
 }
 
-function onCancelTOTPSetup() {
-  isTotpVisible.value = false;
-  totpQR.value = null;
-  totpSecret.value = null;
+function resetTotp() {
+  totpQR.value = '';
+  totpSecret.value = '';
   totpCode.value = '';
-  twofaEnabled.value = data.value.twofaType === 'totp';
-  showDisableTOTP.value = false;
-  disableTOTPPassword.value = '';
+  disabling.value = false;
+  disablePw.value = '';
 }
 
-function confirmTOTP() {
-  if (!totpCode.value || totpCode.value.length !== 6) {
-    $utils.toast(t('globals.messages.invalidValue'), 'is-danger');
-    return;
-  }
-  enableTotp(data.value.id, { secret: totpSecret.value!, code: totpCode.value }).then(() => {
+function startSetup() {
+  busy.value = '2fa';
+  generateTotpQr(data.value.id).then((d) => {
+    const r = d as unknown as { qr: string; secret: string };
+    totpQR.value = r.qr;
+    totpSecret.value = r.secret;
+    nextTick(() => { codeEl.value?.$el?.focus(); });
+  }).finally(() => { busy.value = ''; });
+}
+
+function confirmSetup() {
+  busy.value = '2fa';
+  enableTotp(data.value.id, { secret: totpSecret.value, code: totpCode.value.trim() }).then(() => {
+    resetTotp();
     $utils.toast(t('users.twoFAEnabled'));
-    onCancelTOTPSetup();
-    getUserProfile().then((p: any) => {
-      data.value = { ...p };
-      twofaEnabled.value = p.twofaType === 'totp';
-    });
-  }).catch(() => {
-    $utils.toast(t('globals.messages.invalidValue'), 'is-danger');
-  });
+    return reload();
+  }).finally(() => { busy.value = ''; });
 }
 
-function toggleDisableTOTP() {
-  showDisableTOTP.value = true;
-  nextTick(() => { disablePasswordInputEl.value?.focus(); });
+function startDisable() {
+  disabling.value = true;
+  nextTick(() => { disablePwEl.value?.$el?.querySelector('input')?.focus(); });
 }
 
-function confirmDisableTOTP() {
-  if (!disableTOTPPassword.value) {
-    $utils.toast(t('globals.messages.invalidFields'), 'is-danger');
-    return;
-  }
-  disableTotp(data.value.id, { password: disableTOTPPassword.value }).then(() => {
-    $utils.toast(t('globals.messages.done'));
-    showDisableTOTP.value = false;
-    disableTOTPPassword.value = '';
-    getUserProfile().then((p: any) => {
-      data.value = { ...p };
-      twofaEnabled.value = p.twofaType === 'totp';
-    });
-  }).catch(() => {
-    $utils.toast(t('users.invalidPassword'), 'is-danger');
-  });
+function confirmDisable() {
+  busy.value = '2fa';
+  disableTotp(data.value.id, { password: disablePw.value }).then(() => {
+    resetTotp();
+    $utils.toast(t('users.twoFADisabled'));
+    return reload();
+  }).finally(() => { busy.value = ''; });
 }
 
 onMounted(() => {
-  getUserProfile().then((d: any) => {
-    data.value = { ...d };
-    Object.assign(form, { name: d.name, email: d.email });
-    twofaEnabled.value = d.twofaType === 'totp';
-  });
+  reload().finally(() => { loaded.value = true; });
 });
 </script>
 
 <style scoped lang="scss">
-.user-profile {
-  max-width: 640px;
-}
-
-.page-header-left {
+.profile { max-width: 720px; }
+.profile-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 16px;
+  .ln-small { margin: 2px 0 0; }
+  h1 { margin: 0; }
 }
-
-.profile-form {
+.profile-avatar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--ln-ink);
+  color: var(--ln-on-ink);
+  font-size: 18px;
+  font-weight: 600;
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+.profile-card { display: flex; flex-direction: column; overflow: hidden; }
+h2.ln-card-head { margin: 0; }
+.profile-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+.profile-pw {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  @media (max-width: 720px) { grid-template-columns: minmax(0, 1fr); }
+}
+.profile-pw-error { grid-column: 1 / -1; margin: 0; }
+.profile-foot {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-
-  .settings-card {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-
-    .field { margin-bottom: 0; }
-  }
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ln-border);
+  background: var(--ln-muted);
 }
-
-.twofa-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.totp-qr {
-  display: block;
-  width: 180px;
-  height: 180px;
-  border: 1px solid var(--lm-border);
+.profile-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-direction: row; }
+.profile-row .ln-field { margin: 0; }
+.profile-grow { flex: 1; min-width: 200px; margin: 0; }
+.profile-setup { flex-direction: row; align-items: flex-start; flex-wrap: wrap; gap: 20px; }
+.profile-qr {
+  width: 148px;
+  height: 148px;
+  padding: 6px;
+  border: 1px solid var(--ln-border);
   border-radius: 8px;
+  background: #fff;
 }
-
-:deep(.p-password) { width: 100%; }
-:deep(.p-password-input) { width: 100%; }
+.profile-steps {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ln-text-2); }
+}
+.profile-secret { padding: 2px 6px; border-radius: 4px; background: var(--ln-muted); font-size: 12px; color: var(--ln-text); }
+.profile-code { width: 140px; letter-spacing: .3em; font-size: 16px; }
+:deep(.p-password), :deep(.p-password-input) { width: 100%; }
 </style>

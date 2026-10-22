@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -133,6 +134,18 @@ func (c *Client) GetBlob(uurl string) ([]byte, error) {
 	defer file.Close()
 
 	return b, nil
+}
+
+// Size returns a stored object's size in bytes, from a HEAD request.
+func (c *Client) Size(name string) (int64, error) {
+	d, err := c.s3.FileDetails(simples3.DetailsInput{
+		Bucket:    c.opts.Bucket,
+		ObjectKey: c.makeBucketPath(name),
+	})
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(d.ContentLength, 10, 64)
 }
 
 // Delete accepts the filename of the object and deletes from S3.

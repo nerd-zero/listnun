@@ -106,3 +106,36 @@ func getI18nLang(lang string, fs stuffbin.FileSystem) (*i18n.I18n, bool, error) 
 
 	return i, true, nil
 }
+
+// initLangCache lists the bundled languages and returns a cache that loads
+// each one (on top of English) the first time it is asked for.
+func initLangCache(fs stuffbin.FileSystem) ([]i18nLang, *i18n.Cache) {
+	list, err := getI18nLangList(fs)
+	if err != nil {
+		lo.Printf("error listing languages; the sign-in language picker is off: %v", err)
+	}
+
+	codes := make([]string, len(list))
+	for n, l := range list {
+		codes[n] = l.Code
+	}
+
+	return list, i18n.NewCache(codes, func(code string) (*i18n.I18n, error) {
+		i, ok, err := getI18nLang(code, fs)
+		if !ok {
+			return nil, err
+		}
+		return i, nil
+	})
+}
+
+// visitorI18n is the language for the sign-in pages: the one the visitor
+// picked (the ln_lang cookie) if it's bundled, else the workspace's.
+func (a *App) visitorI18n(c echo.Context) *i18n.I18n {
+	if ck, err := c.Cookie(i18n.LangCookie); err == nil && a.langs != nil {
+		if l, ok := a.langs.Get(ck.Value); ok {
+			return l
+		}
+	}
+	return a.i18n
+}

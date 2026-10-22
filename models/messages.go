@@ -32,6 +32,10 @@ type Message struct {
 
 	// Messenger is the messenger backend to use: email|postback.
 	Messenger string
+
+	// TxMessageID is the message log row of a transactional message, so
+	// the worker can record what happened to it. 0 for campaign messages.
+	TxMessageID int64
 }
 
 // Attachment represents a file or blob attachment that can be
@@ -78,13 +82,18 @@ type TxMessage struct {
 	Body       []byte             `json:"-"`
 	Tpl        *template.Template `json:"-"`
 	SubjectTpl *txttpl.Template   `json:"-"`
+
+	// Brand is the workspace logo for the brand-logo block; nil renders
+	// nothing.
+	Brand *BrandBlock `json:"-"`
 }
 
 func (m *TxMessage) Render(sub Subscriber, tpl *Template, funcs txttpl.FuncMap) error {
 	data := struct {
 		Subscriber Subscriber
 		Tx         *TxMessage
-	}{sub, m}
+		Brand      *BrandBlock
+	}{sub, m, m.Brand}
 
 	// Render the body.
 	b := bytes.Buffer{}
@@ -140,4 +149,29 @@ func (m *TxMessage) Render(sub Subscriber, tpl *Template, funcs txttpl.FuncMap) 
 	}
 
 	return nil
+}
+
+// MergeHeaders merges a template's default headers with a request's. A header
+// the request sets replaces the template's value; repeated request headers
+// are all kept.
+func MergeHeaders(tplHeaders, reqHeaders Headers) textproto.MIMEHeader {
+	out := make(textproto.MIMEHeader, len(tplHeaders)+len(reqHeaders)+1)
+	for _, set := range tplHeaders {
+		for hdr, val := range set {
+			out.Set(hdr, val)
+		}
+	}
+
+	replaced := map[string]bool{}
+	for _, set := range reqHeaders {
+		for hdr, val := range set {
+			key := textproto.CanonicalMIMEHeaderKey(hdr)
+			if !replaced[key] {
+				out.Del(key)
+				replaced[key] = true
+			}
+			out.Add(key, val)
+		}
+	}
+	return out
 }

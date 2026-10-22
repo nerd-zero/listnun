@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	txttpl "text/template"
@@ -28,6 +29,12 @@ type Template struct {
 	Body       string      `db:"body" json:"body,omitempty"`
 	BodySource null.String `db:"body_source" json:"body_source,omitempty"`
 	IsDefault  bool        `db:"is_default" json:"is_default"`
+	TenantID   int         `db:"tenant_id" json:"-"`
+
+	// Transactional templates only.
+	SampleData json.RawMessage `db:"sample_data" json:"sample_data,omitempty"`
+	AltBody    string          `db:"alt_body" json:"alt_body,omitempty"`
+	Headers    Headers         `db:"headers" json:"headers,omitempty"`
 
 	// Only relevant to tx (transactional) templates.
 	SubjectTpl  *txttpl.Template   `json:"-"`
@@ -38,8 +45,13 @@ type Template struct {
 // Compile compiles a template body and subject (only for tx templates) and
 // caches the templat references to be executed later.
 func (t *Template) Compile(f template.FuncMap) error {
-	tpl, err := template.New(BaseTpl).Funcs(f).Parse(t.Body)
+	// The brand-logo block is defined first so every body can include it;
+	// a body that defines its own replaces it.
+	tpl, err := template.New(BaseTpl).Funcs(f).Parse(brandLogoDefine)
 	if err != nil {
+		return fmt.Errorf("error compiling brand-logo block: %v", err)
+	}
+	if tpl, err = tpl.Parse(t.Body); err != nil {
 		return fmt.Errorf("error compiling transactional template: %v", err)
 	}
 	t.Tpl = tpl
@@ -74,6 +86,13 @@ type CampaignAnalyticsCount struct {
 	Count      int       `db:"count" json:"count"`
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 } // @name CampaignAnalyticsCount
+
+// CampaignBounceTypeCount is the number of bounces of one type for a campaign.
+type CampaignBounceTypeCount struct {
+	CampaignID int    `db:"campaign_id" json:"campaign_id"`
+	Type       string `db:"type" json:"type"`
+	Count      int    `db:"count" json:"count"`
+} // @name CampaignBounceTypeCount
 
 type CampaignAnalyticsLink struct {
 	URL   string `db:"url" json:"url"`

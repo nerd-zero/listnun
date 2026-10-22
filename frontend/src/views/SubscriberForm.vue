@@ -7,7 +7,7 @@
           :value="$t(`subscribers.status.${data.status}`)" />
       </div>
       <p v-if="isEditing" class="lm-form-meta">
-        ID: <copy-text :text="`${data.id}`" data-cy="id" /> &nbsp;·&nbsp;
+        ID: <copy-text :text="`${data.id}`" data-cy="id" />&emsp;
         UUID: <copy-text :text="data.uuid" />
       </p>
     </div>
@@ -38,7 +38,7 @@
           <PvTab value="0">{{ $t('globals.terms.lists') }}</PvTab>
           <PvTab value="1">{{ `${$t('globals.terms.subscriptions', 2)} (${data.lists ? data.lists.length : 0})` }}</PvTab>
           <PvTab value="2" :disabled="bounces.length === 0">{{ `${$t('globals.terms.bounces')} (${bounces.length})` }}</PvTab>
-          <PvTab value="3">{{ $t('globals.terms.attribs') }}</PvTab>
+          <PvTab value="3" data-cy="tab-attribs">{{ $t('globals.terms.attribs') }}</PvTab>
           <PvTab value="4" :disabled="!isEditing">{{ $t('subscribers.activity') }}</PvTab>
         </PvTabList>
         <PvTabPanels>
@@ -159,7 +159,7 @@
 
     <div class="lm-form-footer">
       <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-      <PvButton v-if="$can('subscribers:manage')" type="submit" severity="primary"
+      <PvButton v-if="$can('subscribers:manage')" type="submit" severity="primary" data-cy="btn-save"
         :loading="loading.subscribers" :label="$t('globals.buttons.save')" />
     </div>
   </form>
@@ -313,42 +313,42 @@ onMounted(() => {
 
 <style scoped lang="scss">
 :deep(.p-tag-secondary) {
-  background: var(--lm-bg-subtle);
-  color: var(--lm-text-secondary);
-  border: 1px solid var(--lm-border);
+  background: var(--ln-muted);
+  color: var(--ln-text-2);
+  border: 1px solid var(--ln-border);
 }
 
 .lm-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0; }
 .lm-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .lm-field-row--preconfirm { align-items: start; margin-top: 0.75rem; }
 
-.lm-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-.lm-help { display: block; font-size: 0.75rem; color: var(--lm-text-subtle); line-height: 1.4; }
+.lm-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--ln-text); }
+.lm-help { display: block; font-size: 0.75rem; color: var(--ln-text-4); line-height: 1.4; }
 
 .check-row { display: flex; align-items: center; gap: 0.5rem; }
-.check-label { font-size: 0.875rem; color: var(--lm-text); }
+.check-label { font-size: 0.875rem; color: var(--ln-text); }
 
 .optin-action { display: flex; align-items: flex-end; padding-bottom: 0.1rem; }
 .optin-link {
-  font-size: 0.85rem; color: var(--lm-primary); text-decoration: none;
+  font-size: 0.85rem; color: var(--ln-ink); text-decoration: none;
   display: inline-flex; align-items: center; gap: 0.35rem;
   &:hover { text-decoration: underline; }
   &--disabled { opacity: 0.4; pointer-events: none; }
 }
 
 .sub-name-cell { display: flex; flex-direction: column; gap: 0.25rem; }
-.sub-restricted { color: var(--lm-text-subtle); font-style: italic; }
+.sub-restricted { color: var(--ln-text-4); font-style: italic; }
 .sub-status-cell { display: flex; flex-direction: column; gap: 0.2rem; }
-.sub-ip { font-size: 0.75rem; color: var(--lm-text-subtle); }
+.sub-ip { font-size: 0.75rem; color: var(--ln-text-4); }
 
 .bounces-header { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
-.delete-link { font-size: 0.85rem; color: var(--lm-danger); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; &:hover { text-decoration: underline; } }
+.delete-link { font-size: 0.85rem; color: var(--ln-danger); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; &:hover { text-decoration: underline; } }
 
 .bounce-meta-row { display: flex; justify-content: flex-end; }
-.bounce-source { font-size: 0.85rem; color: var(--lm-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; &:hover { color: var(--lm-text); } }
-.bounce-meta-pre { font-size: 0.75rem; margin-top: 0.4rem; background: var(--lm-bg); border-radius: 4px; padding: 0.5rem; overflow-x: auto; }
+.bounce-source { font-size: 0.85rem; color: var(--ln-text-3); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; &:hover { color: var(--ln-text); } }
+.bounce-meta-pre { font-size: 0.75rem; margin-top: 0.4rem; background: var(--ln-bg); border-radius: 4px; padding: 0.5rem; overflow-x: auto; }
 
 .attribs-panel { display: flex; flex-direction: column; gap: 0.5rem; }
 .attribs-textarea { font-family: monospace; font-size: 0.82rem; }
-.learn-more-link { font-size: 0.78rem; color: var(--lm-primary); text-decoration: none; &:hover { text-decoration: underline; } }
+.learn-more-link { font-size: 0.78rem; color: var(--ln-ink); text-decoration: none; &:hover { text-decoration: underline; } }
 </style>

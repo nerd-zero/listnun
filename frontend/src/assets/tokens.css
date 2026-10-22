@@ -42,36 +42,20 @@
 
   --ln-radius: 6px;
   --ln-radius-card: 10px;
+
+  /* Motion. Every animation uses these, so reduced motion (below) turns
+     them all off at once. */
+  --ln-dur-fast: 120ms;   /* hover, press, colour changes */
+  --ln-dur-base: 180ms;   /* fades, expand/collapse, tabs */
+  --ln-dur-slow: 240ms;   /* page and step changes, the sidebar */
+  --ln-ease: cubic-bezier(.2, 0, 0, 1);        /* entering and moving */
+  --ln-ease-exit: cubic-bezier(.3, 0, 1, 1);   /* leaving */
   --ln-shadow-pop: 0 8px 24px rgba(20, 23, 28, .12);
   --ln-mask: rgba(20, 23, 28, .4);
 
-  --ln-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --ln-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ln-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ln-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Legacy aliases, kept until every view reads --ln-* directly. */
-  --lm-primary: var(--ln-ink);
-  --lm-primary-hover: #33373e;
-  --lm-primary-light: var(--ln-muted);
-  --lm-primary-border: var(--ln-border);
-  --lm-primary-text: var(--ln-ink);
-  --lm-text: var(--ln-text);
-  --lm-text-secondary: var(--ln-text-2);
-  --lm-text-muted: var(--ln-text-3);
-  --lm-text-subtle: var(--ln-text-4);
-  --lm-border: var(--ln-border);
-  --lm-border-light: var(--ln-border-soft);
-  --lm-bg: var(--ln-bg);
-  --lm-bg-subtle: var(--ln-muted);
-  --lm-surface: var(--ln-card);
-  --lm-danger: var(--ln-danger);
-  --lm-danger-bg: var(--ln-danger-bg);
-  --lm-danger-border: rgba(193, 80, 59, .3);
-  --lm-warn: var(--ln-warn);
-  --lm-warn-bg: var(--ln-warn-bg);
-  --lm-warn-border: rgba(217, 125, 61, .35);
-  --lm-success: var(--ln-success);
-  --lm-success-bg: var(--ln-success-bg);
-  --lm-success-border: rgba(63, 143, 108, .3);
   --ink: var(--ln-ink);
   --paper: var(--ln-bg);
   --warm-tan: var(--ln-muted);
@@ -106,7 +90,6 @@
   --ln-shadow-pop: 0 8px 24px rgba(0, 0, 0, .45);
   --ln-mask: rgba(0, 0, 0, .6);
 
-  --lm-primary-hover: #f6f3ec;
 
   color-scheme: dark;
 }
@@ -120,3 +103,11 @@
 .ln-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; color: var(--ln-text-2); }
 .ln-mono { font-family: var(--ln-mono); font-size: 13px; line-height: 20px; }
 .ln-muted { color: var(--ln-text-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ln-dur-fast: 0ms;
+    --ln-dur-base: 0ms;
+    --ln-dur-slow: 0ms;
+  }
+}

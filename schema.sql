@@ -141,6 +141,12 @@ CREATE TABLE templates (
     body_source     TEXT NULL,
     is_default      BOOLEAN NOT NULL DEFAULT false,
 
+    -- Transactional templates only: preview/test data, plain-text body and
+    -- default headers, edited in Developers > Email templates.
+    sample_data     JSONB NOT NULL DEFAULT '{}',
+    alt_body        TEXT NOT NULL DEFAULT '',
+    headers         JSONB NOT NULL DEFAULT '[]',
+
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -192,6 +198,9 @@ CREATE TABLE campaigns (
     archive_slug        TEXT NULL UNIQUE,
     archive_template_id INTEGER REFERENCES templates(id) ON DELETE SET NULL,
     archive_meta        JSONB NOT NULL DEFAULT '{}',
+    -- The editor's click-tracking switch and third-party pixels
+    -- (models.CampaignTracking).
+    tracking            JSONB NOT NULL DEFAULT '{}',
 
     started_at       TIMESTAMP WITH TIME ZONE,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -246,10 +255,13 @@ CREATE TABLE media (
     content_type     TEXT NOT NULL DEFAULT 'application/octet-stream',
     thumb            TEXT NOT NULL,
     meta             JSONB NOT NULL DEFAULT '{}',
+    -- Bytes; NULL until measured, -1 if it couldn't be read.
+    size             BIGINT NULL,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 DROP INDEX IF EXISTS idx_media_filename; CREATE INDEX idx_media_filename ON media(provider, filename);
 DROP INDEX IF EXISTS idx_media_tenant; CREATE INDEX idx_media_tenant ON media(tenant_id);
+DROP INDEX IF EXISTS idx_media_unsized; CREATE INDEX idx_media_unsized ON media(id) WHERE size IS NULL;
 
 -- campaign_media
 DROP TABLE IF EXISTS campaign_media CASCADE;
@@ -342,9 +354,11 @@ INSERT INTO settings (key, value) VALUES
     ('privacy.domain_blocklist', '[]'),
     ('privacy.domain_allowlist', '[]'),
     ('privacy.record_optin_ip', 'false'),
-    ('security.captcha', '{"altcha": {"enabled": false, "complexity": 300000}, "hcaptcha": {"enabled": false, "key": "", "secret": ""}}'),
+    ('security.captcha', '{"altcha": {"enabled": false, "complexity": 300000}, "hcaptcha": {"enabled": false, "key": "", "secret": ""}, "turnstile": {"enabled": false, "key": "", "secret": ""}, "login": false}'),
     ('security.oidc', '{"enabled": false, "provider_url": "", "provider_name": "", "client_id": "", "client_secret": "", "auto_create_users": false, "default_user_role_id": null, "default_list_role_id": null}'),
     ('security.trusted_urls', '[]'),
+    ('security.require_2fa', 'false'),
+    ('inactive_cleanup', '{"enabled": false, "mode": "managed", "days": 180, "activity": "either", "action": "unsubscribe", "list_ids": [], "schedule": "0 2 * * 0"}'),
     ('upload.provider', '"filesystem"'),
     ('upload.max_file_size', '5000'),
     ('upload.extensions', '["jpg","jpeg","png","gif","svg","*"]'),
@@ -381,7 +395,8 @@ INSERT INTO settings (key, value) VALUES
     ('appearance.public.custom_css', '""'),
     ('appearance.public.custom_js', '""'),
     ('maintenance.db', '{"vacuum": false, "vacuum_cron_interval": "0 2 * * *"}'),
-    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}');
+    ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}'),
+    ('branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}');
 
 -- scrub_validation_jobs
 -- One row per list-validate action (cmd/settings.go's ScrubList), which
@@ -494,7 +509,7 @@ CREATE TABLE users (
     avatar           TEXT NULL,
     type             user_type NOT NULL DEFAULT 'user',
     user_role_id     INTEGER NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
-    list_role_id     INTEGER NULL REFERENCES roles(id) ON DELETE CASCADE,
+    list_role_id     INTEGER NULL REFERENCES roles(id) ON DELETE SET NULL,
     status           user_status NOT NULL DEFAULT 'disabled',
     twofa_type       twofa_type NOT NULL DEFAULT 'none',
     twofa_key        TEXT NULL,
@@ -576,6 +591,138 @@ DROP POLICY IF EXISTS tenant_isolation ON scrub_validation_batches;
 CREATE POLICY tenant_isolation ON scrub_validation_batches USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 DROP POLICY IF EXISTS tenant_isolation ON usage_counters;
 CREATE POLICY tenant_isolation ON usage_counters USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- developers: API keys
+DROP TABLE IF EXISTS api_keys CASCADE;
+CREATE TABLE api_keys (
+    id                SERIAL PRIMARY KEY,
+    tenant_id         INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name              TEXT NOT NULL,
+    secret_hash       TEXT NOT NULL,
+    secret_hint       TEXT NOT NULL,
+    prev_secret_hash  TEXT NULL,
+    prev_expires_at   TIMESTAMP WITH TIME ZONE NULL,
+    scopes            TEXT[] NOT NULL DEFAULT '{}',
+    status            TEXT NOT NULL DEFAULT 'active',
+    created_by        INTEGER NULL REFERENCES users(id) ON DELETE SET NULL,
+    created_by_name   TEXT NOT NULL DEFAULT '',
+    last_used_at      TIMESTAMP WITH TIME ZONE NULL,
+    revoked_at        TIMESTAMP WITH TIME ZONE NULL,
+    created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    -- The API user this key was migrated from (v6.29); that user's old
+    -- username:token keeps working until it is disabled.
+    legacy_user_id    INTEGER NULL REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(tenant_id, name);
+CREATE UNIQUE INDEX idx_api_keys_legacy_user ON api_keys(legacy_user_id) WHERE legacy_user_id IS NOT NULL;
+DROP INDEX IF EXISTS idx_api_keys_tenant; CREATE INDEX idx_api_keys_tenant ON api_keys(tenant_id);
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY; ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON api_keys;
+CREATE POLICY tenant_isolation ON api_keys USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- developers: transactional message log
+DROP TABLE IF EXISTS tx_messages CASCADE;
+CREATE TABLE tx_messages (
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            TEXT NOT NULL UNIQUE,
+    tenant_id       INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    api_key_id      INTEGER NULL REFERENCES api_keys(id) ON DELETE SET NULL,
+    sender          TEXT NOT NULL DEFAULT '',
+    template_id     INTEGER NULL REFERENCES templates(id) ON DELETE SET NULL,
+    template_name   TEXT NOT NULL DEFAULT '',
+    subscriber_id   INTEGER NULL REFERENCES subscribers(id) ON DELETE SET NULL,
+    recipient       TEXT NOT NULL,
+    subject         TEXT NOT NULL DEFAULT '',
+    status          TEXT NOT NULL DEFAULT 'queued',
+    bounce_type     TEXT NULL,
+    error           TEXT NOT NULL DEFAULT '',
+    messenger       TEXT NOT NULL DEFAULT '',
+    source_ip       TEXT NOT NULL DEFAULT '',
+    payload         JSONB NOT NULL DEFAULT '{}',
+    body            TEXT NOT NULL DEFAULT '',
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_tx_messages_tenant_created; CREATE INDEX idx_tx_messages_tenant_created ON tx_messages(tenant_id, created_at DESC);
+DROP INDEX IF EXISTS idx_tx_messages_recipient; CREATE INDEX idx_tx_messages_recipient ON tx_messages(tenant_id, LOWER(recipient), created_at DESC);
+DROP INDEX IF EXISTS idx_tx_messages_status; CREATE INDEX idx_tx_messages_status ON tx_messages(tenant_id, status);
+
+DROP TABLE IF EXISTS tx_message_events CASCADE;
+CREATE TABLE tx_message_events (
+    id          BIGSERIAL PRIMARY KEY,
+    message_id  BIGINT NOT NULL REFERENCES tx_messages(id) ON DELETE CASCADE,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    type        TEXT NOT NULL,
+    detail      TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_tx_message_events_message; CREATE INDEX idx_tx_message_events_message ON tx_message_events(message_id, created_at);
+ALTER TABLE tx_messages ENABLE ROW LEVEL SECURITY; ALTER TABLE tx_messages FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON tx_messages;
+CREATE POLICY tenant_isolation ON tx_messages USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE tx_message_events ENABLE ROW LEVEL SECURITY; ALTER TABLE tx_message_events FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON tx_message_events;
+CREATE POLICY tenant_isolation ON tx_message_events USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- developers: outgoing webhooks
+DROP TABLE IF EXISTS webhook_endpoints CASCADE;
+CREATE TABLE webhook_endpoints (
+    id          SERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    url         TEXT NOT NULL,
+    events      TEXT[] NOT NULL DEFAULT '{}',
+    secret      TEXT NOT NULL,
+    status      TEXT NOT NULL DEFAULT 'active',
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_endpoints_tenant; CREATE INDEX idx_webhook_endpoints_tenant ON webhook_endpoints(tenant_id);
+
+DROP TABLE IF EXISTS webhook_deliveries CASCADE;
+CREATE TABLE webhook_deliveries (
+    id                BIGSERIAL PRIMARY KEY,
+    uuid              TEXT NOT NULL UNIQUE,
+    tenant_id         INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    endpoint_id       INTEGER NOT NULL REFERENCES webhook_endpoints(id) ON DELETE CASCADE,
+    event             TEXT NOT NULL,
+    message_uuid      TEXT NOT NULL DEFAULT '',
+    payload           JSONB NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'pending',
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at   TIMESTAMP WITH TIME ZONE NULL DEFAULT NOW(),
+    locked_until      TIMESTAMP WITH TIME ZONE NULL,
+    last_status_code  INTEGER NULL,
+    last_duration_ms  INTEGER NULL,
+    created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_deliveries_due; CREATE INDEX idx_webhook_deliveries_due ON webhook_deliveries(next_attempt_at) WHERE status IN ('pending', 'retrying');
+DROP INDEX IF EXISTS idx_webhook_deliveries_endpoint; CREATE INDEX idx_webhook_deliveries_endpoint ON webhook_deliveries(endpoint_id, created_at DESC);
+DROP INDEX IF EXISTS idx_webhook_deliveries_tenant; CREATE INDEX idx_webhook_deliveries_tenant ON webhook_deliveries(tenant_id, created_at DESC);
+
+DROP TABLE IF EXISTS webhook_attempts CASCADE;
+CREATE TABLE webhook_attempts (
+    id            BIGSERIAL PRIMARY KEY,
+    delivery_id   BIGINT NOT NULL REFERENCES webhook_deliveries(id) ON DELETE CASCADE,
+    tenant_id     INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    attempt       INTEGER NOT NULL,
+    status_code   INTEGER NULL,
+    duration_ms   INTEGER NOT NULL DEFAULT 0,
+    response      TEXT NOT NULL DEFAULT '',
+    error         TEXT NOT NULL DEFAULT '',
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+DROP INDEX IF EXISTS idx_webhook_attempts_delivery; CREATE INDEX idx_webhook_attempts_delivery ON webhook_attempts(delivery_id, attempt);
+ALTER TABLE webhook_endpoints ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_endpoints FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_endpoints;
+CREATE POLICY tenant_isolation ON webhook_endpoints USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_deliveries FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_deliveries;
+CREATE POLICY tenant_isolation ON webhook_deliveries USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE webhook_attempts ENABLE ROW LEVEL SECURITY; ALTER TABLE webhook_attempts FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON webhook_attempts;
+CREATE POLICY tenant_isolation ON webhook_attempts USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
 -- user sessions
 DROP TABLE IF EXISTS sessions CASCADE;
@@ -677,3 +824,36 @@ CREATE MATERIALIZED VIEW mat_list_subscriber_stats AS
     UNION ALL
     SELECT NOW() AS updated_at, subscribers.tenant_id AS tenant_id, 0 AS list_id, NULL AS status, COUNT(id) AS subscriber_count FROM subscribers GROUP BY subscribers.tenant_id;
 DROP INDEX IF EXISTS mat_list_subscriber_stats_idx; CREATE UNIQUE INDEX mat_list_subscriber_stats_idx ON mat_list_subscriber_stats (tenant_id, list_id, status);
+
+-- Per-workspace activity log (Settings › Logs), pruned after 30 days.
+DROP TABLE IF EXISTS activity_log CASCADE;
+CREATE TABLE activity_log (
+    id          BIGSERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    level       TEXT NOT NULL DEFAULT 'info',
+    source      TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_activity_log_tenant ON activity_log(tenant_id, created_at DESC);
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY; ALTER TABLE activity_log FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON activity_log;
+CREATE POLICY tenant_isolation ON activity_log USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- Inactive-subscriber cleanup runs (Settings › Inactive cleanup).
+DROP TABLE IF EXISTS inactive_cleanup_runs CASCADE;
+CREATE TABLE inactive_cleanup_runs (
+    id           SERIAL PRIMARY KEY,
+    tenant_id    INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    mode         TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    matched      INTEGER NOT NULL DEFAULT 0,
+    done         INTEGER NOT NULL DEFAULT 0,
+    error        TEXT NOT NULL DEFAULT '',
+    started_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    finished_at  TIMESTAMP WITH TIME ZONE NULL
+);
+CREATE INDEX idx_inactive_cleanup_runs ON inactive_cleanup_runs(tenant_id, started_at DESC);
+ALTER TABLE inactive_cleanup_runs ENABLE ROW LEVEL SECURITY; ALTER TABLE inactive_cleanup_runs FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON inactive_cleanup_runs;
+CREATE POLICY tenant_isolation ON inactive_cleanup_runs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);

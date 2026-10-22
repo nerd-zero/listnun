@@ -189,7 +189,9 @@ func (a *App) CreateTemplate(c echo.Context) error {
 	// If it's a transactional template, cache it in the manager
 	// to be used for arbitrary incoming tx message pushes.
 	if o.Type == models.TemplateTypeTx {
-		a.manager.CacheTpl(tenantID(c), out.ID, &o)
+		if _, err := a.recacheTxTemplate(c.Request().Context(), tenantID(c), out.ID); err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
@@ -241,7 +243,9 @@ func (a *App) UpdateTemplate(c echo.Context) error {
 
 	// If it's a transactional template, cache it.
 	if out.Type == models.TemplateTypeTx {
-		a.manager.CacheTpl(tenantID(c), out.ID, &o)
+		if _, err := a.recacheTxTemplate(c.Request().Context(), tenantID(c), out.ID); err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})

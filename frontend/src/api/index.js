@@ -4,6 +4,7 @@ import { showToast } from '../toastService';
 import { useMainStore } from '../store';
 import { models } from '../constants';
 import Utils from '../utils';
+import { isTwofaRequired, redirectToTwofa } from './twofaGuard';
 
 const http = axios.create({
   baseURL: import.meta.env.VUE_APP_ROOT_URL || '/',
@@ -57,6 +58,13 @@ http.interceptors.response.use((resp) => {
 
   return data;
 }, (err) => {
+  if (isTwofaRequired(err)) {
+    if (err.config && 'loading' in err.config) {
+      useMainStore().setLoading({ model: err.config.loading, status: false });
+    }
+    redirectToTwofa();
+    return Promise.reject(err);
+  }
   if ('loading' in err.config) {
     useMainStore().setLoading({ model: err.config.loading, status: false });
   }
@@ -568,4 +576,38 @@ export const enableTOTP = (id, data) => http.put(
 export const disableTOTP = (id, data) => http.delete(
   `/api/users/${id}/twofa`,
   { data },
+);
+
+// Developers: a logged transactional message. Its payload is the caller's
+// own request, so its keys are left as sent.
+export const getTxMessage = (id) => http.get(
+  `/api/developers/messages/${encodeURIComponent(id)}`,
+  { camelCase: (keyPath) => !keyPath.startsWith('.payload.') },
+);
+
+// Developers: transactional templates. Sample data and headers are the
+// user's own keys, so they're left as sent.
+const txTemplateKeys = (keyPath) => !/^(\.\*)?\.(sample_data|headers)\./.test(keyPath);
+
+export const listTxTemplates = () => http.get(
+  '/api/developers/templates',
+  { camelCase: txTemplateKeys },
+);
+
+export const createTxTemplate = (data) => http.post(
+  '/api/developers/templates',
+  data,
+  { camelCase: txTemplateKeys },
+);
+
+export const updateTxTemplate = (id, data) => http.put(
+  `/api/developers/templates/${id}`,
+  data,
+  { camelCase: txTemplateKeys },
+);
+
+// Developers: a webhook delivery. Its payload is shown exactly as sent.
+export const getWebhookDelivery = (id) => http.get(
+  `/api/developers/webhooks/deliveries/${encodeURIComponent(id)}`,
+  { camelCase: (keyPath) => !keyPath.startsWith('.payload.') },
 );

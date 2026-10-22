@@ -102,7 +102,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 					return next(c)
 				}
-			})
+			}, a.requireTwofa)
 		)
 
 		// API endpoints.
@@ -111,8 +111,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/lang/:lang", a.GetI18nLang)
 		g.GET("/api/dashboard/charts", a.GetDashboardCharts)
 		g.GET("/api/dashboard/counts", a.GetDashboardCounts)
+		g.GET("/api/dashboard/overview", a.GetDashboardOverview)
 
 		g.GET("/api/settings", pm(a.GetSettings, "settings:get"))
+		g.GET("/api/settings/logs", pm(a.GetActivityLog, "settings:get"))
+		g.GET("/api/settings/inactive-cleanup", pm(a.GetCleanupStatus, "settings:get"))
+		g.POST("/api/settings/inactive-cleanup/preview", pm(a.PreviewCleanup, "settings:get"))
 		g.PUT("/api/settings", pm(a.UpdateSettings, "settings:manage"))
 		g.PUT("/api/settings/:key", pm(a.UpdateSettingsByKey, "settings:manage"))
 		g.POST("/api/settings/smtp/test", pm(a.TestSMTPSettings, "settings:manage"))
@@ -140,6 +144,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		g.GET("/api/bounces", pm(a.GetBounces, "bounces:get"))
 		g.PUT("/api/bounces/blocklist", pm(a.BlocklistBouncedSubscribers, "bounces:manage"))
+		g.GET("/api/bounces/counts", pm(a.GetBounceCounts, "bounces:get"))
 		g.GET("/api/bounces/:id", pm(hasID(a.GetBounce), "bounces:get"))
 		g.DELETE("/api/bounces", pm(a.DeleteBounces, "bounces:manage"))
 		g.DELETE("/api/bounces/:id", pm(hasID(a.DeleteBounce), "bounces:manage"))
@@ -188,6 +193,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/campaigns/:id", pm(hasID(a.DeleteCampaign), "campaigns:manage_all", "campaigns:manage"))
 
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
+		g.GET("/api/media/usage", pm(a.GetMediaUsage, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
 		g.DELETE("/api/media/:id", pm(hasID(a.DeleteMedia), "media:manage"))
@@ -207,6 +213,34 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/maintenance/subscriptions/unconfirmed", pm(a.GCSubscriptions, "settings:maintain"))
 
 		g.POST("/api/tx", pm(a.SendTxMessage, "tx:send"))
+
+		// Developers area.
+		g.GET("/api/developers/keys", pm(a.GetAPIKeys, "apikeys:get"))
+		g.POST("/api/developers/keys", pm(a.CreateAPIKey, "apikeys:manage"))
+		g.PUT("/api/developers/keys/:id", pm(hasID(a.UpdateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/rotate", pm(hasID(a.RotateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/revoke", pm(hasID(a.RevokeAPIKey), "apikeys:manage"))
+		g.DELETE("/api/developers/keys/:id", pm(hasID(a.DeleteAPIKey), "apikeys:manage"))
+		g.GET("/api/developers/messages", pm(a.QueryTxMessages, "tx:logs"))
+		g.GET("/api/developers/messages/:uuid", pm(a.GetTxMessage, "tx:logs"))
+		g.POST("/api/developers/messages/:uuid/resend", pm(a.ResendTxMessage, "tx:send"))
+		g.GET("/api/developers/stats", pm(a.GetTxStats, "tx:logs"))
+		g.GET("/api/developers/templates", pm(a.GetTxTemplates, "templates:get"))
+		g.POST("/api/developers/templates", pm(a.CreateTxTemplate, "templates:manage"))
+		g.POST("/api/developers/templates/preview", pm(a.PreviewTxTemplate, "templates:get"))
+		g.PUT("/api/developers/templates/:id", pm(hasID(a.UpdateTxTemplate), "templates:manage"))
+		g.GET("/api/developers/branding", pm(a.GetBranding, "templates:get"))
+		g.PUT("/api/developers/branding", pm(a.UpdateBranding, "templates:manage"))
+		g.GET("/api/developers/webhooks", pm(a.GetWebhookEndpoints, "webhooks:get"))
+		g.POST("/api/developers/webhooks", pm(a.CreateWebhookEndpoint, "webhooks:manage"))
+		g.GET("/api/developers/webhooks/deliveries", pm(a.QueryWebhookDeliveries, "webhooks:get"))
+		g.GET("/api/developers/webhooks/deliveries/:uuid", pm(a.GetWebhookDelivery, "webhooks:get"))
+		g.POST("/api/developers/webhooks/deliveries/:uuid/retry", pm(a.RetryWebhookDelivery, "webhooks:manage"))
+		g.PUT("/api/developers/webhooks/:id", pm(hasID(a.UpdateWebhookEndpoint), "webhooks:manage"))
+		g.DELETE("/api/developers/webhooks/:id", pm(hasID(a.DeleteWebhookEndpoint), "webhooks:manage"))
+		g.GET("/api/developers/webhooks/:id/secret", pm(hasID(a.GetWebhookEndpointSecret), "webhooks:manage"))
+		g.POST("/api/developers/webhooks/:id/secret", pm(hasID(a.RotateWebhookEndpointSecret), "webhooks:manage"))
+		g.POST("/api/developers/webhooks/:id/test", pm(hasID(a.SendWebhookTest), "webhooks:manage"))
 
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)
@@ -260,6 +294,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
 		g.GET("/usage", a.GetOperatorPlatformUsage)
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
@@ -333,6 +368,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/subscription/form", a.SubscriptionForm)
 		g.GET("/subscription/:campUUID/:subUUID", noIndex(a.hasUUID(a.hasSub(a.SubscriptionPage), "campUUID", "subUUID")))
 		g.POST("/subscription/:campUUID/:subUUID", a.hasUUID(a.hasSub(a.SubscriptionPrefs), "campUUID", "subUUID"))
+		g.POST("/subscription/:campUUID/:subUUID/resubscribe", a.hasUUID(a.hasSub(a.Resubscribe), "campUUID", "subUUID"))
 		g.GET("/subscription/optin/:subUUID", noIndex(a.hasUUID(a.hasSub(a.OptinPage), "subUUID")))
 		g.POST("/subscription/optin/:subUUID", a.hasUUID(a.hasSub(a.OptinPage), "subUUID"))
 		g.POST("/subscription/export/:subUUID", a.hasUUID(a.hasSub(a.SelfExportSubscriberData), "subUUID"))

@@ -25,6 +25,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/nerd-zero/listnun/internal/auth"
+	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
 	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/models"
@@ -92,6 +93,7 @@ func (a *App) GetSettings(c echo.Context) error {
 	s.BounceForwardEmail.Key = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BounceForwardEmail.Key))
 	s.BounceLettermint.Key = strings.Repeat(pwdMask, utf8.RuneCountInString(s.BounceLettermint.Key))
 	s.SecurityCaptcha.HCaptcha.Secret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SecurityCaptcha.HCaptcha.Secret))
+	s.SecurityCaptcha.Turnstile.Secret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SecurityCaptcha.Turnstile.Secret))
 	s.OIDC.ClientSecret = strings.Repeat(pwdMask, utf8.RuneCountInString(s.OIDC.ClientSecret))
 
 	return c.JSON(http.StatusOK, okResp{s})
@@ -285,6 +287,16 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	if set.SecurityCaptcha.HCaptcha.Secret == "" {
 		set.SecurityCaptcha.HCaptcha.Secret = cur.SecurityCaptcha.HCaptcha.Secret
 	}
+	if set.SecurityCaptcha.Turnstile.Secret == "" {
+		set.SecurityCaptcha.Turnstile.Secret = cur.SecurityCaptcha.Turnstile.Secret
+	}
+
+	// Turnstile without its keys would reject every form and, with the
+	// sign-in captcha on, lock everyone out.
+	if t := set.SecurityCaptcha.Turnstile; t.Enabled && (strings.TrimSpace(t.Key) == "" || strings.TrimSpace(t.Secret) == "") {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.invalidFields", "name", "Turnstile key/secret"))
+	}
 	if set.OIDC.ClientSecret == "" {
 		set.OIDC.ClientSecret = cur.OIDC.ClientSecret
 	}
@@ -338,6 +350,10 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	}
 	set.SecurityTrustedURLs = urls
 
+	if err := validateCleanup(set.InactiveCleanup); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidData")+": inactive cleanup: "+err.Error())
+	}
+
 	// Validate slow query caching cron.
 	if set.CacheSlowQueries {
 		if _, err := cron.ParseStandard(set.CacheSlowQueriesInterval); err != nil {
@@ -349,6 +365,10 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	if err := a.core.UpdateSettings(c.Request().Context(), tenantID(c), set); err != nil {
 		return err
 	}
+
+	// The two-step verification requirement may have changed.
+	a.twofa.forget(tenantID(c))
+	a.core.LogActivity(tenantID(c), models.ActivityInfo, "settings", fmt.Sprintf("settings saved by %s", auth.GetUser(c).Username))
 
 	// SMTP/upload/OIDC settings can be applied by invalidating that
 	// tenant's cached resolver (cmd/tenant_messenger.go, cmd/tenant_media.go,
@@ -388,6 +408,16 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		return err
 	}
 
+	if key == "inactive_cleanup" {
+		var ic cleanup.Settings
+		if err := json.Unmarshal(b, &ic); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
+		}
+		if err := validateCleanup(ic); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidData")+": inactive cleanup: "+err.Error())
+		}
+	}
+
 	// Update the value in the DB.
 	if err := a.core.UpdateSettingsByKey(c.Request().Context(), tenantID(c), key, b); err != nil {
 		return err
@@ -398,6 +428,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	// key alone says which per-tenant cache to invalidate, same groups as
 	// diffSettingsGroups. Anything outside those still needs the full
 	// restart.
+	a.twofa.forget(tenantID(c))
+	a.core.LogActivity(tenantID(c), models.ActivityInfo, "settings", fmt.Sprintf("%s changed by %s", key, auth.GetUser(c).Username))
 	switch {
 	case key == "smtp":
 		a.tenantMsgrs.Invalidate(tenantID(c))
@@ -405,6 +437,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		a.media.Invalidate(tenantID(c))
 	case key == "security.oidc":
 		a.auth.InvalidateOIDC(tenantID(c))
+	case key == "inactive_cleanup":
+		// Read fresh by the scheduler on every tick.
 	default:
 		return a.handleSettingsRestart(c)
 	}
@@ -443,6 +477,8 @@ func withoutTenantCachedGroups(s models.Settings) models.Settings {
 	s.UploadS3BucketPath = ""
 	s.UploadS3BucketType = ""
 	s.UploadS3Expiry = ""
+	// The cleanup scheduler reads settings on every tick, so no restart.
+	s.InactiveCleanup = zero.InactiveCleanup
 	return s
 }
 
@@ -906,4 +942,16 @@ func (a *App) GetAboutInfo(c echo.Context) error {
 	out.System.OSMB = mem.Sys / 1024 / 1024
 
 	return c.JSON(http.StatusOK, out)
+}
+
+// validateCleanup checks the mode and, in custom mode, the workspace's
+// own rules. Managed rules come from config and are checked at boot.
+func validateCleanup(s cleanup.Settings) error {
+	switch s.Mode {
+	case cleanup.ModeManaged:
+		return nil
+	case cleanup.ModeCustom:
+		return s.Rules.Validate()
+	}
+	return fmt.Errorf("unknown mode %q", s.Mode)
 }
