@@ -128,14 +128,12 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
 
   const workspace: NavItem[] = [];
   if (can('users:*', 'roles:*')) {
-    const kids: NavKid[] = [];
-    if (can('users:get')) kids.push(kid('users', t('globals.terms.users'), 'users', 'users'));
-    if (can('roles:get')) {
-      kids.push(kid('userRoles', t('users.userRoles'), 'userRoles', 'userRoles'));
-      kids.push(kid('listRoles', t('users.listRoles'), 'listRoles', 'listRoles'));
-    }
     workspace.push({
-      key: 'users', label: t('globals.terms.users'), icon: 'users', to: { name: 'users' }, group: 'users', kids,
+      key: 'users',
+      label: t('globals.terms.users'),
+      icon: 'users',
+      to: { name: can('users:get') ? 'users' : 'userRoles' },
+      names: ['users', 'userRoles', 'listRoles', 'apiUsers'],
     });
   }
   if (can('settings:*')) {
