@@ -356,7 +356,8 @@
               <strong>{{ c.title }}</strong>
               <span class="ln-small">{{ c.text }}</span>
             </span>
-            <button v-if="c.fix" type="button" class="ln-link-btn" @click="c.fix.run">{{ c.fix.label }}</button>
+            <PvButton v-if="c.fix && c.tone === 'warn'" :label="c.fix.label" size="small" severity="secondary" outlined @click="c.fix.run" />
+            <button v-else-if="c.fix" type="button" class="ln-link-btn" @click="c.fix.run">{{ c.fix.label }}</button>
           </li>
         </ul>
       </section>
@@ -455,6 +456,7 @@ import TableSkeleton from '../components/ui/TableSkeleton.vue';
 import DialogForm from '../components/ui/DialogForm.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
+import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
 
 // Campaigns, lists and templates are the API's loose camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -500,7 +502,11 @@ const busy = ref(false);
 const step = ref<StepKey>('settings');
 const data = ref<Loose>({});
 const savedAt = ref<string | null>(null);
-const lastTest = ref<{ at: string; to: string } | null>(null);
+// The last test sent from this page, kept per campaign in this browser so
+// it survives a reload. sig fingerprints what was tested, so a later edit
+// to the subject, content or attachments marks the test out of date.
+interface TestRecord { at: string; to: string; sig: string }
+const lastTest = ref<TestRecord | null>(null);
 const selListIDs = ref<number[]>([]);
 const scrubListStatus = ref<Record<number, Loose>>({});
 let leaveApproved = false;
@@ -580,10 +586,19 @@ const canSchedule = computed(() => ['draft', 'paused'].includes(data.value.statu
 const canUnSchedule = computed(() => data.value.status === 'scheduled');
 const canStart = computed(() => ['draft', 'paused'].includes(data.value.status) && !form.sendLater && !hasActiveScrubJob.value);
 
-const audience = computed(() => (form.lists as Loose[]).reduce((n, l) => {
-  const full = (lists.value.results || []).find((x: Loose) => x.id === l.id);
-  return n + (full?.subscriberCount || l.subscriberCount || 0);
-}, 0));
+// The app-wide lists are loaded without subscriber counts (minimal, see
+// App.vue), so fetch the count of each list the campaign goes to.
+const listCounts = ref<Record<number, number>>({});
+watch(() => (form.lists as Loose[]).map((l) => l.id).join(','), () => {
+  (form.lists as Loose[]).forEach((l) => {
+    if (l.id in listCounts.value) return;
+    listsApi().getList(l.id).then((d) => {
+      listCounts.value = { ...listCounts.value, [l.id]: (d as Loose).subscriberCount || 0 };
+    }).catch(() => {});
+  });
+}, { immediate: true });
+
+const audience = computed(() => (form.lists as Loose[]).reduce((n, l) => n + (listCounts.value[l.id] || 0), 0));
 
 const selectedLists = computed(() => {
   if (selListIDs.value.length === 0 || !lists.value.results) return [];
@@ -628,6 +643,42 @@ const primaryDisabled = computed(() => {
   return false;
 });
 
+// A short fingerprint (djb2) of everything a test email shows.
+function contentSig(): string {
+  const src = JSON.stringify([
+    form.subject, form.fromEmail, form.content.contentType, form.content.body, form.altbody,
+    form.content.templateId, (form.media as Loose[]).map((m) => m.id),
+  ]);
+  let h = 5381;
+  for (let i = 0; i < src.length; i += 1) h = ((h * 33) ^ src.charCodeAt(i)) >>> 0; // eslint-disable-line no-bitwise
+  return h.toString(36);
+}
+
+function testKey(): string {
+  return `ln-campaign-test-${data.value.id}`;
+}
+
+function loadLastTest() {
+  try {
+    const v = JSON.parse(localStorage.getItem(testKey()) || 'null');
+    lastTest.value = v && typeof v.at === 'string' && typeof v.sig === 'string' ? v : null;
+  } catch {
+    lastTest.value = null;
+  }
+}
+
+function saveLastTest(rec: TestRecord) {
+  lastTest.value = rec;
+  try {
+    localStorage.setItem(testKey(), JSON.stringify(rec));
+  } catch {
+    // Storage blocked: the record still holds until the page reloads.
+  }
+}
+
+// A test of exactly what's in the editor now.
+const testCurrent = computed(() => !!lastTest.value && lastTest.value.sig === contentSig());
+
 const bodyText = computed(() => String(form.content.body || '').replace(/<[^>]*>/g, '').trim());
 
 const checks = computed<Check[]>(() => {
@@ -656,17 +707,22 @@ const checks = computed<Check[]>(() => {
     : {
       key: 'content', tone: 'warn', title: t('campaigns.content'), text: t('campaigns.checkEmpty'), fix: { label: t('campaigns.fix'), run: () => goStep('content') },
     });
-  out.push(lastTest.value
-    ? {
+  // A test matters: nothing else shows the email as subscribers get it.
+  // Missing or out of date, it's a warning with the button to send one.
+  const sendTestFix = canManage.value ? { label: t('campaigns.sendTest'), run: () => { testOpen.value = true; } } : undefined;
+  if (lastTest.value && testCurrent.value) {
+    out.push({
       key: 'test', tone: 'ok', title: t('campaigns.checkTest'), text: t('campaigns.lastTest', { when: ago(lastTest.value.at).toLowerCase(), to: lastTest.value.to }),
-    }
-    : {
-      key: 'test',
-      tone: 'info',
-      title: t('campaigns.checkTest'),
-      text: t('campaigns.checkNoTest'),
-      fix: canManage.value ? { label: t('campaigns.sendTest'), run: () => { testOpen.value = true; } } : undefined,
     });
+  } else if (lastTest.value) {
+    out.push({
+      key: 'test', tone: 'warn', title: t('campaigns.checkTest'), text: t('campaigns.checkTestStale', { when: ago(lastTest.value.at).toLowerCase() }), fix: sendTestFix,
+    });
+  } else {
+    out.push({
+      key: 'test', tone: 'warn', title: t('campaigns.checkTest'), text: t('campaigns.checkNoTest'), fix: sendTestFix,
+    });
+  }
   if (form.content.contentType !== 'plain') {
     out.push({
       key: 'plain', tone: 'info', title: t('campaigns.plainTextVersion'), text: form.altbody !== null ? t('campaigns.checkPlainCustom') : t('campaigns.plainTextNone'),
@@ -786,6 +842,7 @@ function fillFrom(d: Loose) {
     },
   });
   form.media = form.media.map((f: Loose) => (!f.id ? { ...f, filename: `❌ ${f.filename}` } : f));
+  loadLastTest();
 }
 
 function getCampaign(id: string) {
@@ -821,7 +878,7 @@ function sendTest() {
     media: form.media.map((m: Loose) => m.id),
   })
     .then(() => {
-      lastTest.value = { at: new Date().toISOString(), to: form.testEmails.join(', ') };
+      saveLastTest({ at: new Date().toISOString(), to: form.testEmails.join(', '), sig: contentSig() });
       testOpen.value = false;
       $utils.toast(t('campaigns.testSent'));
     })
@@ -924,7 +981,10 @@ function askSend() {
   Object.assign(confirm, {
     open: true,
     title: t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.title`, { name: form.name }),
-    text: t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.text`, { n: audience.value.toLocaleString() }),
+    text: [
+      t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.text`, { n: audience.value.toLocaleString() }),
+      testCurrent.value ? '' : t('campaigns.confirm.noTest'),
+    ].filter(Boolean).join(' '),
     label: t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.action`),
     danger: false,
     secondary: null,
