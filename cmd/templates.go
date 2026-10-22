@@ -100,7 +100,7 @@ func (a *App) PreviewTemplate(c echo.Context) error {
 	}
 
 	// Render the template.
-	out, err := a.previewTemplate(tpl)
+	out, err := a.previewTemplate(tenantID(c), tpl)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (a *App) PreviewTemplateBody(c echo.Context) error {
 	}
 
 	// Render the template.
-	out, err := a.previewTemplate(tpl)
+	out, err := a.previewTemplate(tenantID(c), tpl)
 	if err != nil {
 		return err
 	}
@@ -312,11 +312,14 @@ func (a *App) validateTemplate(o models.Template) error {
 	return nil
 }
 
-// previewTemplate renders the HTML preview of a template.
-func (a *App) previewTemplate(tpl models.Template) ([]byte, error) {
+// previewTemplate renders the HTML preview of a template for a tenant.
+func (a *App) previewTemplate(tenantID int, tpl models.Template) ([]byte, error) {
 	var out []byte
 	if tpl.Type == models.TemplateTypeCampaign || tpl.Type == models.TemplateTypeCampaignVisual {
 		camp := models.Campaign{
+			// Tracked links in the template are registered under this
+			// tenant (links.tenant_id); without it the insert fails its FK.
+			TenantID:     tenantID,
 			UUID:         dummyUUID,
 			Name:         a.i18n.T("templates.dummyName"),
 			Subject:      a.i18n.T("templates.dummySubject"),
