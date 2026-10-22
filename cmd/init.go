@@ -1157,6 +1157,14 @@ func initAuth(co *core.Core, db *sql.DB, ko *koanf.Koanf) *auth.Auth {
 			return co.GetUserUnscoped(id)
 		},
 
+		AuthenticateAPIKey: func(tenantID int, name, secret string) (auth.User, bool) {
+			k, ok := co.AuthenticateAPIKey(context.Background(), tenantID, name, secret)
+			if !ok {
+				return auth.User{}, false
+			}
+			return apiKeyUser(k), true
+		},
+
 		// GetOIDCConfig resolves the given tenant's own OIDC settings
 		// (per-tenant since phase 5) rather than a single global config -
 		// see internal/auth.Auth's per-tenant provider/verifier cache.

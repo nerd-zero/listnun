@@ -93,10 +93,18 @@ const opened = reactive<Record<string, boolean>>({});
 const groups = computed(() => navGroups(t, $can));
 
 // The rail shows top-level destinations only; groups link to their first page.
-const railItems = computed(() => groups.value.flatMap((g) => g.items).map((item) => ({
-  ...item,
-  to: item.kids?.length ? item.kids[0].to : item.to,
-})));
+// The Developers group collapses to a single entry.
+const railItems = computed<NavItem[]>(() => groups.value.flatMap((g) => {
+  if (g.key === 'developers') {
+    return [{
+      key: 'developers', label: g.label, icon: 'code', to: g.items[0].to, group: 'developers',
+    }];
+  }
+  return g.items.map((item) => ({
+    ...item,
+    to: item.kids?.length ? item.kids[0].to : item.to,
+  }));
+}));
 
 function isItemActive(item: NavItem): boolean {
   if (item.names?.includes(route.name as string)) return true;

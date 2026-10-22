@@ -95,6 +95,14 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Campaign.vue'),
   },
   {
+    path: '/developers/keys',
+    name: 'devKeys',
+    meta: {
+      title: 'developers.keys.title', section: 'developers.title', group: 'developers', perms: ['apikeys:get'],
+    },
+    component: () => import('../views/developers/ApiKeys.vue'),
+  },
+  {
     path: '/user/profile',
     name: 'userProfile',
     meta: { title: 'users.profile', group: 'profile' },
