@@ -273,6 +273,13 @@ SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), crea
     WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
     GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
+-- name: get-campaign-bounce-type-counts
+-- Bounces per campaign and type (soft, hard, complaint) in a date range.
+SELECT campaign_id, type, COUNT(*) AS "count"
+    FROM bounces
+    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
+    GROUP BY campaign_id, type ORDER BY campaign_id, type;
+
 -- name: get-campaign-link-counts
 -- raw: true
 -- %s = * or DISTINCT subscriber_id (prepared based on based on individual tracking=on/off). Prepared on boot.

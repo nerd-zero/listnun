@@ -87,6 +87,13 @@ type CampaignAnalyticsCount struct {
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 } // @name CampaignAnalyticsCount
 
+// CampaignBounceTypeCount is the number of bounces of one type for a campaign.
+type CampaignBounceTypeCount struct {
+	CampaignID int    `db:"campaign_id" json:"campaign_id"`
+	Type       string `db:"type" json:"type"`
+	Count      int    `db:"count" json:"count"`
+} // @name CampaignBounceTypeCount
+
 type CampaignAnalyticsLink struct {
 	URL   string `db:"url" json:"url"`
 	Count int    `db:"count" json:"count"`
