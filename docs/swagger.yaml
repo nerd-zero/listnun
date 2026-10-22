@@ -512,6 +512,11 @@ definitions:
     type: object
   ImportStatus:
     properties:
+      failed:
+        description: |-
+          Failed is the number of valid rows the database rejected, i.e. the
+          rows of a batch whose insert or commit failed.
+        type: integer
       imported:
         type: integer
       name:
@@ -523,6 +528,11 @@ definitions:
           included -- aren't known until the /webhooks/scrub/batch callback
           resolves each submitted batch, well after this Status stops being
           polled. Kept for API/frontend type stability rather than removed.
+        type: integer
+      skipped:
+        description: |-
+          Skipped is the number of CSV rows left out for being malformed or
+          invalid (bad e-mail, wrong column count). Each one is in the log.
         type: integer
       status:
         type: string
