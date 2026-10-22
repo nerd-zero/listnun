@@ -41,6 +41,21 @@ const (
 	progressStep = 250
 )
 
+// firstBatchSizes are the sizes of an import's first transactions; every
+// batch after them is commitBatchSize. Small first batches commit (and
+// count as imported) within a second or two, so an import looks quick from
+// the start, while the large batches after keep big imports fast.
+var firstBatchSizes = []int{1000, 3000}
+
+// batchLimit returns how many rows the n-th transaction (from 0) of an
+// import commits.
+func batchLimit(n int) int {
+	if n < len(firstBatchSizes) {
+		return firstBatchSizes[n]
+	}
+	return commitBatchSize
+}
+
 // Various import statuses.
 const (
 	StatusNone      = "none"
@@ -355,6 +370,8 @@ func (s *Session) Start() {
 		err   error
 		total = 0
 		cur   = 0
+		// batch counts transactions, for batchLimit.
+		batch = 0
 	)
 
 	listIDs := make([]int, len(s.opt.ListIDs))
@@ -404,7 +421,7 @@ func (s *Session) Start() {
 		}
 
 		// Batch size is met. Commit.
-		if cur%commitBatchSize == 0 {
+		if cur == batchLimit(batch) {
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
 				s.log.Printf("error committing to DB: %v", err)
@@ -416,6 +433,7 @@ func (s *Session) Start() {
 			s.im.setPending(0)
 
 			cur = 0
+			batch++
 		}
 	}
 
