@@ -1217,18 +1217,31 @@ definitions:
     type: object
   Template:
     properties:
+      alt_body:
+        type: string
       body:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
       created_at:
         type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
       id:
         type: integer
       is_default:
         type: boolean
       name:
         type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
       subject:
         description: Subject is only for type=tx.
         type: string
@@ -1308,6 +1321,30 @@ definitions:
       total:
         type: integer
     type: object
+  TxPreview:
+    properties:
+      from:
+        type: string
+      html:
+        type: string
+      subject:
+        type: string
+      text:
+        type: string
+    type: object
+  TxPreviewRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      data:
+        additionalProperties: {}
+        description: Arbitrary sample data, as a caller would send in `data`.
+        type: object
+      subject:
+        type: string
+    type: object
   TxStats:
     properties:
       bounced:
@@ -1321,6 +1358,62 @@ definitions:
       sent_prev:
         type: integer
       top_error:
+        type: string
+    type: object
+  TxTemplate:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      body_source:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      id:
+        type: integer
+      is_default:
+        type: boolean
+      name:
+        type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
+      subject:
+        description: Subject is only for type=tx.
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      used_this_week:
+        type: integer
+    type: object
+  TxTemplateRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      name:
+        type: string
+      sample_data:
+        type: object
+      subject:
         type: string
     type: object
   UpdateCampaignContentReq:
@@ -2505,6 +2598,107 @@ paths:
           schema:
             $ref: '#/definitions/TxStats'
       summary: Transactional email stats, last 24 hours
+      tags:
+      - developers
+  /api/developers/templates:
+    get:
+      operationId: listTxTemplates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/TxTemplate'
+            type: array
+      summary: List transactional templates
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createTxTemplate
+      parameters:
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a transactional template
+      tags:
+      - developers
+  /api/developers/templates/{id}:
+    put:
+      consumes:
+      - application/json
+      operationId: updateTxTemplate
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a transactional template
+      tags:
+      - developers
+  /api/developers/templates/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewTxTemplate
+      parameters:
+      - description: Template and sample data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxPreview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview a transactional template
       tags:
       - developers
   /api/health:

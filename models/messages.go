@@ -145,3 +145,28 @@ func (m *TxMessage) Render(sub Subscriber, tpl *Template, funcs txttpl.FuncMap) 
 
 	return nil
 }
+
+// MergeHeaders merges a template's default headers with a request's. A header
+// the request sets replaces the template's value; repeated request headers
+// are all kept.
+func MergeHeaders(tplHeaders, reqHeaders Headers) textproto.MIMEHeader {
+	out := make(textproto.MIMEHeader, len(tplHeaders)+len(reqHeaders)+1)
+	for _, set := range tplHeaders {
+		for hdr, val := range set {
+			out.Set(hdr, val)
+		}
+	}
+
+	replaced := map[string]bool{}
+	for _, set := range reqHeaders {
+		for hdr, val := range set {
+			key := textproto.CanonicalMIMEHeaderKey(hdr)
+			if !replaced[key] {
+				out.Del(key)
+				replaced[key] = true
+			}
+			out.Add(key, val)
+		}
+	}
+	return out
+}

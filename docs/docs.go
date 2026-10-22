@@ -1490,6 +1490,160 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/developers/templates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List transactional templates",
+                "operationId": "listTxTemplates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TxTemplate"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Create a transactional template",
+                "operationId": "createTxTemplate",
+                "parameters": [
+                    {
+                        "description": "Template",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Template"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/templates/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Preview a transactional template",
+                "operationId": "previewTxTemplate",
+                "parameters": [
+                    {
+                        "description": "Template and sample data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TxPreview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/templates/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Save a transactional template",
+                "operationId": "updateTxTemplate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Template",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Template"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "produces": [
@@ -7161,6 +7315,9 @@ const docTemplate = `{
         "Template": {
             "type": "object",
             "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
                 "body": {
                     "type": "string"
                 },
@@ -7170,6 +7327,15 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -7178,6 +7344,13 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "sample_data": {
+                    "description": "Transactional templates only.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "subject": {
                     "description": "Subject is only for type=tx.",
@@ -7299,6 +7472,42 @@ const docTemplate = `{
                 }
             }
         },
+        "TxPreview": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "html": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "data": {
+                    "description": "Arbitrary sample data, as a caller would send in ` + "`" + `data` + "`" + `.",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
         "TxStats": {
             "type": "object",
             "properties": {
@@ -7318,6 +7527,90 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "top_error": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxTemplate": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "body_source": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sample_data": {
+                    "description": "Transactional templates only.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "subject": {
+                    "description": "Subject is only for type=tx.",
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "used_this_week": {
+                    "type": "integer"
+                }
+            }
+        },
+        "TxTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sample_data": {
+                    "type": "object"
+                },
+                "subject": {
                     "type": "string"
                 }
             }

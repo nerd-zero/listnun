@@ -4,6 +4,8 @@
 SELECT id, name, type, subject,
     (CASE WHEN $2 = false THEN body ELSE '' END) as body,
     (CASE WHEN $2 = false THEN body_source ELSE NULL END) as body_source,
+    (CASE WHEN $2 = false THEN alt_body ELSE '' END) as alt_body,
+    sample_data, headers,
     is_default, tenant_id, created_at, updated_at
     FROM templates WHERE ($1 = 0 OR id = $1) AND ($3 = '' OR type = $3::template_type)
     ORDER BY created_at;
@@ -40,3 +42,13 @@ up AS (
 )
 SELECT id FROM tpl;
 
+
+-- name: update-template-tx-extras
+UPDATE templates SET sample_data = $2, alt_body = $3, headers = $4, updated_at = NOW()
+    WHERE id = $1 AND type = 'tx';
+
+-- name: get-tx-template-usage
+-- Messages sent per transactional template in the last 7 days.
+SELECT template_id, COUNT(*) AS count FROM tx_messages
+    WHERE template_id IS NOT NULL AND created_at > NOW() - INTERVAL '7 days'
+    GROUP BY template_id;

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/textproto"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -179,6 +178,11 @@ func (a *App) sendTx(ctx context.Context, tenantID int, m models.TxMessage, orig
 			a.i18n.Ts("globals.messages.notFound", "name", fmt.Sprintf("template %d", m.TemplateID)))
 	}
 
+	// The template's plain-text body applies unless the request brings its own.
+	if m.AltBody == "" {
+		m.AltBody = tpl.AltBody
+	}
+
 	var (
 		num      = len(m.SubscriberEmails)
 		isEmails = true
@@ -270,12 +274,7 @@ func (a *App) sendTx(ctx context.Context, tenantID int, m models.TxMessage, orig
 		}
 		msg.Attachments = append(msg.Attachments, tpl.Attachments...)
 
-		msg.Headers = make(textproto.MIMEHeader, len(m.Headers)+1)
-		for _, set := range m.Headers {
-			for hdr, val := range set {
-				msg.Headers.Add(hdr, val)
-			}
-		}
+		msg.Headers = models.MergeHeaders(tpl.Headers, m.Headers)
 		if ref.UUID != "" {
 			msg.Headers.Set(models.TxMessageIDHeader, ref.UUID)
 		}
