@@ -3,6 +3,7 @@ package subimporter
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -129,5 +130,37 @@ func TestCountCSVRows(t *testing.T) {
 	}
 	if got := countCSVRows(filepath.Join(t.TempDir(), "missing.csv"), ','); got != -1 {
 		t.Errorf("missing file = %d, want -1", got)
+	}
+}
+
+// GetStats copies the status field by field; a field it leaves out reads as
+// zero to the API (pending once did, so progress never moved). Set every
+// exported field and check they all come back.
+func TestGetStatsReturnsEveryField(t *testing.T) {
+	im := New(Options{}, nil, nil)
+
+	want := Status{}
+	v := reflect.ValueOf(&want).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if !f.CanSet() {
+			continue
+		}
+		switch f.Kind() {
+		case reflect.Int:
+			f.SetInt(int64(i + 1))
+		case reflect.String:
+			f.SetString(v.Type().Field(i).Name)
+		default:
+			t.Fatalf("Status.%s has kind %s; extend this test", v.Type().Field(i).Name, f.Kind())
+		}
+	}
+
+	im.Lock()
+	im.status = want
+	im.Unlock()
+
+	if got := im.GetStats(); got != want {
+		t.Errorf("GetStats() = %+v, want %+v", got, want)
 	}
 }

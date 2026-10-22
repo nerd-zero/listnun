@@ -262,6 +262,7 @@ func (im *Importer) GetStats() Status {
 		Risky:    im.status.Risky,
 		Skipped:  im.status.Skipped,
 		Failed:   im.status.Failed,
+		Pending:  im.status.Pending,
 	}
 }
 
