@@ -5,21 +5,23 @@
     </header>
 
     <div class="camp-replies-body">
-      <div class="ln-tiles" :aria-label="$t('campaigns.replies.title')">
-        <div class="ln-tile">
-          <span class="ln-tile-label">{{ $t('campaigns.replies.count') }}</span>
-          <span class="ln-tile-value" data-cy="replies-count">{{ counts.replies }}</span>
+      <!-- Three figures in one row at every width: a row of bordered tiles
+           inside this card stacked to a full screen at 390px. -->
+      <dl class="camp-replies-stats">
+        <div>
+          <dt>{{ $t('campaigns.replies.count') }}</dt>
+          <dd data-cy="replies-count">{{ counts.replies }}</dd>
         </div>
-        <div class="ln-tile">
-          <span class="ln-tile-label">{{ $t('campaigns.replies.people') }}</span>
-          <span class="ln-tile-value" data-cy="repliers-count">{{ counts.repliers }}</span>
+        <div>
+          <dt>{{ $t('campaigns.replies.people') }}</dt>
+          <dd data-cy="repliers-count">{{ counts.repliers }}</dd>
         </div>
-        <div class="ln-tile">
-          <span class="ln-tile-label">{{ $t('campaigns.replies.auto') }}</span>
-          <span class="ln-tile-value" data-cy="auto-count">{{ counts.auto }}</span>
-          <span class="ln-tile-sub">{{ $t('campaigns.replies.autoHelp') }}</span>
+        <div>
+          <dt>{{ $t('campaigns.replies.auto') }}</dt>
+          <dd data-cy="auto-count">{{ counts.auto }}</dd>
         </div>
-      </div>
+      </dl>
+      <p v-if="counts.auto" class="ln-help camp-replies-auto-help">{{ $t('campaigns.replies.autoHelp') }}</p>
 
       <p v-if="error" class="ln-field-error" role="alert">{{ $t('campaigns.replies.loadError') }}</p>
 
@@ -33,15 +35,17 @@
 
       <ul v-else class="camp-replies-list">
         <li v-for="r in replies" :key="r.uuid" class="camp-reply" data-cy="reply">
+          <!-- Name and time on one line, address and tag under it, so the
+               time never wraps onto a line of its own on a phone. -->
           <div class="camp-reply-head">
-            <span class="camp-reply-who">
-              <strong>{{ r.subscriberName || r.fromName || r.fromEmail }}</strong>
-              <span class="ln-small ln-muted">{{ r.fromEmail }}</span>
-            </span>
-            <span v-if="r.isAuto" class="ln-status" data-cy="reply-auto">{{ $t('campaigns.replies.autoTag') }}</span>
+            <strong class="camp-reply-name">{{ r.subscriberName || r.fromName || r.fromEmail }}</strong>
             <time class="ln-small ln-muted camp-reply-when" :datetime="r.receivedAt" :title="r.receivedAt">
               {{ ago(r.receivedAt) }}
             </time>
+          </div>
+          <div class="camp-reply-meta">
+            <span class="ln-small ln-muted camp-reply-addr">{{ r.fromEmail }}</span>
+            <span v-if="r.isAuto" class="ln-status" data-cy="reply-auto">{{ $t('campaigns.replies.autoTag') }}</span>
           </div>
           <p class="camp-reply-subject ln-small">{{ r.subject }}</p>
           <!-- Text only, never rendered HTML: a reply is untrusted mail. -->
@@ -187,10 +191,31 @@ onMounted(() => load(1));
   border-top: 1px solid var(--ln-border);
   &:first-child { border-top: 0; padding-top: 0; }
 }
-.camp-reply-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.camp-reply-who { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.camp-reply-who strong { font-weight: 600; }
-.camp-reply-when { margin-left: auto; }
+.camp-replies-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+
+  // A label that wraps ("People who replied") mustn't knock its figure
+  // out of line with the others.
+  > div { display: flex; flex-direction: column; }
+  dt { font-size: 13px; line-height: 18px; color: var(--ln-text-2); }
+  dd {
+    margin: auto 0 0;
+    padding-top: 2px;
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+.camp-replies-auto-help { margin: -8px 0 0; }
+.camp-reply-head { display: flex; align-items: baseline; gap: 12px; }
+.camp-reply-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.camp-reply-when { margin-left: auto; flex: none; }
+.camp-reply-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.camp-reply-addr { min-width: 0; overflow-wrap: anywhere; }
 .camp-reply-subject { margin: 0; color: var(--ln-text-2); }
 .camp-reply-text { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .camp-reply-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
