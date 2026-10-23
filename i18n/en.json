@@ -1595,5 +1595,22 @@
     "campaigns.tracking.pixelInvalid": "That isn't a pixel link. It should start with https:// (or paste the <img> code).",
     "campaigns.tracking.checkLinks": "Link clicks are tracked.",
     "campaigns.tracking.checkNoLinks": "Link clicks aren't tracked.",
-    "campaigns.tracking.checkPixels": "1 tracking pixel | {n} tracking pixels"
+    "campaigns.tracking.checkPixels": "1 tracking pixel | {n} tracking pixels",
+    "campaigns.tracking.replies": "Track replies",
+    "campaigns.tracking.repliesHelp": "See who replies. Replies go to a listnun address first, then on to your Reply-To address (or your From address if there isn't one), so subscribers see the listnun address when they reply.",
+    "campaigns.tracking.checkReplies": "Replies are recorded here, then forwarded to your Reply-To address.",
+    "campaigns.replies.title": "Replies",
+    "campaigns.replies.count": "Replies",
+    "campaigns.replies.people": "People who replied",
+    "campaigns.replies.auto": "Auto-replies",
+    "campaigns.replies.autoHelp": "Out-of-office and other automatic replies. Not counted as replies.",
+    "campaigns.replies.autoTag": "Auto-reply",
+    "campaigns.replies.emptyTitle": "No replies yet",
+    "campaigns.replies.empty": "Replies show up here as they arrive, and are forwarded to your inbox too.",
+    "campaigns.replies.loadError": "Couldn't load the replies. Reload the page to try again.",
+    "campaigns.replies.showFull": "Show full reply",
+    "campaigns.replies.hideFull": "Hide full reply",
+    "campaigns.replies.forwardedTo": "Forwarded to {address}",
+    "campaigns.replies.notForwarded": "Not forwarded",
+    "campaigns.replies.loadMore": "Load more"
 }

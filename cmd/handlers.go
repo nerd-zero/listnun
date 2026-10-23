@@ -180,6 +180,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/analytics/:type", pm(a.GetCampaignViewAnalytics, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/:id/replies", pm(hasID(a.GetCampaignReplies), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview/archive", pm(hasID(a.PreviewCampaignArchive), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/content", pm(hasID(a.CampaignContent), "campaigns:manage_all", "campaigns:manage"))
@@ -293,6 +294,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
+		g.PUT("/tenants/:id/replies", hasID(a.SetOperatorTenantReplies))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
 		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
@@ -319,6 +321,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// verifying Scrub's HMAC signature instead (see
 		// cmd/scrub_batch.go's ScrubBatchWebhook).
 		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
+
+		// Replies to a tenant's reply-tracked campaigns, from its Postmark
+		// server's inbound webhook. Per tenant like the bounce webhook:
+		// basic auth with the tenant's own credentials; 404s when the
+		// tenant has no reply tracking setup. See cmd/replies.go.
+		g.POST("/webhooks/replies/postmark", a.RepliesWebhook)
 
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {

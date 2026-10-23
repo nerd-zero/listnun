@@ -68,6 +68,9 @@
       </nav>
     </header>
 
+    <!-- Who replied, for a reply-tracked campaign that has started sending. -->
+    <campaign-replies v-if="showReplies" :key="data.id" :campaign-id="data.id" class="camp-replies-card" />
+
     <div v-if="loading.campaigns && isEditing && !data.id" class="camp-body">
       <table-skeleton :rows="6" :cols="1" />
     </div>
@@ -225,8 +228,15 @@
           </a>
         </div>
 
-        <!-- Tracking applies to HTML emails; plain text can't carry it. -->
-        <campaign-tracking v-if="form.content.contentType !== 'plain'" v-model="form.tracking" :disabled="!canEdit" />
+        <!-- Link and pixel tracking need HTML; reply tracking works for any
+             email, so a plain-text campaign still shows the card for it. -->
+        <campaign-tracking
+          v-if="form.content.contentType !== 'plain' || replyTrackingOn"
+          v-model="form.tracking"
+          :disabled="!canEdit"
+          :plain="form.content.contentType === 'plain'"
+          :replies-available="replyTrackingOn"
+        />
 
         <div v-if="form.content.contentType !== 'plain'" class="ln-field camp-alt">
           <div class="camp-alt-head">
@@ -454,6 +464,7 @@ import Editor from '../components/Editor.vue';
 import ListSelector from '../components/ListSelector.vue';
 import MediaPickerDialog from '../components/MediaPickerDialog.vue';
 import CampaignTracking from '../components/CampaignTracking.vue';
+import CampaignReplies from '../components/CampaignReplies.vue';
 import ScrubHistoryList from '../components/ScrubHistoryList.vue';
 import StatusTag from '../components/ui/StatusTag.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
@@ -533,7 +544,7 @@ const form = reactive<Loose>({
   altbody: null,
   media: [],
   // New campaigns track link clicks by default; pixels are opt-in.
-  tracking: { links: true, pixels: [] },
+  tracking: { links: true, pixels: [], replies: false },
   sendAtDate: null,
   sendLater: false,
   archive: false,
@@ -574,6 +585,11 @@ const contentTypes = computed(() => Object.freeze({
 const contentTypeOptions = computed(() => Object.entries(contentTypes.value).map(([value, label]) => ({ value, label })));
 
 const scrubEnabled = computed(() => !!(serverConfig.value as Loose).scrub_enabled);
+// The server has campaign reply tracking configured ([replies]).
+const replyTrackingOn = computed(() => !!(serverConfig.value as Loose).reply_tracking);
+// Replies are shown once a reply-tracked campaign has started sending.
+const showReplies = computed(() => !!data.value.id && !!data.value.tracking?.replies
+  && ['running', 'paused', 'finished', 'cancelled'].includes(data.value.status));
 const canManage = computed(() => $can('campaigns:manage_all', 'campaigns:manage'));
 const canSend = computed(() => $can('campaigns:send'));
 const canEdit = computed(() => isNew.value || ['draft', 'scheduled', 'paused'].includes(data.value.status));
@@ -744,6 +760,11 @@ const checks = computed<Check[]>(() => {
       key: 'plain', tone: 'info', title: t('campaigns.plainTextVersion'), text: form.altbody !== null ? t('campaigns.checkPlainCustom') : t('campaigns.plainTextNone'),
     });
   }
+  if (form.tracking.replies && replyTrackingOn.value) {
+    out.push({
+      key: 'replies', tone: 'info', title: t('campaigns.replies.title'), text: t('campaigns.tracking.checkReplies'),
+    });
+  }
   out.push(form.sendLater && form.sendAtDate
     ? {
       key: 'when', tone: 'ok', title: t('campaigns.stepSchedule'), text: t('campaigns.checkLater', { date: shortDate(form.sendAtDate, true) }),
@@ -858,7 +879,11 @@ function fillFrom(d: Loose) {
     },
   });
   form.media = form.media.map((f: Loose) => (!f.id ? { ...f, filename: `❌ ${f.filename}` } : f));
-  form.tracking = { links: !!d.tracking?.links, pixels: Array.isArray(d.tracking?.pixels) ? d.tracking.pixels : [] };
+  form.tracking = {
+    links: !!d.tracking?.links,
+    pixels: Array.isArray(d.tracking?.pixels) ? d.tracking.pixels : [],
+    replies: !!d.tracking?.replies,
+  };
   loadLastTest();
 }
 
@@ -1235,6 +1260,13 @@ onBeforeUnmount(() => {
   .is-current & { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
 }
 
+// Lines up with .camp-body below it: same gutters and max width.
+.camp-replies-card {
+  margin: 24px 32px 0;
+  max-width: calc(1200px - 64px);
+
+  @media (max-width: 991px) { margin: 20px 16px 0; }
+}
 .camp-body {
   padding: 24px 32px 48px;
   max-width: 1200px;

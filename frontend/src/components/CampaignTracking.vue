@@ -5,7 +5,16 @@
     </header>
 
     <div class="camp-track-body">
-      <label class="ln-check-row" for="camp-track-links">
+      <label v-if="repliesAvailable" class="ln-check-row" for="camp-track-replies">
+        <PvToggleSwitch v-model="replies" input-id="camp-track-replies" :disabled="disabled" data-cy="track-replies" />
+        <span>
+          <strong>{{ $t('campaigns.tracking.replies') }}</strong>
+          <small>{{ $t('campaigns.tracking.repliesHelp') }}</small>
+        </span>
+      </label>
+
+      <!-- Link and pixel tracking only work in HTML emails. -->
+      <label v-if="!plain" class="ln-check-row" for="camp-track-links">
         <PvToggleSwitch v-model="links" input-id="camp-track-links" :disabled="disabled" data-cy="track-links" />
         <span>
           <strong>{{ $t('campaigns.tracking.links') }}</strong>
@@ -13,7 +22,7 @@
         </span>
       </label>
 
-      <div class="ln-field">
+      <div v-if="!plain" class="ln-field">
         <label for="camp-track-pixel" class="ln-field-label">{{ $t('campaigns.tracking.pixels') }}</label>
         <TransitionGroup v-if="modelValue.pixels.length" name="ln-list" tag="ul" class="camp-track-pixels">
           <li v-for="p in modelValue.pixels" :key="p" class="camp-track-pixel">
@@ -56,16 +65,21 @@ import { useI18n } from 'vue-i18n';
 import { parsePixelInput } from '../composables/trackingPixel';
 
 // A campaign's tracking (models.CampaignTracking): one switch that tracks
-// every link, and third-party pixels, so nobody needs template tags.
+// every link, third-party pixels, so nobody needs template tags, and a
+// switch that records replies (then forwards them on).
 export interface Tracking {
   links: boolean;
   pixels: string[];
+  replies: boolean;
 }
 
 // Matches models.MaxTrackingPixels.
 const MAX_PIXELS = 10;
 
-const props = defineProps<{ modelValue: Tracking; disabled?: boolean }>();
+// plain: a plain-text campaign, which can't carry link or pixel tracking.
+// repliesAvailable: the server has reply tracking configured
+// (serverConfig.reply_tracking); without it the switch would do nothing.
+const props = defineProps<{ modelValue: Tracking; disabled?: boolean; plain?: boolean; repliesAvailable?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [Tracking] }>();
 const { t } = useI18n();
 
@@ -75,6 +89,11 @@ const error = ref('');
 const links = computed({
   get: () => props.modelValue.links,
   set: (v: boolean) => emit('update:modelValue', { ...props.modelValue, links: v }),
+});
+
+const replies = computed({
+  get: () => props.modelValue.replies,
+  set: (v: boolean) => emit('update:modelValue', { ...props.modelValue, replies: v }),
 });
 
 function add() {
