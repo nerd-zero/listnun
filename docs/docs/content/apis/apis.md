@@ -6,27 +6,39 @@ All features that are available on the listnun dashboard are also available as R
     If you come across API calls that are yet to be documented, please consider contributing to docs.
 
 
+## Base URL
+
+Every workspace has its own address, and API calls go to it: `https://yourcompany.listnun.app/api/…`. The examples on these pages use `http://localhost:9000`; replace it with your workspace's address.
+
 ## Auth
-HTTP API requests support BasicAuth and a Authorization `token` headers. API users and tokens with the required permissions can be created and managed on the admin UI (Admin -> Users).
 
-##### BasicAuth example
+Authenticate with an [API key](../developers/api-keys.md): its name and secret in the `Authorization` header.
+
 ```shell
-curl -u "api_user:token" http://localhost:9000/api/lists
+curl -H "Authorization: token my-service:lnk_live_…" https://yourcompany.listnun.app/api/developers/messages
 ```
 
-##### Authorization token example
+HTTP Basic auth with the same pair also works:
+
 ```shell
-curl -H "Authorization: token api_user:token" http://localhost:9000/api/lists
+curl -u "my-service:lnk_live_…" https://yourcompany.listnun.app/api/developers/messages
 ```
+
+A key belongs to one workspace and only works on that workspace's address.
 
 ## Permissions
-**User role**: Permissions allowed for a user are defined as a *User role* (Admin -> User roles) and then attached to a user. 
 
-**List role**: Read / write permissions per-list can be defined as a *List role* (Admin -> User roles) and then attached to a user. 
+A key can only call the endpoints its scopes allow:
 
-In a *User role*, `lists:get_all` or `lists:manage_all` permission supercede and override any list specific permissions for a user defined in a *List role*.
+| Scope | Endpoints |
+| :---- | :-------- |
+| `tx:send` | `POST /api/tx`, resending logged messages |
+| `tx:logs` | `GET /api/developers/messages…`, `GET /api/developers/stats` |
+| `subscribers:read` | Reading subscribers (`GET /api/subscribers…`) |
+| `keys:manage` | `/api/developers/keys…` |
+| `webhooks:manage` | `/api/developers/webhooks…` |
 
-To manage lists and subscriber list subscriptions via API requests, ensure that the appropriate permissions are attached to the API user.
+The other endpoints on these pages (lists, writing subscribers, imports, campaigns, templates, media, bounces) need a user's permissions, set by their [user role and list role](../roles-and-permissions.md). Today they're available to people signed in to the app, and to API users created before API keys existed, which keep working with their `username:token` pair. New API users can't be created, so new integrations are limited to the key scopes above.
 
 ______________________________________________________________________
 
@@ -81,5 +93,5 @@ All timestamp fields are in the format `2019-01-01T09:00:00.000000+05:30`. The s
 
 ## OpenAPI (Swagger) spec
 
-The auto-generated OpenAPI (Swagger) specification site for the APIs are available at [**listmonk.app/docs/swagger**](https://listmonk.app/docs/swagger/)
+Every listnun instance serves its own OpenAPI (Swagger) spec, generated from the code, at `/api/swagger/index.html`, for example `https://yourcompany.listnun.app/api/swagger/index.html`. It covers every endpoint, including the Developers and operator APIs.
 

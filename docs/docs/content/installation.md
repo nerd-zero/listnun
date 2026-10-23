@@ -1,146 +1,89 @@
 # Installation
 
-listnun is a simple binary application that requires a Postgres database instance to run. The binary can be downloaded and run manually, or it can be run as a container with Docker compose.
+listnun is a single Go binary, with the admin app and static files built in. Its only dependency is PostgreSQL 12 or newer.
 
-## Binary
-1. Download the [latest release](https://github.com/knadh/listmonk/releases) and extract the listnun binary. `amd64` is the main one. It works for Intel and x86 CPUs.
-1. `./listnun --new-config` to generate config.toml. Edit the file.
-1. `./listnun --install` to install the tables in the Postgres DB (⩾ 12).
-1. Run `./listnun` and visit `http://localhost:9000` to create the Super Admin user and login.
+!!! note "Using hosted listnun?"
+    You don't need to install anything: your workspace is ready at its own address. This page is for running listnun yourself.
 
-!!! Tip
-    To set the Super Admin username and password during installation, set the environment variables:
-    `LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx ./listnun --install`
+listnun doesn't publish prebuilt binaries or images yet, so you build it from the source on [GitHub](https://github.com/nerd-zero/listnun).
 
+## Build the binary
 
-## Docker
-
-The latest image is available on DockerHub at `listnun/listnun:latest`
-
-The recommended method is to download the [docker-compose.yml](https://github.com/knadh/listmonk/blob/master/docker-compose.yml) file, customize it for your environment and then to simply run `docker compose up -d`.
+You need Go, Node.js and Yarn.
 
 ```shell
-# Download the compose file to the current directory.
-curl -LO https://github.com/knadh/listmonk/raw/master/docker-compose.yml
+git clone https://github.com/nerd-zero/listnun.git
+cd listnun
+make dist
+```
 
-# Run the services in the background.
+This builds the frontend and the visual email builder, compiles the Go code, and packs everything into one `listnun` binary.
+
+## Install with the binary
+
+1. `./listnun --new-config` writes a `config.toml`. Edit at least the `[db]` section.
+2. `./listnun --install` creates the tables in your Postgres database.
+3. `./listnun` starts the server. Open `http://localhost:9000` to create the first admin user and sign in.
+
+!!! tip
+    To create the admin user during installation instead, set:
+    `LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx ./listnun --install`
+
+## Install with Docker
+
+After `make dist`, build the image from the repository's `Dockerfile`, then start it with the repository's `docker-compose.yml`, which runs listnun and Postgres:
+
+```shell
+docker build -t listnun/listnun:latest .
 docker compose up -d
 ```
 
-Then, visit `http://localhost:9000` to create the Super Admin user and login.
+Open `http://localhost:9000` to create the admin user. To set it from the start, run `LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx docker compose up -d` the first time.
 
-!!! Tip
-    To set the Super Admin username and password during setup, set the environment variables (only the first time):
-    `LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx docker compose up -d`
+On every start the container installs the database if needed, then runs any pending upgrades, then starts listnun.
 
+### Mounting a config.toml
 
-### Mounting a custom config.toml
-The docker-compose file includes all necessary listnun configuration as environment variables, `LISTNUN_*`.
-If you would like to remove those and mount a config.toml instead:
+The compose file configures listnun through `LISTNUN_*` environment variables. To use a config file instead:
 
-#### 1. Save the config.toml file on the host
+1. Save a `config.toml` on the host:
 
-```toml
-[app]
-address = "0.0.0.0:9000"
+    ```toml
+    [app]
+    address = "0.0.0.0:9000"
 
-# Database.
-[db]
-host = "listnun_db" # Postgres container name in the compose file.
-port = 5432
-user = "listnun"
-password = "listnun"
-database = "listnun"
-ssl_mode = "disable"
-max_open = 25
-max_idle = 25
-max_lifetime = "300s"
-```
+    [db]
+    host = "listnun_db" # The Postgres container's name in the compose file.
+    port = 5432
+    user = "listnun"
+    password = "listnun"
+    database = "listnun"
+    ssl_mode = "disable"
+    max_open = 25
+    max_idle = 25
+    max_lifetime = "300s"
+    ```
 
-#### 2. Mount the config file in docker-compose.yml
+2. Mount it in `docker-compose.yml`:
 
-```yaml
-  app:
-    ...
-    volumes:
-    - /path/on/your/host/config.toml:/listnun/config.toml
-```
+    ```yaml
+      app:
+        volumes:
+        - /path/on/your/host/config.toml:/listnun/config.toml
+    ```
 
-#### 3. Change the `--config ''` flags in the `command:` section to point to the path
+3. Point the `command:` at it:
 
-```yaml
-command: [sh, -c, "./listnun --install --idempotent --yes --config /listnun/config.toml && ./listnun --upgrade --yes --config /listnun/config.toml && ./listnun --config /listnun/config.toml"]
-```
+    ```yaml
+    command: [sh, -c, "./listnun --install --idempotent --yes --config /listnun/config.toml && ./listnun --upgrade --yes --config /listnun/config.toml && ./listnun --config /listnun/config.toml"]
+    ```
 
------------
+## After installing
 
-## Nightly
+- Set up email sending under **Settings › SMTP**.
+- Put listnun behind a reverse proxy with HTTPS, and set **Settings › General › Root URL** to its public address. Links in emails use it.
+- Keep only the public routes reachable from the internet. See [Configuration](configuration.md#http-routes).
+- To host several workspaces on one instance, see [Workspaces and the operator API](operators/workspaces.md).
+- For media, see [Media storage](operators/media-storage.md).
 
-!!! Warning
-    Nightly releases are untested and may have bugs. Use at your own risk. Always take a backup of your Postgres database before using a nightly release.
-
-A nightly build is automatically published with the latest changes merged to the repository. If you want to access the latest changes without waiting for versioned releases, you can obtain the nightly builds and follow the same instructions above.
-
-- **Docker**: `listnun/listnun:nightly` (use this as the image name in the docker-compose file)
-- **Binary**: [Download nightly release](https://github.com/knadh/listmonk/releases/nightly)
-
-
-## Compiling from source
-
-To compile the latest unreleased version (`master` branch):
-
-1. Make sure `go`, `nodejs`, and `yarn` are installed on your system.
-2. `git clone git@github.com:knadh/listnun.git`
-3. `cd listnun && make dist`. This will generate the `listnun` binary.
-
-
-## Helm chart for Kubernetes
-
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 3.0.0](https://img.shields.io/badge/AppVersion-3.0.0-informational?style=flat-square)
-
-A helm chart for easily installing listnun on a kubernetes cluster is made available by community [here](https://github.com/th0th/helm-charts/tree/main/charts/listmonk).
-
-In order to use the helm chart, you can configure `values.yaml` according to your needs, and then run the following command:
-
-```shell
-$ helm upgrade \
-    --create-namespace \
-    --install listnun listnun \
-    --namespace listnun \
-    --repo https://th0th.github.io/helm-charts \
-    --values values.yaml \
-    --version 0.1.0
-```
-
-## 3rd party hosting
-
-<a href="https://dash.elest.io/deploy?soft=Listmonk&id=237"><img src="https://raw.githubusercontent.com/elestio-examples/reactjs/refs/heads/master/src/deploy-on-elestio.png" alt="Deploy to Elestio" height="35" style="max-width: 150px;" /></a>
-<br />
-<a href="https://www.pikapods.com/pods?run=listmonk"><img src="https://www.pikapods.com/static/run-button.svg" alt="Deploy on PikaPod" style="max-width: 150px;" /></a>
-<br />
-<a href="https://northflank.com/stacks/deploy-listmonk"><img src="https://assets.northflank.com/deploy_to_northflank_smm_36700fb050.svg" alt="One-click deploy on Northflank" height="35" style="max-width: 150px; border-radius: 6px; object-fit: contain;" /></a>
-<br />
-<a href="https://railway.app/new/template/listmonk"><img src="https://railway.app/button.svg" alt="One-click deploy on Railway" style="max-width: 150px;" /></a>
-<br />
-<a href="https://repocloud.io/details/?app_id=217"><img src="https://d16t0pc4846x52.cloudfront.net/deploy.png" alt="Deploy at RepoCloud" style="max-width: 150px;"/></a>
-<br />
-<a href="https://template.sealos.io/deploy?templateName=listmonk"><img src="https://sealos.io/Deploy-on-Sealos.svg" alt="Deploy on Sealos" style="max-width: 150px;"/></a>
-<br />
-<a href="https://zeabur.com/templates/5EDMN6"><img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" style="max-width: 150px;"/></a>
-<br />
-<a href="https://www.cloudron.io/store/app.listmonk.cloudronapp.html"><img src="https://cloudron.io/img/button.svg" alt="Install on Cloudron" style="max-width: 150px;"/></a>
-
-## Tutorials
-* [Listnun with Forward Email for Secure Newsletter Delivery](https://forwardemail.net/en/guides/newsletter-with-listmonk)
-* [Informal step-by-step on how to get started with listnun using *Railway*](https://github.com/knadh/listmonk/issues/120#issuecomment-1421838533)
-* [Step-by-step tutorial for installation and all basic functions. *Amazon EC2, SES, docker & binary*](https://gist.github.com/MaximilianKohler/e5158fcfe6de80a9069926a67afcae11)
-* [Step-by-step guide on how to install and set up listnun on *AWS Lightsail with docker* (rameerez)](https://github.com/knadh/listmonk/issues/1208)
-* [Quick setup on any cloud server using *docker and caddy*](https://github.com/samyogdhital/listmonk-caddy-reverse-proxy)
-* [*Binary* install on Ubuntu 22.04 as a service](https://mumaritc.hashnode.dev/how-to-install-listmonk-using-binary-on-ubuntu-2204)
-* [*Binary* install on Ubuntu 18.04 as a service (Apache & Plesk)](https://devgypsy.com/post/2020-08-18-installing-listmonk-newsletter-manager/)
-* [*Binary and docker* on linux (techviewleo)](https://techviewleo.com/manage-mailing-list-and-newsletter-using-listmonk/)
-* [*Binary* install on your PC](https://www.youtube.com/watch?v=fAOBqgR9Yfo). Discussions of limitations: [[1](https://github.com/knadh/listmonk/issues/862#issuecomment-1307328228)][[2](https://github.com/knadh/listmonk/issues/248#issuecomment-1320806990)].
-* [*Docker on Rocky Linux 8* (nginx, Let's Encrypt SSL)](https://wiki.crowncloud.net/?How_to_Install_Listmonk_with_Docker_on_Rocky_Linux_8)
-* [*Docker* with nginx reverse proxy, certbot SSL, and Gmail SMTP](https://www.maketecheasier.com/create-own-newsletter-with-listmonk/)
-* [Install Listnun on Self-hosting with *Pre-Configured AMI Package at AWS* by Single Click](https://meetrix.io/articles/how-to-install-llama-2-on-aws-with-pre-configured-ami-package/)
-* [*Fly.io* working example](https://gitlab.com/votelog/apps/newsletter)
+To work on listnun's code, see [Developer setup](developer-setup.md).

@@ -66,3 +66,14 @@ db_password = ""
 # resolved tenant URLs become <slug>-dev.root_domain instead of
 # <slug>.root_domain. Leave empty (default) for prod - no suffix.
 env = ""
+
+# Listnun's rules for Settings > Inactive cleanup in "Managed" mode. These
+# are the defaults; uncomment to change them for every workspace in managed
+# mode. Workspaces in "Custom" mode set their own. Invalid values fall back
+# to the defaults (with a log line).
+# [inactive_cleanup.managed]
+# days = 180              # 30-3650 days without activity
+# activity = "either"     # opened, clicked or either
+# action = "unsubscribe"  # unsubscribe, blocklist or delete
+# list_ids = []           # empty: all lists
+# schedule = "0 2 * * 0"  # cron: Sundays 02:00

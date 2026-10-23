@@ -9,7 +9,7 @@ The app has two distinct components, the Go backend and the VueJS frontend. In t
 
 
 ### First time setup
-`git clone https://github.com/knadh/listmonk.git`. The project uses go.mod, so it's best to clone it outside the Go src path.
+`git clone https://github.com/nerd-zero/listnun.git`. The project uses go.mod, so it's best to clone it outside the Go src path.
 
 1. Copy `config.toml.sample` as `config.toml` and add your config.
 2. `make dist` to build the listnun binary. Once the binary is built, run `./listnun --install` to run the DB setup. For subsequent dev runs, use `make run`.

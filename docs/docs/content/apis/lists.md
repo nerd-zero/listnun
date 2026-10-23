@@ -3,7 +3,7 @@
 | Method | Endpoint                                        | Description               |
 | :----- | :---------------------------------------------- | :------------------------ |
 | GET    | [/api/lists](#get-apilists)                     | Retrieve all lists.       |
-| GET    | [/api/public/lists](#get-public-apilists)       | Retrieve public lists.    |
+| GET    | [/api/public/lists](#get-apipubliclists)       | Retrieve public lists.    |
 | GET    | [/api/lists/{list_id}](#get-apilistslist_id)    | Retrieve a specific list. |
 | POST   | [/api/lists](#post-apilists)                    | Create a new list.        |
 | PUT    | [/api/lists/{list_id}](#put-apilistslist_id)    | Update a list.            |

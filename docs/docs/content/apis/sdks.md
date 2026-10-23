@@ -5,6 +5,7 @@ A list of 3rd party client libraries and SDKs that have been written for listnun
 !!! note
 	The list is community sourced. They have not been verified and are not officially supported.
 
+- [listmonk-ruby](https://github.com/polydice/listmonk-ruby) — Ruby API client (written for listmonk; most endpoints match)
 - [WordPress - WooCommerce plugin](https://github.com/post-duif/integration-listmonk-wordpress-plugin) integration for listnun
 - [listnun ](https://github.com/mikeckennedy/listmonk) — Python API client
 - [listnun-api](https://github.com/Knuckles-Team/listmonk-api) — Python API client

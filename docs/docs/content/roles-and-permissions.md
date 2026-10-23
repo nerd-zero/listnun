@@ -1,8 +1,10 @@
-listnun supports (>= v4.0.0) creating systems users with granular permissions to various features, including list-specific permissions. Users can login with a username and password, or via an OIDC (OpenID Connect) handshake if an auth provider is connected. Various permissions can be grouped into "user roles", which can be assigned to users. List-specific permissions can be grouped into "list roles".
+# Roles and permissions
+
+listnun users have granular permissions to its features, including per-list permissions. Users can login with a username and password, or via an OIDC (OpenID Connect) handshake if an auth provider is connected. Various permissions can be grouped into "user roles", which can be assigned to users. List-specific permissions can be grouped into "list roles".
 
 ## User roles
 
-A user role is a collection of user related permissions. User roles are attached to user accounts. User roles can be managed in `Admin -> Users -> User roles` The permissions are described below.
+A user role is a collection of user related permissions. User roles are attached to user accounts. User roles are managed in **Workspace › Users › User roles**. The permissions are described below.
 
 | Group       | Permission              | Description                                                                                                                                                                                                                          |
 | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -34,14 +36,21 @@ A user role is a collection of user related permissions. User roles are attached
 | settings    | settings:get            | Get system settings                                                                                                                                                                                                                  |
 |             | settings:manage         | Modify system configuration                                                                                                                                                                                                          |
 |             | settings:maintain       | Perform system maintenance tasks                                                                                                                                                                                                     |
+| developers  | apikeys:get             | See API keys (never their secrets)                                                                                                                                                                                                   |
+|             | apikeys:manage          | Create, rotate, revoke and delete API keys                                                                                                                                                                                           |
+|             | tx:logs                 | Read the transactional message log and sending stats                                                                                                                                                                                 |
+|             | webhooks:get            | See webhook endpoints and deliveries                                                                                                                                                                                                 |
+|             | webhooks:manage         | Create, change and delete webhook endpoints, reveal and rotate their secrets, and retry deliveries                                                                                                                                    |
 
 ## List roles
 
 A list role is a collection of permissions assigned per list. Each list can be assigned a view (read) or manage (update) permission. List roles are attached to user accounts. Only the lists defined in a list role is accessible by the user, be it on the admin UI or via API calls. Do note that the `lists:get_all` and `lists:manage_all` permissions in user roles override all per-list permissions.
 
-## API users
+## API keys
 
-A user account can be of two types, a regular user or an API user. API users are meant for intertacting with the listnun APIs programmatically. Unlike regular user accounts that have custom passwords or OIDC for authentication, API users get an automatically generated secret token.
+Code that calls the API uses an [API key](developers/api-keys.md), not a user account. A key has its own **scopes** instead of a role, and can only do what its scopes allow.
+
+API users, user accounts of the "API" type, were how older versions did this. They've been turned into API keys. Existing ones keep working and are listed under **Workspace › Users › API users**, but new ones can't be created.
 
 ## `subscribers:sql_query`
 
