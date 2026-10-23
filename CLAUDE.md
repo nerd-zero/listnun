@@ -69,7 +69,7 @@ Static assets (frontend dist, schema, i18n files) are embedded into the binary a
 
 ### Frontend (Vue 3 + PrimeVue)
 
-**Stack**: Vue 3 `<script setup lang="ts">` Composition API · PrimeVue 4 (Aura theme, blue preset) · Pinia · Vue Router 4 · PrimeFlex · Axios · orval-generated TypeScript API client
+**Stack**: Vue 3 `<script setup lang="ts">` Composition API · PrimeVue 4 (Aura base with a custom `ConsoleMatchedPreset` in `main.ts`: ink primary, paper/warm-tan tints, matching listnun-console's design tokens) · Pinia · Vue Router 4 · PrimeFlex · Axios · orval-generated TypeScript API client
 
 **Key files**:
 - `frontend/src/main.ts` — app bootstrap: creates Vue app, registers PrimeVue components globally with `Pv*` prefix (e.g. `PvButton`, `PvDataTable`), loads server config and user profile before mount.

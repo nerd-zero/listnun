@@ -38,10 +38,13 @@ The address required to broadcast the message, for instance, a phone number or a
 
 Following is a list of HTTP messenger servers that connect to various backends.
 
+!!! note
+	These are community projects built for upstream [listmonk](https://github.com/knadh/listmonk), which listnun is forked from. They target the listmonk API and have not been tested against listnun.
+
 | Name                                                                                 | Backend          |
 |:-------------------------------------------------------------------------------------|:-----------------|
-| [listnun-messenger](https://github.com/joeirimpan/listmonk-messenger)               | AWS Pinpoint SMS |
-| [listnun-verimor-gateway](https://github.com/antandros/listmonk-verimor-gateway)    | Verimor          |
-| [listnun-mailersend](https://github.com/tkawczynski/listmonk-mailersend)            | Mailersend       |
-| [listnun-novu-messenger](https://github.com/Codepowercode/listmonk-novu-messenger)  | Novu             |
-| [listnun-push-messenger](https://github.com/shyamkrishna21/listmonk-push-messenger) | Google FCM       |
+| [listmonk-messenger](https://github.com/joeirimpan/listmonk-messenger)               | AWS Pinpoint SMS |
+| [listmonk-verimor-gateway](https://github.com/antandros/listmonk-verimor-gateway)    | Verimor          |
+| [listmonk-mailersend](https://github.com/tkawczynski/listmonk-mailersend)            | Mailersend       |
+| [listmonk-novu-messenger](https://github.com/Codepowercode/listmonk-novu-messenger)  | Novu             |
+| [listmonk-push-messenger](https://github.com/shyamkrishna21/listmonk-push-messenger) | Google FCM       |

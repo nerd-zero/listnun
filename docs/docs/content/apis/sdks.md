@@ -1,26 +1,27 @@
 # SDKs and client libraries
 
-A list of 3rd party client libraries and SDKs that have been written for listnun APIs.
+A list of 3rd party client libraries and SDKs that have been written for the listmonk APIs.
 
 !!! note
+	These are community projects built for upstream [listmonk](https://github.com/knadh/listmonk), which listnun is forked from. They target the listmonk API and have not been tested against listnun.
 	The list is community sourced. They have not been verified and are not officially supported.
 
-- [listmonk-ruby](https://github.com/polydice/listmonk-ruby) — Ruby API client (written for listmonk; most endpoints match)
-- [WordPress - WooCommerce plugin](https://github.com/post-duif/integration-listmonk-wordpress-plugin) integration for listnun
-- [listnun ](https://github.com/mikeckennedy/listmonk) — Python API client
-- [listnun-api](https://github.com/Knuckles-Team/listmonk-api) — Python API client
-- [frappe_listnun](https://github.com/anandology/frappe_listmonk) — Frappe framework integration for listnun
-- [auto-newsletter-listnun](https://github.com/chaddyc/auto-newsletter-listmonk) — Ghost CMS integration
-- [listnun-newsletter](https://github.com/iloveitaly/listmonk-newsletter) - RSS to listnun integration for email newsletters
-- [listnun-crysctal](https://github.com/russ/listmonk-crystal) — Crystal lang API client
-- [terraform-provider-listnun](https://github.com/Muravlev/terraform-provider-listmonk) — Manage listnun templates in Terraform
-- [listnun-php-client](https://github.com/arunnabraham/listmonk-php-client) — PHP API client
-- [php-listnun](https://github.com/junisan/php-listmonk) — PHP API client
-- [go-listnun](https://github.com/EzeXchange-API/go-listmonk) — Go API client
-- [listnun-nodejs-api](https://github.com/mihairaulea/listmonk-nodejs-api) — NodeJS API client
-- [@maloma/listnun](https://codeberg.org/maloma/listmonk-sdk) — NodeJS/Bun Typescript SDK
-- [listnun-laravel](https://github.com/theafolayan/listmonk-laravel) — Laravel API Client
-- [nuxt-listnun](https://github.com/roncallyt/nuxt-listmonk) — Listnun module for Nuxt.js
-- [listnun-japi](https://codeberg.org/hlassiege/listmonk-japi) - Listnun client for Java/kotlin
-- [listnun-mcp](https://github.com/rhnvrm/listmonk-mcp) — MCP (Model Context Protocol) server for Claude integration
-- [N8N Nodes](https://github.com/wiesinghilker/n8n-nodes-listmonk) — Adds Listnun Nodes for N8N Automations
+- [listmonk-ruby](https://github.com/polydice/listmonk-ruby) — Ruby API client
+- [WordPress - WooCommerce plugin](https://github.com/post-duif/integration-listmonk-wordpress-plugin) integration for listmonk
+- [listmonk](https://github.com/mikeckennedy/listmonk) — Python API client
+- [listmonk-api](https://github.com/Knuckles-Team/listmonk-api) — Python API client
+- [frappe_listmonk](https://github.com/anandology/frappe_listmonk) — Frappe framework integration for listmonk
+- [auto-newsletter-listmonk](https://github.com/chaddyc/auto-newsletter-listmonk) — Ghost CMS integration
+- [listmonk-newsletter](https://github.com/iloveitaly/listmonk-newsletter) - RSS to listmonk integration for email newsletters
+- [listmonk-crystal](https://github.com/russ/listmonk-crystal) — Crystal lang API client
+- [terraform-provider-listmonk](https://github.com/Muravlev/terraform-provider-listmonk) — Manage listmonk templates in Terraform
+- [listmonk-php-client](https://github.com/arunnabraham/listmonk-php-client) — PHP API client
+- [php-listmonk](https://github.com/junisan/php-listmonk) — PHP API client
+- [go-listmonk](https://github.com/EzeXchange-API/go-listmonk) — Go API client
+- [listmonk-nodejs-api](https://github.com/mihairaulea/listmonk-nodejs-api) — NodeJS API client
+- [@maloma/listmonk](https://codeberg.org/maloma/listmonk-sdk) — NodeJS/Bun Typescript SDK
+- [listmonk-laravel](https://github.com/theafolayan/listmonk-laravel) — Laravel API Client
+- [nuxt-listmonk](https://github.com/roncallyt/nuxt-listmonk) — listmonk module for Nuxt.js
+- [listmonk-japi](https://codeberg.org/hlassiege/listmonk-japi) - listmonk client for Java/Kotlin
+- [listmonk-mcp](https://github.com/rhnvrm/listmonk-mcp) — MCP (Model Context Protocol) server for Claude integration
+- [N8N Nodes](https://github.com/wiesinghilker/n8n-nodes-listmonk) — Adds listmonk nodes for N8N Automations
