@@ -432,6 +432,7 @@
     "lists.confirmSub": "Confirm subscription(s) to {name}",
     "lists.invalidName": "Invalid name",
     "lists.newList": "New list",
+    "lists.optinResend.running": "Confirmation emails are already going out. Try again when they're done.",
     "lists.optin": "Opt-in",
     "lists.optinHelp": "Double opt-in sends an e-mail to the subscriber asking for confirmation. On Double opt-in lists, campaigns are only sent to confirmed subscribers.",
     "lists.optinTo": "Opt-in to {name}",

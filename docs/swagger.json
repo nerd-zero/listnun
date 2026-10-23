@@ -2534,6 +2534,100 @@
                 }
             }
         },
+        "/api/lists/growth": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Get list growth over the last 30 days",
+                "operationId": "getListsGrowth",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ListGrowth"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/optin/pending": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Count unconfirmed double opt-in subscribers",
+                "operationId": "getOptinPending",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OptinPending"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/optin/resend": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Resend opt-in confirmations",
+                "operationId": "resendOptins",
+                "parameters": [
+                    {
+                        "description": "Lists to limit the resend to",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.optinResendReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.optinResendResp"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/lists/scrub": {
             "get": {
                 "produces": [
@@ -2727,6 +2821,41 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/{id}/activity": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Get a list's recent activity",
+                "operationId": "getListActivity",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "List ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ListActivity"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -7657,6 +7786,89 @@
                 }
             }
         },
+        "ListActivity": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ListCampaign"
+                    }
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ListActivityDay"
+                    }
+                },
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ListActivityDay": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ListCampaign": {
+            "type": "object",
+            "properties": {
+                "clicked": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
+                },
+                "send_at": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "ListGrowth": {
+            "type": "object",
+            "properties": {
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                },
+                "list_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "ListPermission": {
             "type": "object",
             "properties": {
@@ -8077,6 +8289,17 @@
                     "type": "integer"
                 },
                 "validations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OptinPending": {
+            "type": "object",
+            "properties": {
+                "due": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -9741,6 +9964,26 @@
                 "custom_domain": {
                     "description": "CustomDomain is the bare host (e.g. \"mail.acme.com\"), no scheme --\nempty clears it, reverting the tenant to \u003cslug\u003e.root_domain only.",
                     "type": "string"
+                }
+            }
+        },
+        "cmd.optinResendReq": {
+            "type": "object",
+            "properties": {
+                "list_ids": {
+                    "description": "ListIDs limits the resend to these lists. Empty means every list.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "cmd.optinResendResp": {
+            "type": "object",
+            "properties": {
+                "queued": {
+                    "type": "integer"
                 }
             }
         },

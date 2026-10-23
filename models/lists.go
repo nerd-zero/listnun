@@ -38,3 +38,47 @@ type List struct {
 	// in searches and queries.
 	Total int `db:"total" json:"-"`
 } // @name List
+
+// ListGrowth is a list's joins and leaves over a recent window.
+type ListGrowth struct {
+	ListID int `db:"list_id" json:"list_id"`
+	Joined int `db:"joined" json:"joined"`
+	Left   int `db:"left" json:"left"`
+} // @name ListGrowth
+
+// ListActivityDay is one day of joins and leaves on a list.
+type ListActivityDay struct {
+	Day    null.Time `db:"day" json:"day" swaggertype:"string"`
+	Joined int       `db:"joined" json:"joined"`
+	Left   int       `db:"left" json:"left"`
+} // @name ListActivityDay
+
+// ListCampaign is a campaign sent, sending or scheduled to a list, with
+// how many people opened and clicked it.
+type ListCampaign struct {
+	ID        int       `db:"id" json:"id"`
+	UUID      string    `db:"uuid" json:"uuid"`
+	Name      string    `db:"name" json:"name"`
+	Status    string    `db:"status" json:"status"`
+	StartedAt null.Time `db:"started_at" json:"started_at" swaggertype:"string"`
+	SendAt    null.Time `db:"send_at" json:"send_at" swaggertype:"string"`
+	Sent      int       `db:"sent" json:"sent"`
+	Opened    int       `db:"opened" json:"opened"`
+	Clicked   int       `db:"clicked" json:"clicked"`
+} // @name ListCampaign
+
+// ListActivity is a list's recent joins and leaves, day by day and in
+// total, and the latest campaigns to it.
+type ListActivity struct {
+	Days      []ListActivityDay `json:"days"`
+	Joined    int               `json:"joined"`
+	Left      int               `json:"left"`
+	Campaigns []ListCampaign    `json:"campaigns"`
+} // @name ListActivity
+
+// OptinPending counts the people waiting to confirm a double opt-in
+// subscription, and how many of them are due a reminder.
+type OptinPending struct {
+	Total int `db:"total" json:"total"`
+	Due   int `db:"due" json:"due"`
+} // @name OptinPending

@@ -65,6 +65,9 @@ CREATE TABLE subscribers (
     scrub_status      TEXT NULL,
     scrub_checked_at  TIMESTAMP WITH TIME ZONE NULL,
 
+    -- Last opt-in confirmation sent by a bulk resend (v6.35.0).
+    optin_sent_at     TIMESTAMP WITH TIME ZONE NULL,
+
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
