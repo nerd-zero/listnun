@@ -24,6 +24,10 @@
               <ln-icon name="collapse" class="ln-nav-icon" />
               <span class="ln-nav-text">{{ $t('menu.collapse') }}</span>
             </button>
+            <p class="ln-powered">
+              {{ $t('public.poweredBy') }}
+              <a href="https://n0.rocks" target="_blank" rel="noopener noreferrer">Nerd Zero</a>
+            </p>
           </div>
         </aside>
         <aside v-else key="rail" class="ln-rail">
@@ -75,11 +79,15 @@
             </button>
           </div>
           <navigation />
-          <div v-if="consoleUrl" class="ln-sidebar-foot">
-            <a :href="consoleUrl" class="ln-nav-item" target="_blank" rel="noopener noreferrer">
+          <div class="ln-sidebar-foot">
+            <a v-if="consoleUrl" :href="consoleUrl" class="ln-nav-item" target="_blank" rel="noopener noreferrer">
               <ln-icon name="external" class="ln-nav-icon" />
               <span class="ln-nav-text">{{ $t('menu.billing') }}</span>
             </a>
+            <p class="ln-powered">
+              {{ $t('public.poweredBy') }}
+              <a href="https://n0.rocks" target="_blank" rel="noopener noreferrer">Nerd Zero</a>
+            </p>
           </div>
         </div>
       </template>

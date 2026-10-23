@@ -240,6 +240,18 @@
   padding-top: 12px;
 }
 
+// Credit line at the bottom of the sidebar and drawer.
+.ln-powered {
+  margin: 8px 0 0;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ln-text-3);
+
+  a { color: var(--ln-text-2); text-decoration: none; }
+  a:hover { color: var(--ln-text); text-decoration: underline; text-underline-offset: 3px; }
+}
+
 // ── Rail ────────────────────────────────────────────────
 .ln-rail {
   flex: none;
