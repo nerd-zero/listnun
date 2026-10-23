@@ -51,10 +51,14 @@ INSERT INTO tenants (slug, name, status, organization_id) VALUES ($1, $2, 'activ
 -- sensible default for anyone else, and operator-set-tenant-root-url
 -- sets the new tenant's own correct value right after this runs.
 -- branding is tenant 1's own logo, so a new tenant starts without one.
+--
+-- $1 is cast explicitly: inside a UNION, Postgres resolves an untyped
+-- parameter to TEXT before the INSERT's target type is applied, which
+-- fails preparation (and so startup) with "tenant_id is of type integer".
 INSERT INTO settings (tenant_id, key, value)
-SELECT $1, key, value FROM settings WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'branding')
+SELECT $1::INT, key, value FROM settings WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'branding')
 UNION ALL
-SELECT $1, 'branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB
+SELECT $1::INT, 'branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB
 ON CONFLICT (tenant_id, key) DO NOTHING;
 
 -- name: operator-set-tenant-root-url
