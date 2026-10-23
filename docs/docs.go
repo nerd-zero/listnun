@@ -3703,6 +3703,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/operator/tenants/{id}/from-email": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's app.from_email setting, the From new campaigns start with. Accepts \"address\" or \"Name \u003caddress\u003e\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's default From address (Operator API)",
+                "operationId": "setOperatorTenantFromEmail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Default From",
+                        "name": "from",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/OperatorFromEmailReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/replies": {
             "put": {
                 "security": [
@@ -7749,6 +7814,15 @@ const docTemplate = `{
                 },
                 "tenant": {
                     "$ref": "#/definitions/models.Tenant"
+                }
+            }
+        },
+        "OperatorFromEmailReq": {
+            "type": "object",
+            "properties": {
+                "from_email": {
+                    "description": "FromEmail is the address, optionally with a display name\n(\"Acme \u003cnews@acme.com\u003e\").",
+                    "type": "string"
                 }
             }
         },
