@@ -291,6 +291,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/status", hasID(a.UpdateOperatorTenantStatus))
 		g.DELETE("/tenants/:id", hasID(a.DeleteOperatorTenant))
 		g.POST("/tenants/:id/setup-link", hasID(a.CreateOperatorSetupLink))
+		g.GET("/tenants/:id/setup-link", hasID(a.GetOperatorSetupLinkStatus))
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
