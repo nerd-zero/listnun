@@ -37,7 +37,6 @@ import (
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/internal/replies"
 	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
@@ -58,7 +57,7 @@ type App struct {
 	auth        *auth.Auth
 	media       *tenantMedia
 	operator    *operatorStore
-	replies     *replies.Addresser // nil when reply tracking isn't configured (cmd/replies.go)
+	replies     *tenantReplies
 	bounce      *bounce.Manager
 	captcha     *captcha.Captcha
 	i18n        *i18n.I18n
@@ -234,8 +233,8 @@ func main() {
 		// Initialize static URL config.
 		urlCfg = initUrlConfig(ko)
 
-		// Campaign reply tracking (nil when not configured).
-		replyAddr = initReplies(cfg)
+		// Each tenant's campaign reply tracking setup (cmd/tenant_replies.go).
+		replyCfg = newTenantReplies(queries, lo)
 
 		// Initialize i18n language map.
 		i18n = initI18n(ko.MustString("app.lang"), fs)
@@ -257,7 +256,7 @@ func main() {
 		usageMeter = usage.New(usageStore{q: queries}, lo)
 
 		// Campaign manager.
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyAddr, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
 		importers = newTenantImporters(queries, db, core, mgr, i18n)
@@ -328,7 +327,7 @@ func main() {
 		auth:        auth,
 		media:       mediaResolver,
 		operator:    opStore,
-		replies:     replyAddr,
+		replies:     replyCfg,
 		bounce:      bounce,
 		captcha:     initCaptcha(),
 		i18n:        i18n,

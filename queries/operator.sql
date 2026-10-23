@@ -80,6 +80,16 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-replies
+-- Replaces the tenant's reply tracking setup (models.TenantReplies) - see
+-- cmd/operator.go's SetTenantReplies. Its own "replies" key, which the
+-- tenant's Settings UI never reads or writes.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'replies', $2::JSONB)
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
+-- name: operator-delete-tenant-replies
+DELETE FROM settings WHERE tenant_id = $1 AND key = 'replies';
+
 -- name: operator-set-tenant-bounce-webhooks
 -- Sets the tenant's bounce.webhooks_enabled ($2) and bounce.postmark ($3)
 -- settings - see cmd/operator.go's SetTenantBounceWebhooks. Enabling also

@@ -21,10 +21,11 @@ func replyTestMessage(trackReplies bool) CampaignMessage {
 
 func replyTestManager(withAddress bool) *Manager {
 	m := &Manager{}
-	if withAddress {
-		m.cfg.ReplyAddress = func(tenantID, campaignID, subscriberID int) string {
-			return fmt.Sprintf("hash+t%d-c%d-s%d@inbound.example", tenantID, campaignID, subscriberID)
+	m.cfg.ReplyAddress = func(tenantID, campaignID, subscriberID int) string {
+		if !withAddress {
+			return "" // the tenant has no reply tracking setup
 		}
+		return fmt.Sprintf("hash+t%d-c%d-s%d@inbound.example", tenantID, campaignID, subscriberID)
 	}
 	return m
 }
@@ -45,8 +46,8 @@ func TestCampaignHeadersKeepReplyToWhenTrackingOff(t *testing.T) {
 		mgr   *Manager
 		track bool
 	}{
-		"campaign switch off":   {replyTestManager(true), false},
-		"server not configured": {replyTestManager(false), true},
+		"campaign switch off": {replyTestManager(true), false},
+		"tenant not set up":   {replyTestManager(false), true},
 	} {
 		h := m.mgr.campaignHeaders(replyTestMessage(m.track))
 		if h.Get("Reply-To") != "owner@fuser.tech" {

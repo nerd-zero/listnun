@@ -32,20 +32,6 @@ var defaultTenant = &models.Tenant{
 // handlers never read the resolved tenant from context.
 const operatorPathPrefix = "/api/operator/"
 
-// repliesWebhookPrefix is exempted for the same reason: the campaign reply
-// webhook (cmd/replies.go) receives replies for every tenant at one URL,
-// authenticated by its own basic-auth credentials, and takes the tenant
-// from the signed token in each reply address. Resolving a tenant from the
-// Host would tie every tenant's reply tracking to whichever host the
-// provider's webhook URL uses -- 404 on an unknown host, 503 while that
-// one tenant is suspended.
-const repliesWebhookPrefix = "/webhooks/replies/"
-
-// isCrossTenantPath reports whether path skips tenant resolution.
-func isCrossTenantPath(path string) bool {
-	return strings.HasPrefix(path, operatorPathPrefix) || strings.HasPrefix(path, repliesWebhookPrefix)
-}
-
 // Middleware resolves the tenant for a request and stores it on the echo
 // context under models.TenantCtxKey. When enabled is false it always
 // resolves to the seeded default tenant without touching the database.
@@ -58,7 +44,7 @@ func isCrossTenantPath(path string) bool {
 func Middleware(core *core.Core, rootDomain, consoleURL string, enabled bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if !enabled || isCrossTenantPath(c.Request().URL.Path) {
+			if !enabled || strings.HasPrefix(c.Request().URL.Path, operatorPathPrefix) {
 				c.Set(models.TenantCtxKey, defaultTenant)
 				return next(c)
 			}

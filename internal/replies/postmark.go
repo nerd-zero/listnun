@@ -132,3 +132,18 @@ func (in PostmarkInbound) IsAutoReply() bool {
 	}
 	return false
 }
+
+// Recipient returns the address the reply was delivered to: Postmark's
+// OriginalRecipient, or failing that the first recipient carrying the
+// reply token.
+func (in PostmarkInbound) Recipient() string {
+	if in.OriginalRecipient != "" {
+		return in.OriginalRecipient
+	}
+	for _, to := range in.ToFull {
+		if to.MailboxHash != "" {
+			return to.Email
+		}
+	}
+	return ""
+}

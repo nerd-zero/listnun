@@ -3,6 +3,8 @@ package replies
 import (
 	"strings"
 	"testing"
+
+	"github.com/nerd-zero/listnun/models"
 )
 
 func testCodec(t *testing.T) *Codec {
@@ -167,5 +169,45 @@ func TestIsAutoReply(t *testing.T) {
 	}
 	if human.IsAutoReply() {
 		t.Error("Auto-Submitted: no with a normal Re: subject was flagged as an auto-reply")
+	}
+}
+
+func TestNewTenantAddresser(t *testing.T) {
+	ok := models.TenantReplies{
+		InboundAddress:  "58f2c36439f79a2eacc56d3d29e8522d@inbound.postmarkapp.com",
+		Secret:          "0123456789abcdef-test-secret",
+		WebhookUsername: "postmark",
+		WebhookPassword: "pw",
+	}
+	a, err := NewTenantAddresser(ok)
+	if err != nil {
+		t.Fatalf("NewTenantAddresser: %v", err)
+	}
+	if a.InboundLocal() != "58f2c36439f79a2eacc56d3d29e8522d" {
+		t.Errorf("InboundLocal = %q", a.InboundLocal())
+	}
+
+	for name, mut := range map[string]func(*models.TenantReplies){
+		"no webhook password": func(c *models.TenantReplies) { c.WebhookPassword = "" },
+		"short secret":        func(c *models.TenantReplies) { c.Secret = "short" },
+		"bad address":         func(c *models.TenantReplies) { c.InboundAddress = "nope" },
+	} {
+		c := ok
+		mut(&c)
+		if _, err := NewTenantAddresser(c); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func TestRecipientLocal(t *testing.T) {
+	for in, want := range map[string]string{
+		"58F2C364+tok@inbound.postmarkapp.com": "58f2c364",
+		"abc@inbound.postmarkapp.com":          "abc",
+		"":                                     "",
+	} {
+		if got := RecipientLocal(in); got != want {
+			t.Errorf("RecipientLocal(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nerd-zero/listnun/internal/core"
@@ -22,13 +23,15 @@ const maxInboundBody = 50 << 20
 // own inbox through the forward.
 const maxReplyBody = 256 << 10
 
-// RepliesWebhook receives replies to reply-tracked campaigns from
-// Postmark's inbound webhook, records each against its campaign and
-// forwards it to the campaign's own Reply-To. Authenticated with HTTP
-// basic auth ([replies] webhook_username/password, set in the webhook URL
-// on Postmark's side). A reply whose token is missing or forged, or whose
-// campaign is gone, gets a 403 -- Postmark stops retrying on 403 -- and
-// nothing is recorded.
+// RepliesWebhook receives replies to a tenant's reply-tracked campaigns
+// from its Postmark server's inbound webhook, records each against its
+// campaign and forwards it to the campaign's own Reply-To. Per tenant,
+// like BounceWebhook: the tenant comes from the request host, and the
+// request must carry that tenant's basic-auth credentials (its "replies"
+// setup, pushed by the platform). A reply whose token is missing, forged
+// or for another tenant, that didn't arrive at this tenant's inbound
+// address, or whose campaign is gone, gets a 403 -- Postmark stops
+// retrying on 403 -- and nothing is recorded.
 //
 //	@ID			postmarkRepliesWebhook
 //	@Summary	Receive a reply to a campaign email (Postmark inbound)
@@ -42,10 +45,16 @@ const maxReplyBody = 256 << 10
 //	@Failure	404	{object}	echo.HTTPError
 //	@Router		/webhooks/replies/postmark [post]
 func (a *App) RepliesWebhook(c echo.Context) error {
-	if a.replies == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "reply tracking is not configured")
+	tID := tenantID(c)
+	cfg, addr, ok, err := a.replies.Config(tID)
+	if err != nil {
+		a.log.Printf("replies: error reading tenant %d's reply setup: %v", tID, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error")
 	}
-	if !replies.CheckBasicAuth(c.Request(), a.cfg.Replies.WebhookUsername, a.cfg.Replies.WebhookPassword) {
+	if !ok {
+		return echo.NewHTTPError(http.StatusNotFound, "reply tracking is not set up")
+	}
+	if !replies.CheckBasicAuth(c.Request(), cfg.WebhookUsername, cfg.WebhookPassword) {
 		c.Response().Header().Set(echo.HeaderWWWAuthenticate, `Basic realm="replies"`)
 		return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
 	}
@@ -63,9 +72,16 @@ func (a *App) RepliesWebhook(c echo.Context) error {
 		return c.JSON(http.StatusOK, okResp{true})
 	}
 
-	ref, err := a.replies.Codec().Decode(in.Token())
-	if err != nil {
-		a.log.Printf("replies: rejecting inbound message %s: %v", in.MessageID, err)
+	// The reply must have arrived at this tenant's own inbound address,
+	// carry a token signed with this tenant's secret, and name this
+	// tenant.
+	if replies.RecipientLocal(in.Recipient()) != strings.ToLower(addr.InboundLocal()) {
+		a.log.Printf("replies: tenant %d rejecting inbound message %s sent to %q, not its inbound address", tID, in.MessageID, in.Recipient())
+		return echo.NewHTTPError(http.StatusForbidden, "unknown reply address")
+	}
+	ref, err := addr.Codec().Decode(in.Token())
+	if err != nil || ref.TenantID != tID {
+		a.log.Printf("replies: tenant %d rejecting inbound message %s: bad or foreign reply token", tID, in.MessageID)
 		return echo.NewHTTPError(http.StatusForbidden, "unknown reply address")
 	}
 

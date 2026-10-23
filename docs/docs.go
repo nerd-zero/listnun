@@ -3703,6 +3703,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/operator/tenants/{id}/replies": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Stores the tenant's reply tracking setup: its Postmark server's inbound address, the secret that signs reply tokens and the inbound webhook's basic auth credentials. The caller points the Postmark server's inbound webhook at https://{tenant host}/webhooks/replies/postmark with the same credentials. An empty inbound_address turns reply tracking off for the tenant. Keep the secret stable: changing it orphans replies to emails already sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's campaign reply tracking setup (Operator API)",
+                "operationId": "setOperatorTenantReplies",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reply tracking setup",
+                        "name": "replies",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TenantReplies"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/scrub/usage": {
             "get": {
                 "security": [
@@ -8103,7 +8168,7 @@ const docTemplate = `{
                     }
                 },
                 "reply_tracking": {
-                    "description": "ReplyTracking is whether the server has campaign reply tracking\nconfigured ([replies]), so the editor only offers the switch when\nit would do something.",
+                    "description": "ReplyTracking is whether this tenant has campaign reply tracking set\nup (its \"replies\" setup, pushed by the platform), so the editor only\noffers the switch when it would do something.",
                     "type": "boolean"
                 },
                 "root_url": {
@@ -8849,6 +8914,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "TenantReplies": {
+            "type": "object",
+            "properties": {
+                "inbound_address": {
+                    "description": "InboundAddress is the tenant's Postmark server's inbound address\n(\"\u003chash\u003e@inbound.postmarkapp.com\"); each message's reply address\nplus-addresses a token onto it.",
+                    "type": "string"
+                },
+                "secret": {
+                    "description": "Secret signs reply tokens (at least 16 characters). Changing it\norphans replies to emails already sent.",
+                    "type": "string"
+                },
+                "webhook_password": {
+                    "type": "string"
+                },
+                "webhook_username": {
+                    "description": "WebhookUsername/WebhookPassword are the HTTP basic-auth credentials\nthe tenant's Postmark server sends with each inbound webhook.",
                     "type": "string"
                 }
             }

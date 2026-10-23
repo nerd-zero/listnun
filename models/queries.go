@@ -166,6 +166,7 @@ type Queries struct {
 	RetryWebhookDelivery        *sqlx.Stmt `query:"retry-webhook-delivery"`
 	PruneWebhookDeliveries      *sqlx.Stmt `query:"prune-webhook-deliveries"`
 
+	GetTenantReplies           *sqlx.Stmt `query:"get-tenant-replies"`
 	GetReplyCampaign           *sqlx.Stmt `query:"get-reply-campaign"`
 	InsertCampaignReply        *sqlx.Stmt `query:"insert-campaign-reply"`
 	MarkCampaignReplyForwarded *sqlx.Stmt `query:"mark-campaign-reply-forwarded"`

@@ -202,9 +202,9 @@ type Config struct {
 	ScanCampaigns bool
 
 	// ReplyAddress returns the per-message reply address for a campaign
-	// with reply tracking on (CampaignTracking.Replies). Nil when the
-	// server has no reply tracking configured, in which case such
-	// campaigns send with their own Reply-To unchanged.
+	// with reply tracking on (CampaignTracking.Replies), or "" when the
+	// tenant has no reply tracking setup -- such campaigns then send with
+	// their own Reply-To unchanged.
 	ReplyAddress func(tenantID, campaignID, subscriberID int) string
 }
 
@@ -787,7 +787,9 @@ func (m *Manager) campaignHeaders(msg CampaignMessage) textproto.MIMEHeader {
 	}
 
 	if msg.Campaign.Tracking.Replies && m.cfg.ReplyAddress != nil {
-		h.Set("Reply-To", m.cfg.ReplyAddress(msg.Campaign.TenantID, msg.Campaign.ID, msg.Subscriber.ID))
+		if addr := m.cfg.ReplyAddress(msg.Campaign.TenantID, msg.Campaign.ID, msg.Subscriber.ID); addr != "" {
+			h.Set("Reply-To", addr)
+		}
 	}
 	return h
 }

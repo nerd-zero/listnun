@@ -20,6 +20,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/replies"
 	"github.com/nerd-zero/listnun/internal/tmptokens"
 	"github.com/nerd-zero/listnun/internal/utils"
 	"github.com/nerd-zero/listnun/models"
@@ -47,6 +48,8 @@ type operatorQueries struct {
 	SetTenantSMTP           *sqlx.Stmt `query:"operator-set-tenant-smtp"`
 	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
 	SetTenantBounceWebhooks *sqlx.Stmt `query:"operator-set-tenant-bounce-webhooks"`
+	SetTenantReplies        *sqlx.Stmt `query:"operator-set-tenant-replies"`
+	DeleteTenantReplies     *sqlx.Stmt `query:"operator-delete-tenant-replies"`
 	GetTenantScrubUsage     *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
 	GetTenantUsage          *sqlx.Stmt `query:"operator-get-tenant-usage"`
 	GetTenantUsageDaily     *sqlx.Stmt `query:"operator-get-tenant-usage-daily"`
@@ -557,6 +560,21 @@ type operatorBounceWebhooks struct {
 		Password string `json:"password"`
 	} `json:"postmark"`
 } // @name OperatorBounceWebhooks
+
+// SetTenantReplies stores tenantID's reply tracking setup under its own
+// "replies" settings key, or removes it when cfg.InboundAddress is empty.
+func (s *operatorStore) SetTenantReplies(tenantID int, cfg models.TenantReplies) error {
+	if cfg.InboundAddress == "" {
+		_, err := s.q.DeleteTenantReplies.Exec(tenantID)
+		return err
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	_, err = s.q.SetTenantReplies.Exec(tenantID, b)
+	return err
+}
 
 // SetTenantBounceWebhooks writes a tenant's bounce webhook settings: the
 // bounce.webhooks_enabled flag and the Postmark processor with its basic
@@ -1251,6 +1269,49 @@ func (a *App) SetOperatorTenantScrub(c echo.Context) error {
 		a.log.Printf("error setting tenant scrub: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant scrub")
 	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// SetOperatorTenantReplies sets (or, with an empty inbound_address,
+// removes) a tenant's campaign reply tracking setup.
+//
+//	@ID				setOperatorTenantReplies
+//	@Summary		Set a tenant's campaign reply tracking setup (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Stores the tenant's reply tracking setup: its Postmark server's inbound address, the secret that signs reply tokens and the inbound webhook's basic auth credentials. The caller points the Postmark server's inbound webhook at https://{tenant host}/webhooks/replies/postmark with the same credentials. An empty inbound_address turns reply tracking off for the tenant. Keep the secret stable: changing it orphans replies to emails already sent.
+//	@Tags			operator
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Tenant ID"
+//	@Param			replies	body		models.TenantReplies	true	"Reply tracking setup"
+//	@Success		200	{object}	okResp
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/replies [put]
+func (a *App) SetOperatorTenantReplies(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req models.TenantReplies
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.InboundAddress != "" {
+		if _, err := replies.NewTenantAddresser(req); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+	}
+
+	if err := a.operator.SetTenantReplies(id, req); err != nil {
+		a.log.Printf("error setting tenant reply tracking: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant reply tracking")
+	}
+	a.replies.invalidate(id)
 
 	return c.JSON(http.StatusOK, okResp{true})
 }

@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/nerd-zero/listnun/models"
 )
 
 // macLen is how many bytes of the HMAC-SHA256 the token keeps. 7 bytes
@@ -131,4 +133,33 @@ func (a *Addresser) Address(r Ref) string {
 // the replies it receives.
 func (a *Addresser) Codec() *Codec {
 	return a.codec
+}
+
+// NewTenantAddresser returns the Addresser for a tenant's reply tracking
+// setup, validating it: a usable secret, a plain inbound address and
+// webhook credentials.
+func NewTenantAddresser(cfg models.TenantReplies) (*Addresser, error) {
+	if cfg.WebhookUsername == "" || cfg.WebhookPassword == "" {
+		return nil, errors.New("reply webhook username and password are required")
+	}
+	codec, err := NewCodec(cfg.Secret)
+	if err != nil {
+		return nil, err
+	}
+	return NewAddresser(codec, cfg.InboundAddress)
+}
+
+// InboundLocal returns the local part of the inbound address replies go
+// to, without any "+token" ("abc" for "abc+tok@inbound.postmarkapp.com").
+func (a *Addresser) InboundLocal() string {
+	return a.local
+}
+
+// RecipientLocal returns the local part of address before any "+tag",
+// lowercased -- what InboundLocal is compared against to check a reply
+// arrived at this tenant's inbound address.
+func RecipientLocal(address string) string {
+	local, _, _ := strings.Cut(strings.TrimSpace(address), "@")
+	local, _, _ = strings.Cut(local, "+")
+	return strings.ToLower(local)
 }

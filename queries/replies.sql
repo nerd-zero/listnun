@@ -37,3 +37,9 @@ SELECT
     COUNT(DISTINCT COALESCE(subscriber_id::TEXT, LOWER(from_email))) FILTER (WHERE NOT is_auto) AS repliers,
     COUNT(*) FILTER (WHERE is_auto) AS auto
     FROM campaign_replies WHERE campaign_id = $1;
+
+-- name: get-tenant-replies
+-- A tenant's reply tracking setup (models.TenantReplies): its own
+-- "replies" settings row, kept out of the Settings UI. No rows when reply
+-- tracking was never set up for the tenant.
+SELECT value FROM settings WHERE tenant_id = $1 AND key = 'replies';

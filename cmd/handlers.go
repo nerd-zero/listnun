@@ -294,6 +294,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
+		g.PUT("/tenants/:id/replies", hasID(a.SetOperatorTenantReplies))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
 		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
@@ -321,10 +322,10 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// cmd/scrub_batch.go's ScrubBatchWebhook).
 		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
 
-		// Replies to reply-tracked campaigns, from the inbound mail
-		// provider. Cross-tenant (the signed token in each reply address
-		// names the tenant), authenticated by HTTP basic auth; 404s when
-		// reply tracking isn't configured. See cmd/replies.go.
+		// Replies to a tenant's reply-tracked campaigns, from its Postmark
+		// server's inbound webhook. Per tenant like the bounce webhook:
+		// basic auth with the tenant's own credentials; 404s when the
+		// tenant has no reply tracking setup. See cmd/replies.go.
 		g.POST("/webhooks/replies/postmark", a.RepliesWebhook)
 
 		// Landing page.

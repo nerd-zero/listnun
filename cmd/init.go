@@ -51,7 +51,6 @@ import (
 	"github.com/nerd-zero/listnun/internal/messenger/email"
 	"github.com/nerd-zero/listnun/internal/messenger/postback"
 	"github.com/nerd-zero/listnun/internal/notifs"
-	"github.com/nerd-zero/listnun/internal/replies"
 	"github.com/nerd-zero/listnun/internal/tenant"
 	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
@@ -103,23 +102,6 @@ type Config struct {
 		DBPassword string `koanf:"db_password"`
 		Env        string `koanf:"env"`
 	} `koanf:"operator"`
-	// Replies configures campaign reply tracking (internal/replies). Off
-	// unless InboundAddress is set. Server-wide, not per tenant: one
-	// inbound address and webhook receive replies for every tenant, and
-	// the signed token in each reply address says which tenant it's for.
-	Replies struct {
-		// InboundAddress is the inbound mail provider's address replies
-		// are sent to, e.g. "<hash>@inbound.postmarkapp.com"; each
-		// message's reply address plus-addresses a token onto it.
-		InboundAddress string `koanf:"inbound_address"`
-		// Secret signs reply tokens (at least 16 characters). Changing it
-		// orphans replies to emails already sent.
-		Secret string `koanf:"secret"`
-		// WebhookUsername/WebhookPassword are the HTTP basic-auth
-		// credentials the provider sends with each inbound webhook.
-		WebhookUsername string `koanf:"webhook_username"`
-		WebhookPassword string `koanf:"webhook_password"`
-	} `koanf:"replies"`
 	Privacy struct {
 		IndividualTracking bool            `koanf:"individual_tracking"`
 		DisableTracking    bool            `koanf:"disable_tracking"`
@@ -528,31 +510,6 @@ func initUrlConfig(ko *koanf.Koanf) *UrlConfig {
 	}
 }
 
-// initReplies returns the reply-address builder for campaign reply
-// tracking, or nil when it isn't configured ([replies] inbound_address
-// unset). A half-configured [replies] section is fatal rather than
-// silently off, so a deploy can't ship tracking that drops every reply.
-func initReplies(c *Config) *replies.Addresser {
-	r := c.Replies
-	if r.InboundAddress == "" {
-		lo.Println("campaign reply tracking: off ([replies] inbound_address not set)")
-		return nil
-	}
-	if r.WebhookUsername == "" || r.WebhookPassword == "" {
-		lo.Fatal("campaign reply tracking: [replies] webhook_username and webhook_password are required with inbound_address")
-	}
-	codec, err := replies.NewCodec(r.Secret)
-	if err != nil {
-		lo.Fatalf("campaign reply tracking: %v", err)
-	}
-	addr, err := replies.NewAddresser(codec, r.InboundAddress)
-	if err != nil {
-		lo.Fatalf("campaign reply tracking: %v", err)
-	}
-	lo.Printf("campaign reply tracking: on (replies to %s)", r.InboundAddress)
-	return addr
-}
-
 // initConstConfig initializes the app's global constants from the given koanf instance.
 func initConstConfig(ko *koanf.Koanf) *Config {
 	// Read constants.
@@ -568,9 +525,6 @@ func initConstConfig(ko *koanf.Koanf) *Config {
 	}
 	if err := ko.Unmarshal("operator", &c.Operator); err != nil {
 		lo.Fatalf("error loading operator config: %v", err)
-	}
-	if err := ko.Unmarshal("replies", &c.Replies); err != nil {
-		lo.Fatalf("error loading replies config: %v", err)
 	}
 
 	if err := ko.UnmarshalWithConf("appearance", &c.Appearance, koanf.UnmarshalConf{FlatPaths: true}); err != nil {
@@ -665,14 +619,7 @@ func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), 
 // tenantMessengers resolver it wires in, so callers can invalidate a
 // tenant's cached SMTP messengers after a settings save (cmd/settings.go's
 // handleSettingsRestart) without needing a full process restart.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, replyAddr *replies.Addresser, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
-	var replyAddress func(tenantID, campaignID, subscriberID int) string
-	if replyAddr != nil {
-		replyAddress = func(tenantID, campaignID, subscriberID int) string {
-			return replyAddr.Address(replies.Ref{TenantID: tenantID, CampaignID: campaignID, SubscriberID: subscriberID})
-		}
-	}
-
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
@@ -699,7 +646,7 @@ func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlCon
 		SlidingWindowRate:     ko.Int("app.message_sliding_window_rate"),
 		ScanInterval:          time.Second * 5,
 		ScanCampaigns:         !ko.Bool("passive"),
-		ReplyAddress:          replyAddress,
+		ReplyAddress:          tr.ReplyAddress,
 	}, newManagerStore(q, co, md), tm, meter, i, lo)
 
 	// Attach all messengers to the campaign manager.

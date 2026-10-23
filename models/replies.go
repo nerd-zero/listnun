@@ -65,3 +65,24 @@ type ReplyCampaign struct {
 	Headers   Headers `db:"headers"`
 	Messenger string  `db:"messenger"`
 }
+
+// TenantReplies is a tenant's campaign reply tracking setup, pushed by
+// the platform through the Operator API (PUT
+// /api/operator/tenants/{id}/replies) when it sets up the tenant's
+// Postmark server's inbound stream. Stored under its own "replies"
+// settings key, outside Settings, so it never appears in -- or gets
+// overwritten by -- the tenant's own Settings UI. Reply tracking is off for
+// a tenant without one.
+type TenantReplies struct {
+	// InboundAddress is the tenant's Postmark server's inbound address
+	// ("<hash>@inbound.postmarkapp.com"); each message's reply address
+	// plus-addresses a token onto it.
+	InboundAddress string `json:"inbound_address"`
+	// Secret signs reply tokens (at least 16 characters). Changing it
+	// orphans replies to emails already sent.
+	Secret string `json:"secret"`
+	// WebhookUsername/WebhookPassword are the HTTP basic-auth credentials
+	// the tenant's Postmark server sends with each inbound webhook.
+	WebhookUsername string `json:"webhook_username"`
+	WebhookPassword string `json:"webhook_password"`
+} // @name TenantReplies

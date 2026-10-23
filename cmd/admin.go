@@ -40,9 +40,9 @@ type serverConfig struct {
 	OrganizationName string          `json:"organization_name,omitempty"`
 	ConsoleURL       string          `json:"console_url,omitempty"`
 
-	// ReplyTracking is whether the server has campaign reply tracking
-	// configured ([replies]), so the editor only offers the switch when
-	// it would do something.
+	// ReplyTracking is whether this tenant has campaign reply tracking set
+	// up (its "replies" setup, pushed by the platform), so the editor only
+	// offers the switch when it would do something.
 	ReplyTracking bool `json:"reply_tracking"`
 } // @name ServerConfig
 
@@ -71,7 +71,7 @@ func (a *App) GetServerConfig(c echo.Context) error {
 		Permissions:   a.cfg.PermissionsRaw,
 		HasLegacyUser: a.cfg.HasLegacyUser,
 		ConsoleURL:    a.cfg.ConsoleURL,
-		ReplyTracking: a.replies != nil,
+		ReplyTracking: a.replies.Addresser(tenantID(c)) != nil,
 		Privacy: struct {
 			DisableTracking    bool `json:"disable_tracking"`
 			IndividualTracking bool `json:"individual_tracking"`
