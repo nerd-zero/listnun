@@ -60,7 +60,7 @@ and database server itself.
 
 ## Prior art
 
-listnun does not have multi-tenancy today, and upstream (`knadh/listnun`) has
+listnun does not have multi-tenancy today, and upstream (`knadh/listmonk`) has
 consistently declined to build it in:
 
 - [#2872 — Native Multi-tenancy Support (Multiple Domains/Workspaces)](https://github.com/knadh/listmonk/issues/2872):
@@ -77,7 +77,7 @@ consistently declined to build it in:
 
 **Implication:** this is a fork-only feature. It should be built and maintained
 as a divergence from upstream, not something we can expect to upstream or stay
-trivially rebasable against — every future `git merge` from `knadh/listnun`
+trivially rebasable against — every future `git merge` from `knadh/listmonk`
 that touches `schema.sql`, `internal/core/*`, `internal/auth/*`, or
 `internal/manager/*` will need conflict resolution against the tenant-scoping
 changes.
@@ -944,6 +944,6 @@ outside the Operator API ever needs to know an organization exists.
 
 - [AWS: Multi-tenant data isolation with PostgreSQL Row Level Security](https://aws.amazon.com/blogs/database/multi-tenant-data-isolation-with-postgresql-row-level-security/)
 - [AWS Prescriptive Guidance: Row-level security recommendations](https://docs.aws.amazon.com/prescriptive-guidance/latest/saas-multitenant-managed-postgresql/rls.html)
-- [knadh/listnun#2872 — Native Multi-tenancy Support](https://github.com/knadh/listmonk/issues/2872) (closed, not planned)
-- [knadh/listnun#2765 — multi-tenancy / namespace feature](https://github.com/knadh/listmonk/issues/2765) (open)
-- [knadh/listnun#2395 — Multi-Tenancy Permissions](https://github.com/knadh/listmonk/issues/2395) (closed, not planned)
+- [knadh/listmonk#2872 — Native Multi-tenancy Support](https://github.com/knadh/listmonk/issues/2872) (closed, not planned)
+- [knadh/listmonk#2765 — multi-tenancy / namespace feature](https://github.com/knadh/listmonk/issues/2765) (open)
+- [knadh/listmonk#2395 — Multi-Tenancy Permissions](https://github.com/knadh/listmonk/issues/2395) (closed, not planned)
