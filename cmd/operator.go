@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -44,6 +45,7 @@ type operatorQueries struct {
 	CreateTenant            *sqlx.Stmt `query:"operator-create-tenant"`
 	SeedTenantSettings      *sqlx.Stmt `query:"operator-seed-tenant-settings"`
 	SetTenantRootURL        *sqlx.Stmt `query:"operator-set-tenant-root-url"`
+	SetTenantFromEmail      *sqlx.Stmt `query:"operator-set-tenant-from-email"`
 	SetTenantCustomDomain   *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP           *sqlx.Stmt `query:"operator-set-tenant-smtp"`
 	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
@@ -1264,6 +1266,63 @@ func (a *App) UpdateOperatorTenantCustomDomain(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// operatorFromEmailReq is the request body for SetOperatorTenantFromEmail.
+type operatorFromEmailReq struct {
+	// FromEmail is the address, optionally with a display name
+	// ("Acme <news@acme.com>").
+	FromEmail string `json:"from_email"`
+} // @name OperatorFromEmailReq
+
+// SetOperatorTenantFromEmail sets a tenant's default From address
+// (app.from_email) -- what new campaigns start with. Tenants are seeded
+// with a placeholder ("listnun <noreply@listnun.yoursite.com>"), so the
+// platform sets the real one once it has verified a sending address for
+// the tenant. The tenant can still change it in its own settings.
+//
+//	@ID			setOperatorTenantFromEmail
+//	@Summary		Set a tenant's default From address (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's app.from_email setting, the From new campaigns start with. Accepts "address" or "Name <address>".
+//	@Tags			operator
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Tenant ID"
+//	@Param			from	body		operatorFromEmailReq	true	"Default From"
+//	@Success		200	{object}	okResp
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/from-email [put]
+func (a *App) SetOperatorTenantFromEmail(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req operatorFromEmailReq
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	addr, err := mail.ParseAddress(strings.TrimSpace(req.FromEmail))
+	if err != nil || !utils.ValidateEmail(addr.Address) {
+		return echo.NewHTTPError(http.StatusBadRequest, "from_email must be an email address, optionally with a name")
+	}
+
+	// mail.Address.String() wraps a bare address in <>, which would show
+	// up as-is in the campaign editor's From field.
+	from := addr.Address
+	if addr.Name != "" {
+		from = addr.String()
+	}
+	if _, err := a.operator.q.SetTenantFromEmail.Exec(id, from); err != nil {
+		a.log.Printf("error setting tenant from email: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant from email")
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
 }
 
 // SetOperatorTenantSMTP replaces a tenant's SMTP settings with a single

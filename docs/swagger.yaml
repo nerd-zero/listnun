@@ -831,6 +831,14 @@ definitions:
       tenant:
         $ref: '#/definitions/models.Tenant'
     type: object
+  OperatorFromEmailReq:
+    properties:
+      from_email:
+        description: |-
+          FromEmail is the address, optionally with a display name
+          ("Acme <news@acme.com>").
+        type: string
+    type: object
   OperatorOrganization:
     properties:
       created_at:
@@ -4687,6 +4695,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Set or clear a tenant's custom domain (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/from-email:
+    put:
+      consumes:
+      - application/json
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Writes the tenant's app.from_email setting, the
+        From new campaigns start with. Accepts "address" or "Name <address>".
+      operationId: setOperatorTenantFromEmail
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Default From
+        in: body
+        name: from
+        required: true
+        schema:
+          $ref: '#/definitions/OperatorFromEmailReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Set a tenant's default From address (Operator API)
       tags:
       - operator
   /api/operator/tenants/{id}/replies:

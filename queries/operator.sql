@@ -65,6 +65,12 @@ ON CONFLICT (tenant_id, key) DO NOTHING;
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'app.root_url', to_jsonb($2::TEXT))
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-from-email
+-- Sets the tenant's default From address (app.from_email) - see
+-- cmd/operator.go's SetTenantFromEmail.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'app.from_email', to_jsonb($2::TEXT))
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
 -- name: operator-set-tenant-custom-domain
 -- $2 is nullable - clears the custom domain (reverting to <slug>.root_domain
 -- resolution only) when unset. Paired transactionally with
