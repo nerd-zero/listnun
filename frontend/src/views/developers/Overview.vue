@@ -5,7 +5,7 @@
       :subtitle="isMobile ? '' : $t('developers.overview.intro')"
     >
       <template v-if="isMobile" #before-title>
-        <span class="ln-small dev-ov-section">{{ $t('globals.terms.developers') }}</span>
+        <span class="ln-small ln-page-eyebrow">{{ $t('globals.terms.developers') }}</span>
       </template>
       <template v-if="!isMobile">
         <a href="/api/swagger/index.html" target="_blank" rel="noopener noreferrer" class="p-button p-component p-button-secondary p-button-outlined dev-ov-ref">
@@ -22,7 +22,7 @@
           <h2 v-if="!isMobile" class="ln-section-title">{{ $t('developers.overview.quickstart') }}</h2>
           <strong v-else>{{ $t('developers.overview.done', { n: doneCount, total: steps.length }) }}</strong>
           <span class="ln-small">
-            {{ isMobile && current ? $t('developers.overview.next', { step: current.title.toLowerCase() }) : $t('developers.overview.done', { n: doneCount, total: steps.length }) }}
+            {{ isMobile && current ? $t('developers.overview.next', { step: current.next }) : $t('developers.overview.done', { n: doneCount, total: steps.length }) }}
           </span>
         </div>
         <div class="dev-ov-progress" :aria-label="$t('developers.overview.done', { n: doneCount, total: steps.length })">
@@ -54,14 +54,18 @@
           <PvSelectButton v-model="lang" :options="langOptions" option-label="label" option-value="value" :allow-empty="false" class="dev-ov-langs" />
           <div class="dev-ov-code">
             <pre class="ln-code">{{ code }}</pre>
-            <PvButton
-              :label="copied ? $t('states.copied') : (isMobile ? $t('developers.overview.copySnippet') : $t('globals.buttons.copy'))"
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              class="dev-ov-copy"
-              @click="copy"
-            />
+            <!-- Positioned by this wrapper, not the button: PrimeVue's ripple
+                 sets an inline position: relative on the button itself. -->
+            <div class="dev-ov-copy-wrap">
+              <PvButton
+                :label="copied ? $t('states.copied') : (isMobile ? $t('developers.overview.copySnippet') : $t('globals.buttons.copy'))"
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                class="dev-ov-copy"
+                @click="copy"
+              />
+            </div>
           </div>
           <div v-if="!isMobile" class="dev-ov-snippet-foot">
             <span class="ln-small">{{ $t('developers.log.key') }} <span class="ln-attr ln-attr--mono">{{ snippetKey }}</span></span>
@@ -192,6 +196,9 @@ const LOG_SEEN_KEY = 'ln-dev-log-seen';
 interface Step {
   key: 'key' | 'template' | 'test' | 'log';
   title: string;
+  // The title as it reads after "Next:". Its own string, as lowercasing
+  // the title turned "API" into "api".
+  next: string;
   text: string;
   help: string;
   done: boolean;
@@ -231,6 +238,7 @@ const steps = computed<Step[]>(() => [
   {
     key: 'key',
     title: t('developers.overview.stepKey'),
+    next: t('developers.overview.stepKeyNext'),
     text: sendKeys.value[0] ? t('developers.overview.stepKeyDone', { name: sendKeys.value[0].name }) : t('developers.overview.stepKeyText'),
     help: t('developers.overview.stepKeyHelp'),
     done: sendKeys.value.length > 0,
@@ -240,6 +248,7 @@ const steps = computed<Step[]>(() => [
   {
     key: 'template',
     title: t('developers.overview.stepTemplate'),
+    next: t('developers.overview.stepTemplateNext'),
     text: snippetTemplate.value ? t('developers.overview.stepTemplateDone', { name: snippetTemplate.value.name }) : t('developers.overview.stepTemplateText'),
     help: t('developers.overview.stepTemplateHelp'),
     done: templates.value.length > 0,
@@ -249,6 +258,7 @@ const steps = computed<Step[]>(() => [
   {
     key: 'test',
     title: t('developers.overview.stepTest'),
+    next: t('developers.overview.stepTestNext'),
     text: t('developers.overview.stepTestText'),
     help: t('developers.overview.stepTestHelp'),
     done: !!stats.value && (stats.value.sent > 0 || stats.value.sentPrev > 0 || (recent.value?.length || 0) > 0),
@@ -258,6 +268,7 @@ const steps = computed<Step[]>(() => [
   {
     key: 'log',
     title: t('developers.overview.stepLog'),
+    next: t('developers.overview.stepLogNext'),
     text: t('developers.overview.stepLogText'),
     help: t('developers.overview.stepLogHelp'),
     done: logSeen && (recent.value?.length || 0) > 0,
@@ -335,7 +346,6 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.dev-ov-section { display: block; }
 .dev-ov-ref { text-decoration: none; display: inline-flex; gap: 8px; &:hover { text-decoration: none; } }
 
 .dev-ov-quick {
@@ -423,11 +433,32 @@ onMounted(() => {
   position: relative;
 
   pre { padding-right: 96px; min-height: 160px; white-space: pre; }
+
+  // Phones: the button sits in a strip under the code, inside the same
+  // dark box, so it can't scroll under the sticky "send from the browser" bar.
+  @media (max-width: 767px) {
+    border-radius: 8px;
+    overflow: hidden;
+    background: #14171c;
+    .app-dark & { background: #0c0e11; border: 1px solid var(--ln-border); }
+
+    pre { padding-right: 16px; border: 0; border-radius: 0; }
+  }
 }
-.dev-ov-copy {
+.dev-ov-copy-wrap {
   position: absolute;
   top: 10px;
   right: 10px;
+
+  @media (max-width: 767px) {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(236, 233, 225, .12);
+  }
+}
+.dev-ov-copy {
   background: rgba(236, 233, 225, .08) !important;
   border: 1px solid rgba(236, 233, 225, .2) !important;
   color: #ece9e1 !important;

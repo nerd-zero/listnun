@@ -2,7 +2,7 @@
   <div class="ln-page dev-log" :class="{ 'has-drawer': !!openId && !isMobile }">
     <page-header :title="$t('developers.log.title')" :count="countLabel">
       <template v-if="isMobile" #before-title>
-        <span class="ln-small dev-log-section">{{ $t('globals.terms.developers') }}</span>
+        <span class="ln-small ln-page-eyebrow">{{ $t('globals.terms.developers') }}</span>
       </template>
     </page-header>
 
@@ -328,7 +328,6 @@ watch(refreshTick, fetchPage);
 .dev-log { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
 .dev-log.has-drawer { padding-right: 460px; }
 
-.dev-log-section { display: block; }
 .dev-log-filters {
   display: flex;
   flex-wrap: wrap;
@@ -393,7 +392,7 @@ watch(refreshTick, fetchPage);
 }
 .dev-log-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dev-log-item-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dev-log-item-sub { font-size: 13px; color: var(--ln-text-2); }
+.dev-log-item-sub { display: flex; gap: 8px; font-size: 13px; color: var(--ln-text-2); }
 .dev-log-fg {
   &.is-success { color: var(--ln-success-fg); }
   &.is-warn { color: var(--ln-warn-fg); }
