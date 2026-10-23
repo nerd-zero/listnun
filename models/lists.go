@@ -82,3 +82,26 @@ type OptinPending struct {
 	Total int `db:"total" json:"total"`
 	Due   int `db:"due" json:"due"`
 } // @name OptinPending
+
+// ListsByUUID returns the lists among `lists` whose UUIDs are in `uuids`,
+// or all of `lists` when `uuids` is empty or matches none of them, so a
+// stale link still shows a usable form.
+func ListsByUUID(lists []List, uuids []string) []List {
+	if len(uuids) == 0 {
+		return lists
+	}
+	want := make(map[string]bool, len(uuids))
+	for _, u := range uuids {
+		want[u] = true
+	}
+	out := make([]List, 0, len(uuids))
+	for _, l := range lists {
+		if want[l.UUID] {
+			out = append(out, l)
+		}
+	}
+	if len(out) == 0 {
+		return lists
+	}
+	return out
+}
