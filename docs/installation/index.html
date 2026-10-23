@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../apis/bounces/">
       
       
         <link rel="next" href="../configuration/">
@@ -18,7 +18,7 @@
         
       
       
-      <link rel="icon" href="../images/favicon.png">
+      <link rel="icon" href="../images/listnun-mark.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
@@ -50,6 +50,8 @@
     
     
       <link rel="stylesheet" href="../static/style.css">
+    
+      <link rel="stylesheet" href="../static/ui.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -92,7 +94,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href=".." title="listnun / Documentation" class="md-header__button md-logo" aria-label="listnun / Documentation" data-md-component="logo">
       
-  <img src="../images/favicon.png" alt="logo">
+  <img src="../images/listnun-mark.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -189,7 +191,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href=".." title="listnun / Documentation" class="md-nav__button md-logo" aria-label="listnun / Documentation" data-md-component="logo">
       
-  <img src="../images/favicon.png" alt="logo">
+  <img src="../images/listnun-mark.png" alt="logo">
 
     </a>
     listnun / Documentation
@@ -228,343 +230,12 @@
       
   
   
-    
-  
   
   
     
     
       
         
-      
-        
-      
-        
-      
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Getting Started
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#binary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Binary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#docker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Docker
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Docker">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mounting-a-custom-configtoml" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mounting a custom config.toml
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Mounting a custom config.toml">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-save-the-configtoml-file-on-the-host" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Save the config.toml file on the host
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-mount-the-config-file-in-docker-composeyml" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Mount the config file in docker-compose.yml
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-change-the-config-flags-in-the-command-section-to-point-to-the-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Change the --config '' flags in the command: section to point to the path
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#nightly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Nightly
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compiling-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compiling from source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#helm-chart-for-kubernetes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Helm chart for Kubernetes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3rd-party-hosting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3rd party hosting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tutorials" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tutorials
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../upgrade/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Upgrade
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
       
         
       
@@ -599,10 +270,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -620,12 +291,361 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
     Using listnun
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../start/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../start/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A tour of your workspace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/lists-and-forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lists and forms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/subscribers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subscribers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing subscribers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/campaigns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing and sending campaigns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking opens and clicks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/templates-and-media/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Templates and media
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/team/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your team
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_11" id="__nav_2_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
   
 
           </label>
@@ -722,6 +742,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../roles-and-permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../archives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Archives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../bounces/" class="md-nav__link">
         
   
@@ -778,14 +854,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../archives/" class="md-nav__link">
+      <a href="../oidc/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Archives
+    OIDC SSO
   
 
     
@@ -813,7 +889,213 @@
   <span class="md-ellipsis">
     
   
-    Internationalization
+    Languages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../developers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developers/api-keys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API keys
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developers/transactional/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transactional email
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developers/webhooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Webhooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developers/branding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Email branding
   
 
     
@@ -861,69 +1143,6 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../roles-and-permissions/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User roles and permissions
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../oidc/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    OIDC SSO
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
     
     
       
@@ -951,26 +1170,23 @@
     
     
       
-        
-        
-      
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_7" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    API
+    API reference
   
 
     
@@ -981,12 +1197,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
             <span class="md-nav__icon md-icon"></span>
             
   
-    API
+    API reference
   
 
           </label>
@@ -1278,15 +1494,39 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
   
   
+    
   
   
+  
     
     
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
       
         
       
@@ -1299,21 +1539,21 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Maintenance
+    Running listnun
   
 
     
@@ -1324,16 +1564,264 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Maintenance
+    Running listnun
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#build-the-binary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build the binary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-with-the-binary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install with the binary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-with-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install with Docker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Install with Docker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mounting-a-configtoml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mounting a config.toml
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#after-installing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After installing
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operators/workspaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workspaces and the operator API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operators/media-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1362,71 +1850,6 @@
   
 
               
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-      
-        
-      
-        
-      
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributions
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Contributions
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
             
               
                 
@@ -1518,10 +1941,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#binary" class="md-nav__link">
+  <a href="#build-the-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Binary
+        Build the binary
       
     </span>
   </a>
@@ -1529,56 +1952,33 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#docker" class="md-nav__link">
+  <a href="#install-with-the-binary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Docker
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Docker">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mounting-a-custom-configtoml" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Mounting a custom config.toml
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Mounting a custom config.toml">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-save-the-configtoml-file-on-the-host" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Save the config.toml file on the host
+        Install with the binary
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#2-mount-the-config-file-in-docker-composeyml" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#install-with-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Mount the config file in docker-compose.yml
+        Install with Docker
       
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Install with Docker">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#3-change-the-config-flags-in-the-command-section-to-point-to-the-path" class="md-nav__link">
+  <a href="#mounting-a-configtoml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Change the --config '' flags in the command: section to point to the path
+        Mounting a config.toml
       
     </span>
   </a>
@@ -1589,61 +1989,12 @@
     </nav>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
       
         <li class="md-nav__item">
-  <a href="#nightly" class="md-nav__link">
+  <a href="#after-installing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nightly
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compiling-from-source" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compiling from source
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#helm-chart-for-kubernetes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Helm chart for Kubernetes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3rd-party-hosting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3rd party hosting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tutorials" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tutorials
+        After installing
       
     </span>
   </a>
@@ -1668,44 +2019,47 @@
 
 
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
-<p>listnun is a simple binary application that requires a Postgres database instance to run. The binary can be downloaded and run manually, or it can be run as a container with Docker compose.</p>
-<h2 id="binary">Binary<a class="headerlink" href="#binary" title="Permanent link">&para;</a></h2>
+<p>listnun is a single Go binary, with the admin app and static files built in. Its only dependency is PostgreSQL 12 or newer.</p>
+<div class="admonition note">
+<p class="admonition-title">Using hosted listnun?</p>
+<p>You don't need to install anything: your workspace is ready at its own address. This page is for running listnun yourself.</p>
+</div>
+<p>listnun doesn't publish prebuilt binaries or images yet, so you build it from the source on <a href="https://github.com/nerd-zero/listnun">GitHub</a>.</p>
+<h2 id="build-the-binary">Build the binary<a class="headerlink" href="#build-the-binary" title="Permanent link">&para;</a></h2>
+<p>You need Go, Node.js and Yarn.</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/nerd-zero/listnun.git
+<span class="nb">cd</span><span class="w"> </span>listnun
+make<span class="w"> </span>dist
+</code></pre></div>
+<p>This builds the frontend and the visual email builder, compiles the Go code, and packs everything into one <code>listnun</code> binary.</p>
+<h2 id="install-with-the-binary">Install with the binary<a class="headerlink" href="#install-with-the-binary" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Download the <a href="https://github.com/knadh/listmonk/releases">latest release</a> and extract the listnun binary. <code>amd64</code> is the main one. It works for Intel and x86 CPUs.</li>
-<li><code>./listnun --new-config</code> to generate config.toml. Edit the file.</li>
-<li><code>./listnun --install</code> to install the tables in the Postgres DB (⩾ 12).</li>
-<li>Run <code>./listnun</code> and visit <code>http://localhost:9000</code> to create the Super Admin user and login.</li>
+<li><code>./listnun --new-config</code> writes a <code>config.toml</code>. Edit at least the <code>[db]</code> section.</li>
+<li><code>./listnun --install</code> creates the tables in your Postgres database.</li>
+<li><code>./listnun</code> starts the server. Open <code>http://localhost:9000</code> to create the first admin user and sign in.</li>
 </ol>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>To set the Super Admin username and password during installation, set the environment variables:
+<p>To create the admin user during installation instead, set:
 <code>LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx ./listnun --install</code></p>
 </div>
-<h2 id="docker">Docker<a class="headerlink" href="#docker" title="Permanent link">&para;</a></h2>
-<p>The latest image is available on DockerHub at <code>listnun/listnun:latest</code></p>
-<p>The recommended method is to download the <a href="https://github.com/knadh/listmonk/blob/master/docker-compose.yml">docker-compose.yml</a> file, customize it for your environment and then to simply run <code>docker compose up -d</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Download the compose file to the current directory.</span>
-curl<span class="w"> </span>-LO<span class="w"> </span>https://github.com/knadh/listmonk/raw/master/docker-compose.yml
-
-<span class="c1"># Run the services in the background.</span>
+<h2 id="install-with-docker">Install with Docker<a class="headerlink" href="#install-with-docker" title="Permanent link">&para;</a></h2>
+<p>After <code>make dist</code>, build the image from the repository's <code>Dockerfile</code>, then start it with the repository's <code>docker-compose.yml</code>, which runs listnun and Postgres:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>listnun/listnun:latest<span class="w"> </span>.
 docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
-<p>Then, visit <code>http://localhost:9000</code> to create the Super Admin user and login.</p>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>To set the Super Admin username and password during setup, set the environment variables (only the first time):
-<code>LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx docker compose up -d</code></p>
-</div>
-<h3 id="mounting-a-custom-configtoml">Mounting a custom config.toml<a class="headerlink" href="#mounting-a-custom-configtoml" title="Permanent link">&para;</a></h3>
-<p>The docker-compose file includes all necessary listnun configuration as environment variables, <code>LISTNUN_*</code>.
-If you would like to remove those and mount a config.toml instead:</p>
-<h4 id="1-save-the-configtoml-file-on-the-host">1. Save the config.toml file on the host<a class="headerlink" href="#1-save-the-configtoml-file-on-the-host" title="Permanent link">&para;</a></h4>
+<p>Open <code>http://localhost:9000</code> to create the admin user. To set it from the start, run <code>LISTNUN_ADMIN_USER=myuser LISTNUN_ADMIN_PASSWORD=xxxxx docker compose up -d</code> the first time.</p>
+<p>On every start the container installs the database if needed, then runs any pending upgrades, then starts listnun.</p>
+<h3 id="mounting-a-configtoml">Mounting a config.toml<a class="headerlink" href="#mounting-a-configtoml" title="Permanent link">&para;</a></h3>
+<p>The compose file configures listnun through <code>LISTNUN_*</code> environment variables. To use a config file instead:</p>
+<ol>
+<li>
+<p>Save a <code>config.toml</code> on the host:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[app]</span>
 <span class="n">address</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"0.0.0.0:9000"</span>
 
-<span class="c1"># Database.</span>
 <span class="k">[db]</span>
-<span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"listnun_db"</span><span class="w"> </span><span class="c1"># Postgres container name in the compose file.</span>
+<span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"listnun_db"</span><span class="w"> </span><span class="c1"># The Postgres container's name in the compose file.</span>
 <span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5432</span>
 <span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"listnun"</span>
 <span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"listnun"</span>
@@ -1715,77 +2069,29 @@ If you would like to remove those and mount a config.toml instead:</p>
 <span class="n">max_idle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">25</span>
 <span class="n">max_lifetime</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"300s"</span>
 </code></pre></div>
-<h4 id="2-mount-the-config-file-in-docker-composeyml">2. Mount the config file in docker-compose.yml<a class="headerlink" href="#2-mount-the-config-file-in-docker-composeyml" title="Permanent link">&para;</a></h4>
+</li>
+<li>
+<p>Mount it in <code>docker-compose.yml</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="w">  </span><span class="nt">app</span><span class="p">:</span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">volumes</span><span class="p p-Indicator">:</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/path/on/your/host/config.toml:/listnun/config.toml</span>
 </code></pre></div>
-<h4 id="3-change-the-config-flags-in-the-command-section-to-point-to-the-path">3. Change the <code>--config ''</code> flags in the <code>command:</code> section to point to the path<a class="headerlink" href="#3-change-the-config-flags-in-the-command-section-to-point-to-the-path" title="Permanent link">&para;</a></h4>
+</li>
+<li>
+<p>Point the <code>command:</code> at it:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">sh</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">-c</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">"./listnun</span><span class="nv"> </span><span class="s">--install</span><span class="nv"> </span><span class="s">--idempotent</span><span class="nv"> </span><span class="s">--yes</span><span class="nv"> </span><span class="s">--config</span><span class="nv"> </span><span class="s">/listnun/config.toml</span><span class="nv"> </span><span class="s">&amp;&amp;</span><span class="nv"> </span><span class="s">./listnun</span><span class="nv"> </span><span class="s">--upgrade</span><span class="nv"> </span><span class="s">--yes</span><span class="nv"> </span><span class="s">--config</span><span class="nv"> </span><span class="s">/listnun/config.toml</span><span class="nv"> </span><span class="s">&amp;&amp;</span><span class="nv"> </span><span class="s">./listnun</span><span class="nv"> </span><span class="s">--config</span><span class="nv"> </span><span class="s">/listnun/config.toml"</span><span class="p p-Indicator">]</span>
 </code></pre></div>
-<hr />
-<h2 id="nightly">Nightly<a class="headerlink" href="#nightly" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Nightly releases are untested and may have bugs. Use at your own risk. Always take a backup of your Postgres database before using a nightly release.</p>
-</div>
-<p>A nightly build is automatically published with the latest changes merged to the repository. If you want to access the latest changes without waiting for versioned releases, you can obtain the nightly builds and follow the same instructions above.</p>
-<ul>
-<li><strong>Docker</strong>: <code>listnun/listnun:nightly</code> (use this as the image name in the docker-compose file)</li>
-<li><strong>Binary</strong>: <a href="https://github.com/knadh/listmonk/releases/nightly">Download nightly release</a></li>
-</ul>
-<h2 id="compiling-from-source">Compiling from source<a class="headerlink" href="#compiling-from-source" title="Permanent link">&para;</a></h2>
-<p>To compile the latest unreleased version (<code>master</code> branch):</p>
-<ol>
-<li>Make sure <code>go</code>, <code>nodejs</code>, and <code>yarn</code> are installed on your system.</li>
-<li><code>git clone git@github.com:knadh/listnun.git</code></li>
-<li><code>cd listnun &amp;&amp; make dist</code>. This will generate the <code>listnun</code> binary.</li>
+</li>
 </ol>
-<h2 id="helm-chart-for-kubernetes">Helm chart for Kubernetes<a class="headerlink" href="#helm-chart-for-kubernetes" title="Permanent link">&para;</a></h2>
-<p><img alt="Version: 0.1.0" src="https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square" /> <img alt="Type: application" src="https://img.shields.io/badge/Type-application-informational?style=flat-square" /> <img alt="AppVersion: 3.0.0" src="https://img.shields.io/badge/AppVersion-3.0.0-informational?style=flat-square" /></p>
-<p>A helm chart for easily installing listnun on a kubernetes cluster is made available by community <a href="https://github.com/th0th/helm-charts/tree/main/charts/listmonk">here</a>.</p>
-<p>In order to use the helm chart, you can configure <code>values.yaml</code> according to your needs, and then run the following command:</p>
-<div class="highlight"><pre><span></span><code>$<span class="w"> </span>helm<span class="w"> </span>upgrade<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--create-namespace<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--install<span class="w"> </span>listnun<span class="w"> </span>listnun<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--namespace<span class="w"> </span>listnun<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--repo<span class="w"> </span>https://th0th.github.io/helm-charts<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--values<span class="w"> </span>values.yaml<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--version<span class="w"> </span><span class="m">0</span>.1.0
-</code></pre></div>
-<h2 id="3rd-party-hosting">3rd party hosting<a class="headerlink" href="#3rd-party-hosting" title="Permanent link">&para;</a></h2>
-<p><a href="https://dash.elest.io/deploy?soft=Listmonk&id=237"><img src="https://raw.githubusercontent.com/elestio-examples/reactjs/refs/heads/master/src/deploy-on-elestio.png" alt="Deploy to Elestio" height="35" style="max-width: 150px;" /></a>
-<br />
-<a href="https://www.pikapods.com/pods?run=listmonk"><img src="https://www.pikapods.com/static/run-button.svg" alt="Deploy on PikaPod" style="max-width: 150px;" /></a>
-<br />
-<a href="https://northflank.com/stacks/deploy-listmonk"><img src="https://assets.northflank.com/deploy_to_northflank_smm_36700fb050.svg" alt="One-click deploy on Northflank" height="35" style="max-width: 150px; border-radius: 6px; object-fit: contain;" /></a>
-<br />
-<a href="https://railway.app/new/template/listmonk"><img src="https://railway.app/button.svg" alt="One-click deploy on Railway" style="max-width: 150px;" /></a>
-<br />
-<a href="https://repocloud.io/details/?app_id=217"><img src="https://d16t0pc4846x52.cloudfront.net/deploy.png" alt="Deploy at RepoCloud" style="max-width: 150px;"/></a>
-<br />
-<a href="https://template.sealos.io/deploy?templateName=listmonk"><img src="https://sealos.io/Deploy-on-Sealos.svg" alt="Deploy on Sealos" style="max-width: 150px;"/></a>
-<br />
-<a href="https://zeabur.com/templates/5EDMN6"><img src="https://zeabur.com/button.svg" alt="Deploy on Zeabur" style="max-width: 150px;"/></a>
-<br />
-<a href="https://www.cloudron.io/store/app.listmonk.cloudronapp.html"><img src="https://cloudron.io/img/button.svg" alt="Install on Cloudron" style="max-width: 150px;"/></a></p>
-<h2 id="tutorials">Tutorials<a class="headerlink" href="#tutorials" title="Permanent link">&para;</a></h2>
+<h2 id="after-installing">After installing<a class="headerlink" href="#after-installing" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://forwardemail.net/en/guides/newsletter-with-listmonk">Listnun with Forward Email for Secure Newsletter Delivery</a></li>
-<li><a href="https://github.com/knadh/listmonk/issues/120#issuecomment-1421838533">Informal step-by-step on how to get started with listnun using <em>Railway</em></a></li>
-<li><a href="https://gist.github.com/MaximilianKohler/e5158fcfe6de80a9069926a67afcae11">Step-by-step tutorial for installation and all basic functions. <em>Amazon EC2, SES, docker &amp; binary</em></a></li>
-<li><a href="https://github.com/knadh/listmonk/issues/1208">Step-by-step guide on how to install and set up listnun on <em>AWS Lightsail with docker</em> (rameerez)</a></li>
-<li><a href="https://github.com/samyogdhital/listmonk-caddy-reverse-proxy">Quick setup on any cloud server using <em>docker and caddy</em></a></li>
-<li><a href="https://mumaritc.hashnode.dev/how-to-install-listmonk-using-binary-on-ubuntu-2204"><em>Binary</em> install on Ubuntu 22.04 as a service</a></li>
-<li><a href="https://devgypsy.com/post/2020-08-18-installing-listmonk-newsletter-manager/"><em>Binary</em> install on Ubuntu 18.04 as a service (Apache &amp; Plesk)</a></li>
-<li><a href="https://techviewleo.com/manage-mailing-list-and-newsletter-using-listmonk/"><em>Binary and docker</em> on linux (techviewleo)</a></li>
-<li><a href="https://www.youtube.com/watch?v=fAOBqgR9Yfo"><em>Binary</em> install on your PC</a>. Discussions of limitations: [<a href="https://github.com/knadh/listmonk/issues/862#issuecomment-1307328228">1</a>][<a href="https://github.com/knadh/listmonk/issues/248#issuecomment-1320806990">2</a>].</li>
-<li><a href="https://wiki.crowncloud.net/?How_to_Install_Listmonk_with_Docker_on_Rocky_Linux_8"><em>Docker on Rocky Linux 8</em> (nginx, Let's Encrypt SSL)</a></li>
-<li><a href="https://www.maketecheasier.com/create-own-newsletter-with-listmonk/"><em>Docker</em> with nginx reverse proxy, certbot SSL, and Gmail SMTP</a></li>
-<li><a href="https://meetrix.io/articles/how-to-install-llama-2-on-aws-with-pre-configured-ami-package/">Install Listnun on Self-hosting with <em>Pre-Configured AMI Package at AWS</em> by Single Click</a></li>
-<li><a href="https://gitlab.com/votelog/apps/newsletter"><em>Fly.io</em> working example</a></li>
+<li>Set up email sending under <strong>Settings › SMTP</strong>.</li>
+<li>Put listnun behind a reverse proxy with HTTPS, and set <strong>Settings › General › Root URL</strong> to its public address. Links in emails use it.</li>
+<li>Keep only the public routes reachable from the internet. See <a href="../configuration/#http-routes">Configuration</a>.</li>
+<li>To host several workspaces on one instance, see <a href="../operators/workspaces/">Workspaces and the operator API</a>.</li>
+<li>For media, see <a href="../operators/media-storage/">Media storage</a>.</li>
 </ul>
+<p>To work on listnun's code, see <a href="../developer-setup/">Developer setup</a>.</p>
 
 
 

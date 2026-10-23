@@ -1,0 +1,156 @@
+/*
+ * UI previews: small HTML mock-ups of listnun screens, drawn with the
+ * app's own tokens (frontend/src/assets/tokens.css) and icons
+ * (frontend/src/components/ui/lnIcons.ts, generated into the .ui-i-*
+ * rules at the end). They show layout and labels, not live data.
+ */
+.ui {
+  --ln-bg: #f6f3ec; --ln-card: #ffffff; --ln-muted: #efebe1; --ln-hover: #f3f0e8;
+  --ln-ink: #1b1e24; --ln-on-ink: #f6f3ec;
+  --ln-text: #1b1e24; --ln-text-2: #4a4e56; --ln-text-3: #6b6f76; --ln-text-4: #9599a0;
+  --ln-border: #dedad0; --ln-border-strong: #cbc6b9; --ln-ring: #d97d3d;
+  --ln-success: #3f8f6c; --ln-success-fg: #2f6f53; --ln-success-bg: rgba(63, 143, 108, .12);
+  --ln-warn: #d97d3d; --ln-warn-fg: #9a5320; --ln-warn-bg: rgba(217, 125, 61, .14);
+  --ln-danger-fg: #a33f2c; --ln-danger-bg: rgba(193, 80, 59, .12);
+  --ln-neutral-bg: #efebe1;
+  --ln-radius: 6px; --ln-radius-card: 10px;
+
+  margin: 1.5em 0;
+  padding: 16px;
+  border: 1px solid var(--ln-border);
+  border-radius: 12px;
+  background: var(--ln-bg);
+  color: var(--ln-text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  overflow-x: auto;
+}
+/* mkdocs-material styles every p/ul/table inside content; previews reset that. */
+.md-typeset .ui p, .md-typeset .ui ul, .md-typeset .ui ol, .md-typeset .ui li { margin: 0; padding: 0; list-style: none; }
+.md-typeset .ui strong { font-weight: 600; }
+.ui-caption { margin-top: 10px; font-size: 12px; color: var(--ln-text-3); text-align: center; }
+
+/* Icons: a mask, so they take the text colour. */
+.ui-i { display: inline-block; flex: none; width: 16px; height: 16px; background: currentColor;
+  -webkit-mask: var(--ui-icon) center / contain no-repeat; mask: var(--ui-icon) center / contain no-repeat; }
+.ui-i-sm { width: 12px; height: 12px; }
+
+/* Layout */
+.ui-row { display: flex; align-items: center; gap: 10px; }
+.ui-col { display: flex; flex-direction: column; gap: 12px; }
+.ui-grow { flex: 1; min-width: 0; }
+.ui-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ui-small { font-size: 12px; color: var(--ln-text-3); }
+.ui-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; }
+.ui-title { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -.01em; }
+
+/* App frame: sidebar + main */
+.ui-app { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-width: 640px; border: 1px solid var(--ln-border); border-radius: var(--ln-radius-card); overflow: hidden; background: var(--ln-bg); }
+.ui-side { padding: 12px 10px; border-right: 1px solid var(--ln-border); display: flex; flex-direction: column; gap: 10px; }
+.ui-brand { padding: 2px 8px 6px; font-weight: 700; font-size: 15px; }
+.ui-brand small { display: block; font-weight: 400; font-size: 11px; color: var(--ln-text-3); }
+.ui-nav-label { padding: 0 8px; font-size: 11px; font-weight: 600; color: var(--ln-text-3); }
+.ui-nav-item { display: flex; align-items: center; gap: 9px; height: 28px; padding: 0 8px; border-radius: var(--ln-radius); color: var(--ln-text-2); }
+.ui-nav-item.is-active { background: var(--ln-muted); color: var(--ln-text); font-weight: 600; }
+.ui-nav-item .ui-i-chevronRight, .ui-nav-item .ui-i-chevronDown { margin-left: auto; width: 11px; height: 11px; color: var(--ln-text-3); }
+.ui-nav-kids { padding-left: 25px; display: flex; flex-direction: column; gap: 1px; }
+.ui-nav-kid { height: 26px; display: flex; align-items: center; padding: 0 8px; border-radius: var(--ln-radius); font-size: 12px; color: var(--ln-text-2); }
+.ui-nav-kid.is-active { background: var(--ln-muted); color: var(--ln-text); font-weight: 600; }
+.ui-side-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--ln-border); }
+.ui-top { display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-bottom: 1px solid var(--ln-border); color: var(--ln-text-2); }
+.ui-avatar { width: 26px; height: 26px; border-radius: 99px; background: var(--ln-ink); color: var(--ln-on-ink); display: grid; place-items: center; font-size: 10px; font-weight: 600; }
+.ui-main { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Surfaces */
+.ui-card { background: var(--ln-card); border: 1px solid var(--ln-border); border-radius: var(--ln-radius-card); }
+.ui-card-pad { padding: 14px 16px; }
+.ui-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--ln-border); font-weight: 600; }
+.ui-divide > * + * { border-top: 1px solid var(--ln-border); }
+.ui-line { display: flex; align-items: center; gap: 12px; padding: 11px 16px; }
+
+/* Controls */
+.ui-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: var(--ln-radius); border: 1px solid var(--ln-border-strong); background: var(--ln-card); color: var(--ln-text); font-weight: 500; white-space: nowrap; }
+.ui-btn.is-primary { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
+.ui-btn.is-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.ui-link { color: var(--ln-text); text-decoration: underline; text-underline-offset: 2px; font-size: 12px; }
+.ui-input { display: flex; align-items: center; height: 32px; padding: 0 10px; border: 1px solid var(--ln-border-strong); border-radius: var(--ln-radius); background: var(--ln-card); color: var(--ln-text); }
+.ui-input.is-locked { background: var(--ln-muted); border-color: var(--ln-border); color: var(--ln-text-2); justify-content: space-between; }
+.ui-input.is-area { height: auto; min-height: 48px; align-items: flex-start; padding: 8px 10px; color: var(--ln-text-4); }
+.ui-label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 500; }
+.ui-toggle { flex: none; width: 30px; height: 17px; border-radius: 99px; background: var(--ln-border-strong); position: relative; }
+.ui-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 99px; background: #fff; }
+.ui-toggle.is-on { background: var(--ln-ink); }
+.ui-toggle.is-on::after { left: 15px; background: var(--ln-on-ink); }
+.ui-radio { flex: none; width: 15px; height: 15px; border-radius: 99px; border: 1.5px solid var(--ln-border-strong); }
+.ui-radio.is-on { border: 4.5px solid var(--ln-ink); }
+
+/* Tags and chips */
+.ui-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--ln-neutral-bg); color: var(--ln-text-2); white-space: nowrap; }
+.ui-tag.is-ok { background: var(--ln-success-bg); color: var(--ln-success-fg); }
+.ui-tag.is-warn { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
+.ui-tag.is-bad { background: var(--ln-danger-bg); color: var(--ln-danger-fg); }
+.ui-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 9px; border: 1px solid var(--ln-border); border-radius: var(--ln-radius); background: var(--ln-card); font-size: 12px; }
+.ui-chip .ui-x { width: 18px; height: 18px; display: grid; place-items: center; color: var(--ln-text-3); }
+
+/* Campaign steps */
+.ui-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.ui-step { display: flex; align-items: center; gap: 7px; padding: 8px 6px 10px; border-bottom: 2px solid var(--ln-border); color: var(--ln-text-3); font-weight: 500; }
+.ui-step.is-done { color: var(--ln-text); border-bottom-color: var(--ln-success); }
+.ui-step.is-current { color: var(--ln-text); font-weight: 600; border-bottom-color: var(--ln-ink); }
+.ui-step-mark { width: 18px; height: 18px; border-radius: 99px; border: 1px solid var(--ln-border-strong); display: grid; place-items: center; font-size: 10px; }
+.ui-step.is-done .ui-step-mark { background: var(--ln-success); border-color: var(--ln-success); color: #fff; }
+.ui-step.is-current .ui-step-mark { background: var(--ln-ink); border-color: var(--ln-ink); color: var(--ln-on-ink); }
+
+/* Review checks */
+.ui-check { display: flex; align-items: flex-start; gap: 12px; padding: 11px 16px; }
+.ui-check-mark { flex: none; width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.ui-check.is-ok .ui-check-mark { background: var(--ln-success); color: #fff; }
+.ui-check.is-warn .ui-check-mark { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
+.ui-check.is-info .ui-check-mark { background: var(--ln-neutral-bg); color: var(--ln-text-3); }
+.ui-check strong { display: block; }
+
+/* Notes */
+.ui-note { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; background: var(--ln-muted); color: var(--ln-text-2); font-size: 12px; }
+.ui-note.is-warn { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
+
+/* Progress and tiles */
+.ui-bar { height: 6px; border-radius: 99px; background: var(--ln-muted); overflow: hidden; }
+.ui-bar > span { display: block; height: 100%; border-radius: 99px; background: var(--ln-success); }
+.ui-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ui-tile { padding: 10px 12px; border: 1px solid var(--ln-border); border-radius: var(--ln-radius-card); background: var(--ln-card); }
+.ui-tile b { display: block; margin-top: 2px; font-size: 20px; line-height: 26px; font-weight: 600; }
+.ui-code { padding: 10px 12px; border-radius: 8px; background: #14171c; color: #ece9e1; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; line-height: 18px; }
+.ui-code .t { color: #9599a0; }
+
+/* Mode cards */
+.ui-mode { display: flex; gap: 10px; padding: 12px; }
+.ui-mode.is-on { border-color: var(--ln-ink); box-shadow: inset 0 0 0 1px var(--ln-ink); }
+.ui-mode small { display: block; margin-top: 2px; color: var(--ln-text-2); font-size: 12px; }
+
+@media (max-width: 700px) { .ui-grid2, .ui-tiles { grid-template-columns: 1fr; } }
+
+/* Icons (generated from lnIcons.ts). */
+.ui-i-dash { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2 2h5v5H2zM9 2h5v3H9zM9 7h5v7H9zM2 9h5v5H2z"/%3E%3C/svg%3E'); }
+.ui-i-lists { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M5.5 4h8.5M5.5 8h8.5M5.5 12h8.5M2.2 4h.1M2.2 8h.1M2.2 12h.1"/%3E%3C/svg%3E'); }
+.ui-i-subs { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M6 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1.5 14c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M11 2.5a2.5 2.5 0 0 1 0 4.5M12.5 10c1.3.5 2 1.8 2 4"/%3E%3C/svg%3E'); }
+.ui-i-camp { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2 6v4h2l5 3V3L4 6zM12 5.5a3 3 0 0 1 0 5"/%3E%3C/svg%3E'); }
+.ui-i-code { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="m5 4-4 4 4 4M11 4l4 4-4 4"/%3E%3C/svg%3E'); }
+.ui-i-key { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M10.5 2a3.5 3.5 0 1 1-2.6 5.8L2 13.5V14h2.5v-1.5H6V11h1.5l1-1M11 5h.1"/%3E%3C/svg%3E'); }
+.ui-i-file { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M3.5 2h6.5l2.5 2.5V14h-9zM10 2v2.5h2.5M6 8h4M6 10.5h4"/%3E%3C/svg%3E'); }
+.ui-i-send { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M14 2 2 7l5 2 2 5zM7 9l3-3"/%3E%3C/svg%3E'); }
+.ui-i-log { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M3 2.5h10v11H3zM5.5 5.5h5M5.5 8h5M5.5 10.5h3"/%3E%3C/svg%3E'); }
+.ui-i-image { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2 3h12v10H2zM2 11l3.5-3.5 3 3 2-2L14 12M10.5 6h.1"/%3E%3C/svg%3E'); }
+.ui-i-webhook { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M6.5 5.5a2.5 2.5 0 1 1 3.5 2.2L11.5 10M4 9a2.5 2.5 0 1 0 3 3.5h4.5M11.5 8.5a2.5 2.5 0 1 1-.5 5"/%3E%3C/svg%3E'); }
+.ui-i-users { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M8 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"/%3E%3C/svg%3E'); }
+.ui-i-gear { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/%3E%3C/svg%3E'); }
+.ui-i-external { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M9 2h5v5M14 2 7 9M12 9.5V14H2V4h4.5"/%3E%3C/svg%3E'); }
+.ui-i-collapse { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2 2.5h12v11H2zM6 2.5v11M10.5 6 8.5 8l2 2"/%3E%3C/svg%3E'); }
+.ui-i-expand { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2 2.5h12v11H2zM6 2.5v11M9 6l2 2-2 2"/%3E%3C/svg%3E'); }
+.ui-i-menu { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M2.5 4h11M2.5 8h11M2.5 12h11"/%3E%3C/svg%3E'); }
+.ui-i-refresh { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M13.5 8A5.5 5.5 0 1 1 11.8 4M13.5 2v3h-3"/%3E%3C/svg%3E'); }
+.ui-i-moon { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/%3E%3C/svg%3E'); }
+.ui-i-sun { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/%3E%3C/svg%3E'); }
+.ui-i-close { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="m4 4 8 8M12 4l-8 8"/%3E%3C/svg%3E'); }
+.ui-i-chevronRight { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="m6 4 4 4-4 4"/%3E%3C/svg%3E'); }
+.ui-i-chevronDown { --ui-icon: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="m4 6 4 4 4-4"/%3E%3C/svg%3E'); }
