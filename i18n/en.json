@@ -1597,7 +1597,7 @@
     "campaigns.tracking.checkNoLinks": "Link clicks aren't tracked.",
     "campaigns.tracking.checkPixels": "1 tracking pixel | {n} tracking pixels",
     "campaigns.tracking.replies": "Track replies",
-    "campaigns.tracking.repliesHelp": "See who replies. Replies go to a listnun address first, then on to your Reply-To address (or your From address if there isn't one), so subscribers see the listnun address when they reply.",
+    "campaigns.tracking.repliesHelp": "Shows who replies, then forwards each reply to your Reply-To (or From) address. Subscribers see a listnun reply address.",
     "campaigns.tracking.checkReplies": "Replies are recorded here, then forwarded to your Reply-To address.",
     "campaigns.replies.title": "Replies",
     "campaigns.replies.count": "Replies",

@@ -384,6 +384,12 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
+
+  // The control keeps its size however long the label beside it runs;
+  // at 390px a two-line help text used to squeeze a toggle to a sliver.
+  > .p-toggleswitch,
+  > .p-checkbox,
+  > .p-radiobutton { flex: none; }
 }
 
 // ── Dialog form ─────────────────────────────────────────
