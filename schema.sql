@@ -857,3 +857,32 @@ CREATE INDEX idx_inactive_cleanup_runs ON inactive_cleanup_runs(tenant_id, start
 ALTER TABLE inactive_cleanup_runs ENABLE ROW LEVEL SECURITY; ALTER TABLE inactive_cleanup_runs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON inactive_cleanup_runs;
 CREATE POLICY tenant_isolation ON inactive_cleanup_runs USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- Replies to campaign emails (models.CampaignReply). Recorded from the
+-- inbound mail webhook (cmd/replies.go) for campaigns with reply tracking
+-- on. provider_message_id is the inbound provider's id for the message, so
+-- a redelivered webhook doesn't record the same reply twice.
+DROP TABLE IF EXISTS campaign_replies CASCADE;
+CREATE TABLE campaign_replies (
+    id                   BIGSERIAL PRIMARY KEY,
+    uuid                 uuid NOT NULL UNIQUE,
+    tenant_id            INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    campaign_id          INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    subscriber_id        INTEGER NULL REFERENCES subscribers(id) ON DELETE SET NULL,
+    from_email           TEXT NOT NULL,
+    from_name            TEXT NOT NULL DEFAULT '',
+    subject              TEXT NOT NULL DEFAULT '',
+    text_body            TEXT NOT NULL DEFAULT '',
+    html_body            TEXT NOT NULL DEFAULT '',
+    stripped_text        TEXT NOT NULL DEFAULT '',
+    is_auto              BOOLEAN NOT NULL DEFAULT false,
+    provider_message_id  TEXT NOT NULL,
+    forwarded_to         TEXT NOT NULL DEFAULT '',
+    forwarded_at         TIMESTAMP WITH TIME ZONE NULL,
+    received_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX idx_campaign_replies_provider_msg ON campaign_replies(tenant_id, provider_message_id);
+CREATE INDEX idx_campaign_replies_campaign ON campaign_replies(campaign_id, received_at DESC);
+ALTER TABLE campaign_replies ENABLE ROW LEVEL SECURITY; ALTER TABLE campaign_replies FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON campaign_replies;
+CREATE POLICY tenant_isolation ON campaign_replies USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);

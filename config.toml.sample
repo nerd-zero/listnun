@@ -51,6 +51,20 @@ params = ""
 [operator]
 token = ""
 
+# Campaign reply tracking (a campaign's "Track replies" switch). Off unless
+# inbound_address is set. Replies to tracked campaigns go to a per-message
+# address plus-addressed onto inbound_address (e.g. Postmark's
+# "<hash>@inbound.postmarkapp.com"); the provider's inbound webhook posts
+# them to /webhooks/replies/postmark with these basic-auth credentials,
+# e.g. https://user:pass@your-host/webhooks/replies/postmark. secret signs
+# the token in each address (16+ characters); changing it orphans replies
+# to emails already sent.
+#[replies]
+#inbound_address = ""
+#secret = ""
+#webhook_username = ""
+#webhook_password = ""
+
 # DB credentials for a *separate* Postgres role with the BYPASSRLS
 # attribute, connecting to the same host/port/database as [db] above -
 # required because listing/aggregating data across every tenant at once

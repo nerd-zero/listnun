@@ -29,3 +29,21 @@ func TestUnavailableRedirect(t *testing.T) {
 		})
 	}
 }
+
+// The reply webhook serves every tenant at one URL; resolving a tenant
+// from its Host would 404 it on an unknown host or 503 it whenever that
+// host's tenant is suspended.
+func TestIsCrossTenantPath(t *testing.T) {
+	for path, want := range map[string]bool{
+		"/api/operator/tenants":      true,
+		"/webhooks/replies/postmark": true,
+		"/webhooks/bounce":           false,
+		"/webhooks/service/postmark": false,
+		"/api/campaigns/1/replies":   false,
+		"/admin/campaigns":           false,
+	} {
+		if got := isCrossTenantPath(path); got != want {
+			t.Errorf("isCrossTenantPath(%q) = %v, want %v", path, got, want)
+		}
+	}
+}

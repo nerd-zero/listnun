@@ -964,6 +964,53 @@
                 }
             }
         },
+        "/api/campaigns/{id}/replies": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get a campaign's replies",
+                "operationId": "getCampaignReplies",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CampaignRepliesPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/{id}/status": {
             "put": {
                 "consumes": [
@@ -6281,6 +6328,53 @@
                 }
             }
         },
+        "/webhooks/replies/postmark": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Receive a reply to a campaign email (Postmark inbound)",
+                "operationId": "postmarkRepliesWebhook",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/webhooks/scrub/batch": {
             "post": {
                 "consumes": [
@@ -6845,6 +6939,103 @@
                 }
             }
         },
+        "CampaignRepliesPage": {
+            "type": "object",
+            "properties": {
+                "counts": {
+                    "$ref": "#/definitions/CampaignReplyCounts"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignReply"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "CampaignReply": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "integer"
+                },
+                "forwarded_at": {
+                    "type": "string"
+                },
+                "forwarded_to": {
+                    "type": "string"
+                },
+                "from_email": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "html_body": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_auto": {
+                    "description": "IsAuto marks an automatic response (out-of-office, vacation). Kept,\nbut not counted as a reply.",
+                    "type": "boolean"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "stripped_text": {
+                    "description": "StrippedText is the reply without the quoted original message, when\nthe inbound provider could separate it.",
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "subscriber_email": {
+                    "description": "SubscriberEmail/SubscriberName are joined from subscribers; empty\nonce the subscriber is deleted (FromEmail still says who replied).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
+                "subscriber_id": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "subscriber_name": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "text_body": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignReplyCounts": {
+            "type": "object",
+            "properties": {
+                "auto": {
+                    "type": "integer"
+                },
+                "repliers": {
+                    "type": "integer"
+                },
+                "replies": {
+                    "type": "integer"
+                }
+            }
+        },
         "CampaignTracking": {
             "type": "object",
             "properties": {
@@ -6858,6 +7049,10 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "replies": {
+                    "description": "Replies swaps each email's Reply-To for a per-message listnun reply\naddress, so replies are recorded against the campaign and then\nforwarded to the campaign's own Reply-To (internal/replies). Off\nunless the server has reply tracking configured.",
+                    "type": "boolean"
                 }
             }
         },
@@ -7899,6 +8094,10 @@
                             }
                         }
                     }
+                },
+                "reply_tracking": {
+                    "description": "ReplyTracking is whether the server has campaign reply tracking\nconfigured ([replies]), so the editor only offers the switch when\nit would do something.",
+                    "type": "boolean"
                 },
                 "root_url": {
                     "type": "string"

@@ -200,6 +200,12 @@ type Config struct {
 	// (exposed to the internet, private etc.) where only one does campaign
 	// processing while the others handle other kinds of traffic.
 	ScanCampaigns bool
+
+	// ReplyAddress returns the per-message reply address for a campaign
+	// with reply tracking on (CampaignTracking.Replies). Nil when the
+	// server has no reply tracking configured, in which case such
+	// campaigns send with their own Reply-To unchanged.
+	ReplyAddress func(tenantID, campaignID, subscriberID int) string
 }
 
 // tenantURLCfg mirrors Config's URL template fields, resolved against one
@@ -700,25 +706,7 @@ func (m *Manager) worker() {
 				Attachments: msg.Campaign.Attachments,
 			}
 
-			h := textproto.MIMEHeader{}
-			h.Set(models.EmailHeaderCampaignUUID, msg.Campaign.UUID)
-			h.Set(models.EmailHeaderSubscriberUUID, msg.Subscriber.UUID)
-
-			// Attach List-Unsubscribe headers?
-			if m.cfg.UnsubHeader {
-				h.Set("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
-				h.Set("List-Unsubscribe", `<`+msg.unsubURL+`>`)
-			}
-
-			// Attach any custom headers.
-			for _, set := range msg.headers {
-				for hdr, val := range set {
-					h.Add(hdr, val)
-				}
-			}
-
-			// Set the headers.
-			out.Headers = h
+			out.Headers = m.campaignHeaders(msg)
 
 			// Push the message to the messenger.
 			msgr, err := m.getMessenger(context.Background(), msg.Campaign.TenantID, msg.Campaign.Messenger)
@@ -773,6 +761,35 @@ func (m *Manager) worker() {
 			}
 		}
 	}
+}
+
+// campaignHeaders returns the headers of one campaign message: the
+// campaign/subscriber identifiers, List-Unsubscribe, the campaign's custom
+// headers, and -- for a campaign with reply tracking on -- the
+// per-message reply address in place of any custom Reply-To (the reply
+// webhook forwards each reply on to that original address).
+func (m *Manager) campaignHeaders(msg CampaignMessage) textproto.MIMEHeader {
+	h := textproto.MIMEHeader{}
+	h.Set(models.EmailHeaderCampaignUUID, msg.Campaign.UUID)
+	h.Set(models.EmailHeaderSubscriberUUID, msg.Subscriber.UUID)
+
+	// Attach List-Unsubscribe headers?
+	if m.cfg.UnsubHeader {
+		h.Set("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+		h.Set("List-Unsubscribe", `<`+msg.unsubURL+`>`)
+	}
+
+	// Attach any custom headers.
+	for _, set := range msg.headers {
+		for hdr, val := range set {
+			h.Add(hdr, val)
+		}
+	}
+
+	if msg.Campaign.Tracking.Replies && m.cfg.ReplyAddress != nil {
+		h.Set("Reply-To", m.cfg.ReplyAddress(msg.Campaign.TenantID, msg.Campaign.ID, msg.Subscriber.ID))
+	}
+	return h
 }
 
 // countSent records a successfully pushed message as billable email

@@ -180,6 +180,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/analytics/:type", pm(a.GetCampaignViewAnalytics, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/:id/replies", pm(hasID(a.GetCampaignReplies), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview/archive", pm(hasID(a.PreviewCampaignArchive), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/content", pm(hasID(a.CampaignContent), "campaigns:manage_all", "campaigns:manage"))
@@ -319,6 +320,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// verifying Scrub's HMAC signature instead (see
 		// cmd/scrub_batch.go's ScrubBatchWebhook).
 		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
+
+		// Replies to reply-tracked campaigns, from the inbound mail
+		// provider. Cross-tenant (the signed token in each reply address
+		// names the tenant), authenticated by HTTP basic auth; 404s when
+		// reply tracking isn't configured. See cmd/replies.go.
+		g.POST("/webhooks/replies/postmark", a.RepliesWebhook)
 
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {

@@ -166,6 +166,12 @@ type Queries struct {
 	RetryWebhookDelivery        *sqlx.Stmt `query:"retry-webhook-delivery"`
 	PruneWebhookDeliveries      *sqlx.Stmt `query:"prune-webhook-deliveries"`
 
+	GetReplyCampaign           *sqlx.Stmt `query:"get-reply-campaign"`
+	InsertCampaignReply        *sqlx.Stmt `query:"insert-campaign-reply"`
+	MarkCampaignReplyForwarded *sqlx.Stmt `query:"mark-campaign-reply-forwarded"`
+	GetCampaignReplies         *sqlx.Stmt `query:"get-campaign-replies"`
+	GetCampaignReplyCounts     *sqlx.Stmt `query:"get-campaign-reply-counts"`
+
 	CreateTxMessage         *sqlx.Stmt `query:"create-tx-message"`
 	SetTxMessageStatus      *sqlx.Stmt `query:"set-tx-message-status"`
 	GetTxMessageForBounce   *sqlx.Stmt `query:"get-tx-message-for-bounce"`

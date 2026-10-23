@@ -42,18 +42,24 @@ func (e InvalidPixelError) Error() string {
 
 // CampaignTracking is what a campaign adds to its emails for tracking,
 // set with switches in the editor so nobody has to write template tags.
-// It applies to HTML emails only.
+// Links and Pixels apply to HTML emails only; Replies applies to every
+// email.
 type CampaignTracking struct {
 	// Links tracks every web link in the email, as if each had @TrackLink.
 	Links bool `json:"links"`
 	// Pixels are third-party tracking image URLs added to the end of the
 	// email (analytics or ad platforms that count opens with an image).
 	Pixels []string `json:"pixels"`
+	// Replies swaps each email's Reply-To for a per-message listnun reply
+	// address, so replies are recorded against the campaign and then
+	// forwarded to the campaign's own Reply-To (internal/replies). Off
+	// unless the server has reply tracking configured.
+	Replies bool `json:"replies"`
 } // @name CampaignTracking
 
 // Normalized trims the pixel URLs and drops empty and repeated ones.
 func (t CampaignTracking) Normalized() CampaignTracking {
-	out := CampaignTracking{Links: t.Links, Pixels: []string{}}
+	out := CampaignTracking{Links: t.Links, Replies: t.Replies, Pixels: []string{}}
 	seen := make(map[string]bool, len(t.Pixels))
 	for _, p := range t.Pixels {
 		p = strings.TrimSpace(p)
