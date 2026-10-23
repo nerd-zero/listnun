@@ -17,6 +17,12 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+// A section name above the title ("Developers" over "Message log"),
+// on its own line rather than beside the title.
+.ln-page-eyebrow {
+  flex-basis: 100%;
+  margin-bottom: -6px;
+}
 .ln-page-count {
   font-size: 14px;
   color: var(--ln-text-3);
