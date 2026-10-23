@@ -89,6 +89,21 @@ func Check(id string) (any, error) {
 	return token.Data, nil
 }
 
+// Peek reports whether a token exists and hasn't expired, returning its
+// data, without consuming it or counting towards its maxTries -- for
+// reporting whether a link still works (e.g. the Operator API's setup link
+// status) without spending the attempts its real user needs.
+func Peek(id string) (any, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	token, exists := tokens[id]
+	if !exists || time.Since(token.CreatedAt) > token.TTL {
+		return nil, false
+	}
+	return token.Data, true
+}
+
 // Get retrieves a token by ID and automatically deletes it (after one time use).
 // An error is returned if the token doesn't exist or has expired.
 func Get(id string) (any, error) {

@@ -917,6 +917,19 @@ definitions:
       wait_timeout:
         type: string
     type: object
+  OperatorSetupLinkStatus:
+    properties:
+      password_set:
+        description: |-
+          PasswordSet is whether the admin has a password -- the setup link
+          was used (or the password was set some other way).
+        type: boolean
+      valid:
+        description: |-
+          Valid is whether the setup link still works: its token exists, hasn't
+          expired or been used, and belongs to this tenant and admin.
+        type: boolean
+    type: object
   OperatorTenant:
     properties:
       created_at:
@@ -4757,6 +4770,52 @@ paths:
       tags:
       - operator
   /api/operator/tenants/{id}/setup-link:
+    get:
+      description: 'Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Reports whether the setup token is still valid
+        for this tenant and admin, and whether the admin has a password. Read-only:
+        the token isn''t consumed or counted as an attempt.'
+      operationId: getOperatorSetupLinkStatus
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: The setup token (the setup_url's token parameter)
+        in: query
+        name: token
+        required: true
+        type: string
+      - description: The admin's email
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorSetupLinkStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Check a tenant admin's setup link (Operator API)
+      tags:
+      - operator
     post:
       consumes:
       - application/json

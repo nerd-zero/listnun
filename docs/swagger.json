@@ -3809,6 +3809,71 @@
             }
         },
         "/api/operator/tenants/{id}/setup-link": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Reports whether the setup token is still valid for this tenant and admin, and whether the admin has a password. Read-only: the token isn't consumed or counted as an attempt.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Check a tenant admin's setup link (Operator API)",
+                "operationId": "getOperatorSetupLinkStatus",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The setup token (the setup_url's token parameter)",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The admin's email",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorSetupLinkStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -7808,6 +7873,19 @@
                 },
                 "wait_timeout": {
                     "type": "string"
+                }
+            }
+        },
+        "OperatorSetupLinkStatus": {
+            "type": "object",
+            "properties": {
+                "password_set": {
+                    "description": "PasswordSet is whether the admin has a password -- the setup link\nwas used (or the password was set some other way).",
+                    "type": "boolean"
+                },
+                "valid": {
+                    "description": "Valid is whether the setup link still works: its token exists, hasn't\nexpired or been used, and belongs to this tenant and admin.",
+                    "type": "boolean"
                 }
             }
         },

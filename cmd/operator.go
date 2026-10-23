@@ -648,6 +648,17 @@ type operatorSetupLinkResp struct {
 	SetupURL   string `json:"setup_url,omitempty"`
 } // @name OperatorCreateSetupLinkResp
 
+// operatorSetupLinkStatus is the response body for
+// GetOperatorSetupLinkStatus.
+type operatorSetupLinkStatus struct {
+	// Valid is whether the setup link still works: its token exists, hasn't
+	// expired or been used, and belongs to this tenant and admin.
+	Valid bool `json:"valid"`
+	// PasswordSet is whether the admin has a password -- the setup link
+	// was used (or the password was set some other way).
+	PasswordSet bool `json:"password_set"`
+} // @name OperatorSetupLinkStatus
+
 // operatorUpdateStatusReq is the request body for UpdateOperatorTenantStatus.
 type operatorUpdateStatusReq struct {
 	Status string `json:"status"`
@@ -1069,6 +1080,53 @@ func (a *App) tenantRootURL(tenantSlug string) string {
 		scheme = "https"
 	}
 	return scheme + "://" + tenantSlug + "." + a.cfg.RootDomain
+}
+
+// GetOperatorSetupLinkStatus reports whether a setup link issued by
+// CreateOperatorTenant/CreateOperatorSetupLink still works, and whether the
+// admin has set a password -- so the platform can stop offering a dead
+// link (setup tokens expire, are single-use, and are held in memory only,
+// so an app restart invalidates every pending one). Doesn't consume the
+// token or count towards its attempt limit.
+//
+//	@ID			getOperatorSetupLinkStatus
+//	@Summary		Check a tenant admin's setup link (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Reports whether the setup token is still valid for this tenant and admin, and whether the admin has a password. Read-only: the token isn't consumed or counted as an attempt.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			token	query		string	true	"The setup token (the setup_url's token parameter)"
+//	@Param			email	query		string	true	"The admin's email"
+//	@Success		200	{object}	operatorSetupLinkStatus
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/setup-link [get]
+func (a *App) GetOperatorSetupLinkStatus(c echo.Context) error {
+	id := getID(c)
+	token := strings.TrimSpace(c.QueryParam("token"))
+	email := strings.TrimSpace(c.QueryParam("email"))
+	if token == "" || !utils.ValidateEmail(email) {
+		return echo.NewHTTPError(http.StatusBadRequest, "token and a valid email are required")
+	}
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var out operatorSetupLinkStatus
+	if data, ok := tmptokens.Peek(token); ok {
+		p, isSetup := data.(operatorSetupToken)
+		out.Valid = isSetup && p.TenantID == id && strings.EqualFold(p.Email, email)
+	}
+	// A missing admin just means no password; anything else is an error.
+	if user, err := a.core.GetUser(c.Request().Context(), id, 0, "", email); err == nil {
+		out.PasswordSet = user.HasPassword
+	} else if he, ok := err.(*echo.HTTPError); !ok || he.Code != http.StatusNotFound {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
 }
 
 // CreateOperatorSetupLink issues a fresh one-time setup link for an
