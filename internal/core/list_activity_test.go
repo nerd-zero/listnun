@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -79,7 +81,9 @@ func rlsPool(t *testing.T, admin *sqlx.DB) *sqlx.DB {
 		admin.MustExec(`REVOKE USAGE ON SCHEMA public FROM ` + quoted)
 		admin.MustExec(`DROP ROLE IF EXISTS ` + quoted)
 	})
-	return db
+	// Unsafe, like the app's pool (cmd/init.go): models don't map every
+	// column a query returns.
+	return db.Unsafe()
 }
 
 // listFixture inserts rows for one test tenant, deleted with it.
@@ -236,5 +240,57 @@ func TestListActivity_CountsJoinsLeavesAndOpens(t *testing.T) {
 	}
 	if len(act.Campaigns) != 1 || act.Campaigns[0].ID != camp || act.Campaigns[0].Opened != 1 {
 		t.Errorf("campaigns = %+v, want the digest with 1 opener", act.Campaigns)
+	}
+}
+
+// Regression: query-lists cut the page before sorting, so each page was
+// an arbitrary slice sorted on its own, and "Most subscribers" or paging
+// by name came out in the wrong order.
+func TestQueryLists_SortsBeforePaging(t *testing.T) {
+	pool := testPool(t)
+	f := newListFixture(t, pool)
+	ctx := context.Background()
+
+	qs, err := goyesql.ParseFile("../../queries/lists.sql")
+	if err != nil {
+		t.Fatalf("parsing queries/lists.sql: %v", err)
+	}
+	lang, err := i18n.New([]byte(`{"_.code":"en","_.name":"English"}`))
+	if err != nil {
+		t.Fatalf("building i18n: %v", err)
+	}
+	// CacheSlowQueries skips the stats refresh, which the RLS role may
+	// not run; the test refreshes them itself.
+	c := &Core{db: rlsPool(t, pool), q: &models.Queries{QueryLists: qs["query-lists"].Query}, i18n: lang,
+		consts: Constants{CacheSlowQueries: true}, log: log.New(os.Stderr, "", 0)}
+
+	// Lists created in the opposite order to their names and sizes.
+	sizes := map[string]int{"Delta": 1, "Charlie": 2, "Bravo": 3, "Alpha": 4}
+	for _, name := range []string{"Delta", "Charlie", "Bravo", "Alpha"} {
+		id := f.list(name, models.ListOptinSingle)
+		for i := 0; i < sizes[name]; i++ {
+			f.subscribe(f.subscriber(fmt.Sprintf("%s%d@example.com", name, i), "enabled"), id, "confirmed", time.Hour, time.Hour)
+		}
+	}
+	pool.MustExec(`REFRESH MATERIALIZED VIEW mat_list_subscriber_stats`)
+
+	names := func(orderBy, order string, offset int) string {
+		t.Helper()
+		ls, _, err := c.QueryLists(ctx, f.tenant, "", "", "", "", nil, orderBy, order, true, nil, offset, 2)
+		if err != nil {
+			t.Fatalf("QueryLists: %v", err)
+		}
+		out := ""
+		for _, l := range ls {
+			out += l.Name + " "
+		}
+		return out
+	}
+
+	if got := names("name", "asc", 0) + names("name", "asc", 2); got != "Alpha Bravo Charlie Delta " {
+		t.Errorf("by name, two pages = %q", got)
+	}
+	if got := names("subscriber_count", "desc", 0); got != "Alpha Bravo " {
+		t.Errorf("most subscribers, first page = %q, want Alpha Bravo", got)
 	}
 }
