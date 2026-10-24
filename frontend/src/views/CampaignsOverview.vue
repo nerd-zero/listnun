@@ -23,14 +23,18 @@
     />
 
     <template v-else>
-      <!-- Paused campaigns -->
-      <div v-for="c in paused" :key="c.id" role="status" class="camps-ov-paused" data-cy="paused-banner">
+      <!-- One banner for paused campaigns: the first in detail, the rest
+           counted, since only one banner may compete for attention. -->
+      <div v-for="c in paused.slice(0, 1)" :key="c.id" role="status" class="camps-ov-paused" data-cy="paused-banner">
         <span class="camps-ov-paused-text">
           <i class="pi pi-pause" aria-hidden="true" />
           <span>
             <strong>{{ $t('campaigns.overview.pausedTitle', { name: c.name }) }}</strong>
             <span>{{ pausedText(c) }}</span>
             <span v-if="c.pauseReason" class="ln-small">{{ $t(`campaigns.pauseReason.${c.pauseReason}`) }}</span>
+            <router-link v-if="paused.length > 1" :to="{ name: 'allCampaigns', query: { status: 'paused' } }" class="ln-small camps-ov-more-paused">
+              {{ $t('campaigns.overview.morePaused', { n: paused.length - 1 }, paused.length - 1) }}
+            </router-link>
           </span>
         </span>
         <span class="camps-ov-paused-actions">
@@ -56,24 +60,10 @@
           <div class="camps-ov-progress" role="progressbar" :aria-valuenow="sentOf(c)" aria-valuemin="0" :aria-valuemax="totalOf(c)">
             <span :style="{ width: `${pct(sentOf(c), totalOf(c))}%` }" />
           </div>
-          <dl class="camps-ov-figures">
-            <div>
-              <dt>{{ $t('campaigns.overview.sent') }}</dt>
-              <dd>{{ $t('campaigns.overview.sentOf', { sent: $utils.niceNumber(sentOf(c)), total: $utils.niceNumber(totalOf(c)) }) }}</dd>
-            </div>
-            <div>
-              <dt>{{ $t('campaigns.overview.speed') }}</dt>
-              <dd>{{ $t('campaigns.overview.perMinute', { n: $utils.niceNumber(rateOf(c)) }) }}</dd>
-            </div>
-            <div>
-              <dt>{{ $t('campaigns.overview.timeLeft') }}</dt>
-              <dd>{{ timeLeftLabel(c) }}</dd>
-            </div>
-            <div>
-              <dt>{{ $t('campaigns.overview.openedSoFar') }}</dt>
-              <dd>{{ rate(c.opened, sentOf(c)) }}</dd>
-            </div>
-          </dl>
+          <div class="camps-ov-live-line">
+            <span>{{ $t('campaigns.overview.sentOf', { sent: $utils.niceNumber(sentOf(c)), total: $utils.niceNumber(totalOf(c)) }) }}</span>
+            <span v-if="timeLeftLabel(c)" class="ln-small">{{ timeLeftLabel(c) }}</span>
+          </div>
         </article>
       </section>
 
@@ -82,7 +72,7 @@
         <section v-if="upNext.length" class="camps-ov-section" :aria-label="$t('campaigns.overview.upNext')">
           <h2 class="camps-ov-h2">{{ $t('campaigns.overview.upNext') }}</h2>
           <div class="ln-card camps-ov-next">
-            <template v-for="d in upNext" :key="d.day">
+            <template v-for="d in upNextShown" :key="d.day">
               <h3 class="camps-ov-day">{{ d.label }}</h3>
               <div v-for="c in d.items" :key="c.id" class="camps-ov-next-row" data-cy="scheduled">
                 <time class="ln-mono" :datetime="c.sendAt">{{ hhmm(c.sendAt) }}</time>
@@ -93,6 +83,9 @@
                 <router-link :to="{ name: 'campaign', params: { id: c.id } }">{{ $t('globals.buttons.edit') }}</router-link>
               </div>
             </template>
+            <router-link v-if="scheduledCount > NEXT_ROWS" :to="{ name: 'allCampaigns', query: { status: 'scheduled' } }" class="camps-ov-list-more">
+              {{ $t('campaigns.overview.allScheduled', { n: scheduledCount }) }}
+            </router-link>
           </div>
         </section>
 
@@ -102,17 +95,18 @@
             <h2 class="camps-ov-h2">{{ $t('campaigns.overview.draftsTitle') }}</h2>
             <router-link :to="{ name: 'allCampaigns', query: { status: 'draft' } }" class="ln-small">{{ $t('campaigns.overview.allDrafts', { n: count('draft') }) }}</router-link>
           </div>
-          <router-link
-            v-for="c in drafts"
-            :key="c.id"
-            :to="{ name: 'campaign', params: { id: c.id } }"
-            class="ln-card camps-ov-draft"
-            data-cy="draft"
-          >
-            <strong>{{ c.name }}</strong>
-            <span class="ln-small">{{ draftMeta(c) }}</span>
-            <span class="camps-ov-continue">{{ $t('campaigns.overview.continue') }}</span>
-          </router-link>
+          <div class="ln-card camps-ov-drafts">
+            <router-link
+              v-for="c in drafts"
+              :key="c.id"
+              :to="{ name: 'campaign', params: { id: c.id } }"
+              class="camps-ov-draft"
+              data-cy="draft"
+            >
+              <strong>{{ c.name }}</strong>
+              <span class="ln-small">{{ draftMeta(c) }}</span>
+            </router-link>
+          </div>
         </section>
       </div>
 
@@ -120,13 +114,12 @@
       <section v-if="sent.length" class="camps-ov-section" :aria-label="$t('campaigns.overview.sentTitle')">
         <div class="camps-ov-section-head">
           <h2 class="camps-ov-h2">{{ $t('campaigns.overview.sentTitle') }}</h2>
-          <router-link v-if="$can('campaigns:get_analytics')" :to="{ name: 'campaignAnalytics' }" class="ln-small">{{ $t('campaigns.overview.compare') }}</router-link>
+          <router-link :to="{ name: 'allCampaigns', query: { status: 'finished' } }" class="ln-small">{{ $t('campaigns.overview.allSent', { n: count('finished') }) }}</router-link>
         </div>
         <div class="ln-card camps-ov-sent">
           <div v-if="!isMobile" class="camps-ov-sent-row is-head" aria-hidden="true">
             <span>{{ $t('campaigns.overview.col.campaign') }}</span>
             <span>{{ $t('campaigns.overview.col.sent') }}</span>
-            <span class="is-num">{{ $t('campaigns.overview.col.delivered') }}</span>
             <span>{{ $t('campaigns.overview.col.opened') }}</span>
             <span class="is-num">{{ $t('campaigns.overview.col.clicked') }}</span>
           </div>
@@ -137,13 +130,9 @@
             class="camps-ov-sent-row"
             data-cy="sent"
           >
-            <span class="camps-ov-sent-name">
-              <strong>{{ c.name }}</strong>
-              <span class="ln-small">{{ listNames(c) }}</span>
-            </span>
+            <strong class="camps-ov-sent-name">{{ c.name }}</strong>
             <template v-if="!isMobile">
               <span class="ln-small">{{ shortDate(c.startedAt || c.updatedAt) }}</span>
-              <span class="is-num">{{ $utils.niceNumber(delivered(c)) }}</span>
               <span class="camps-ov-open">
                 <span class="camps-ov-bar" aria-hidden="true"><span :style="{ width: `${pct(c.opened, delivered(c))}%` }" /></span>
                 <span class="is-num">{{ rate(c.opened, delivered(c)) }}</span>
@@ -155,10 +144,6 @@
               <span>{{ $t('campaigns.overview.opened', { n: rate(c.opened, delivered(c)) }) }}</span>
             </span>
           </router-link>
-          <div class="camps-ov-sent-foot ln-small">
-            <span>{{ $t('campaigns.overview.mostRecent', { n: sent.length, total: count('finished') }) }}</span>
-            <router-link :to="{ name: 'allCampaigns', query: { status: 'finished' } }">{{ $t('campaigns.overview.showAllSent') }}</router-link>
-          </div>
         </div>
       </section>
     </template>
@@ -244,6 +229,18 @@ const upNext = computed(() => {
   return days;
 });
 
+// Up next shows this many scheduled campaigns; the rest are a click away.
+const NEXT_ROWS = 3;
+const scheduledCount = computed(() => count('scheduled'));
+const upNextShown = computed(() => {
+  let left = NEXT_ROWS;
+  return upNext.value.map((d) => {
+    const items = d.items.slice(0, Math.max(0, left));
+    left -= items.length;
+    return { ...d, items };
+  }).filter((d) => d.items.length);
+});
+
 function count(status: string): number {
   return data.value?.counts.find((c) => c.status === status)?.count || 0;
 }
@@ -286,25 +283,27 @@ function startedLabel(c: Item): string {
 function timeLeftLabel(c: Item): string {
   const r = rateOf(c);
   const left = totalOf(c) - sentOf(c);
-  if (!r || left <= 0) return '–';
+  if (!r || left <= 0) return '';
   const mins = Math.ceil(left / r);
   return mins < 90 ? t('campaigns.overview.aboutMin', { n: mins }) : t('campaigns.overview.aboutHours', { n: Math.round(mins / 60) });
 }
 
 function pausedText(c: Item): string {
-  return t('campaigns.overview.pausedText', {
+  const p = {
     date: ago(c.updatedAt),
     sent: $utils.niceNumber(c.sent),
     total: $utils.niceNumber(c.toSend),
     left: $utils.niceNumber(Math.max(0, c.toSend - c.sent)),
     lists: listNames(c),
-  });
+  };
+  return t(c.lists.length ? 'campaigns.overview.pausedText' : 'campaigns.overview.pausedTextNoLists', p);
 }
 
 function draftMeta(c: Item): string {
   const when = ago(c.updatedAt);
   const edited = c.updatedByName ? t('campaigns.overview.editedBy', { when, name: c.updatedByName }) : t('campaigns.overview.edited', { when });
-  return `${edited}, ${c.lists.length ? listNames(c) : t('campaigns.overview.noLists')}`;
+  // Lists only when there are none: that blocks sending.
+  return c.lists.length ? edited : `${edited}, ${t('campaigns.overview.noLists')}`;
 }
 
 function open(c: Item) {
@@ -442,6 +441,28 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
   span { display: block; height: 100%; background: var(--ln-success); transition: width var(--ln-dur-slow) var(--ln-ease); }
 }
+.camps-ov-live-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  .ln-small { font-weight: 400; }
+}
+.camps-ov-more-paused { color: var(--ln-text); text-decoration: underline; }
+.camps-ov-list-more {
+  display: block;
+  padding: 12px 18px;
+  border-top: 1px solid var(--ln-border);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ln-text);
+  text-decoration: underline;
+}
+.camps-ov-drafts { overflow: hidden; }
 .camps-ov-figures {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -489,12 +510,13 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .camps-ov-draft {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
+  gap: 2px;
+  padding: 14px 18px;
   color: var(--ln-text);
   text-decoration: none;
 
-  &:hover { border-color: var(--ln-border-strong); text-decoration: none; }
+  & + & { border-top: 1px solid var(--ln-border); }
+  &:hover { background: var(--ln-hover); text-decoration: none; }
   strong { font-weight: 500; }
 }
 .camps-ov-continue { margin-top: 6px; font-size: 13px; font-weight: 600; }
@@ -502,7 +524,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 .camps-ov-sent { overflow: hidden; }
 .camps-ov-sent-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) 90px 90px minmax(0, 1.6fr) 80px;
+  grid-template-columns: minmax(0, 2.4fr) 90px minmax(0, 1.6fr) 80px;
   gap: 16px;
   align-items: center;
   padding: 14px 18px;
