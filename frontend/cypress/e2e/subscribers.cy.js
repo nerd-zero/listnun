@@ -105,7 +105,8 @@ describe('Subscribers', () => {
   });
 
   it('Advanced searches subscribers', () => {
-    cy.get('[data-cy=btn-advanced-search]').click();
+    // The SQL box opens from the segment builder's "Edit as SQL".
+    cy.get('[data-cy=btn-edit-sql]').click();
 
     const cases = [
       { value: 'subscribers.attribs->>\'city\'=\'Bengaluru\'', count: 2 },
