@@ -833,6 +833,7 @@
     "subscribers.errorNoListsGiven": "No lists given.",
     "subscribers.summary": "{n} people across {lists} lists",
     "subscribers.addPerson": "Add person",
+    "subscribers.moreLists": "+{n} more",
     "subscribers.findPerson": "Find a person by name or email",
     "subscribers.col.person": "Person",
     "subscribers.col.lastOpened": "Last opened",

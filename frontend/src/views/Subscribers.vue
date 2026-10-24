@@ -8,10 +8,11 @@
       </template>
       <PvButton
         v-if="!isMobile"
+        v-tooltip.bottom="$t('subscribers.export')"
         severity="secondary"
         outlined
         icon="pi pi-download"
-        :label="$t('subscribers.export')"
+        :aria-label="$t('subscribers.export')"
         data-cy="btn-export-subscribers"
         @click="askExport"
       />
@@ -77,7 +78,7 @@
             :aria-selected="segKey === c.key"
             @click="pickSegment(c.key)"
           >
-            {{ c.name }}<span>{{ countLabel(c.key) }}</span>
+            {{ c.name }}<span v-if="segKey === c.key">{{ countLabel(c.key) }}</span>
           </button>
         </div>
 
@@ -243,27 +244,17 @@
 
         <PvColumn v-if="!isMobile" :header="$t('globals.terms.lists')" header-class="cy-lists">
           <template #body="{ data }">
-            <span class="ln-attrs" data-cy="lists">
-              <span
-                v-for="l in activeLists(data).slice(0, 2)"
-                :key="l.id"
-                class="ln-attr"
-                :title="awaitingOptin(l) ? $t('subscribers.status.unconfirmed') : ''"
-              >
-                {{ l.name }}
-                <span v-if="awaitingOptin(l)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
-              </span>
-              <span v-if="activeLists(data).length > 2" class="ln-attr ln-attr--filled">+{{ activeLists(data).length - 2 }}</span>
+            <!-- Plain text, one list named: chips per list made every row
+                 a cluster. Waiting to confirm is the exception worth a mark. -->
+            <span class="subs-lists ln-small" data-cy="lists" :title="activeLists(data).map((l) => l.name).join(', ')">
+              {{ listsLabel(data) }}
+              <span v-if="activeLists(data).some(awaitingOptin)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
             </span>
           </template>
         </PvColumn>
 
         <PvColumn v-if="!isMobile" :header="$t('subscribers.col.lastOpened')" header-style="width:120px">
           <template #body="{ data }"><span class="ln-date" :class="{ 'subs-never': !data.lastOpenedAt }">{{ opened(data) }}</span></template>
-        </PvColumn>
-
-        <PvColumn v-if="!openSub && !isMobile" field="created_at" :header="$t('subscribers.col.joined')" sortable header-class="cy-created_at" header-style="width:110px">
-          <template #body="{ data }"><span class="ln-date">{{ shortDate(data.createdAt) }}</span></template>
         </PvColumn>
 
         <PvColumn v-if="!openSub && !isMobile" header-style="width:56px" body-style="text-align:right">
@@ -565,6 +556,14 @@ const rangeLabel = computed(() => {
   const from = (queryParams.page - 1) * per + 1;
   return t('developers.log.range', { from, to: Math.min(queryParams.page * per, total), total: total.toLocaleString() });
 });
+
+// listsLabel names the first list and counts the rest ("Weekly digest
+// +2 more").
+function listsLabel(sub: Loose): string {
+  const ls = activeLists(sub);
+  if (!ls.length) return '';
+  return ls.length > 1 ? `${ls[0].name} ${t('subscribers.moreLists', { n: ls.length - 1 })}` : ls[0].name;
+}
 
 function activeLists(s: Loose): Loose[] {
   return (s.lists || []).filter((l: Loose) => l.subscriptionStatus !== 'unsubscribed');
@@ -936,7 +935,17 @@ onMounted(() => {
   &[aria-current] { background: var(--ln-muted); color: var(--ln-text); font-weight: 600; }
 }
 .subs-seg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.subs-seg-n { font-size: 12px; font-weight: 400; color: var(--ln-text-3); font-variant-numeric: tabular-nums; }
+.subs-seg-n {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ln-text-3);
+  font-variant-numeric: tabular-nums;
+  // Only the open segment shows its count; the rest on hover or focus.
+  opacity: 0;
+  transition: opacity var(--ln-dur-fast) var(--ln-ease);
+
+  .subs-seg:hover &, .subs-seg:focus-visible &, .subs-seg[aria-current] & { opacity: 1; }
+}
 .subs-seg-new { margin-top: 4px; justify-content: flex-start; font-weight: 500; i { font-size: 12px; } }
 
 .subs-chips {
@@ -994,6 +1003,7 @@ onMounted(() => {
 }
 .subs-opened-m { flex: none; font-size: 12px; color: var(--ln-text-2); &.is-never { color: var(--ln-text-4); } }
 .subs-never { color: var(--ln-text-4); }
+.subs-lists { color: var(--ln-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; .subs-unconf { margin-left: 8px; } }
 
 .subs-save { display: flex; flex-direction: column; gap: 8px; label { font-size: 13px; font-weight: 500; } }
 .subs-save-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

@@ -1,7 +1,9 @@
 <template>
-  <section class="ln-card seg" :aria-label="$t('subscribers.segments.title')" data-cy="segment-builder">
+  <section class="ln-card seg" :class="{ 'is-compact': compact }" :aria-label="$t('subscribers.segments.title')" data-cy="segment-builder">
     <div class="seg-body">
-      <div class="seg-head">
+      <!-- With no conditions there is nothing to explain or count: the
+           sidebar and header already say who is shown. -->
+      <div v-if="!compact" class="seg-head">
         <strong v-if="title" class="seg-title">{{ title }}</strong>
         <span class="seg-match">
           {{ $t('subscribers.segments.matchLead') }}
@@ -20,7 +22,6 @@
       </div>
 
       <div class="seg-chips">
-        <span v-if="!modelValue.conditions.length" class="ln-small">{{ $t('subscribers.segments.noConditions') }}</span>
         <span v-for="(c, i) in modelValue.conditions" :key="i" class="seg-chip" data-cy="condition">
           <span class="seg-chip-field">{{ fieldLabel(c) }}</span>
           <span class="seg-chip-op">{{ $t(`subscribers.segments.op.${c.op}`) }}</span>
@@ -32,10 +33,11 @@
         <button type="button" class="seg-add" data-cy="btn-add-condition" @click="(e) => adder?.toggle(e)">
           <i class="pi pi-plus" aria-hidden="true" /> {{ $t('subscribers.segments.addCondition') }}
         </button>
+        <a v-if="compact && canSql" href="#" class="ln-small seg-sql-inline" data-cy="btn-edit-sql" @click.prevent="emit('sql')">{{ $t('subscribers.segments.editAsSql') }}</a>
       </div>
     </div>
 
-    <div class="seg-foot">
+    <div v-if="!compact" class="seg-foot">
       <span class="seg-count">
         <strong data-cy="segment-count">{{ count === null ? '…' : $t('subscribers.segments.peopleMatch', { n: $utils.niceNumber(count) }, count) }}</strong>
         <span v-if="count !== null && total" class="ln-small">{{ $t('subscribers.segments.shareOfEveryone', { pct: share }) }}</span>
@@ -134,6 +136,7 @@ const listOptions = computed(() => props.lists.map((l) => ({ id: String(l.id), n
 const isDays = computed(() => draft.op === 'in_last' || draft.op === 'not_in_last');
 const isDate = computed(() => draft.op === 'before' || draft.op === 'after');
 const needsValue = computed(() => !NO_VALUE.has(draft.op) && draft.field !== 'unconfirmed');
+const compact = computed(() => !props.modelValue.conditions.length && !props.title);
 const share = computed(() => {
   if (!props.total || props.count === null) return '';
   return `${((props.count / props.total) * 100).toFixed(1)}%`;
@@ -241,5 +244,7 @@ function add() {
 .seg-count { display: flex; align-items: baseline; gap: 10px; strong { font-weight: 600; } }
 .seg-actions { display: flex; align-items: center; gap: 10px; a { color: var(--ln-text-2); } }
 .seg-delete { color: var(--ln-danger-fg) !important; }
+.seg.is-compact .seg-body { padding: 10px 12px; }
+.seg-sql-inline { margin-left: auto; color: var(--ln-text-2); }
 .seg-form { display: flex; flex-direction: column; gap: 10px; width: 260px; }
 </style>

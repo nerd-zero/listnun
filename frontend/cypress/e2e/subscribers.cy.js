@@ -47,8 +47,14 @@ const checkRow = ($tr, {
   cy.wrap($tr).find('[data-cy=name]').should('contain', name);
   cy.wrap($tr).find('[data-cy=blocklisted]').should(status === 'blocklisted' ? 'exist' : 'not.exist');
 
-  // The Lists column leaves out unsubscribed lists.
-  cy.wrap($tr).find('[data-cy=lists] .ln-attr').should('have.length', status === 'blocklisted' ? 0 : numLists);
+  // The Lists column names the first active list and counts the rest,
+  // leaving out unsubscribed lists.
+  const active = status === 'blocklisted' ? 0 : numLists;
+  if (active > 1) {
+    cy.wrap($tr).find('[data-cy=lists]').should('contain', `+${active - 1} more`);
+  } else {
+    cy.wrap($tr).find('[data-cy=lists]').should('not.contain', 'more');
+  }
 
   // Lists on an enabled subscriber are 'unconfirmed' and on a blocklisted one, 'unsubscribed'.
   listStatuses(id).then((statuses) => {
@@ -264,8 +270,8 @@ describe('Subscribers', () => {
     const asc = [3, 4, 5, 6, 7, 8];
     const desc = [8, 7, 6, 5, 4, 3];
 
-    // Only e-mail and created date are sortable in the redesigned table.
-    const cases = ['cy-email', 'cy-created_at'];
+    // Only the person (e-mail) column is sortable now.
+    const cases = ['cy-email'];
 
     cases.forEach((c) => {
       cy.sortTable(`thead th.${c}`, asc);
