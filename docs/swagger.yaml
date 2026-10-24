@@ -730,6 +730,60 @@ definitions:
       uuid:
         type: string
     type: object
+  ListActivity:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/ListCampaign'
+        type: array
+      days:
+        items:
+          $ref: '#/definitions/ListActivityDay'
+        type: array
+      joined:
+        type: integer
+      left:
+        type: integer
+    type: object
+  ListActivityDay:
+    properties:
+      day:
+        type: string
+      joined:
+        type: integer
+      left:
+        type: integer
+    type: object
+  ListCampaign:
+    properties:
+      clicked:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      opened:
+        type: integer
+      send_at:
+        type: string
+      sent:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      uuid:
+        type: string
+    type: object
+  ListGrowth:
+    properties:
+      joined:
+        type: integer
+      left:
+        type: integer
+      list_id:
+        type: integer
+    type: object
   ListPermission:
     properties:
       id:
@@ -766,6 +820,13 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  ListsSummary:
+    properties:
+      lists:
+        type: integer
+      subscriptions:
+        type: integer
     type: object
   MediaUsage:
     properties:
@@ -1015,6 +1076,13 @@ definitions:
       emails_sent:
         type: integer
       validations:
+        type: integer
+    type: object
+  OptinPending:
+    properties:
+      due:
+        type: integer
+      total:
         type: integer
     type: object
   Organization:
@@ -2148,6 +2216,19 @@ definitions:
           CustomDomain is the bare host (e.g. "mail.acme.com"), no scheme --
           empty clears it, reverting the tenant to <slug>.root_domain only.
         type: string
+    type: object
+  cmd.optinResendReq:
+    properties:
+      list_ids:
+        description: ListIDs limits the resend to these lists. Empty means every list.
+        items:
+          type: integer
+        type: array
+    type: object
+  cmd.optinResendResp:
+    properties:
+      queued:
+        type: integer
     type: object
   echo.HTTPError:
     properties:
@@ -3994,6 +4075,29 @@ paths:
       summary: Update a list
       tags:
       - lists
+  /api/lists/{id}/activity:
+    get:
+      operationId: getListActivity
+      parameters:
+      - description: List ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListActivity'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a list's recent activity
+      tags:
+      - lists
   /api/lists/{id}/scrub:
     post:
       operationId: scrubList
@@ -4045,6 +4149,67 @@ paths:
       summary: Get progress for a running Scrub validation job
       tags:
       - settings
+  /api/lists/growth:
+    get:
+      operationId: getListsGrowth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ListGrowth'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get list growth over the last 30 days
+      tags:
+      - lists
+  /api/lists/optin/pending:
+    get:
+      operationId: getOptinPending
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OptinPending'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count unconfirmed double opt-in subscribers
+      tags:
+      - lists
+  /api/lists/optin/resend:
+    post:
+      consumes:
+      - application/json
+      operationId: resendOptins
+      parameters:
+      - description: Lists to limit the resend to
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/cmd.optinResendReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.optinResendResp'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend opt-in confirmations
+      tags:
+      - lists
   /api/lists/scrub:
     get:
       operationId: getScrubListStatus
@@ -4092,6 +4257,19 @@ paths:
       summary: Get Scrub validation history
       tags:
       - settings
+  /api/lists/summary:
+    get:
+      operationId: getListsSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListsSummary'
+      summary: Count lists and their subscriptions
+      tags:
+      - lists
   /api/logout:
     post:
       operationId: logout

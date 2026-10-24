@@ -83,6 +83,14 @@ type Queries struct {
 	UpdateListsDate   *sqlx.Stmt `query:"update-lists-date"`
 	DeleteLists       *sqlx.Stmt `query:"delete-lists"`
 
+	GetListsGrowth         *sqlx.Stmt `query:"get-lists-growth"`
+	GetListActivity        *sqlx.Stmt `query:"get-list-activity"`
+	GetListRecentCampaigns *sqlx.Stmt `query:"get-list-recent-campaigns"`
+	GetOptinPending        *sqlx.Stmt `query:"get-optin-pending"`
+	CountOptinPending      *sqlx.Stmt `query:"count-optin-pending"`
+	MarkOptinSent          *sqlx.Stmt `query:"mark-optin-sent"`
+	GetListsSummary        *sqlx.Stmt `query:"get-lists-summary"`
+
 	CreateCampaign        *sqlx.Stmt `query:"create-campaign"`
 	QueryCampaigns        string     `query:"query-campaigns"`
 	GetCampaign           *sqlx.Stmt `query:"get-campaign"`
