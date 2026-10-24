@@ -870,6 +870,25 @@ CREATE POLICY tenant_isolation ON inactive_cleanup_runs USING (tenant_id = NULLI
 -- inbound mail webhook (cmd/replies.go) for campaigns with reply tracking
 -- on. provider_message_id is the inbound provider's id for the message, so
 -- a redelivered webhook doesn't record the same reply twice.
+-- Saved subscriber segments (v6.37.0). conditions are internal/segments
+-- conditions, compiled to SQL when used.
+DROP TABLE IF EXISTS segments CASCADE;
+CREATE TABLE segments (
+    id               SERIAL PRIMARY KEY,
+    tenant_id        INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    uuid             uuid NOT NULL UNIQUE,
+    name             TEXT NOT NULL,
+    match            TEXT NOT NULL DEFAULT 'all',
+    conditions       JSONB NOT NULL DEFAULT '[]',
+    created_by_name  TEXT NOT NULL DEFAULT '',
+    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_segments_tenant ON segments(tenant_id);
+ALTER TABLE segments ENABLE ROW LEVEL SECURITY; ALTER TABLE segments FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON segments;
+CREATE POLICY tenant_isolation ON segments USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
 DROP TABLE IF EXISTS campaign_replies CASCADE;
 CREATE TABLE campaign_replies (
     id                   BIGSERIAL PRIMARY KEY,

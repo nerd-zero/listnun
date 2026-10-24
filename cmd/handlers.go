@@ -163,6 +163,13 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/import/subscribers", pm(a.StopImportSubscribers, "subscribers:import"))
 
 		// Individual list permissions are applied directly within handleGetLists.
+		g.GET("/api/segments", pm(a.GetSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments", pm(a.CreateSegment, "subscribers:manage"))
+		g.POST("/api/segments/count", pm(a.CountSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments/sql", pm(a.SegmentSQL, "subscribers:get_all", "subscribers:get"))
+		g.PUT("/api/segments/:id", pm(hasID(a.UpdateSegment), "subscribers:manage"))
+		g.DELETE("/api/segments/:id", pm(hasID(a.DeleteSegment), "subscribers:manage"))
+
 		g.GET("/api/lists", a.GetLists)
 		g.GET("/api/lists/scrub", pm(a.GetScrubListStatus, "settings:manage"))
 		g.GET("/api/lists/scrub/history", pm(a.GetScrubHistory, "settings:manage"))

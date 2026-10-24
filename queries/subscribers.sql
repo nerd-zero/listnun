@@ -342,7 +342,10 @@ DELETE FROM subscriber_lists
 -- there's a COUNT() OVER() that still returns the total result count
 -- for pagination in the frontend, albeit being a field that'll repeat
 -- with every resultant row.
-SELECT subscribers.* FROM subscribers
+-- last_opened_at is computed only for the page of rows returned.
+SELECT subscribers.*,
+    (SELECT MAX(v.created_at) FROM campaign_views v WHERE v.subscriber_id = subscribers.id) AS last_opened_at
+    FROM subscribers
     LEFT JOIN subscriber_lists
     ON (
         -- Optional list filtering.
