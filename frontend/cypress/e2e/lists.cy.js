@@ -105,7 +105,7 @@ describe('Lists', () => {
         name: `list-${n}`, type: 'public', optin: 'double', tags: `tag${n}{enter}`, description: `desc${n}`,
       });
       cy.get('[data-cy=list-panel] h2').should('contain', `list-${n}`);
-      cy.get('[data-cy=list-panel]').should('contain', 'test').and('contain', `tag${n}`);
+      cy.get('[data-cy=list-panel]').should('contain', `desc${n}`);
     });
   });
 
@@ -121,13 +121,8 @@ describe('Lists', () => {
 
   // Add new lists.
   it('Adds new lists', () => {
-    // Create lists of every type/optin combination.
-    const kinds = {
-      'private-single': 'Private, no confirmation',
-      'private-double': 'Private, confirm by email',
-      'public-single': 'Public, no confirmation',
-      'public-double': 'Public, confirm by email',
-    };
+    // Create lists of every type/optin combination. Only public lists
+    // have a signup form tab.
 
     let n = 0;
     ['private', 'public'].forEach((t) => {
@@ -139,7 +134,8 @@ describe('Lists', () => {
           name, type: t, optin: o, tags: `tag${n}{enter}${t}{enter}${o}{enter}`, description: `desc-${t}-${n}`,
         });
 
-        cy.contains('[data-cy=list-card]', name).should('contain', kinds[`${t}-${o}`]);
+        openList(name);
+        cy.get('[data-cy=tab-form]').should(t === 'public' ? 'exist' : 'not.exist');
         n += 1;
       });
     });

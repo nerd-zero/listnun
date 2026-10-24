@@ -3,33 +3,16 @@
     <header class="list-panel-head">
       <div class="list-panel-title">
         <h2 :id="`list-panel-${list.id}`">{{ list.name }}</h2>
-        <span v-if="list.description" class="list-panel-desc">{{ list.description }}</span>
-        <span class="ln-small">{{ $t(`lists.about.${kindKey}`) }}</span>
-        <span v-if="list.tags?.length || scrub" class="ln-attrs">
-          <status-tag
-            v-if="scrub?.activeJobRequestId"
-            status="pending"
-            :label="$t('settings.scrub.validatingProgress', { count: $utils.niceNumber(scrubProgress || 0) })"
-          />
-          <span v-else-if="scrub?.lastResult" class="ln-attr ln-attr--filled">
-            {{ $t('settings.scrub.lastValidatedCounts', {
-              date: shortDate(scrub.lastResult.completedAt),
-              valid: $utils.niceNumber(scrub.lastResult.validCount || 0),
-              invalid: $utils.niceNumber(scrub.lastResult.invalidCount || 0),
-            }) }}
-          </span>
-          <span v-for="tag in list.tags" :key="tag" class="ln-attr ln-attr--filled">{{ tag }}</span>
-        </span>
+        <span class="ln-small">{{ list.description || $t(`lists.about.${kindKey}`) }}</span>
+        <!-- Shown only while a check runs: a finished one is history. -->
+        <status-tag
+          v-if="scrub?.activeJobRequestId"
+          status="pending"
+          :label="$t('settings.scrub.validatingProgress', { count: $utils.niceNumber(scrubProgress || 0) })"
+        />
       </div>
       <div class="list-panel-actions">
         <PvButton v-if="canManage" :label="$t('globals.buttons.edit')" severity="secondary" outlined data-cy="btn-edit" @click="emit('edit')" />
-        <PvButton
-          v-if="list.type === 'public'"
-          :label="$t('lists.getSignupForm')"
-          severity="secondary"
-          outlined
-          @click="$router.push({ name: 'forms' })"
-        />
         <PvButton
           v-if="$can('campaigns:manage')"
           icon="pi pi-send"
@@ -49,6 +32,8 @@
       </div>
     </header>
 
+    <!-- At most three figures: who gets campaigns, the month's change, and
+         people waiting to confirm only when there are some. -->
     <div class="list-panel-stats">
       <component
         :is="canSeeSubs ? 'router-link' : 'div'"
@@ -58,97 +43,81 @@
       >
         <span class="list-panel-stat-label">{{ $t('lists.stat.subscribers') }}<i v-if="canSeeSubs" class="pi pi-arrow-right" aria-hidden="true" /></span>
         <span class="list-panel-stat-value" data-cy="stat-subscribers">{{ $utils.niceNumber(receiving) }}</span>
-        <span class="ln-small">{{ canSeeSubs ? $t('lists.stat.viewSubscribers') : (list.optin === 'double' ? $t('lists.stat.receivingDouble') : $t('lists.stat.receivingSingle')) }}</span>
       </component>
-      <div>
-        <span class="list-panel-stat-label">{{ $t('lists.stat.joined') }}</span>
-        <span class="list-panel-stat-value" :class="{ 'is-ok': joined > 0 }" data-cy="stat-joined">{{ activity ? signed(joined) : '–' }}</span>
-        <span class="ln-small">{{ $t('lists.stat.last30') }}</span>
-      </div>
-      <div>
-        <span class="list-panel-stat-label">{{ $t('lists.stat.left') }}</span>
-        <span class="list-panel-stat-value" data-cy="stat-left">{{ activity ? $utils.niceNumber(left) : '–' }}</span>
-        <span class="ln-small">{{ $t('lists.stat.last30') }}</span>
+      <div class="list-panel-stat">
+        <span class="list-panel-stat-label">{{ $t('lists.stat.last30Title') }}</span>
+        <span class="list-panel-stat-value" :class="{ 'is-down': net < 0 }" data-cy="stat-change">{{ activity ? signed(net) : '–' }}</span>
+        <span v-if="activity" class="ln-small" data-cy="stat-joined-left">{{ $t('lists.stat.joinedLeft', { joined: $utils.niceNumber(joined), left: $utils.niceNumber(left) }) }}</span>
       </div>
       <component
-        :is="canSeeSubs && unconfirmed ? 'router-link' : 'div'"
-        v-if="list.optin === 'double'"
+        :is="canSeeSubs ? 'router-link' : 'div'"
+        v-if="unconfirmed > 0 && list.optin === 'double'"
         :to="subsLink('unconfirmed')"
         class="list-panel-stat"
       >
-        <span class="list-panel-stat-label">{{ $t('lists.stat.notConfirmed') }}<i v-if="canSeeSubs && unconfirmed" class="pi pi-arrow-right" aria-hidden="true" /></span>
-        <span class="list-panel-stat-value" :class="{ 'is-warn': unconfirmed > 0 }" data-cy="stat-unconfirmed">{{ $utils.niceNumber(unconfirmed) }}</span>
-        <span class="ln-small">{{ $t('lists.stat.waiting') }}</span>
+        <span class="list-panel-stat-label">{{ $t('lists.stat.notConfirmed') }}<i v-if="canSeeSubs" class="pi pi-arrow-right" aria-hidden="true" /></span>
+        <span class="list-panel-stat-value is-warn" data-cy="stat-unconfirmed">{{ $utils.niceNumber(unconfirmed) }}</span>
       </component>
-      <div v-else>
-        <span class="list-panel-stat-label">{{ $t('lists.stat.unsubscribed') }}</span>
-        <span class="list-panel-stat-value">{{ $utils.niceNumber(list.subscriberStatuses?.unsubscribed || 0) }}</span>
-        <span class="ln-small">{{ $t('lists.stat.allTime') }}</span>
-      </div>
     </div>
 
-    <div class="list-panel-chart">
-      <div class="list-panel-chart-head">
-        <h3>{{ $t('lists.chart.title') }}</h3>
-        <span class="list-panel-legend" aria-hidden="true">
-          <span><span class="is-joined" />{{ $t('lists.chart.joined') }}</span>
-          <span><span class="is-left" />{{ $t('lists.chart.left') }}</span>
-        </span>
-      </div>
-      <div class="list-panel-bars" role="img" :aria-label="$t('lists.chart.label', { joined, left })">
-        <span v-for="d in days" :key="d.day" class="list-panel-bar" :title="`${shortDate(d.day)}: +${d.joined} −${d.left}`">
-          <span class="is-joined" :style="{ height: `${(d.joined / peak) * 100}%` }" />
-          <span class="is-left" :style="{ height: `${(d.left / peak) * 100}%` }" />
-        </span>
-      </div>
-      <div class="list-panel-axis ln-small" aria-hidden="true">
-        <span>{{ days.length ? shortDate(days[0].day) : '' }}</span>
-        <span>{{ days.length > 2 ? shortDate(days[Math.floor(days.length / 2)].day) : '' }}</span>
-        <span>{{ $t('lists.chart.today') }}</span>
-      </div>
-    </div>
+    <!-- Details one click away rather than stacked down the panel. -->
+    <PvTabs v-model:value="tab" class="list-panel-tabs">
+      <PvTabList>
+        <PvTab value="growth">{{ $t('lists.tab.growth') }}</PvTab>
+        <PvTab value="campaigns" data-cy="tab-campaigns">{{ $t('lists.tab.campaigns') }}</PvTab>
+        <PvTab v-if="list.type === 'public'" value="form" data-cy="tab-form">{{ $t('lists.signupForm') }}</PvTab>
+      </PvTabList>
+      <PvTabPanels>
+        <PvTabPanel value="growth">
+          <div class="list-panel-chart">
+            <span class="list-panel-legend" aria-hidden="true">
+              <span><span class="is-joined" />{{ $t('lists.chart.joined') }}</span>
+              <span><span class="is-left" />{{ $t('lists.chart.left') }}</span>
+            </span>
+            <div class="list-panel-bars" role="img" :aria-label="$t('lists.chart.label', { joined, left })">
+              <span v-for="d in days" :key="d.day" class="list-panel-bar" :title="`${shortDate(d.day)}: +${d.joined} −${d.left}`">
+                <span class="is-joined" :style="{ height: `${(d.joined / peak) * 100}%` }" />
+                <span class="is-left" :style="{ height: `${(d.left / peak) * 100}%` }" />
+              </span>
+            </div>
+            <div class="list-panel-axis ln-small" aria-hidden="true">
+              <span>{{ days.length ? shortDate(days[0].day) : '' }}</span>
+              <span>{{ $t('lists.chart.today') }}</span>
+            </div>
+          </div>
+        </PvTabPanel>
 
-    <div class="list-panel-foot">
-      <div class="list-panel-recent">
-        <div class="list-panel-sub-head">
-          <h3>{{ $t('lists.recent.title') }}</h3>
-          <router-link :to="{ name: 'campaigns' }" class="ln-small">{{ $t('lists.recent.all') }}</router-link>
-        </div>
-        <p v-if="activity && !activity.campaigns.length" class="ln-small">{{ $t('lists.recent.none') }}</p>
-        <router-link
-          v-for="c in activity?.campaigns || []"
-          :key="c.id"
-          :to="{ name: 'campaign', params: { id: c.id } }"
-          class="list-panel-camp"
-        >
-          <span class="list-panel-camp-name">
-            <strong>{{ c.name }}</strong>
-            <span class="ln-small">{{ when(c) }}</span>
-          </span>
-          <span class="list-panel-camp-num">
-            <span>{{ rate(c.opened, c.sent) }}</span>
-            <span class="ln-small">{{ $t('lists.recent.opened') }}</span>
-          </span>
-          <span class="list-panel-camp-num">
-            <span>{{ rate(c.clicked, c.sent) }}</span>
-            <span class="ln-small">{{ $t('lists.recent.clicked') }}</span>
-          </span>
-        </router-link>
-      </div>
+        <PvTabPanel value="campaigns">
+          <div class="list-panel-recent">
+            <p v-if="activity && !activity.campaigns.length" class="ln-small">{{ $t('lists.recent.none') }}</p>
+            <router-link
+              v-for="c in activity?.campaigns || []"
+              :key="c.id"
+              :to="{ name: 'campaign', params: { id: c.id } }"
+              class="list-panel-camp"
+            >
+              <span class="list-panel-camp-name">
+                <strong>{{ c.name }}</strong>
+                <span class="ln-small">{{ when(c) }}</span>
+              </span>
+              <span v-if="c.sent" class="list-panel-camp-num">{{ $t('lists.recent.openedRate', { n: rate(c.opened, c.sent) }) }}</span>
+            </router-link>
+            <router-link :to="{ name: 'campaigns' }" class="list-panel-more">{{ $t('lists.recent.all') }}</router-link>
+          </div>
+        </PvTabPanel>
 
-      <div class="list-panel-form">
-        <h3>{{ $t('lists.signupForm') }}</h3>
-        <template v-if="list.type === 'public'">
-          <span class="ln-small">{{ $t('lists.form.text') }}</span>
-          <span class="list-panel-link">
-            <span class="ln-mono">{{ formURL }}</span>
-            <PvButton :label="copied ? $t('states.copied') : $t('globals.buttons.copy')" size="small" severity="secondary" outlined @click="copyLink" />
-          </span>
-          <router-link :to="{ name: 'forms' }" class="list-panel-customise">{{ $t('lists.form.customise') }}</router-link>
-        </template>
-        <span v-else class="ln-small">{{ $t('lists.form.private') }}</span>
-      </div>
-    </div>
+        <PvTabPanel v-if="list.type === 'public'" value="form">
+          <div class="list-panel-form">
+            <span class="ln-small">{{ $t('lists.form.text') }}</span>
+            <span class="list-panel-link">
+              <span class="ln-mono">{{ formURL }}</span>
+              <PvButton :label="copied ? $t('states.copied') : $t('globals.buttons.copy')" size="small" severity="secondary" outlined @click="copyLink" />
+            </span>
+            <router-link :to="{ name: 'forms' }" class="list-panel-more">{{ $t('lists.form.customise') }}</router-link>
+          </div>
+        </PvTabPanel>
+      </PvTabPanels>
+    </PvTabs>
   </section>
 </template>
 
@@ -186,6 +155,7 @@ const { serverConfig } = storeToRefs(useMainStore());
 const { getListActivity } = listsApi();
 
 const activity = ref<Activity | null>(null);
+const tab = ref('growth');
 const copied = ref(false);
 
 const canSeeSubs = computed(() => $can('subscribers:get_all', 'subscribers:get'));
@@ -198,6 +168,7 @@ const receiving = computed(() => {
 });
 const joined = computed(() => activity.value?.joined || 0);
 const left = computed(() => activity.value?.left || 0);
+const net = computed(() => joined.value - left.value);
 const days = computed(() => activity.value?.days || []);
 // The tallest day sets the chart's scale; 1 keeps an empty month flat.
 const peak = computed(() => Math.max(1, ...days.value.map((d) => d.joined + d.left)));
@@ -245,6 +216,8 @@ function fetchActivity() {
 }
 
 watch(() => props.list.id, fetchActivity, { immediate: true });
+// A private list has no signup form tab.
+watch(() => props.list.type, (type) => { if (type !== 'public' && tab.value === 'form') tab.value = 'growth'; });
 defineExpose({ refresh: fetchActivity });
 </script>
 
@@ -263,18 +236,18 @@ defineExpose({ refresh: fetchActivity });
 .list-panel-title {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
   min-width: 0;
 
   h2 { margin: 0; font-size: 20px; line-height: 26px; font-weight: 600; overflow-wrap: anywhere; }
 }
-.list-panel-desc { color: var(--ln-text-2); }
 .list-panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .list-panel-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   border-bottom: 1px solid var(--ln-border);
 
   > * {
@@ -293,18 +266,12 @@ defineExpose({ refresh: fetchActivity });
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 
-    &.is-ok { color: var(--ln-success-fg); }
+    // Colour only where something needs attention.
+    &.is-down { color: var(--ln-danger-fg); }
     &.is-warn { color: var(--ln-warn-fg); }
   }
 
-  @media (max-width: 600px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-
-    > * { padding: 14px 16px; }
-    > * + * { border-left: 0; }
-    > :nth-child(even) { border-left: 1px solid var(--ln-border); }
-    > :nth-child(n + 3) { border-top: 1px solid var(--ln-border); }
-  }
+  @media (max-width: 600px) { > * { padding: 14px 16px; } }
 }
 
 .list-panel-stat {
@@ -315,22 +282,10 @@ defineExpose({ refresh: fetchActivity });
   &[href]:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: -2px; }
 }
 
-.list-panel-chart {
-  padding: 18px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-bottom: 1px solid var(--ln-border);
-}
-.list-panel-chart-head, .list-panel-sub-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
+.list-panel-tabs :deep(.p-tablist) { padding: 0 12px; }
+.list-panel-tabs :deep(.p-tabpanels) { padding: 0; }
 
-  h3 { margin: 0; font-size: 14px; font-weight: 600; }
-  a { color: var(--ln-text-2); }
-}
+.list-panel-chart { padding: 16px 22px 18px; display: flex; flex-direction: column; gap: 10px; }
 .list-panel-legend {
   display: flex;
   gap: 14px;
@@ -363,27 +318,12 @@ defineExpose({ refresh: fetchActivity });
 }
 .list-panel-axis { display: flex; justify-content: space-between; }
 
-.list-panel-foot {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-
-  @media (max-width: 1100px) { grid-template-columns: minmax(0, 1fr); }
-}
-.list-panel-recent {
-  padding: 18px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border-right: 1px solid var(--ln-border);
-
-  @media (max-width: 1100px) { border-right: 0; border-bottom: 1px solid var(--ln-border); }
-  p { margin: 6px 0 0; }
-}
-.list-panel-sub-head { margin-bottom: 6px; }
+.list-panel-recent { padding: 12px 22px 18px; display: flex; flex-direction: column; gap: 2px; p { margin: 6px 0; } }
 .list-panel-camp {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px;
-  gap: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 8px 6px;
   margin: 0 -6px;
   border-radius: 6px;
@@ -400,25 +340,14 @@ defineExpose({ refresh: fetchActivity });
 
   strong { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
-.list-panel-camp-num {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+.list-panel-camp-num { flex: none; font-size: 13px; color: var(--ln-text-2); font-variant-numeric: tabular-nums; }
+.list-panel-more { margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--ln-text); text-decoration: underline; }
 
-  > span:first-child { font-variant-numeric: tabular-nums; }
-}
-
-.list-panel-form {
-  padding: 18px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-
-  h3 { margin: 0; font-size: 14px; font-weight: 600; }
-}
+.list-panel-form { padding: 16px 22px 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .list-panel-link {
   display: flex;
   gap: 6px;
+  width: 100%;
 
   .ln-mono {
     flex: 1;
@@ -437,5 +366,4 @@ defineExpose({ refresh: fetchActivity });
     text-overflow: ellipsis;
   }
 }
-.list-panel-customise { font-size: 13px; font-weight: 500; color: var(--ln-text); }
 </style>

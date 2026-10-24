@@ -11,7 +11,7 @@
       <PvButton v-if="$can('lists:manage_all')" icon="pi pi-plus" :label="$t('lists.newList')" data-cy="btn-new" @click="showNewForm" />
     </page-header>
 
-    <div v-if="pending.total && !isArchived && !(isMobile && selected)" role="status" class="lists-banner" data-cy="optin-banner">
+    <div v-if="showBanner && !isArchived && !(isMobile && selected)" role="status" class="lists-banner" data-cy="optin-banner">
       <span class="lists-banner-text">
         <i class="pi pi-envelope" aria-hidden="true" />
         <span>{{ $t('lists.unconfirmedBanner', { n: $utils.niceNumber(pending.total) }, pending.total) }}</span>
@@ -25,6 +25,9 @@
         data-cy="btn-resend"
         @click="askResend"
       />
+      <button type="button" class="lists-banner-x" :aria-label="$t('lists.banner.dismiss')" data-cy="btn-dismiss-banner" @click="dismissBanner">
+        <i class="pi pi-times" aria-hidden="true" />
+      </button>
     </div>
 
     <div class="lists-layout" :class="{ 'has-panel': selected }">
@@ -76,11 +79,9 @@
                 <strong class="lists-card-name" data-cy="list-name">{{ l.name }}</strong>
                 <span class="lists-card-n">{{ $utils.niceNumber(receiving(l)) }}</span>
               </span>
-              <span class="lists-card-row ln-small">
-                <span class="lists-card-kind">{{ $t(`lists.kind.${kindKey(l)}`) }}</span>
-                <span :class="changeClass(l)">{{ changeLabel(l) }}</span>
-              </span>
+              <!-- One line, only when the list needs attention. -->
               <span v-if="awaiting(l)" class="lists-card-unconf ln-small">{{ $t('lists.notConfirmedYet', { n: $utils.niceNumber(awaiting(l)) }) }}</span>
+              <span v-else-if="change(l) < 0" class="is-down ln-small">{{ changeLabel(l) }}</span>
             </router-link>
           </li>
         </ul>
@@ -229,10 +230,6 @@ const sortOptions = computed(() => [
   { value: 'updated_at', label: t('lists.sort.updated') },
 ]);
 
-function kindKey(l: Loose): string {
-  return `${l.type === 'public' ? 'public' : 'private'}${l.optin === 'double' ? 'Double' : 'Single'}`;
-}
-
 // awaiting is the number of double opt-in subscribers yet to confirm.
 function awaiting(l: Loose): number {
   if (l.optin !== 'double') return 0;
@@ -258,10 +255,17 @@ function changeLabel(l: Loose): string {
   return t('lists.change.none');
 }
 
-function changeClass(l: Loose): string {
-  const n = change(l);
-  if (n > 0) return 'is-up';
-  return n < 0 ? 'is-down' : 'is-flat';
+// The banner stays dismissed until more people are waiting than when it
+// was dismissed (kept per browser).
+const BANNER_KEY = 'ln-lists-optin-dismissed';
+const bannerDismissedAt = ref<number>((() => {
+  try { return Number(localStorage.getItem(BANNER_KEY)) || 0; } catch { return 0; }
+})());
+const showBanner = computed(() => pending.value.total > bannerDismissedAt.value);
+
+function dismissBanner() {
+  bannerDismissedAt.value = pending.value.total;
+  try { localStorage.setItem(BANNER_KEY, String(pending.value.total)); } catch { /* private mode */ }
 }
 
 function refreshMinimalLists() {
@@ -506,6 +510,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .lists-banner {
+  position: relative;
   display: flex;
   gap: 12px;
   align-items: center;
@@ -515,10 +520,23 @@ onUnmounted(() => {
   border-radius: var(--ln-radius-card);
   background: var(--ln-warn-bg);
 
-  @media (max-width: 767px) { flex-direction: column; align-items: flex-start; }
+  @media (max-width: 767px) { flex-direction: column; align-items: flex-start; padding-right: 44px; }
 
   // A card-coloured button on the tinted banner, as in the artboard.
   :deep(.p-button) { background: var(--ln-card); color: var(--ln-text); flex: none; }
+}
+.lists-banner-x {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-2);
+  cursor: pointer;
+
+  &:hover { background: rgba(0, 0, 0, .06); color: var(--ln-text); }
+  @media (max-width: 767px) { position: absolute; top: 8px; right: 8px; }
 }
 .lists-banner-text {
   display: flex;
@@ -606,10 +624,7 @@ onUnmounted(() => {
 }
 .lists-card-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .lists-card-n { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.lists-card-kind { color: var(--ln-text-3); }
 .lists-card-unconf { color: var(--ln-warn-fg); }
-.is-up { color: var(--ln-success-fg); font-variant-numeric: tabular-nums; }
 .is-down { color: var(--ln-danger-fg); font-variant-numeric: tabular-nums; }
-.is-flat { color: var(--ln-text-3); }
 .lists-archived-link { color: var(--ln-text-2); }
 </style>
