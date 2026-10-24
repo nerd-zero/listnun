@@ -9542,11 +9542,31 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "engagement": {
+                    "$ref": "#/definitions/SubscriberEngagement"
+                },
                 "link_clicks": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "SubscriberEngagement": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "last_opened_at": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
                 }
             }
         },
