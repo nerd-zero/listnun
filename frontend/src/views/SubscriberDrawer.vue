@@ -15,84 +15,83 @@
           <div class="sub-d-who">
             <h2>{{ subscriber.name || subscriber.email }}</h2>
             <span class="ln-small">{{ subscriber.email }}</span>
-            <span class="sub-d-state" :class="`is-${tone}`">
-              <span>{{ $t(`subscribers.status.${subscriber.status}`) }}</span><span class="ln-mono sub-d-id">#{{ subscriber.id }}</span>
-            </span>
+            <span class="ln-small sub-d-since">{{ sinceLine }}</span>
+            <span v-if="subscriber.status === 'blocklisted'" class="sub-d-blocked" data-cy="blocklisted">{{ $t('subscribers.status.blocklisted') }}</span>
           </div>
           <button type="button" class="ln-icon-btn" :aria-label="$t('globals.buttons.close')" @click="$emit('close')">
             <i class="pi pi-times" />
           </button>
         </header>
 
-        <PvTabs v-model:value="tab" class="sub-d-tabs">
-          <PvTabList>
-            <PvTab value="activity">{{ $t('subscribers.activity') }}</PvTab>
-            <PvTab value="lists">{{ $t('globals.terms.lists') }}</PvTab>
-            <PvTab value="attribs">{{ $t('globals.terms.attribs') }}</PvTab>
-          </PvTabList>
-          <PvTabPanels>
-            <PvTabPanel value="activity">
-              <div class="sub-d-stats">
-                <div><span>{{ $t('subscribers.campaignsViewed') }}</span><strong>{{ views.length }}</strong></div>
-                <div><span>{{ $t('dashboard.views') }}</span><strong>{{ totalViews }}</strong></div>
-                <div><span>{{ $t('dashboard.clicks') }}</span><strong>{{ totalClicks }}</strong></div>
-              </div>
+        <div class="sub-d-body">
+          <!-- One sentence, only when their engagement needs attention. -->
+          <p v-if="warning" class="sub-d-warn" data-cy="engagement-warning">{{ warning }}</p>
 
-              <table-skeleton v-if="loading" :rows="4" :cols="1" />
-              <ol v-else-if="timeline.length" class="msg-timeline sub-d-timeline ln-enter">
-                <li v-for="(e, i) in timeline" :key="i" :class="`is-${e.tone}`">
-                  <span class="msg-timeline-dot" aria-hidden="true" />
-                  <div class="msg-timeline-body">
-                    <div class="msg-timeline-row">
-                      <strong>{{ e.title }}</strong>
-                      <time class="ln-small" :datetime="e.at">{{ when(e.at) }}</time>
-                    </div>
-                    <p class="msg-timeline-detail">{{ e.text }}</p>
-                  </div>
-                </li>
-              </ol>
-              <p v-else class="ln-small">{{ $t('subscribers.noActivity') }}</p>
+          <div class="sub-d-figures">
+            <div><strong>{{ engagement ? engagement.campaigns : '–' }}</strong><span>{{ $t('subscribers.person.campaigns') }}</span></div>
+            <div><strong>{{ engagement ? engagement.opened : '–' }}</strong><span>{{ $t('subscribers.person.opened') }}</span></div>
+            <div><strong>{{ engagement ? engagement.clicked : '–' }}</strong><span>{{ $t('subscribers.person.clicked') }}</span></div>
+          </div>
 
-              <h3 class="ln-label sub-d-section">{{ $t('globals.terms.subscriptions', 2) }}</h3>
-              <ul class="sub-d-subs">
-                <li v-for="l in subscriber.lists" :key="l.id">
-                  <span>{{ l.name }}</span>
-                  <span :class="`sub-d-sub is-${subTone(l.subscriptionStatus)}`">
-                    {{ $t(`subscribers.status.${l.subscriptionStatus}`) }}
-                    <template v-if="l.subscriptionStatus === 'unsubscribed'"> {{ shortDate(l.subscriptionCreatedAt) }}</template>
-                  </span>
-                </li>
-              </ul>
-            </PvTabPanel>
+          <PvTabs v-model:value="tab" class="sub-d-tabs">
+            <PvTabList>
+              <PvTab value="activity">{{ $t('subscribers.activity') }}</PvTab>
+              <PvTab value="lists">{{ $t('globals.terms.lists') }}</PvTab>
+              <PvTab value="details">{{ $t('subscribers.person.details') }}</PvTab>
+            </PvTabList>
+            <PvTabPanels>
+              <PvTabPanel value="activity">
+                <table-skeleton v-if="loading" :rows="4" :cols="1" />
+                <template v-else-if="timeline.length">
+                  <ol class="msg-timeline sub-d-timeline ln-enter">
+                    <li v-for="(e, i) in shownTimeline" :key="i" :class="`is-${e.tone}`">
+                      <span class="msg-timeline-dot" aria-hidden="true" />
+                      <div class="msg-timeline-body">
+                        <div class="msg-timeline-row">
+                          <strong>{{ e.title }}</strong>
+                          <time class="ln-small" :datetime="e.at">{{ when(e.at) }}</time>
+                        </div>
+                        <p class="msg-timeline-detail">{{ e.text }}</p>
+                      </div>
+                    </li>
+                  </ol>
+                  <button v-if="!allActivity && timeline.length > ACTIVITY_SHOWN" type="button" class="sub-d-more" data-cy="btn-all-activity" @click="allActivity = true">
+                    {{ $t('subscribers.person.allActivity', { n: timeline.length }) }}
+                  </button>
+                </template>
+                <p v-else class="ln-small">{{ $t('subscribers.noActivity') }}</p>
+              </PvTabPanel>
 
-            <PvTabPanel value="lists">
-              <ul class="sub-d-subs">
-                <li v-for="l in subscriber.lists" :key="l.id">
-                  <span>
+              <PvTabPanel value="lists">
+                <ul class="sub-d-subs">
+                  <li v-for="l in subscriber.lists" :key="l.id">
                     <router-link v-if="!l.restricted" :to="`/lists/${l.id}`">{{ l.name }}</router-link>
                     <span v-else>{{ l.name }}</span>
-                    <span class="ln-row-sub">{{ $t(`lists.optins.${l.optin}`) }}&emsp;{{ shortDate(l.subscriptionCreatedAt) }}
-                      <template v-if="l.subscriptionMeta?.optinIp">&emsp;{{ l.subscriptionMeta.optinIp }}</template>
-                    </span>
-                  </span>
-                  <span :class="`sub-d-sub is-${subTone(l.subscriptionStatus)}`">{{ $t(`subscribers.status.${l.subscriptionStatus}`) }}</span>
-                </li>
-              </ul>
-              <p v-if="!subscriber.lists?.length" class="ln-small">{{ $t('subscribers.noLists') }}</p>
-            </PvTabPanel>
+                    <span :class="`sub-d-sub is-${subTone(l.subscriptionStatus)}`">{{ listState(l) }}</span>
+                  </li>
+                </ul>
+                <p v-if="!subscriber.lists?.length" class="ln-small">{{ $t('subscribers.noLists') }}</p>
+                <button v-if="$can('subscribers:manage')" type="button" class="sub-d-more" @click="$emit('edit', subscriber)">{{ $t('subscribers.person.changeLists') }}</button>
+              </PvTabPanel>
 
-            <PvTabPanel value="attribs">
-              <pre class="ln-code">{{ attribsText }}</pre>
-            </PvTabPanel>
-          </PvTabPanels>
-        </PvTabs>
+              <PvTabPanel value="details">
+                <dl class="sub-d-details">
+                  <template v-for="r in detailRows" :key="r.k">
+                    <dt>{{ r.k }}</dt>
+                    <dd :class="{ 'ln-mono': r.mono }">{{ r.v }}</dd>
+                  </template>
+                </dl>
+              </PvTabPanel>
+            </PvTabPanels>
+          </PvTabs>
+        </div>
 
         <footer class="msg-foot sub-d-foot">
           <PvButton
             v-if="$can('subscribers:manage') && subscriber.status !== 'blocklisted'"
             :label="$t('subscribers.blocklist')"
             severity="danger"
-            outlined
+            text
             @click="$emit('blocklist', subscriber)"
           />
           <span class="ln-dialog-form-spacer" />
@@ -114,7 +113,6 @@ import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
 import { getSubscribers as subscribersApi } from '../api/generated/endpoints/subscribers/subscribers';
 import { listTxMessages, type TxLogMessage } from '../api/developers';
-import { statusTone } from '../components/ui/status';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
 
 // Subscribers and their activity are the API's camelCased objects.
@@ -150,10 +148,53 @@ const initials = computed(() => {
   const parts = src.split(/[\s.@_-]+/).filter(Boolean);
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : src.slice(0, 2)).toUpperCase();
 });
-const tone = computed(() => statusTone(props.subscriber?.status === 'enabled' ? 'active' : props.subscriber?.status || ''));
-const totalViews = computed(() => views.value.reduce((n, v) => n + (v.viewCount || 0), 0));
-const totalClicks = computed(() => clicks.value.reduce((n, c) => n + (c.clickCount || 0), 0));
-const attribsText = computed(() => JSON.stringify(props.subscriber?.attribs ?? {}, null, 2));
+// Activity shows this many events until "Show all".
+const ACTIVITY_SHOWN = 5;
+// A person who opened none of at least this many campaigns is flagged.
+const UNOPENED_WARN = 3;
+// An open older than this many days is flagged as long ago.
+const STALE_OPEN_DAYS = 90;
+
+interface Engagement { campaigns: number; opened: number; clicked: number; lastOpenedAt?: string | null }
+
+const engagement = ref<Engagement | null>(null);
+const allActivity = ref(false);
+
+// One line under the name: where they are (when known) and how long
+// they've been subscribed.
+const sinceLine = computed(() => {
+  const a = props.subscriber?.attribs || {};
+  const place = [a.city, a.country].filter((x) => typeof x === 'string' && x).join(', ');
+  const since = t('subscribers.person.since', { date: shortDate(props.subscriber?.createdAt) });
+  return place ? `${place}\u2003${since}` : since;
+});
+
+// warning is said only when engagement needs attention; healthy
+// engagement is left to the figures.
+const warning = computed(() => {
+  const e = engagement.value;
+  if (!e || props.subscriber?.status === 'blocklisted') return '';
+  if (e.campaigns >= UNOPENED_WARN && e.opened === 0) return t('subscribers.person.neverOpened', { n: e.campaigns });
+  if (e.lastOpenedAt && dayjs().diff(dayjs(e.lastOpenedAt), 'day') > STALE_OPEN_DAYS) {
+    return t('subscribers.person.staleOpen', { date: shortDate(e.lastOpenedAt) });
+  }
+  return '';
+});
+
+// Details: their attributes as readable rows, then the ID.
+const detailRows = computed(() => {
+  const a = (props.subscriber?.attribs || {}) as Loose;
+  const rows = Object.entries(a).map(([k, v]) => ({
+    k, v: typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v), mono: typeof v === 'object' && v !== null,
+  }));
+  rows.push({ k: t('subscribers.person.id'), v: String(props.subscriber?.id ?? ''), mono: true });
+  return rows;
+});
+
+function listState(l: Loose): string {
+  if (l.subscriptionStatus === 'unsubscribed') return t('subscribers.person.leftOn', { date: shortDate(l.subscriptionUpdatedAt || l.subscriptionCreatedAt) });
+  return t(`subscribers.status.${l.subscriptionStatus}`);
+}
 
 function subTone(s: string): string {
   if (s === 'confirmed') return 'ok';
@@ -202,16 +243,21 @@ const timeline = computed<TimelineEvent[]>(() => {
   return out.filter((e) => e.at).sort((a, b) => dayjs(b.at).valueOf() - dayjs(a.at).valueOf()).slice(0, 30);
 });
 
+const shownTimeline = computed(() => (allActivity.value ? timeline.value : timeline.value.slice(0, ACTIVITY_SHOWN)));
+
 function load(s: Loose) {
   loading.value = true;
   views.value = [];
   clicks.value = [];
   txs.value = [];
+  engagement.value = null;
+  allActivity.value = false;
   const reqs: Promise<unknown>[] = [
     getSubscriberActivity(s.id).then((data) => {
-      const a = data as unknown as { campaignViews?: Loose[]; linkClicks?: Loose[] };
+      const a = data as unknown as { campaignViews?: Loose[]; linkClicks?: Loose[]; engagement?: Engagement };
       views.value = a.campaignViews || [];
       clicks.value = a.linkClicks || [];
+      engagement.value = a.engagement || null;
     }).catch(() => {}),
   ];
   if ($can('tx:logs')) {
@@ -349,5 +395,74 @@ watch(() => props.subscriber?.id, () => {
   border-top: 1px solid var(--ln-border);
   background: var(--ln-muted);
 }
-.sub-d-export { text-decoration: none; &:hover { text-decoration: none; } }
+// A link styled as a button: give it the button's text colour, which the
+// global link colour otherwise overrides (unreadable in dark mode).
+.sub-d-export { color: var(--ln-text) !important; text-decoration: none; &:hover { text-decoration: none; } }
+
+.sub-d-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.sub-d-since { color: var(--ln-text-3); }
+.sub-d-blocked {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ln-danger-bg);
+  color: var(--ln-danger-fg);
+  font-size: 11px;
+  font-weight: 500;
+}
+.sub-d-warn {
+  margin: 14px 20px 0;
+  padding: 10px 12px;
+  border-radius: var(--ln-radius);
+  background: var(--ln-warn-bg);
+  color: var(--ln-warn-fg);
+  font-size: 13px;
+}
+.sub-d-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 20px 4px;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius);
+
+  > div { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+  > div + div { border-left: 1px solid var(--ln-border); }
+  strong { font-size: 20px; line-height: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  span { font-size: 12px; color: var(--ln-text-3); }
+}
+.sub-d-more {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ln-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sub-d-details {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  margin: 0;
+
+  dt, dd { margin: 0; padding: 9px 0; border-bottom: 1px solid var(--ln-border); font-size: 13px; overflow-wrap: anywhere; }
+  dt { color: var(--ln-text-3); padding-right: 12px; }
+}
+</style>
+
+<style lang="scss">
+// The drawer's own width: the shared .msg-drawer rule lives in the
+// Message log's drawer, which isn't loaded on Subscribers, so this one
+// fell back to PrimeVue's narrow default. Phones get the full width.
+.p-drawer.sub-drawer {
+  width: 460px;
+  max-width: 100vw;
+  border-left: 1px solid var(--ln-border);
+  box-shadow: var(--ln-shadow-pop);
+
+  @media (max-width: 600px) { width: 100vw; border-left: 0; }
+}
 </style>

@@ -242,7 +242,9 @@
           </template>
         </PvColumn>
 
-        <PvColumn v-if="!isMobile" :header="$t('globals.terms.lists')" header-class="cy-lists">
+        <!-- With a person open, the table keeps who they are and when they
+             last opened; their lists are in the panel. -->
+        <PvColumn v-if="!isMobile && !openSub" :header="$t('globals.terms.lists')" header-class="cy-lists">
           <template #body="{ data }">
             <!-- Plain text, one list named: chips per list made every row
                  a cluster. Waiting to confirm is the exception worth a mark. -->
@@ -892,7 +894,7 @@ onMounted(() => {
 // words (the handover allows no dots).
 .subs-unconf { margin-left: 6px; color: var(--ln-warn-fg); }
 .subs { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
-.subs.has-drawer { padding-right: 440px; }
+.subs.has-drawer { padding-right: 460px; }
 
 .subs-layout { display: flex; gap: 24px; align-items: flex-start; }
 .subs-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
