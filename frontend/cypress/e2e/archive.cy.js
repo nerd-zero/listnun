@@ -13,7 +13,7 @@ function openCampaign(n) {
 
 // Clones the first campaign on the campaigns page with the given name.
 function cloneFirst(name) {
-  cy.loginAndVisit('/admin/campaigns');
+  cy.loginAndVisit('/admin/campaigns/all');
   cy.get('[data-cy=btn-clone]').first().click();
   cy.dialog().within(() => {
     cy.get('#clone-name').clear().type(name);
@@ -28,14 +28,14 @@ function cloneFirst(name) {
 describe('Archive', () => {
   it('Opens campaigns page', () => {
     cy.resetDB();
-    cy.loginAndVisit('/admin/campaigns');
+    cy.loginAndVisit('/admin/campaigns/all');
     cy.wait(500);
   });
 
   it('Clones campaign', () => {
     cloneFirst('clone');
     cloneFirst('clone2');
-    cy.clickMenu('all-campaigns');
+    cy.visit('/admin/campaigns/all');
   });
 
   it('Starts campaigns', () => {
@@ -54,7 +54,7 @@ describe('Archive', () => {
   });
 
   it('Enables archive on one campaign (no slug)', () => {
-    cy.loginAndVisit('/admin/campaigns');
+    cy.loginAndVisit('/admin/campaigns/all');
     openCampaign(0);
 
     // The archive settings are on the schedule step.
@@ -68,7 +68,7 @@ describe('Archive', () => {
   });
 
   it('Enables archive on one campaign', () => {
-    cy.loginAndVisit('/admin/campaigns');
+    cy.loginAndVisit('/admin/campaigns/all');
     openCampaign(1);
 
     cy.get('.camp-steps .camp-step').eq(STEP_SCHEDULE).click();
