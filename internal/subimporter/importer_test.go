@@ -160,7 +160,7 @@ func TestGetStatsReturnsEveryField(t *testing.T) {
 	im.status = want
 	im.Unlock()
 
-	if got := im.GetStats(); got != want {
+	if got := im.GetStats(); !reflect.DeepEqual(got, want) {
 		t.Errorf("GetStats() = %+v, want %+v", got, want)
 	}
 }

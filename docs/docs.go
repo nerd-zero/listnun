@@ -2284,10 +2284,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "CSV or ZIP file",
+                        "description": "CSV or ZIP file; leave out when params.file_id names an uploaded one",
                         "name": "file",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -2337,6 +2336,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/import/subscribers/check": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Check an import before starting it",
+                "operationId": "checkImport",
+                "parameters": [
+                    {
+                        "description": "File and columns",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CheckImportReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/file": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Upload a file to import",
+                "operationId": "uploadImportFile",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "CSV, or a ZIP with a CSV in it",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ImportFile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Recent imports",
+                "operationId": "getRecentImports",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ImportRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/import/subscribers/logs": {
             "get": {
                 "produces": [
@@ -2352,6 +2452,29 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/problems": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Rows an import didn't import",
+                "operationId": "getImportProblems",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                            }
                         }
                     }
                 }
@@ -7726,6 +7849,20 @@ const docTemplate = `{
                 }
             }
         },
+        "CheckImportReq": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column"
+                    }
+                },
+                "file_id": {
+                    "type": "string"
+                }
+            }
+        },
         "CleanupRun": {
             "type": "object",
             "properties": {
@@ -8045,9 +8182,77 @@ const docTemplate = `{
                 }
             }
         },
+        "ImportFile": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn"
+                    }
+                },
+                "delim": {
+                    "type": "string"
+                },
+                "file_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ImportRecord": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imported": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "ImportStatus": {
             "type": "object",
             "properties": {
+                "added": {
+                    "description": "Added is how many of Imported are new subscribers; the rest were\nalready here. Blocklist imports don't count it.",
+                    "type": "integer"
+                },
                 "failed": {
                     "description": "Failed is the number of valid rows the database rejected, i.e. the\nrows of a batch whose insert or commit failed.",
                     "type": "integer"
@@ -10585,6 +10790,86 @@ const docTemplate = `{
                 },
                 "match": {
                     "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Match"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.CheckResult": {
+            "type": "object",
+            "properties": {
+                "existing": {
+                    "description": "Existing is how many of them are already subscribers.",
+                    "type": "integer"
+                },
+                "num_problems": {
+                    "description": "NumProblems counts the rows that wouldn't be imported; Problems lists\nup to maxProblems of them.",
+                    "type": "integer"
+                },
+                "problems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                    }
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "valid": {
+                    "description": "Valid is the number of different, valid addresses in the file.",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Column": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "header": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                },
+                "samples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Problem": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "row": {
+                    "description": "Row is the row's line in the file as a spreadsheet numbers it: the\nheader is row 1.",
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },

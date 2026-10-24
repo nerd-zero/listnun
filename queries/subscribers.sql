@@ -144,6 +144,7 @@ SELECT id from sub;
 -- name: upsert-subscriber
 -- Upserts a subscriber where existing subscribers get their names and attributes overwritten.
 -- If $7 = true, update name/attribs. If $8 = true, update subscription status.
+-- inserted says whether the subscriber is new.
 WITH sub AS (
     INSERT INTO subscribers as s (uuid, email, name, attribs, status, tenant_id)
     VALUES($1, $2, $3, $4, 'enabled', $9)
@@ -152,7 +153,8 @@ WITH sub AS (
         name=(CASE WHEN $7 THEN $3 ELSE s.name END),
         attribs=(CASE WHEN $7 THEN $4 ELSE s.attribs END),
         updated_at=NOW()
-    RETURNING uuid, id, status
+    -- xmax is 0 on a row this statement inserted rather than updated.
+    RETURNING uuid, id, status, (xmax = 0) AS inserted
 ),
 subs AS (
     INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
@@ -162,7 +164,7 @@ subs AS (
     SET updated_at = NOW(),
         status = CASE WHEN $8 THEN EXCLUDED.status ELSE subscriber_lists.status END
 )
-SELECT uuid, id from sub;
+SELECT uuid, id, inserted FROM sub;
 
 -- name: upsert-blocklist-subscriber
 -- Upserts a subscriber where the update will only set the status to blocklisted

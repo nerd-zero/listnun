@@ -889,6 +889,26 @@ ALTER TABLE segments ENABLE ROW LEVEL SECURITY; ALTER TABLE segments FORCE ROW L
 DROP POLICY IF EXISTS tenant_isolation ON segments;
 CREATE POLICY tenant_isolation ON segments USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
+-- Finished subscriber imports (v6.38.0), for the Import page's history.
+DROP TABLE IF EXISTS imports CASCADE;
+CREATE TABLE imports (
+    id          SERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name        TEXT NOT NULL,
+    mode        TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    total       INTEGER NOT NULL DEFAULT 0,
+    imported    INTEGER NOT NULL DEFAULT 0,
+    added       INTEGER NOT NULL DEFAULT 0,
+    skipped     INTEGER NOT NULL DEFAULT 0,
+    failed      INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_imports_tenant ON imports(tenant_id, created_at DESC);
+ALTER TABLE imports ENABLE ROW LEVEL SECURITY; ALTER TABLE imports FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON imports;
+CREATE POLICY tenant_isolation ON imports USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
 DROP TABLE IF EXISTS campaign_replies CASCADE;
 CREATE TABLE campaign_replies (
     id                   BIGSERIAL PRIMARY KEY,

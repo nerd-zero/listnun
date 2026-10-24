@@ -502,6 +502,15 @@ definitions:
           $ref: '#/definitions/CampaignStatusCount'
         type: array
     type: object
+  CheckImportReq:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column'
+        type: array
+      file_id:
+        type: string
+    type: object
   CleanupRun:
     properties:
       action:
@@ -722,8 +731,55 @@ definitions:
       name:
         type: string
     type: object
+  ImportFile:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn'
+        type: array
+      delim:
+        type: string
+      file_id:
+        type: string
+      name:
+        type: string
+      rows:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+    type: object
+  ImportRecord:
+    properties:
+      added:
+        type: integer
+      created_at:
+        type: string
+      failed:
+        type: integer
+      id:
+        type: integer
+      imported:
+        type: integer
+      mode:
+        type: string
+      name:
+        type: string
+      skipped:
+        type: integer
+      status:
+        type: string
+      total:
+        type: integer
+    type: object
   ImportStatus:
     properties:
+      added:
+        description: |-
+          Added is how many of Imported are new subscribers; the rest were
+          already here. Blocklist imports don't count it.
+        type: integer
       failed:
         description: |-
           Failed is the number of valid rows the database rejected, i.e. the
@@ -2474,6 +2530,64 @@ definitions:
       match:
         $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Match'
     type: object
+  github_com_nerd-zero_listnun_internal_subimporter.CheckResult:
+    properties:
+      existing:
+        description: Existing is how many of them are already subscribers.
+        type: integer
+      num_problems:
+        description: |-
+          NumProblems counts the rows that wouldn't be imported; Problems lists
+          up to maxProblems of them.
+        type: integer
+      problems:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+        type: array
+      rows:
+        type: integer
+      valid:
+        description: Valid is the number of different, valid addresses in the file.
+        type: integer
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Column:
+    properties:
+      as:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn:
+    properties:
+      as:
+        type: string
+      header:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+      samples:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Problem:
+    properties:
+      reason:
+        type: string
+      row:
+        description: |-
+          Row is the row's line in the file as a spreadsheet numbers it: the
+          header is row 1.
+        type: integer
+      value:
+        type: string
+    type: object
   models.Tenant:
     properties:
       created_at:
@@ -4016,10 +4130,10 @@ paths:
       - multipart/form-data
       operationId: importSubscribers
       parameters:
-      - description: CSV or ZIP file
+      - description: CSV or ZIP file; leave out when params.file_id names an uploaded
+          one
         in: formData
         name: file
-        required: true
         type: file
       - description: JSON-encoded import options (subimporter.SessionOpt)
         in: formData
@@ -4044,6 +4158,72 @@ paths:
       summary: Import subscribers from a CSV or ZIP file
       tags:
       - import
+  /api/import/subscribers/check:
+    post:
+      consumes:
+      - application/json
+      operationId: checkImport
+      parameters:
+      - description: File and columns
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/CheckImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check an import before starting it
+      tags:
+      - import
+  /api/import/subscribers/file:
+    post:
+      consumes:
+      - multipart/form-data
+      operationId: uploadImportFile
+      parameters:
+      - description: CSV, or a ZIP with a CSV in it
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ImportFile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Upload a file to import
+      tags:
+      - import
+  /api/import/subscribers/history:
+    get:
+      operationId: getRecentImports
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ImportRecord'
+            type: array
+      summary: Recent imports
+      tags:
+      - import
   /api/import/subscribers/logs:
     get:
       operationId: getImportLogs
@@ -4055,6 +4235,21 @@ paths:
           schema:
             type: string
       summary: Get import log
+      tags:
+      - import
+  /api/import/subscribers/problems:
+    get:
+      operationId: getImportProblems
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+            type: array
+      summary: Rows an import didn't import
       tags:
       - import
   /api/lang/{lang}:

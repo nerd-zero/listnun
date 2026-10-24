@@ -102,11 +102,15 @@ type Queries struct {
 	GetCampaignsOverview    *sqlx.Stmt `query:"get-campaigns-overview"`
 	GetCampaignStatusCounts *sqlx.Stmt `query:"get-campaign-status-counts"`
 
-	GetSegments          *sqlx.Stmt `query:"get-segments"`
-	GetSegment           *sqlx.Stmt `query:"get-segment"`
-	CreateSegment        *sqlx.Stmt `query:"create-segment"`
-	UpdateSegment        *sqlx.Stmt `query:"update-segment"`
-	DeleteSegment        *sqlx.Stmt `query:"delete-segment"`
+	GetSegments   *sqlx.Stmt `query:"get-segments"`
+	GetSegment    *sqlx.Stmt `query:"get-segment"`
+	CreateSegment *sqlx.Stmt `query:"create-segment"`
+	UpdateSegment *sqlx.Stmt `query:"update-segment"`
+	DeleteSegment *sqlx.Stmt `query:"delete-segment"`
+
+	CountExistingEmails  *sqlx.Stmt `query:"count-existing-emails"`
+	RecordImport         *sqlx.Stmt `query:"record-import"`
+	GetRecentImports     *sqlx.Stmt `query:"get-recent-imports"`
 	GetArchivedCampaigns *sqlx.Stmt `query:"get-archived-campaigns"`
 	CampaignHasLists     *sqlx.Stmt `query:"campaign-has-lists"`
 
