@@ -77,6 +77,7 @@ func rlsPool(t *testing.T, admin *sqlx.DB) *sqlx.DB {
 	t.Cleanup(func() {
 		db.Close()
 		admin.MustExec(`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ` + quoted)
+		admin.MustExec(`REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM ` + quoted)
 		admin.MustExec(`REVOKE USAGE ON SCHEMA public FROM ` + quoted)
 		admin.MustExec(`DROP ROLE IF EXISTS ` + quoted)
 	})

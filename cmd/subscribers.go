@@ -155,6 +155,20 @@ func (a *App) QuerySubscribers(c echo.Context) error {
 		}
 	}
 
+	// A segment is compiled here from known fields and quoted values, so
+	// it needs no SQL permission. It narrows any SQL query given too.
+	segExp, err := a.segmentQuery(c.FormValue("segment"))
+	if err != nil {
+		return err
+	}
+	if segExp != "" {
+		if query != "" {
+			query = "(" + query + ") AND " + segExp
+		} else {
+			query = segExp
+		}
+	}
+
 	var (
 		searchStr = strings.TrimSpace(c.FormValue("search"))
 		subStatus = c.FormValue("subscription_status")

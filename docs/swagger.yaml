@@ -1239,6 +1239,27 @@ definitions:
       updated_at:
         type: string
     type: object
+  SavedSegment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      created_at:
+        type: string
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      match:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
   ServerConfig:
     properties:
       console_url:
@@ -2285,6 +2306,18 @@ definitions:
       queued:
         type: integer
     type: object
+  cmd.segmentCountsReq:
+    properties:
+      segments:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        type: array
+    type: object
+  cmd.segmentSQLResp:
+    properties:
+      sql:
+        type: string
+    type: object
   echo.HTTPError:
     properties:
       message: {}
@@ -2339,6 +2372,78 @@ definitions:
         type: string
       pause_reason:
         $ref: '#/definitions/null.String'
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Condition:
+    properties:
+      field:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Field'
+      key:
+        type: string
+      op:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Op'
+      value:
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Field:
+    enum:
+    - attribute
+    - email
+    - name
+    - joined
+    - list
+    - status
+    - unconfirmed
+    - last_opened
+    - last_clicked
+    type: string
+    x-enum-varnames:
+    - FieldAttribute
+    - FieldEmail
+    - FieldName
+    - FieldJoined
+    - FieldList
+    - FieldStatus
+    - FieldUnconfirmed
+    - FieldLastOpened
+    - FieldLastClicked
+  github_com_nerd-zero_listnun_internal_segments.Match:
+    enum:
+    - all
+    - any
+    type: string
+    x-enum-varnames:
+    - MatchAll
+    - MatchAny
+  github_com_nerd-zero_listnun_internal_segments.Op:
+    enum:
+    - is
+    - is_not
+    - contains
+    - exists
+    - in_last
+    - not_in_last
+    - before
+    - after
+    - never
+    type: string
+    x-enum-varnames:
+    - OpIs
+    - OpIsNot
+    - OpContains
+    - OpExists
+    - OpInLast
+    - OpNotInLast
+    - OpBefore
+    - OpAfter
+    - OpNever
+  github_com_nerd-zero_listnun_internal_segments.Segment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      match:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Match'
     type: object
   models.Tenant:
     properties:
@@ -5566,6 +5671,149 @@ paths:
       summary: Update a user role
       tags:
       - roles
+  /api/segments:
+    get:
+      operationId: getSegments
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/SavedSegment'
+            type: array
+      summary: Get saved segments
+      tags:
+      - subscribers
+    post:
+      consumes:
+      - application/json
+      operationId: createSegment
+      parameters:
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a segment
+      tags:
+      - subscribers
+  /api/segments/{id}:
+    delete:
+      operationId: deleteSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+      summary: Delete a saved segment
+      tags:
+      - subscribers
+    put:
+      consumes:
+      - application/json
+      operationId: updateSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a saved segment
+      tags:
+      - subscribers
+  /api/segments/count:
+    post:
+      consumes:
+      - application/json
+      operationId: countSegments
+      parameters:
+      - description: Segments to count
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cmd.segmentCountsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: integer
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count the people in segments
+      tags:
+      - subscribers
+  /api/segments/sql:
+    post:
+      consumes:
+      - application/json
+      operationId: segmentSQL
+      parameters:
+      - description: Segment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.segmentSQLResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a segment's SQL condition
+      tags:
+      - subscribers
   /api/settings:
     get:
       operationId: getSettings

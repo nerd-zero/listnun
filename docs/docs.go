@@ -4790,6 +4790,224 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/segments": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get saved segments",
+                "operationId": "getSegments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/SavedSegment"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Save a segment",
+                "operationId": "createSegment",
+                "parameters": [
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/count": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Count the people in segments",
+                "operationId": "countSegments",
+                "parameters": [
+                    {
+                        "description": "Segments to count",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentCountsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/sql": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get a segment's SQL condition",
+                "operationId": "segmentSQL",
+                "parameters": [
+                    {
+                        "description": "Segment",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentSQLResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Update a saved segment",
+                "operationId": "updateSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Delete a saved segment",
+                "operationId": "deleteSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "produces": [
@@ -8584,6 +8802,38 @@ const docTemplate = `{
                 }
             }
         },
+        "SavedSegment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "match": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "ServerConfig": {
             "type": "object",
             "properties": {
@@ -10115,6 +10365,25 @@ const docTemplate = `{
                 }
             }
         },
+        "cmd.segmentCountsReq": {
+            "type": "object",
+            "properties": {
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                    }
+                }
+            }
+        },
+        "cmd.segmentSQLResp": {
+            "type": "object",
+            "properties": {
+                "sql": {
+                    "type": "string"
+                }
+            }
+        },
         "echo.HTTPError": {
             "type": "object",
             "properties": {
@@ -10188,6 +10457,98 @@ const docTemplate = `{
                 },
                 "pause_reason": {
                     "$ref": "#/definitions/null.String"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Condition": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Field"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "op": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Op"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Field": {
+            "type": "string",
+            "enum": [
+                "attribute",
+                "email",
+                "name",
+                "joined",
+                "list",
+                "status",
+                "unconfirmed",
+                "last_opened",
+                "last_clicked"
+            ],
+            "x-enum-varnames": [
+                "FieldAttribute",
+                "FieldEmail",
+                "FieldName",
+                "FieldJoined",
+                "FieldList",
+                "FieldStatus",
+                "FieldUnconfirmed",
+                "FieldLastOpened",
+                "FieldLastClicked"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Match": {
+            "type": "string",
+            "enum": [
+                "all",
+                "any"
+            ],
+            "x-enum-varnames": [
+                "MatchAll",
+                "MatchAny"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Op": {
+            "type": "string",
+            "enum": [
+                "is",
+                "is_not",
+                "contains",
+                "exists",
+                "in_last",
+                "not_in_last",
+                "before",
+                "after",
+                "never"
+            ],
+            "x-enum-varnames": [
+                "OpIs",
+                "OpIsNot",
+                "OpContains",
+                "OpExists",
+                "OpInLast",
+                "OpNotInLast",
+                "OpBefore",
+                "OpAfter",
+                "OpNever"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Segment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "match": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Match"
                 }
             }
         },
