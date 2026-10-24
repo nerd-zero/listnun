@@ -49,33 +49,43 @@
       </div>
     </header>
 
-    <dl class="list-panel-stats">
+    <div class="list-panel-stats">
+      <component
+        :is="canSeeSubs ? 'router-link' : 'div'"
+        :to="subsLink(list.optin === 'double' ? 'confirmed' : undefined)"
+        class="list-panel-stat"
+        data-cy="stat-subscribers-link"
+      >
+        <span class="list-panel-stat-label">{{ $t('lists.stat.subscribers') }}<i v-if="canSeeSubs" class="pi pi-arrow-right" aria-hidden="true" /></span>
+        <span class="list-panel-stat-value" data-cy="stat-subscribers">{{ $utils.niceNumber(receiving) }}</span>
+        <span class="ln-small">{{ canSeeSubs ? $t('lists.stat.viewSubscribers') : (list.optin === 'double' ? $t('lists.stat.receivingDouble') : $t('lists.stat.receivingSingle')) }}</span>
+      </component>
       <div>
-        <dt>{{ $t('lists.stat.subscribers') }}</dt>
-        <dd data-cy="stat-subscribers">{{ $utils.niceNumber(receiving) }}</dd>
-        <span class="ln-small">{{ list.optin === 'double' ? $t('lists.stat.receivingDouble') : $t('lists.stat.receivingSingle') }}</span>
-      </div>
-      <div>
-        <dt>{{ $t('lists.stat.joined') }}</dt>
-        <dd :class="{ 'is-ok': joined > 0 }" data-cy="stat-joined">{{ activity ? signed(joined) : '–' }}</dd>
+        <span class="list-panel-stat-label">{{ $t('lists.stat.joined') }}</span>
+        <span class="list-panel-stat-value" :class="{ 'is-ok': joined > 0 }" data-cy="stat-joined">{{ activity ? signed(joined) : '–' }}</span>
         <span class="ln-small">{{ $t('lists.stat.last30') }}</span>
       </div>
       <div>
-        <dt>{{ $t('lists.stat.left') }}</dt>
-        <dd data-cy="stat-left">{{ activity ? $utils.niceNumber(left) : '–' }}</dd>
+        <span class="list-panel-stat-label">{{ $t('lists.stat.left') }}</span>
+        <span class="list-panel-stat-value" data-cy="stat-left">{{ activity ? $utils.niceNumber(left) : '–' }}</span>
         <span class="ln-small">{{ $t('lists.stat.last30') }}</span>
       </div>
-      <div v-if="list.optin === 'double'">
-        <dt>{{ $t('lists.stat.notConfirmed') }}</dt>
-        <dd :class="{ 'is-warn': unconfirmed > 0 }" data-cy="stat-unconfirmed">{{ $utils.niceNumber(unconfirmed) }}</dd>
+      <component
+        :is="canSeeSubs && unconfirmed ? 'router-link' : 'div'"
+        v-if="list.optin === 'double'"
+        :to="subsLink('unconfirmed')"
+        class="list-panel-stat"
+      >
+        <span class="list-panel-stat-label">{{ $t('lists.stat.notConfirmed') }}<i v-if="canSeeSubs && unconfirmed" class="pi pi-arrow-right" aria-hidden="true" /></span>
+        <span class="list-panel-stat-value" :class="{ 'is-warn': unconfirmed > 0 }" data-cy="stat-unconfirmed">{{ $utils.niceNumber(unconfirmed) }}</span>
         <span class="ln-small">{{ $t('lists.stat.waiting') }}</span>
-      </div>
+      </component>
       <div v-else>
-        <dt>{{ $t('lists.stat.unsubscribed') }}</dt>
-        <dd>{{ $utils.niceNumber(list.subscriberStatuses?.unsubscribed || 0) }}</dd>
+        <span class="list-panel-stat-label">{{ $t('lists.stat.unsubscribed') }}</span>
+        <span class="list-panel-stat-value">{{ $utils.niceNumber(list.subscriberStatuses?.unsubscribed || 0) }}</span>
         <span class="ln-small">{{ $t('lists.stat.allTime') }}</span>
       </div>
-    </dl>
+    </div>
 
     <div class="list-panel-chart">
       <div class="list-panel-chart-head">
@@ -178,6 +188,7 @@ const { getListActivity } = listsApi();
 const activity = ref<Activity | null>(null);
 const copied = ref(false);
 
+const canSeeSubs = computed(() => $can('subscribers:get_all', 'subscribers:get'));
 const canManage = computed(() => $can('lists:manage') || $canList(props.list.id, 'list:manage'));
 const kindKey = computed(() => `${props.list.type === 'public' ? 'public' : 'private'}${props.list.optin === 'double' ? 'Double' : 'Single'}`);
 const unconfirmed = computed(() => props.list.subscriberStatuses?.unconfirmed || 0);
@@ -191,6 +202,13 @@ const days = computed(() => activity.value?.days || []);
 // The tallest day sets the chart's scale; 1 keeps an empty month flat.
 const peak = computed(() => Math.max(1, ...days.value.map((d) => d.joined + d.left)));
 const formURL = computed(() => `${(serverConfig.value as Loose).root_url}/subscription/form?l=${props.list.uuid}`);
+
+// subsLink is this list's subscribers, optionally only those in a
+// subscription status. The Subscribers figure links to the confirmed on
+// a confirm-by-email list, so the page shows the same number.
+function subsLink(status?: string) {
+  return { name: 'subscribers_list', params: { listID: props.list.id }, query: status ? { subscription_status: status } : {} };
+}
 
 function signed(n: number): string {
   return n > 0 ? `+${$utils.niceNumber(n)}` : String($utils.niceNumber(n));
@@ -259,18 +277,17 @@ defineExpose({ refresh: fetchActivity });
   margin: 0;
   border-bottom: 1px solid var(--ln-border);
 
-  > div {
+  > * {
     padding: 16px 22px;
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
 
-    & + div { border-left: 1px solid var(--ln-border); }
+    & + * { border-left: 1px solid var(--ln-border); }
   }
-  dt { font-size: 13px; color: var(--ln-text-2); }
-  dd {
-    margin: 0;
+  .list-panel-stat-label { font-size: 13px; color: var(--ln-text-2); display: flex; align-items: center; gap: 6px; i { font-size: 10px; } }
+  .list-panel-stat-value {
     font-size: 22px;
     line-height: 28px;
     font-weight: 600;
@@ -283,11 +300,19 @@ defineExpose({ refresh: fetchActivity });
   @media (max-width: 600px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 
-    > div { padding: 14px 16px; }
-    > div + div { border-left: 0; }
-    > div:nth-child(even) { border-left: 1px solid var(--ln-border); }
-    > div:nth-child(n + 3) { border-top: 1px solid var(--ln-border); }
+    > * { padding: 14px 16px; }
+    > * + * { border-left: 0; }
+    > :nth-child(even) { border-left: 1px solid var(--ln-border); }
+    > :nth-child(n + 3) { border-top: 1px solid var(--ln-border); }
   }
+}
+
+.list-panel-stat {
+  color: var(--ln-text);
+  text-decoration: none;
+
+  &[href]:hover { background: var(--ln-hover); text-decoration: none; }
+  &[href]:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: -2px; }
 }
 
 .list-panel-chart {

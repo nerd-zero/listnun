@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import {
-  computed, onMounted, onUnmounted, reactive, ref, watch,
+  computed, nextTick, onMounted, onUnmounted, reactive, ref, watch,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -467,6 +467,25 @@ watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => fetchPage(1), SEARCH_DEBOUNCE_MS);
 });
+// On phones the panel replaces the cards: open it at the top, and come
+// back to the same place in the cards.
+// The mobile shell scrolls <body> rather than the window.
+const scrollPos = () => window.scrollY || document.body.scrollTop;
+const scrollToY = (y: number) => {
+  window.scrollTo(0, y);
+  document.body.scrollTop = y;
+};
+let cardsScrollY = 0;
+watch(selectedId, (id, prev) => {
+  if (!isMobile.value) return;
+  if (id && !prev) {
+    cardsScrollY = scrollPos();
+    scrollToY(0);
+  } else if (!id && prev) {
+    nextTick(() => scrollToY(cardsScrollY));
+  }
+});
+
 // A linked list that isn't on a loaded page is fetched on its own.
 watch([selectedId, rows], ([id]) => {
   if (!id || rows.value.some((l) => l.id === id) || linked.value?.id === id) return;
@@ -531,6 +550,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+
+  // Wide screens: the panel stays in view beside whichever card was
+  // picked, however far down the cards it is (top: under the top bar).
+  @media (min-width: 768px) {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+  }
 }
 .lists-tools {
   display: flex;

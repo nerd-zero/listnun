@@ -1119,6 +1119,7 @@
     "lists.moreActions": "More actions",
     "lists.back": "All lists",
     "lists.stat.subscribers": "Subscribers",
+    "lists.stat.viewSubscribers": "View subscribers",
     "lists.stat.receivingDouble": "confirmed and receiving",
     "lists.stat.receivingSingle": "receiving campaigns",
     "lists.stat.joined": "Joined",
