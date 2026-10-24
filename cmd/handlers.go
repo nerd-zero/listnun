@@ -161,6 +161,10 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/import/subscribers/logs", pm(a.GetImportSubscriberStats, "subscribers:import"))
 		g.POST("/api/import/subscribers", pm(a.ImportSubscribers, "subscribers:import"))
 		g.DELETE("/api/import/subscribers", pm(a.StopImportSubscribers, "subscribers:import"))
+		g.POST("/api/import/subscribers/file", pm(a.UploadImportFile, "subscribers:import"))
+		g.POST("/api/import/subscribers/check", pm(a.CheckImport, "subscribers:import"))
+		g.GET("/api/import/subscribers/problems", pm(a.GetImportProblems, "subscribers:import"))
+		g.GET("/api/import/subscribers/history", pm(a.GetRecentImports, "subscribers:import"))
 
 		// Individual list permissions are applied directly within handleGetLists.
 		g.GET("/api/segments", pm(a.GetSegments, "subscribers:get_all", "subscribers:get"))
