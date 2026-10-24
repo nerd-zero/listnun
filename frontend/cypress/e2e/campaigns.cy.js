@@ -59,7 +59,7 @@ const previewText = (id) => cy.request(`${apiUrl}/api/campaigns/${id}/preview`)
 describe('Campaigns', () => {
   it('Opens campaigns page', () => {
     cy.resetDB();
-    cy.loginAndVisit('/admin/campaigns');
+    cy.loginAndVisit('/admin/campaigns/all');
   });
 
   it('Counts campaigns', () => {
@@ -94,7 +94,7 @@ describe('Campaigns', () => {
     cy.location('hash').should('eq', '#schedule');
 
     // Re-open and check that the file still exists.
-    cy.visit('/admin/campaigns');
+    cy.visit('/admin/campaigns/all');
     cy.get('[data-cy=campaign-name]').first().click();
     cy.get('[data-cy=step-content]').click();
     cy.get('[data-cy=media]').contains('example');
@@ -182,7 +182,7 @@ describe('Campaigns', () => {
     cy.get('[data-cy=btn-unschedule]').click();
     cy.confirmAction();
     cy.get('[data-cy=btn-unschedule]').should('not.exist');
-    cy.visit('/admin/campaigns');
+    cy.visit('/admin/campaigns/all');
 
     // Only the edited campaign is a draft; the other one was started.
     cy.get('.p-datatable-tbody .ln-status[data-status=draft]').should('have.length', 1);
@@ -190,7 +190,7 @@ describe('Campaigns', () => {
 
   it('Switches formats', () => {
     cy.resetDB();
-    cy.loginAndVisit('/admin/campaigns');
+    cy.loginAndVisit('/admin/campaigns/all');
     const formats = ['html', 'markdown', 'plain'];
     const htmlBody = '<strong>hello</strong> {{ .Subscriber.Name }} from {{ .Subscriber.Attribs.city }}';
     const plainBody = 'hello Demo Subscriber from Bengaluru';
@@ -203,7 +203,7 @@ describe('Campaigns', () => {
     cy.location('hash').should('eq', '#schedule');
 
     formats.forEach((c) => {
-      cy.visit('/admin/campaigns');
+      cy.visit('/admin/campaigns/all');
       cy.get('[data-cy=campaign-name]').first().click();
 
       // Switch to the Content step and change the format.
@@ -227,14 +227,14 @@ describe('Campaigns', () => {
   });
 
   it('Clones campaign', () => {
-    cy.visit('/admin/campaigns');
+    cy.visit('/admin/campaigns/all');
     for (let n = 0; n < 3; n += 1) {
       // Clone the campaign; the clone opens in the editor.
       cy.get('[data-cy=btn-clone]').first().click();
       cy.get('#clone-name').clear().type(`clone${n}`);
       cy.dialog().find('[data-cy=btn-save]').click();
       cy.location('pathname').should('match', /\/campaigns\/\d+$/);
-      cy.visit('/admin/campaigns');
+      cy.visit('/admin/campaigns/all');
 
       // Verify the newly created row.
       cy.get('[data-cy=campaign-name]').first().contains(`clone${n}`);
@@ -348,7 +348,7 @@ describe('Campaigns', () => {
           });
         }
 
-        cy.visit('/admin/campaigns');
+        cy.visit('/admin/campaigns/all');
 
         // Verify the newly created campaign in the table. The row's
         // sub-line names the campaign's lists, comma-separated.
@@ -422,7 +422,7 @@ describe('Campaigns', () => {
       cy.request('POST', `${apiUrl}/api/campaigns`, params);
     }
 
-    cy.visit('/admin/campaigns');
+    cy.visit('/admin/campaigns/all');
 
     // Bulk delete with the `all` flag, which asks for the count to be typed.
     cy.window().scrollTo('top');
@@ -439,7 +439,7 @@ describe('Campaigns', () => {
       cy.request('POST', `${apiUrl}/api/campaigns`, params);
     }
 
-    cy.visit('/admin/campaigns');
+    cy.visit('/admin/campaigns/all');
     cy.get('[data-cy=campaign-name]').should('have.length', 5);
     cy.get('thead input[type="checkbox"]').click({ force: true });
     cy.get('[data-cy=btn-delete-campaigns]').click();

@@ -578,6 +578,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get the campaigns overview",
+                "operationId": "getCampaignsOverview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CampaignsOverview"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/running/stats": {
             "get": {
                 "produces": [
@@ -7290,6 +7316,73 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignListRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignOverviewItem": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "integer"
+                },
+                "bounced": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lists": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignListRef"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
+                },
+                "pause_reason": {
+                    "type": "string"
+                },
+                "send_at": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "to_send": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by_name": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "CampaignRepliesPage": {
             "type": "object",
             "properties": {
@@ -7387,6 +7480,17 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignStatusCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "CampaignTracking": {
             "type": "object",
             "properties": {
@@ -7404,6 +7508,23 @@ const docTemplate = `{
                 "replies": {
                     "description": "Replies swaps each email's Reply-To for a per-message listnun reply\naddress, so replies are recorded against the campaign and then\nforwarded to the campaign's own Reply-To (internal/replies). Off\nunless the server has reply tracking configured.",
                     "type": "boolean"
+                }
+            }
+        },
+        "CampaignsOverview": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignOverviewItem"
+                    }
+                },
+                "counts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignStatusCount"
+                    }
                 }
             }
         },

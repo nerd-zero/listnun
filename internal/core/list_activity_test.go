@@ -70,6 +70,7 @@ func rlsPool(t *testing.T, admin *sqlx.DB) *sqlx.DB {
 	admin.MustExec(`GRANT USAGE ON SCHEMA public TO ` + quoted)
 	admin.MustExec(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO ` + quoted)
 	admin.MustExec(`GRANT UPDATE (optin_sent_at) ON subscribers TO ` + quoted)
+	admin.MustExec(`GRANT UPDATE (updated_by, updated_by_name) ON campaigns TO ` + quoted)
 
 	db, err := sqlx.Connect("postgres", dbDSN(role, password))
 	if err != nil {

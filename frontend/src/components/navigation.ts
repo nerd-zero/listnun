@@ -71,7 +71,7 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
 
   if (can('campaigns:*')) {
     const kids: NavKid[] = [];
-    if (can('campaigns:get')) kids.push(kid('campaigns', t('menu.allCampaigns'), 'campaigns', 'all-campaigns'));
+    if (can('campaigns:get')) kids.push(kid('campaigns', t('menu.allCampaigns'), 'campaigns', 'all-campaigns', ['allCampaigns']));
     if (can('campaigns:manage')) {
       kids.push({
         key: 'new', label: t('menu.newCampaign'), to: { name: 'campaign', params: { id: 'new' } }, names: [], cy: 'new-campaign',
