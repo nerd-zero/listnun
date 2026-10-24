@@ -671,6 +671,11 @@ pre.ln-code, .ln-code {
 // ── Settings sections ───────────────────────────────────
 // The section views (views/settings/*.vue) use generic field markup; this
 // gives them the redesign's cards, labels and help text in one place.
+// A Settings section built from SetCard groups (see components/ui).
+// Room at the end so the floating "Unsaved changes" bar never covers the
+// last setting.
+.set-cards { display: flex; flex-direction: column; gap: 16px; padding-bottom: 72px; }
+
 .ln-settings {
   > div > .items, > div > .settings-card, .smtp-card, .settings-card {
     background: var(--ln-card);

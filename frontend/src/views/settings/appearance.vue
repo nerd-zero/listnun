@@ -1,62 +1,50 @@
 <template>
-  <div class="items">
-    <PvTabs class="lm-tabs" :animated="false" v-model:value="tab">
-      <PvTabList>
-        <PvTab value="0">{{ $t('settings.appearance.adminName') }}</PvTab>
-        <PvTab value="1">{{ $t('settings.appearance.publicName') }}</PvTab>
-      </PvTabList>
-      <PvTabPanels>
-        <PvTabPanel value="0">
-          <div class="block">
-            {{ $t('settings.appearance.adminHelp') }}
-          </div>
-
-          <div class="field">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.appearance.customCSS') }}</label>
-            <code-editor lang="css" v-model="data['appearance.admin.custom_css']" name="body" key="editor-admin-css" />
-          </div>
-
-          <div class="field">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.appearance.customJS') }}</label>
-            <code-editor lang="javascript" v-model="data['appearance.admin.custom_js']" name="body"
-              key="editor-admin-js" />
-          </div>
-        </PvTabPanel><!-- admin -->
-
-        <PvTabPanel value="1">
-          <div class="block">
-            {{ $t('settings.appearance.publicHelp') }}
-          </div>
-
-          <div class="field">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.appearance.customCSS') }}</label>
-            <code-editor lang="css" v-model="data['appearance.public.custom_css']" name="body" key="editor-public-css" />
-          </div>
-
-          <div class="field">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.appearance.customJS') }}</label>
-            <code-editor lang="javascript" v-model="data['appearance.public.custom_js']" name="body"
-              key="editor-public-js" />
-          </div>
-        </PvTabPanel><!-- public -->
-      </PvTabPanels>
-    </PvTabs>
+  <!-- Custom code is rare, so each area starts closed and says whether
+       anything is set. -->
+  <div class="set-cards">
+    <set-card
+      v-for="a in areas"
+      :key="a.key"
+      :title="a.title"
+      :help="a.help"
+      collapsible
+      :summary="a.summary"
+    >
+      <set-row :label="$t('settings.appearance.customCSS')" wide>
+        <code-editor v-model="data[`appearance.${a.key}.custom_css`]" lang="css" name="body" :key="`editor-${a.key}-css`" />
+      </set-row>
+      <set-row :label="$t('settings.appearance.customJS')" wide>
+        <code-editor v-model="data[`appearance.${a.key}.custom_js`]" lang="javascript" name="body" :key="`editor-${a.key}-js`" />
+      </set-row>
+    </set-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
-import { useGlobal } from '@/composables/useGlobal.ts';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import CodeEditor from '../../components/CodeEditor.vue';
+import SetCard from '../../components/ui/SetCard.vue';
+import SetRow from '../../components/ui/SetRow.vue';
 
 const props = defineProps<{ form?: any }>();
-const { $utils } = useGlobal();
+const { t } = useI18n();
 const data = props.form;
-const tab = ref('0');
 
-onMounted(() => {
-  tab.value = String($utils.getPref('settings.apperanceTab') || '0');
-});
+const has = (k: string) => !!(data[k] || '').trim();
 
-watch(tab, (t) => { $utils.setPref('settings.apperanceTab', t); });
+const areas = computed(() => (['public', 'admin'] as const).map((key) => {
+  const css = has(`appearance.${key}.custom_css`);
+  const js = has(`appearance.${key}.custom_js`);
+  let summary = t('settings.look.none');
+  if (css && js) summary = t('settings.look.both');
+  else if (css) summary = t('settings.look.css');
+  else if (js) summary = t('settings.look.js');
+  return {
+    key,
+    title: t(`settings.look.${key}`),
+    help: t(`settings.look.${key}Help`),
+    summary,
+  };
+}));
 </script>
