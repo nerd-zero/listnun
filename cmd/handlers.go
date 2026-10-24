@@ -169,6 +169,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.POST("/api/lists/:id/scrub", hasID(pm(a.ScrubList, "settings:manage")))
 		g.GET("/api/lists/:id/scrub/progress/:request_id", hasID(pm(a.GetScrubListProgress, "settings:manage")))
 		g.GET("/api/lists/growth", a.GetListsGrowth)
+		g.GET("/api/lists/summary", a.GetListsSummary)
 		g.GET("/api/lists/optin/pending", pm(a.GetOptinPending, "subscribers:manage"))
 		g.POST("/api/lists/optin/resend", pm(a.ResendOptins, "subscribers:manage"))
 		g.GET("/api/lists/:id/activity", hasID(a.GetListActivity))

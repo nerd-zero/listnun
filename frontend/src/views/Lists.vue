@@ -3,7 +3,7 @@
     <page-header
       v-if="!(isMobile && selected)"
       :title="$t('globals.terms.lists')"
-      :subtitle="rows.length ? $t('lists.summary', { subs: $utils.niceNumber(totalSubs), n: rows.length }, rows.length) : ''"
+      :subtitle="summary.lists ? $t('lists.summary', { subs: summary.subscriptions.toLocaleString(), n: summary.lists.toLocaleString() }, summary.lists) : ''"
     >
       <template #after-title>
         <span v-if="isArchived" class="ln-small">/ {{ $t('lists.archived') }}</span>
@@ -29,26 +29,40 @@
 
     <div class="lists-layout" :class="{ 'has-panel': selected }">
       <div v-if="!(isMobile && selected)" class="lists-side">
-        <form v-if="!isMobile" class="ln-search" role="search" @submit.prevent>
-          <PvIconField>
-            <PvInputIcon class="pi pi-search" />
-            <PvInputText v-model="search" name="query" :placeholder="$t('lists.find')" :aria-label="$t('lists.find')" data-cy="query" />
-          </PvIconField>
-        </form>
+        <!-- Search and sort run on the server, so they reach every list,
+             not just the page of cards loaded. -->
+        <div v-if="!isMobile || total > PAGE_SIZE || search" class="lists-tools">
+          <form class="ln-search" role="search" @submit.prevent>
+            <PvIconField>
+              <PvInputIcon class="pi pi-search" />
+              <PvInputText v-model="search" name="query" :placeholder="$t('lists.find')" :aria-label="$t('lists.find')" data-cy="query" />
+            </PvIconField>
+          </form>
+          <PvSelect
+            v-if="total > 1"
+            v-model="sort"
+            :options="sortOptions"
+            option-label="label"
+            option-value="value"
+            :aria-label="$t('lists.sort.label')"
+            class="lists-sort"
+            data-cy="sort"
+          />
+        </div>
 
         <table-skeleton v-if="!loaded" :cols="1" />
         <empty-state
-          v-else-if="!rows.length"
+          v-else-if="!rows.length && !search"
           icon="pi-list"
           :title="isArchived ? $t('states.noMatches') : $t('lists.emptyTitle')"
           :text="isArchived ? '' : $t('lists.emptyText')"
           :action-label="!isArchived && $can('lists:manage_all') ? $t('lists.newList') : ''"
           @action="showNewForm"
         />
-        <p v-else-if="!shown.length" class="ln-small">{{ $t('states.noMatchesText', { query: search }) }}</p>
+        <p v-else-if="!rows.length" class="ln-small">{{ $t('states.noMatchesText', { query: search }) }}</p>
 
         <ul class="lists-cards ln-enter">
-          <li v-for="l in shown" :key="l.id">
+          <li v-for="l in rows" :key="l.id">
             <router-link
               :to="{ name: 'list', params: { id: l.id } }"
               class="lists-card"
@@ -70,6 +84,11 @@
             </router-link>
           </li>
         </ul>
+
+        <div v-if="rows.length < total" class="lists-more">
+          <span class="ln-small">{{ $t('lists.showing', { n: $utils.niceNumber(rows.length), total: $utils.niceNumber(total) }) }}</span>
+          <PvButton :label="$t('lists.loadMore')" size="small" severity="secondary" outlined :loading="loadingMore" data-cy="btn-load-more" @click="loadMore" />
+        </div>
 
         <router-link :to="isArchived ? { name: 'lists' } : { name: 'lists', query: { status: 'archived' } }" class="ln-small lists-archived-link">
           {{ isArchived ? $t('lists.viewActive') : $t('lists.viewArchived') }}
@@ -148,7 +167,7 @@ const {
   $utils, $api, $can, $canList,
 } = useGlobal();
 const {
-  listLists, deleteList, getListsGrowth, getOptinPending, resendOptins,
+  listLists, getList, deleteList, getListsGrowth, getListsSummary, getOptinPending, resendOptins,
 } = listsApi();
 const { createCampaign } = campaignsApi();
 const { getScrubListStatus, getScrubListProgress, scrubList } = settingsApi();
@@ -163,8 +182,24 @@ const {
 const {
   curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
 } = useFormDialog<Loose>();
+// How many cards load at a time; more load on request, so a workspace
+// with a thousand lists isn't one column of a thousand cards.
+const PAGE_SIZE = 50;
+// How long typing pauses before a search runs.
+const SEARCH_DEBOUNCE_MS = 300;
+
+interface Summary { lists: number; subscriptions: number }
+
 const rows = ref<Loose[]>([]);
+const total = ref(0);
+const page = ref(1);
 const loaded = ref(false);
+const loadingMore = ref(false);
+const sort = ref('name');
+const summary = ref<Summary>({ lists: 0, subscriptions: 0 });
+// The list in the URL when it isn't among the cards loaded.
+const linked = ref<Loose | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const growth = ref<Record<number, Growth>>({});
 const pending = ref<Pending>({ total: 0, due: 0 });
 const search = ref('');
@@ -183,15 +218,16 @@ const isArchived = computed(() => route.query.status === 'archived');
 const selectedId = computed(() => (route.params.id ? Number(route.params.id) : null));
 // The list in the panel: the one in the URL, else (on wide screens) the first.
 const selected = computed<Loose | null>(() => {
-  const byId = rows.value.find((l) => l.id === selectedId.value);
+  const byId = rows.value.find((l) => l.id === selectedId.value)
+    || (linked.value?.id === selectedId.value ? linked.value : null);
   if (byId) return byId;
   return !isMobile.value && rows.value.length ? rows.value[0] : null;
 });
-const shown = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return q ? rows.value.filter((l) => l.name.toLowerCase().includes(q)) : rows.value;
-});
-const totalSubs = computed(() => rows.value.reduce((n, l) => n + (l.subscriberCount || 0), 0));
+const sortOptions = computed(() => [
+  { value: 'name', label: t('lists.sort.name') },
+  { value: 'subscriber_count', label: t('lists.sort.size') },
+  { value: 'updated_at', label: t('lists.sort.updated') },
+]);
 
 function kindKey(l: Loose): string {
   return `${l.type === 'public' ? 'public' : 'private'}${l.optin === 'double' ? 'Double' : 'Single'}`;
@@ -259,16 +295,33 @@ function fetchPending() {
   getOptinPending().then((d) => { pending.value = d as unknown as Pending; }).catch(() => {});
 }
 
-function fetchLists() {
-  listLists({
-    per_page: 'all',
-    order_by: 'name',
-    order: 'asc',
+// fetchPage loads a page of cards: page 1 replaces them, later pages
+// append.
+function fetchPage(p: number) {
+  return listLists({
+    page: p,
+    per_page: PAGE_SIZE,
+    query: search.value.replace(/[^\p{L}\p{N}\s]/gu, ' ').trim(),
+    order_by: sort.value,
+    order: sort.value === 'name' ? 'asc' : 'desc',
     status: isArchived.value ? 'archived' : 'active',
   } as never).then((resp) => {
-    rows.value = (resp as unknown as Loose).results || [];
+    const r = resp as unknown as Loose;
+    rows.value = p === 1 ? (r.results || []) : [...rows.value, ...(r.results || [])];
+    total.value = r.total || 0;
+    page.value = p;
     loaded.value = true;
   });
+}
+
+function loadMore() {
+  loadingMore.value = true;
+  fetchPage(page.value + 1).finally(() => { loadingMore.value = false; });
+}
+
+function fetchLists() {
+  fetchPage(1);
+  getListsSummary().then((d) => { summary.value = d as unknown as Summary; }).catch(() => {});
   getListsGrowth().then((d) => {
     const m: Record<number, Growth> = {};
     ((d as unknown as Growth[]) || []).forEach((g) => { m[g.listId] = g; });
@@ -409,6 +462,16 @@ function openMenu(e: Event, l: Loose) {
 }
 
 watch(refreshTick, fetchLists);
+watch(sort, () => fetchPage(1));
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => fetchPage(1), SEARCH_DEBOUNCE_MS);
+});
+// A linked list that isn't on a loaded page is fetched on its own.
+watch([selectedId, rows], ([id]) => {
+  if (!id || rows.value.some((l) => l.id === id) || linked.value?.id === id) return;
+  getList(id as number).then((d) => { linked.value = d as unknown as Loose; }).catch(() => {});
+}, { immediate: true });
 watch(isArchived, () => {
   loaded.value = false;
   fetchLists();
@@ -418,6 +481,7 @@ onMounted(fetchLists);
 
 onUnmounted(() => {
   if (scrubPollTimer) clearTimeout(scrubPollTimer);
+  if (searchTimer) clearTimeout(searchTimer);
 });
 </script>
 
@@ -468,7 +532,19 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
 }
-.lists-side .ln-search { width: 100%; }
+.lists-tools {
+  display: flex;
+  gap: 8px;
+
+  .ln-search { flex: 1; width: auto; min-width: 0; }
+}
+.lists-sort { flex: none; width: 150px; }
+.lists-more {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 .lists-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ln-text-2); }
 
 .lists-cards {

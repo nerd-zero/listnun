@@ -27,6 +27,20 @@ func (c *Core) GetListsGrowth(ctx context.Context, tenantID int, since time.Time
 	return out, nil
 }
 
+// GetListsSummary counts the active lists the user can see (all when
+// getAll, else permittedIDs) and their subscriptions.
+func (c *Core) GetListsSummary(ctx context.Context, tenantID int, getAll bool, permittedIDs []int) (models.ListsSummary, error) {
+	var out models.ListsSummary
+	err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetListsSummary).Get(&out, getAll, pq.Array(permittedIDs))
+	})
+	if err != nil {
+		return out, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.lists}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
 // GetListActivity returns a list's daily joins and leaves from the day of
 // `since` to today, their totals, and its `numCampaigns` latest campaigns.
 func (c *Core) GetListActivity(ctx context.Context, tenantID, listID int, since time.Time, numCampaigns int) (models.ListActivity, error) {

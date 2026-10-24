@@ -76,6 +76,13 @@ type ListActivity struct {
 	Campaigns []ListCampaign    `json:"campaigns"`
 } // @name ListActivity
 
+// ListsSummary is how many active lists there are and how many
+// subscriptions they hold, not counting unsubscribes.
+type ListsSummary struct {
+	Lists         int `db:"lists" json:"lists"`
+	Subscriptions int `db:"subscriptions" json:"subscriptions"`
+} // @name ListsSummary
+
 // OptinPending counts the people waiting to confirm a double opt-in
 // subscription, and how many of them are due a reminder.
 type OptinPending struct {

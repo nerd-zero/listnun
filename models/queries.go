@@ -89,6 +89,7 @@ type Queries struct {
 	GetOptinPending        *sqlx.Stmt `query:"get-optin-pending"`
 	CountOptinPending      *sqlx.Stmt `query:"count-optin-pending"`
 	MarkOptinSent          *sqlx.Stmt `query:"mark-optin-sent"`
+	GetListsSummary        *sqlx.Stmt `query:"get-lists-summary"`
 
 	CreateCampaign        *sqlx.Stmt `query:"create-campaign"`
 	QueryCampaigns        string     `query:"query-campaigns"`

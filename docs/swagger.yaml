@@ -821,6 +821,13 @@ definitions:
       name:
         type: string
     type: object
+  ListsSummary:
+    properties:
+      lists:
+        type: integer
+      subscriptions:
+        type: integer
+    type: object
   MediaUsage:
     properties:
       bytes:
@@ -4250,6 +4257,19 @@ paths:
       summary: Get Scrub validation history
       tags:
       - settings
+  /api/lists/summary:
+    get:
+      operationId: getListsSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListsSummary'
+      summary: Count lists and their subscriptions
+      tags:
+      - lists
   /api/logout:
     post:
       operationId: logout

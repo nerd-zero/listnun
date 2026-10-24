@@ -65,6 +65,25 @@ func (a *App) GetListsGrowth(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetListsSummary returns how many lists the user can see and the
+// subscriptions on them, for the Lists header.
+//
+//	@ID			getListsSummary
+//	@Summary	Count lists and their subscriptions
+//	@Tags		lists
+//	@Produce	json
+//	@Success	200	{object}	models.ListsSummary
+//	@Router		/api/lists/summary [get]
+func (a *App) GetListsSummary(c echo.Context) error {
+	user := auth.GetUser(c)
+	getAll, permittedIDs := user.GetPermittedLists(auth.PermTypeGet | auth.PermTypeManage)
+	out, err := a.core.GetListsSummary(c.Request().Context(), tenantID(c), getAll, permittedIDs)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetListActivity returns a list's daily joins and leaves over the last
 // 30 days and its latest campaigns.
 //

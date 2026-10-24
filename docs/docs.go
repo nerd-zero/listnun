@@ -2707,6 +2707,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/lists/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Count lists and their subscriptions",
+                "operationId": "getListsSummary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ListsSummary"
+                        }
+                    }
+                }
+            }
+        },
         "/api/lists/{id}": {
             "get": {
                 "produces": [
@@ -7930,6 +7950,17 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "ListsSummary": {
+            "type": "object",
+            "properties": {
+                "lists": {
+                    "type": "integer"
+                },
+                "subscriptions": {
+                    "type": "integer"
                 }
             }
         },
