@@ -22,6 +22,7 @@
             <router-link v-if="compact && section !== 'overview'" :to="{ name: 'settings' }" class="settings-back ln-small">
               <i class="pi pi-angle-left" aria-hidden="true" /> {{ $t('settings.title') }}
             </router-link>
+            <span v-if="groupLabel" class="ln-small settings-eyebrow">{{ groupLabel }}</span>
             <h2 class="ln-page-title">{{ current.label }}</h2>
             <p class="settings-head-text">{{ current.help }}</p>
           </header>
@@ -217,6 +218,13 @@ const NAV_GROUPS: { key: string; sections: string[] }[] = [
   { key: 'security', sections: ['security'] },
   { key: 'workspace', sections: ['general', 'appearance', 'media'] },
 ];
+
+// The open section's group, shown small above its title.
+const groupLabel = computed(() => {
+  if (section.value === 'maintenance' || section.value === 'logs') return t('settings.group.data');
+  const g = NAV_GROUPS.find((x) => x.sections.includes(section.value));
+  return g ? t(`settings.group.${g.key}`) : '';
+});
 
 const overviewItems = computed<SubNavItem[]>(() => (!$can('settings:get') ? [] : [
   { key: 'overview', label: t('settings.overview.name'), to: { name: 'settings' } },
@@ -446,6 +454,7 @@ onMounted(() => {
   @media (max-width: 991px) { position: static; }
 }
 .settings-side-title { margin-bottom: 16px; }
+.settings-eyebrow { display: block; margin-bottom: 2px; color: var(--ln-text-3); }
 .settings-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px; color: var(--ln-text-2); }
 .settings-side-group {
   display: block;

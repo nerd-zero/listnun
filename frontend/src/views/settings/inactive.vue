@@ -1,108 +1,74 @@
 <template>
-  <div v-if="ic" class="ic">
-    <label class="ln-card ic-enable" for="ic-enabled">
-      <PvToggleSwitch v-model="ic.enabled" input-id="ic-enabled" />
-      <span>
-        <strong>{{ $t('settings.inactive.enable') }}</strong>
-        <small class="text-color-secondary">{{ $t('settings.inactive.enableHelp') }}</small>
-      </span>
-    </label>
+  <div v-if="ic" class="set-cards">
+    <set-card :title="$t('settings.inx.title')">
+      <set-row :label="$t('settings.inactive.enable')" :help="$t('settings.inx.enableHelp')" toggle>
+        <PvToggleSwitch v-model="ic.enabled" input-id="ic-enabled" :aria-label="$t('settings.inactive.enable')" />
+        <template v-if="status && !status.tracking" #note>{{ $t('settings.inactive.noTracking') }}</template>
+      </set-row>
+      <set-row :label="$t('settings.inx.who')" :help="managed ? $t('settings.inactive.managedHelp') : $t('settings.inactive.customHelp')">
+        <PvSelectButton
+          v-model="ic.mode"
+          :options="modes"
+          option-label="label"
+          option-value="value"
+          :allow-empty="false"
+          name="inactive_cleanup.mode"
+          :aria-label="$t('settings.inx.who')"
+        />
+      </set-row>
+      <set-row :label="$t('settings.inactive.days')" :help="$t('settings.inactive.daysHelp')">
+        <locked-value v-if="managed" :text="daysLabel(status?.managed.days)" />
+        <PvSelect v-else v-model="ic.days" :options="dayOptions" option-label="label" option-value="value" :aria-label="$t('settings.inactive.days')" />
+      </set-row>
+      <set-row :label="$t('settings.inactive.activity')" :help="$t('settings.inactive.activityHelp')">
+        <locked-value v-if="managed" :text="optionLabel(activityOptions, status?.managed.activity)" />
+        <PvSelect
+          v-else
+          v-model="ic.activity"
+          :options="activityOptions"
+          option-label="label"
+          option-value="value"
+          :aria-label="$t('settings.inactive.activity')"
+        />
+      </set-row>
+      <set-row :label="$t('settings.inactive.action')" :help="$t('settings.inactive.actionHelp')">
+        <locked-value v-if="managed" :text="optionLabel(actionOptions, status?.managed.action)" />
+        <PvSelect v-else v-model="ic.action" :options="actionOptions" option-label="label" option-value="value" :aria-label="$t('settings.inactive.action')" />
+        <template v-if="!managed && ic.action === 'delete'" #note>{{ $t('settings.inactive.deleteNote') }}</template>
+      </set-row>
+      <set-row :label="$t('settings.inactive.lists')">
+        <locked-value v-if="managed" :text="listsLabel(status?.managed.list_ids)" />
+        <PvMultiSelect
+          v-else
+          v-model="ic.list_ids"
+          :options="allLists"
+          option-label="name"
+          option-value="id"
+          :placeholder="$t('settings.inactive.allLists')"
+          filter
+          display="comma"
+          :max-selected-labels="3"
+          :aria-label="$t('settings.inactive.lists')"
+        />
+      </set-row>
+      <set-row :label="$t('settings.inactive.schedule')">
+        <locked-value v-if="managed" :text="scheduleLabel(status?.managed.schedule)" />
+        <PvSelect
+          v-else
+          v-model="ic.schedule"
+          :options="scheduleOptions"
+          option-label="label"
+          option-value="value"
+          :aria-label="$t('settings.inactive.schedule')"
+        />
+      </set-row>
+    </set-card>
 
-    <div class="ic-modes" role="radiogroup" :aria-label="$t('settings.inactive.mode')">
-      <label v-for="m in modes" :key="m.value" class="ln-card ic-mode" :class="{ 'is-on': ic.mode === m.value }">
-        <PvRadioButton v-model="ic.mode" :value="m.value" name="inactive_cleanup.mode" />
-        <span>
-          <strong>{{ m.label }}</strong>
-          <small>{{ m.help }}</small>
-        </span>
-      </label>
-    </div>
-
-    <section class="ln-card ic-rules">
-      <header class="ln-card-head">
-        <h3>{{ managed ? $t('settings.inactive.managedRules') : $t('settings.inactive.customRules') }}</h3>
-        <span class="ic-chip" :class="managed ? 'is-locked' : 'is-edit'">
-          <i :class="managed ? 'pi pi-lock' : 'pi pi-pencil'" aria-hidden="true" />
-          {{ managed ? $t('settings.inactive.setByListnun') : $t('settings.inactive.editable') }}
-        </span>
-      </header>
-
-      <div class="ic-row">
-        <div>
-          <strong>{{ $t('settings.inactive.days') }}</strong>
-          <small>{{ $t('settings.inactive.daysHelp') }}</small>
-        </div>
-        <locked-value v-if="managed" class="ln-enter" :text="daysLabel(status?.managed.days)" />
-        <PvSelect v-else class="ln-enter" v-model="ic.days" :options="dayOptions" option-label="label" option-value="value"
-          :aria-label="$t('settings.inactive.days')" />
-      </div>
-
-      <div class="ic-row">
-        <div>
-          <strong>{{ $t('settings.inactive.activity') }}</strong>
-          <small>{{ $t('settings.inactive.activityHelp') }}</small>
-        </div>
-        <locked-value v-if="managed" class="ln-enter" :text="optionLabel(activityOptions, status?.managed.activity)" />
-        <PvSelect v-else class="ln-enter" v-model="ic.activity" :options="activityOptions" option-label="label" option-value="value"
-          :aria-label="$t('settings.inactive.activity')" />
-      </div>
-
-      <div class="ic-row">
-        <div>
-          <strong>{{ $t('settings.inactive.action') }}</strong>
-          <small>{{ $t('settings.inactive.actionHelp') }}</small>
-        </div>
-        <locked-value v-if="managed" class="ln-enter" :text="optionLabel(actionOptions, status?.managed.action)" />
-        <PvSelect v-else class="ln-enter" v-model="ic.action" :options="actionOptions" option-label="label" option-value="value"
-          :aria-label="$t('settings.inactive.action')" />
-      </div>
-
-      <div class="ic-row">
-        <div><strong>{{ $t('settings.inactive.lists') }}</strong></div>
-        <locked-value v-if="managed" class="ln-enter" :text="listsLabel(status?.managed.list_ids)" />
-        <PvMultiSelect v-else class="ln-enter" v-model="ic.list_ids" :options="allLists" option-label="name" option-value="id"
-          :placeholder="$t('settings.inactive.allLists')" filter display="comma" :max-selected-labels="3"
-          :aria-label="$t('settings.inactive.lists')" />
-      </div>
-
-      <div class="ic-row">
-        <div><strong>{{ $t('settings.inactive.schedule') }}</strong></div>
-        <locked-value v-if="managed" class="ln-enter" :text="scheduleLabel(status?.managed.schedule)" />
-        <PvSelect v-else class="ln-enter" v-model="ic.schedule" :options="scheduleOptions" option-label="label" option-value="value"
-          :aria-label="$t('settings.inactive.schedule')" />
-      </div>
-    </section>
-
-    <p v-if="status && !status.tracking" class="ic-note is-bad ln-enter" role="alert">
-      <i class="pi pi-exclamation-triangle" aria-hidden="true" />
-      {{ $t('settings.inactive.noTracking') }}
-    </p>
-    <p v-else-if="managed" class="ic-note ln-enter">
-      <i class="pi pi-info-circle" aria-hidden="true" />
-      {{ $t('settings.inactive.managedNote') }}
-    </p>
-    <p v-else class="ic-note is-warn ln-enter">
-      <i class="pi pi-exclamation-triangle" aria-hidden="true" />
-      {{ ic.action === 'delete' ? $t('settings.inactive.deleteNote') : $t('settings.inactive.customNote') }}
-    </p>
-
-    <section class="ln-card ic-next">
-      <div>
-        <p>
-          <strong>{{ $t('settings.inactive.nextRun') }}</strong>&emsp;
-          <strong>{{ status?.next_run ? niceDate(status.next_run) : $t('settings.inactive.notScheduled') }}</strong>
-        </p>
-        <p class="ln-small">
-          <template v-if="count !== null">
-            {{ $t(managed ? 'settings.inactive.matchManaged' : 'settings.inactive.matchCustom', { n: count.toLocaleString() }) }}
-          </template>
-          <template v-if="status?.last_run">
-            &emsp;{{ lastRunLabel(status.last_run) }}
-          </template>
-        </p>
-      </div>
-      <PvButton :label="$t('settings.inactive.preview')" severity="secondary" outlined :loading="previewing" @click="preview" />
-    </section>
+    <set-card :title="$t('settings.inx.next')">
+      <set-row :label="`${$t('settings.inactive.nextRun')}: ${status?.next_run ? niceDate(status.next_run) : $t('settings.inactive.notScheduled')}`" :help="nextHelp" toggle>
+        <PvButton :label="$t('settings.inactive.preview')" severity="secondary" outlined :loading="previewing" @click="preview" />
+      </set-row>
+    </set-card>
   </div>
 </template>
 
@@ -115,6 +81,8 @@ import { useI18n } from 'vue-i18n';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import { useMainStore } from '../../store';
+import SetCard from '../../components/ui/SetCard.vue';
+import SetRow from '../../components/ui/SetRow.vue';
 
 // Settings › Inactive cleanup (the design's "Scrub" screen; named apart
 // from the Scrub address-validation service). The rules live in the
@@ -173,9 +141,17 @@ const previewing = ref(false);
 const allLists = computed(() => ((lists.value as any)?.results || []) as { id: number; name: string }[]);
 
 const modes = computed(() => [
-  { value: 'managed', label: t('settings.inactive.managed'), help: t('settings.inactive.managedHelp') },
-  { value: 'custom', label: t('settings.inactive.custom'), help: t('settings.inactive.customHelp') },
+  { value: 'managed', label: t('settings.inx.listnun') },
+  { value: 'custom', label: t('settings.inx.you') },
 ]);
+
+// How many match today, and how the last run went.
+const nextHelp = computed(() => {
+  const parts: string[] = [];
+  if (count.value !== null) parts.push(t('settings.inx.match', { n: count.value.toLocaleString() }, count.value));
+  if (status.value?.last_run) parts.push(lastRunLabel(status.value.last_run));
+  return parts.join(' ');
+});
 const dayOptions = computed<Option<number>[]>(() => DAY_CHOICES.map((d) => ({ label: daysLabel(d), value: d })));
 const activityOptions = computed<Option<string>[]>(() => [
   { label: t('settings.inactive.activityEither'), value: 'either' },
@@ -257,66 +233,6 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.ic { display: flex; flex-direction: column; gap: 16px; }
-.ic small { display: block; font-size: 12px; line-height: 16px; color: var(--ln-text-3); font-weight: 400; }
-
-.ic-enable {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  cursor: pointer;
-  strong { font-weight: 500; }
-}
-
-.ic-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 640px) { .ic-modes { grid-template-columns: 1fr; } }
-.ic-mode {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 18px;
-  cursor: pointer;
-  strong { font-weight: 600; }
-  small { font-size: 13px; line-height: 20px; color: var(--ln-text-2); margin-top: 2px; }
-  // A 2px ring drawn as border + inset shadow, so selecting doesn't shift
-  // the layout and the change can ease (motion.scss).
-  &.is-on { border-color: var(--ln-ink); box-shadow: inset 0 0 0 1px var(--ln-ink); }
-}
-
-.ic-rules {
-  overflow: hidden;
-  h3 { margin: 0; font-size: 15px; font-weight: 600; }
-}
-.ic-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  i { font-size: 10px; }
-  &.is-locked { background: var(--ln-muted); color: var(--ln-text-2); }
-  &.is-edit { background: var(--ln-success-bg); color: var(--ln-success-fg); }
-}
-.ic-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--ln-border);
-  strong { font-weight: 500; }
-  > :last-child { width: 280px; flex: none; }
-  .ln-card-head + & { border-top: 0; }
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: stretch;
-    > :last-child { width: 100%; }
-  }
-}
 :deep(.ic-locked) {
   display: flex;
   align-items: center;
@@ -328,33 +244,7 @@ onMounted(() => {
   background: var(--ln-muted);
   color: var(--ln-text-2);
   font-size: 14px;
+
   i { font-size: 11px; color: var(--ln-text-3); }
-}
-
-.ic-note {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: var(--ln-muted);
-  color: var(--ln-text-2);
-  font-size: 13px;
-  &.is-warn { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
-  &.is-bad { background: var(--ln-danger-bg); color: var(--ln-danger-fg); }
-}
-
-.ic-next {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
-  p { margin: 0; }
-  strong { font-weight: 500; }
-  .ln-small { color: var(--ln-text-2); margin-top: 2px; }
-
-  @media (max-width: 640px) { flex-direction: column; align-items: stretch; }
 }
 </style>
