@@ -628,6 +628,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       list_uuids:
         items:
           type: string
@@ -1712,6 +1717,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       lists:
         items:
           type: integer
@@ -1782,6 +1792,12 @@ definitions:
         type: string
       search:
         type: string
+      segment:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        description: |-
+          Segment narrows the people acted on, like Query, but is compiled
+          from known fields so it needs no SQL query permission.
       status:
         type: string
       subscription_status:

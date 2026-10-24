@@ -183,3 +183,30 @@ func (a *App) segmentQuery(raw string) (string, error) {
 	}
 	return exp, nil
 }
+
+// withSegment ANDs a segment's compiled condition onto query (either may
+// be empty).
+func (a *App) withSegment(query string, s *segments.Segment) (string, error) {
+	if s == nil {
+		return query, nil
+	}
+	exp, err := a.core.CompileSegment(*s)
+	if err != nil {
+		return "", err
+	}
+	if exp == "TRUE" {
+		return query, nil
+	}
+	return andSQL(query, exp), nil
+}
+
+// andSQL joins two SQL conditions with AND, either of which may be empty.
+func andSQL(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return "(" + a + ") AND " + b
+}

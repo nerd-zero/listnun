@@ -7908,6 +7908,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
+                },
                 "list_uuids": {
                     "type": "array",
                     "items": {
@@ -9494,6 +9498,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
+                },
                 "lists": {
                     "type": "array",
                     "items": {
@@ -9597,6 +9605,14 @@ const docTemplate = `{
                 },
                 "search": {
                     "type": "string"
+                },
+                "segment": {
+                    "description": "Segment narrows the people acted on, like Query, but is compiled\nfrom known fields so it needs no SQL query permission.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    ]
                 },
                 "status": {
                     "type": "string"
