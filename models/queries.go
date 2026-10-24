@@ -37,6 +37,7 @@ type Queries struct {
 	ResubscribeByCampaign           *sqlx.Stmt `query:"resubscribe-by-campaign"`
 	ExportSubscriberData            *sqlx.Stmt `query:"export-subscriber-data"`
 	GetSubscriberActivity           *sqlx.Stmt `query:"get-subscriber-activity"`
+	GetSubscriberEngagement         *sqlx.Stmt `query:"get-subscriber-engagement"`
 
 	SetSubscriberScrubStatus         *sqlx.Stmt `query:"set-subscriber-scrub-status"`
 	SetSubscribersScrubStatusByEmail *sqlx.Stmt `query:"set-subscribers-scrub-status-by-email"`

@@ -535,3 +535,26 @@ clicks AS (
 SELECT
     COALESCE((SELECT JSON_AGG(v) FROM views v), '[]') as campaign_views,
     COALESCE((SELECT JSON_AGG(c) FROM clicks c), '[]') as link_clicks;
+
+-- name: get-subscriber-engagement
+-- Subscriber $1's engagement for the person panel. campaigns counts the
+-- campaigns that reached them: those that started on one of their lists
+-- while they were on it (after they joined, before they left), plus any
+-- they opened or clicked, which must have reached them. Per-person sends
+-- aren't recorded, so this is what can be said accurately.
+SELECT
+    (SELECT COUNT(*) FROM (
+        SELECT c.id FROM campaigns c
+            JOIN campaign_lists cl ON cl.campaign_id = c.id
+            JOIN subscriber_lists sl ON sl.list_id = cl.list_id AND sl.subscriber_id = $1
+            WHERE c.type = 'regular' AND c.status IN ('running', 'paused', 'finished')
+            AND c.started_at >= sl.created_at
+            AND (sl.status != 'unsubscribed' OR c.started_at <= sl.updated_at)
+        UNION
+        SELECT campaign_id FROM campaign_views WHERE subscriber_id = $1 AND campaign_id IS NOT NULL
+        UNION
+        SELECT campaign_id FROM link_clicks WHERE subscriber_id = $1 AND campaign_id IS NOT NULL
+    ) reached) AS campaigns,
+    (SELECT COUNT(DISTINCT campaign_id) FROM campaign_views WHERE subscriber_id = $1) AS opened,
+    (SELECT COUNT(DISTINCT campaign_id) FROM link_clicks WHERE subscriber_id = $1) AS clicked,
+    (SELECT MAX(created_at) FROM campaign_views WHERE subscriber_id = $1) AS last_opened_at;
