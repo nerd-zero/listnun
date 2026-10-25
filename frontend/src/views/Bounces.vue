@@ -1,14 +1,6 @@
 <template>
   <div class="ln-page bnc">
     <page-header :title="$t('globals.terms.bounces')" :count="counts ? counts.total : null">
-      <template #search>
-        <form class="ln-search" role="search" @submit.prevent="onSearch">
-          <PvIconField>
-            <PvInputIcon class="pi pi-search" />
-            <PvInputText v-model="queryParams.query" name="query" :placeholder="$t('bounces.search')" :aria-label="$t('bounces.search')" data-cy="query" />
-          </PvIconField>
-        </form>
-      </template>
       <router-link
         v-if="$can('settings:get')"
         :to="{ name: 'settings', params: { section: 'bounces' } }"
@@ -19,6 +11,12 @@
     </page-header>
 
     <div class="bnc-filters">
+      <form class="ln-search bnc-search" role="search" @submit.prevent="onSearch">
+        <PvIconField>
+          <PvInputIcon class="pi pi-search" />
+          <PvInputText v-model="queryParams.query" name="query" :placeholder="$t('bounces.search')" :aria-label="$t('bounces.search')" data-cy="query" />
+        </PvIconField>
+      </form>
       <PvSelectButton
         v-model="queryParams.type"
         :options="typeOptions"
@@ -129,7 +127,7 @@
           </template>
         </PvColumn>
 
-        <PvColumn field="campaign_name" :header="$t('globals.terms.campaign', 1)" sortable>
+        <PvColumn field="campaign_name" :header="$t('globals.terms.campaign', 1)" sortable header-class="bnc-wide" body-class="bnc-wide">
           <template #body="{ data }">
             <router-link
               v-if="data.campaign"
@@ -149,7 +147,7 @@
           </template>
         </PvColumn>
 
-        <PvColumn field="source" :header="$t('bounces.source')" sortable header-style="width:120px">
+        <PvColumn field="source" :header="$t('bounces.source')" sortable header-style="width:120px" header-class="bnc-wide" body-class="bnc-wide">
           <template #body="{ data }">
             <router-link class="ln-mono bnc-src" :to="{ name: 'bounces', query: { source: data.source } }">{{ data.source }}</router-link>
           </template>
@@ -161,7 +159,7 @@
           </template>
         </PvColumn>
 
-        <PvColumn header-style="width:88px" body-style="text-align:right">
+        <PvColumn header-style="width:48px" body-style="text-align:right">
           <template #body="{ data }">
             <div class="bnc-actions">
               <button
@@ -174,23 +172,19 @@
               >
                 <i :class="isExpanded(data) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" />
               </button>
-              <button
-                v-if="$can('bounces:manage')"
-                v-tooltip.bottom="$t('globals.buttons.delete')"
-                type="button"
-                class="ln-row-menu"
-                :aria-label="$t('globals.buttons.delete')"
-                data-cy="btn-delete"
-                @click="askDeleteOne(data)"
-              >
-                <i class="pi pi-trash" />
-              </button>
             </div>
           </template>
         </PvColumn>
 
         <template #expansion="{ data }">
-          <pre class="ln-code bnc-meta">{{ prettyMeta(data.meta) }}</pre>
+          <dl v-if="metaRows(data.meta)" class="bnc-meta bnc-meta-rows">
+            <template v-for="[k, v] in metaRows(data.meta)" :key="k">
+              <dt>{{ k }}</dt>
+              <dd :class="{ 'ln-mono': /smtp|^\d{3}\s/i.test(v) }">{{ v }}</dd>
+            </template>
+          </dl>
+          <pre v-else-if="prettyMeta(data.meta)" class="ln-code bnc-meta">{{ prettyMeta(data.meta) }}</pre>
+          <p v-else class="ln-small bnc-meta">{{ $t('bounces.noDetails') }}</p>
         </template>
       </PvDataTable>
     </table-card>
@@ -237,7 +231,7 @@ const DELETE_ALL_WORD = 'delete';
 
 const { $utils } = useGlobal();
 const {
-  listBounces, getBounceCounts, deleteBounce, deleteBounces, blocklistBouncedSubscribers,
+  listBounces, getBounceCounts, deleteBounces, blocklistBouncedSubscribers,
 } = bouncesApi();
 const { blocklistSubscribers } = subscribersApi();
 const { t, n } = useI18n();
@@ -248,7 +242,9 @@ const { refreshTick, loading } = storeToRefs(useMainStore());
 const bounces = ref<Loose>({});
 const counts = ref<Counts | null>(null);
 const error = ref<Loose | null>(null);
-const expandedRows = ref<Loose[]>([]);
+// Keyed by bounce ID: with data-key set, PrimeVue looks rows up as
+// expandedRows[id], and an array of rows never matches.
+const expandedRows = ref<Record<number, boolean>>({});
 const campaignFilter = ref('');
 const bulk = reactive({ checked: [] as Loose[], all: false });
 const queryParams = reactive({
@@ -283,9 +279,30 @@ function fmt(v: unknown): string {
   return n(Number(v) || 0);
 }
 
+function parseMeta(meta: unknown): unknown {
+  try {
+    return typeof meta === 'string' ? JSON.parse(meta) : meta;
+  } catch {
+    return meta;
+  }
+}
+
+// metaRows lists flat provider details (type, description, the SMTP reply)
+// as label/value pairs, or null when they're nested and need the raw view.
+function metaRows(meta: unknown): [string, string][] | null {
+  const m = parseMeta(meta);
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+  const fields = Object.entries(m as Record<string, unknown>);
+  if (!fields.length || fields.some(([, v]) => v !== null && typeof v === 'object')) return null;
+  return fields.filter(([, v]) => v !== null && v !== '').map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), String(v)]);
+}
+
+// prettyMeta is the provider's raw details, or "" when there are none.
 function prettyMeta(meta: unknown): string {
   try {
-    return JSON.stringify(typeof meta === 'string' ? JSON.parse(meta) : meta, null, 2);
+    const m = typeof meta === 'string' ? JSON.parse(meta) : meta;
+    if (!m || (typeof m === 'object' && !Object.keys(m).length)) return '';
+    return JSON.stringify(m, null, 2);
   } catch {
     return String(meta);
   }
@@ -297,6 +314,11 @@ function filterParams() {
     source: queryParams.source || undefined,
     query: queryParams.query.trim() || undefined,
   };
+}
+
+// listFilters is everything narrowing the list, type included.
+function listFilters() {
+  return { ...filterParams(), type: queryParams.type || undefined };
 }
 
 function getCounts() {
@@ -352,11 +374,14 @@ function onTableCheck() {
 }
 
 function isExpanded(b: Loose): boolean {
-  return expandedRows.value.some((r) => r.id === b.id);
+  return !!expandedRows.value[b.id];
 }
 
 function toggleRow(b: Loose) {
-  expandedRows.value = isExpanded(b) ? expandedRows.value.filter((r) => r.id !== b.id) : [...expandedRows.value, b];
+  const next = { ...expandedRows.value };
+  if (next[b.id]) delete next[b.id];
+  else next[b.id] = true;
+  expandedRows.value = next;
 }
 
 function ask(opts: Partial<typeof confirm>) {
@@ -371,23 +396,11 @@ function done(msg: string) {
   $utils.toast(msg);
 }
 
-function askDeleteOne(b: Loose) {
-  ask({
-    title: t('bounces.deleteOneTitle', { email: b.email }),
-    text: t('bounces.deleteText'),
-    label: t('globals.buttons.delete'),
-    run: () => {
-      confirm.busy = true;
-      deleteBounce(b.id).then(() => done(t('globals.messages.deleted', { name: b.email })))
-        .finally(() => { confirm.busy = false; });
-    },
-  });
-}
-
 function runDelete(all: boolean) {
   const num = all ? (bounces.value.total || 0) : numSelected.value;
   confirm.busy = true;
-  const params = all ? { all: true } : { id: bulk.checked.map((b) => b.id) };
+  // "All" is everything the list shows: the same filters go with it.
+  const params = all ? { all: true, ...listFilters() } : { id: bulk.checked.map((b) => b.id) };
   deleteBounces(params as never)
     .then(() => done(t('globals.messages.deletedCount', { name: t('globals.terms.bounces', 2), num })))
     .finally(() => { confirm.busy = false; });
@@ -419,13 +432,13 @@ function askDeleteAll() {
 function askBlocklist() {
   const { all } = bulk;
   ask({
-    title: all ? t('bounces.blocklistAllTitle') : t('bounces.blocklistTitle', { num: fmt(numSelected.value) }),
+    title: all ? t('bounces.blocklistAllTitle', { num: fmt(bounces.value.total) }) : t('bounces.blocklistTitle', { num: fmt(numSelected.value) }),
     text: t('bounces.blocklistText'),
     label: t('import.blocklist'),
     run: () => {
       confirm.busy = true;
       const req = all
-        ? blocklistBouncedSubscribers()
+        ? blocklistBouncedSubscribers(listFilters() as never)
         : blocklistSubscribers({ ids: bulk.checked.map((b) => b.subscriberId) } as never);
       req.then(() => done(t('globals.messages.done'))).finally(() => { confirm.busy = false; });
     },
@@ -459,10 +472,23 @@ onMounted(() => {
   flex-wrap: wrap;
   :deep(.p-selectbutton) { overflow-x: auto; max-width: 100%; }
 }
+// On a phone the type matters more than the campaign or source, which
+// stay one click away in the filters.
+@media (max-width: 600px) { :deep(.bnc-wide) { display: none; } }
+.bnc-search { flex: 0 1 320px; :deep(.p-iconfield), :deep(input) { width: 100%; } }
+@media (max-width: 600px) { .bnc-search { flex-basis: 100%; } }
 .bnc-sub { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ln-row-title.is-blocked { color: var(--ln-text-3); text-decoration: line-through; }
 .bnc-link { color: var(--ln-text); text-decoration: none; &:hover { text-decoration: underline; } }
 .bnc-src { font-size: 12px; color: var(--ln-text-2); text-decoration: none; &:hover { text-decoration: underline; } }
 .bnc-actions { display: inline-flex; gap: 2px; }
 .bnc-meta { margin: 4px 0 8px; max-height: 320px; overflow: auto; font-size: 12px; }
+.bnc-meta-rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  font-size: 13px;
+  dt { color: var(--ln-text-2); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+}
 </style>

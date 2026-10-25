@@ -2754,7 +2754,7 @@ paths:
     delete:
       operationId: deleteBounces
       parameters:
-      - description: Delete all bounces
+      - description: Delete every bounce matching the filters below
         in: query
         name: all
         type: boolean
@@ -2765,6 +2765,22 @@ paths:
           type: integer
         name: id
         type: array
+      - description: 'With all: only this campaign''s bounces'
+        in: query
+        name: campaign_id
+        type: integer
+      - description: 'With all: only bounces from this source'
+        in: query
+        name: source
+        type: string
+      - description: 'With all: only this type (soft, hard, complaint)'
+        in: query
+        name: type
+        type: string
+      - description: 'With all: subscriber e-mail or campaign name contains this'
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -2880,6 +2896,23 @@ paths:
   /api/bounces/blocklist:
     put:
       operationId: blocklistBouncedSubscribers
+      parameters:
+      - description: Only this campaign's bounces
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Only bounces from this source
+        in: query
+        name: source
+        type: string
+      - description: Only this type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Subscriber e-mail or campaign name contains this
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:

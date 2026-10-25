@@ -145,7 +145,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "boolean",
-                        "description": "Delete all bounces",
+                        "description": "Delete every bounce matching the filters below",
                         "name": "all",
                         "in": "query"
                     },
@@ -157,6 +157,30 @@ const docTemplate = `{
                         "collectionFormat": "csv",
                         "description": "Bounce IDs to delete",
                         "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "With all: only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: subscriber e-mail or campaign name contains this",
+                        "name": "query",
                         "in": "query"
                     }
                 ],
@@ -183,6 +207,32 @@ const docTemplate = `{
                 ],
                 "summary": "Blocklist all bounced subscribers",
                 "operationId": "blocklistBouncedSubscribers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Subscriber e-mail or campaign name contains this",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK"
