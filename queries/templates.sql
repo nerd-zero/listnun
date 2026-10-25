@@ -6,7 +6,9 @@ SELECT id, name, type, subject,
     (CASE WHEN $2 = false THEN body_source ELSE NULL END) as body_source,
     (CASE WHEN $2 = false THEN alt_body ELSE '' END) as alt_body,
     sample_data, headers,
-    is_default, tenant_id, created_at, updated_at
+    is_default, tenant_id, created_at, updated_at,
+    -- Campaigns that use it, as their template or their archive template.
+    (SELECT COUNT(*) FROM campaigns c WHERE c.template_id = templates.id OR c.archive_template_id = templates.id) AS campaign_count
     FROM templates WHERE ($1 = 0 OR id = $1) AND ($3 = '' OR type = $3::template_type)
     ORDER BY created_at;
 

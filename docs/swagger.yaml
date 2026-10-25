@@ -1969,6 +1969,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -1994,6 +1997,19 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  TemplateTestReq:
+    properties:
+      body:
+        type: string
+      emails:
+        description: Emails must be existing subscribers the user can see.
+        items:
+          type: string
+        type: array
+      type:
+        description: Type is campaign or campaign_visual.
         type: string
     type: object
   TenantReplies:
@@ -2135,6 +2151,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -7253,6 +7272,32 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Preview a template body
+      tags:
+      - templates
+  /api/templates/test:
+    post:
+      consumes:
+      - application/json
+      operationId: testTemplate
+      parameters:
+      - description: Template body and who gets the test
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/TemplateTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test of a campaign template
       tags:
       - templates
   /api/users:

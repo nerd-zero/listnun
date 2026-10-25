@@ -225,6 +225,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/templates/:id", pm(hasID(a.GetTemplate), "templates:get"))
 		g.GET("/api/templates/:id/preview", pm(hasID(a.PreviewTemplate), "templates:get"))
 		g.POST("/api/templates/preview", pm(a.PreviewTemplateBody, "templates:get"))
+		g.POST("/api/templates/test", pm(a.TestTemplate, "templates:manage"))
 		g.POST("/api/templates", pm(a.CreateTemplate, "templates:manage"))
 		g.PUT("/api/templates/:id", pm(hasID(a.UpdateTemplate), "templates:manage"))
 		g.PUT("/api/templates/:id/default", pm(hasID(a.TemplateSetDefault), "templates:manage"))

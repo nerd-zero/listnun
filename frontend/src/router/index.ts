@@ -97,6 +97,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Templates.vue'),
   },
   {
+    // One campaign template, full page; "new" makes one (?type=campaign_visual).
+    path: '/campaigns/templates/:id',
+    name: 'template',
+    meta: {
+      title: 'globals.terms.template', section: 'globals.terms.templates', group: 'campaigns', perms: ['templates:get'],
+    },
+    component: () => import('../views/TemplateEditor.vue'),
+  },
+  {
     path: '/campaigns/analytics',
     name: 'campaignAnalytics',
     meta: { title: 'analytics.title', group: 'campaigns', perms: ['campaigns:get_analytics'] },

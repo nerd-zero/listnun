@@ -6614,6 +6614,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/templates/test": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "templates"
+                ],
+                "summary": "Send a test of a campaign template",
+                "operationId": "testTemplate",
+                "parameters": [
+                    {
+                        "description": "Template body and who gets the test",
+                        "name": "test",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TemplateTestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/templates/{id}": {
             "get": {
                 "produces": [
@@ -10203,6 +10243,10 @@ const docTemplate = `{
                 "body_source": {
                     "$ref": "#/definitions/null.String"
                 },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -10239,6 +10283,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "TemplateTestReq": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "emails": {
+                    "description": "Emails must be existing subscribers the user can see.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "description": "Type is campaign or campaign_visual.",
                     "type": "string"
                 }
             }
@@ -10441,6 +10504,10 @@ const docTemplate = `{
                 },
                 "body_source": {
                     "$ref": "#/definitions/null.String"
+                },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
