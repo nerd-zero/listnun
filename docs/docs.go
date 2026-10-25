@@ -9513,6 +9513,16 @@ const docTemplate = `{
                 "update": {
                     "$ref": "#/definitions/AppUpdate"
                 },
+                "upload_extensions": {
+                    "description": "UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what\nMedia accepts, so the upload area can say so.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "upload_max_file_size": {
+                    "type": "integer"
+                },
                 "version": {
                     "type": "string"
                 }

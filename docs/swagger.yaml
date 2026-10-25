@@ -1470,6 +1470,15 @@ definitions:
         type: boolean
       update:
         $ref: '#/definitions/AppUpdate'
+      upload_extensions:
+        description: |-
+          UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+          Media accepts, so the upload area can say so.
+        items:
+          type: string
+        type: array
+      upload_max_file_size:
+        type: integer
       version:
         type: string
     type: object

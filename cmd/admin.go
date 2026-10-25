@@ -27,18 +27,22 @@ type serverConfig struct {
 		DisableTracking    bool `json:"disable_tracking"`
 		IndividualTracking bool `json:"individual_tracking"`
 	} `json:"privacy"`
-	MediaProvider    string          `json:"media_provider"`
-	Messengers       []string        `json:"messengers"`
-	Langs            []i18nLang      `json:"langs"`
-	Lang             string          `json:"lang"`
-	Permissions      json.RawMessage `json:"permissions"`
-	Update           *AppUpdate      `json:"update"`
-	NeedsRestart     bool            `json:"needs_restart"`
-	HasLegacyUser    bool            `json:"has_legacy_user"`
-	ScrubEnabled     bool            `json:"scrub_enabled"`
-	Version          string          `json:"version"`
-	OrganizationName string          `json:"organization_name,omitempty"`
-	ConsoleURL       string          `json:"console_url,omitempty"`
+	MediaProvider string `json:"media_provider"`
+	// UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+	// Media accepts, so the upload area can say so.
+	UploadExtensions  []string        `json:"upload_extensions"`
+	UploadMaxFileSize int             `json:"upload_max_file_size"`
+	Messengers        []string        `json:"messengers"`
+	Langs             []i18nLang      `json:"langs"`
+	Lang              string          `json:"lang"`
+	Permissions       json.RawMessage `json:"permissions"`
+	Update            *AppUpdate      `json:"update"`
+	NeedsRestart      bool            `json:"needs_restart"`
+	HasLegacyUser     bool            `json:"has_legacy_user"`
+	ScrubEnabled      bool            `json:"scrub_enabled"`
+	Version           string          `json:"version"`
+	OrganizationName  string          `json:"organization_name,omitempty"`
+	ConsoleURL        string          `json:"console_url,omitempty"`
 
 	// ReplyTracking is whether this tenant has campaign reply tracking set
 	// up (its "replies" setup, pushed by the platform), so the editor only
@@ -127,6 +131,8 @@ func (a *App) GetServerConfig(c echo.Context) error {
 
 	if s, err := a.core.GetSettings(c.Request().Context(), tenantID(c)); err == nil {
 		out.ScrubEnabled = s.Scrub.Enabled && s.Scrub.URL != "" && s.Scrub.APIKey != ""
+		out.UploadExtensions = s.UploadExtensions
+		out.UploadMaxFileSize = s.UploadMaxFileSize
 
 		// a.cfg.FromEmail (out.FromEmail's default above) is a single
 		// boot-time value derived from tenant 1's settings - every other

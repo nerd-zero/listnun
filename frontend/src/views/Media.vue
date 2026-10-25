@@ -28,28 +28,16 @@
         @drop.prevent="onDrop"
       >
         <span class="media-drop-icon" aria-hidden="true"><i class="pi pi-upload" /></span>
-        <span>
+        <span class="media-drop-text">
           <strong>{{ $t('media.dropTitle') }}</strong>
           <span class="ln-small">{{ extensionsHelp }}</span>
         </span>
-      </div>
-      <div class="ln-card ln-card-pad media-store">
-        <div class="media-store-row">
-          <span>{{ $t('media.storage') }}</span>
-          <strong class="ln-mono">{{ provider }}</strong>
-        </div>
-        <div v-if="usage" class="media-store-row" data-cy="storage-used">
-          <span>{{ $t('media.used') }}</span>
-          <strong class="media-used">{{ formatBytes(usage.bytes) }}</strong>
-        </div>
-        <span v-if="usage && usage.unknown" class="ln-small">{{ $t('media.unmeasured', { n: usage.unknown.toLocaleString() }) }}</span>
-        <template v-if="uploading.total">
-          <PvProgressBar :value="uploadPct" :show-value="false" />
+        <span v-if="uploading.total" class="media-progress" aria-live="polite">
           <span class="ln-small">{{ $t('media.uploading', { n: uploading.total, pct: uploadPct }) }}</span>
-        </template>
-        <span v-else class="ln-small">{{ $t('media.storageHelp') }}</span>
-        <PvMessage v-for="(e, i) in uploadErrors" :key="i" severity="error" closable @close="uploadErrors.splice(i, 1)">{{ e }}</PvMessage>
+          <PvProgressBar :value="uploadPct" :show-value="false" />
+        </span>
       </div>
+      <PvMessage v-for="(e, i) in uploadErrors" :key="i" severity="error" closable @close="uploadErrors.splice(i, 1)">{{ e }}</PvMessage>
       <input ref="fileInput" type="file" multiple class="media-input" tabindex="-1" aria-hidden="true" @change="onPick">
     </div>
 
@@ -146,7 +134,6 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import { useTime } from '../composables/useTime';
 import { makeQueryHandlers } from '../utils';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
@@ -165,7 +152,6 @@ const emit = defineEmits(['selected', 'close']);
 const { $api: untypedApi, $utils, $can } = useGlobal();
 const $api = untypedApi as unknown as Record<string, (...args: unknown[]) => Promise<Loose>>;
 const { t } = useI18n();
-const { shortDate } = useTime();
 const store = useMainStore();
 const { refreshTick, loading, serverConfig } = storeToRefs(store);
 const media = computed<Loose>(() => (store.media as Loose) || {});
@@ -182,11 +168,26 @@ const { getMediaUsage } = mediaApi();
 
 const canManage = computed(() => $can('media:manage'));
 const items = computed<Loose[]>(() => media.value.results || []);
-const provider = computed(() => (serverConfig.value as Loose).media_provider || '');
 const uploadPct = computed(() => (uploading.total ? Math.round((uploading.done / uploading.total) * 100) : 0));
-const countLabel = computed(() => (media.value.total ? t('media.files', { n: media.value.total.toLocaleString() }) : null));
+// "7 files · 80 KB": how much space Media uses goes with the count.
+const countLabel = computed(() => {
+  if (!media.value.total) return null;
+  const files = t('media.files', { n: media.value.total.toLocaleString() });
+  return usage.value?.bytes ? `${files} · ${formatBytes(usage.value.bytes)}` : files;
+});
 const selectedUrls = computed(() => items.value.filter((m) => selected.has(m.id)).map((m) => m.url));
-const extensionsHelp = computed(() => t('media.dropHelp'));
+// What Media accepts, from this workspace's upload settings: "JPG, PNG,
+// GIF, SVG · up to 5 MB each". "*" in the list means any type.
+const extensionsHelp = computed(() => {
+  const cfg = serverConfig.value as Loose;
+  const exts = ((cfg.upload_extensions || []) as string[]).filter((e) => e !== 'jpeg');
+  const types = !exts.length || exts.includes('*') ? t('media.anyType') : exts.map((e) => e.toUpperCase()).join(', ');
+  const kb = Number(cfg.upload_max_file_size) || 0;
+  // The setting is in KB; say it the way it was set ("5000" reads as 5 MB),
+  // which never overstates the limit (the server allows kb * 1024 bytes).
+  const size = kb >= 1000 ? `${Number((kb / 1000).toFixed(1))} MB` : `${kb} KB`;
+  return kb ? t('media.dropLimits', { types, size }) : types;
+});
 
 function ext(name: string): string {
   return (name.split('.').pop() || '').toUpperCase();
@@ -196,7 +197,7 @@ function meta(m: Loose): string {
   const w = m.meta?.width;
   const h = m.meta?.height;
   const dims = w && h ? `${w} × ${h}` : ext(m.filename);
-  return `${dims}\u2003${shortDate(m.createdAt)}`;
+  return m.size ? `${dims}\u2003${formatBytes(m.size)}` : dims;
 }
 
 function toggle(id: number) {
@@ -307,14 +308,7 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
 
 <style scoped lang="scss">
 .media-used { font-variant-numeric: tabular-nums; }
-.media-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 16px;
-
-  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); }
-  .is-modal & { grid-template-columns: minmax(0, 1fr); .media-store { display: none; } }
-}
+.media-top { display: flex; flex-direction: column; gap: 10px; }
 .media-drop {
   display: flex;
   align-items: center;
@@ -326,7 +320,7 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
   cursor: pointer;
   transition: border-color var(--ln-dur-fast) var(--ln-ease), background-color var(--ln-dur-fast) var(--ln-ease);
 
-  > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+  .media-drop-text { display: flex; flex-direction: column; gap: 2px; }
   &:hover, &.is-over { border-color: var(--ln-ink); }
   // Dragging a file over lifts the upload icon.
   &.is-over { background: var(--ln-hover); }
@@ -346,8 +340,8 @@ onMounted(() => { $api.getMedia(); fetchUsage(); });
   justify-content: center;
   transition: translate var(--ln-dur-base) var(--ln-ease);
 }
-.media-store { display: flex; flex-direction: column; gap: 8px; }
-.media-store-row { display: flex; justify-content: space-between; gap: 8px; }
+.media-drop-text { flex: 1; min-width: 0; }
+.media-progress { display: flex; flex-direction: column; gap: 6px; flex: 0 1 240px; }
 .media-input { display: none; }
 
 .media-grid {
