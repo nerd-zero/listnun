@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -849,51 +850,59 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.noListsSelected"))
 	}
 
-	// Validate fields.
-	if len(req.Email) > 1000 {
-		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+	_, hasOptin, err := a.subscribe(c.Request().Context(), tenantID(c), models.Subscriber{
+		Name:   req.Name,
+		Email:  req.Email,
+		Status: models.SubscriberStatusEnabled,
+	}, req.FormListUUIDs)
+	return hasOptin, err
+}
+
+// subscribe signs someone up to public lists from a form: a new subscriber,
+// or an existing one added to the lists. It returns the subscriber's ID and
+// whether a list needs them to confirm.
+func (a *App) subscribe(ctx context.Context, tID int, sub models.Subscriber, uuids []string) (int, bool, error) {
+	if len(sub.Email) > 1000 {
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
 	}
 
-	imp, err := a.importers.Get(c.Request().Context(), tenantID(c))
+	imp, err := a.importers.Get(ctx, tID)
 	if err != nil {
-		return false, err
+		return 0, false, err
 	}
 
-	em, err := imp.SanitizeEmail(req.Email)
+	em, err := imp.SanitizeEmail(sub.Email)
 	if err != nil {
-		return false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	req.Email = em
+	sub.Email = em
 
-	req.Name = strings.TrimSpace(req.Name)
-	if len(req.Name) == 0 {
+	sub.Name = strings.TrimSpace(sub.Name)
+	if len(sub.Name) == 0 {
 		// If there's no name, use the name bit from the e-mail.
-		req.Name = strings.Split(req.Email, "@")[0]
-	} else if len(req.Name) > stdInputMaxLen {
-		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
+		sub.Name = strings.Split(sub.Email, "@")[0]
+	} else if len(sub.Name) > stdInputMaxLen {
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
 	}
 
-	listUUIDs := pq.StringArray(req.FormListUUIDs)
+	listUUIDs := pq.StringArray(uuids)
 
 	// Fetch the list types and ensure that they are not private.
-	listTypes, err := a.core.GetListTypes(c.Request().Context(), tenantID(c), nil, req.FormListUUIDs)
+	listTypes, err := a.core.GetListTypes(ctx, tID, nil, uuids)
 	if err != nil {
-		return false, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%s", err.(*echo.HTTPError).Message))
+		return 0, false, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%s", err.(*echo.HTTPError).Message))
 	}
 
 	for _, t := range listTypes {
 		if t == models.ListTypePrivate {
-			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
+			return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
 		}
 	}
-
-	ctx := c.Request().Context()
-	tID := tenantID(c)
 
 	// listIDs (as opposed to listUUIDs above) is only needed for the Scrub
 	// auto-pause check below -- resolved once, used on both the fresh-insert
 	// and resubscribe-existing branches.
-	listIDs, err := a.core.GetListIDsByUUIDs(ctx, tID, req.FormListUUIDs)
+	listIDs, err := a.core.GetListIDsByUUIDs(ctx, tID, uuids)
 	if err != nil {
 		listIDs = nil
 	}
@@ -905,40 +914,37 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 	// status instead.
 	scrubStatus := ""
 	if s, err := a.core.GetSettings(ctx, tID); err == nil {
-		status, reject := validateEmailForAdd(ctx, s, req.Email)
+		status, reject := validateEmailForAdd(ctx, s, sub.Email)
 		if reject {
-			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+			return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
 		}
 		scrubStatus = status
 	}
 
 	// Insert the subscriber into the DB.
-	sub, hasOptin, err := a.core.InsertSubscriber(ctx, tID, models.Subscriber{
-		Name:   req.Name,
-		Email:  req.Email,
-		Status: models.SubscriberStatusEnabled,
-	}, nil, listUUIDs, false, true)
+	out, hasOptin, err := a.core.InsertSubscriber(ctx, tID, sub, nil, listUUIDs, false, true)
 	if err == nil {
 		if scrubStatus != "" {
-			if err := a.core.SetSubscriberScrubStatus(ctx, tID, sub.ID, scrubStatus); err != nil {
-				a.log.Printf("error setting scrub status on subscriber %d: %v", sub.ID, err)
+			if err := a.core.SetSubscriberScrubStatus(ctx, tID, out.ID, scrubStatus); err != nil {
+				a.log.Printf("error setting scrub status on subscriber %d: %v", out.ID, err)
 			}
 			if scrubStatus == scrub.StatusRisky {
 				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
 			}
 		}
-		return hasOptin, nil
+		return out.ID, hasOptin, nil
 	}
 
 	// Insert returned an error. Examine it.
 	var lastErr = err
 
-	// Subscriber already exists. Update subscriptions in the DB.
+	// Subscriber already exists. Update subscriptions in the DB. Their name
+	// and attributes stay as they are.
 	if e, ok := err.(*echo.HTTPError); ok && e.Code == http.StatusConflict {
 		// Get the subscriber from the DB by their email.
-		existing, err := a.core.GetSubscriber(ctx, tID, 0, "", req.Email)
+		existing, err := a.core.GetSubscriber(ctx, tID, 0, "", sub.Email)
 		if err != nil {
-			return false, err
+			return 0, false, err
 		}
 
 		// Update the subscriber's subscriptions in the DB.
@@ -949,14 +955,14 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 			if existing.ScrubStatus.String == scrub.StatusRisky {
 				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
 			}
-			return hasOptin, nil
+			return existing.ID, hasOptin, nil
 		}
 		lastErr = err
 	}
 
 	// Something else went wrong.
 	if e, ok := lastErr.(*echo.HTTPError); ok {
-		return false, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s", e.Message))
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s", e.Message))
 	}
-	return false, echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("public.errorProcessingRequest"))
+	return 0, false, echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("public.errorProcessingRequest"))
 }

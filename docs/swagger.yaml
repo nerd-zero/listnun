@@ -724,6 +724,91 @@ definitions:
       unsubscribed:
         type: integer
     type: object
+  FormReq:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+    type: object
+  FormResp:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      created_at:
+        type: string
+      embed_html:
+        description: EmbedHTML is a form to paste into a website.
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      id:
+        type: integer
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      popup_script:
+        description: PopupScript is a script tag that shows the form as a popup.
+        type: string
+      signups:
+        description: |-
+          Signups is how many people signed up in the last 30 days (lists of
+          forms only).
+        type: integer
+      slug:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+      updated_at:
+        type: string
+      url:
+        description: URL is the form's hosted page.
+        type: string
+      uuid:
+        type: string
+    type: object
+  FormStats:
+    properties:
+      blocked:
+        type: integer
+      confirmed:
+        type: integer
+      signups:
+        type: integer
+      views:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -2588,6 +2673,16 @@ definitions:
       value:
         type: string
     type: object
+  models.FormField:
+    properties:
+      key:
+        description: Key is email, name, or attribs.<name> for an attribute.
+        type: string
+      label:
+        type: string
+      required:
+        type: boolean
+    type: object
   models.Tenant:
     properties:
       created_at:
@@ -4089,6 +4184,114 @@ paths:
       summary: Resend a webhook delivery
       tags:
       - developers
+  /api/forms:
+    get:
+      operationId: getForms
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/FormResp'
+            type: array
+      summary: Get signup forms
+      tags:
+      - forms
+    post:
+      consumes:
+      - application/json
+      operationId: createForm
+      parameters:
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a signup form
+      tags:
+      - forms
+  /api/forms/{id}:
+    delete:
+      operationId: deleteForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+      summary: Delete a signup form
+      tags:
+      - forms
+    put:
+      consumes:
+      - application/json
+      operationId: updateForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a signup form
+      tags:
+      - forms
+  /api/forms/{id}/stats:
+    get:
+      operationId: getFormStats
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormStats'
+      summary: Get a form's figures
+      tags:
+      - forms
   /api/health:
     get:
       operationId: healthCheck

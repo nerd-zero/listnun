@@ -1,0 +1,60 @@
+{{ define "form-page" }}
+{{ if .Data.Embed }}
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>{{ .Data.Title }} - {{ .SiteName }}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+	<meta name="color-scheme" content="light dark" />
+	<link href="/public/static/style.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css" />
+	<link href="/public/custom.css?v={{ .AssetVersion }}" rel="stylesheet" type="text/css">
+</head>
+<body class="is-embed">
+	<main class="container wrap">
+{{ else }}
+{{ template "header" . }}
+{{ end }}
+<section class="signup-form" data-cy="signup-form">
+	{{ if .Data.Form.Heading }}<h2>{{ .Data.Form.Heading }}</h2>{{ else }}<h2>{{ L.T "public.subTitle" }}</h2>{{ end }}
+	{{ if .Data.Form.Intro }}<p class="signup-intro">{{ .Data.Form.Intro }}</p>{{ end }}
+
+	<form method="post" action="{{ .Data.Action }}" class="form stack">
+		{{ $values := .Data.Values }}
+		{{ range $i, $f := .Data.Form.Fields }}
+		<div class="field">
+			<label for="f-{{ $i }}">{{ $f.Label }}{{ if not $f.Required }} <span class="optional">{{ L.T "forms.optional" }}</span>{{ end }}</label>
+			<input id="f-{{ $i }}" name="{{ $f.Key }}" value="{{ index $values $f.Key }}"
+				{{ if eq $f.Key "email" }}type="email" autocomplete="email" autofocus{{ else if eq $f.Key "name" }}type="text" autocomplete="name"{{ else }}type="text"{{ end }}
+				{{ if $f.Required }}required{{ end }} maxlength="1000" />
+		</div>
+		{{ end }}
+		<input name="nonce" class="nonce" value="" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+		{{ if gt (len .Data.Lists) 1 }}
+		<ul class="lists" data-cy="lists">
+			{{ range $l := .Data.Lists }}
+			<li>
+				<input checked id="l-{{ $l.UUID }}" type="checkbox" name="l" value="{{ $l.UUID }}" />
+				<span class="list-text"><label for="l-{{ $l.UUID }}">{{ $l.Name }}</label></span>
+			</li>
+			{{ end }}
+		</ul>
+		{{ end }}
+
+		{{ if .Data.Captcha.Enabled }}{{ template "captcha-widget" .Data.Captcha }}{{ end }}
+
+		{{ if .Data.Error }}<p class="signup-error" role="alert">{{ .Data.Error }}</p>{{ end }}
+
+		<button type="submit" class="button" data-cy="btn-subscribe">{{ if .Data.Form.ButtonLabel }}{{ .Data.Form.ButtonLabel }}{{ else }}{{ L.T "public.sub" }}{{ end }}</button>
+		<p class="signup-note">{{ L.T "forms.unsubAnytime" }}</p>
+	</form>
+</section>
+{{ if .Data.Embed }}
+	</main>
+</body>
+</html>
+{{ else }}
+{{ template "footer" . }}
+{{ end }}
+{{ end }}

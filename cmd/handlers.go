@@ -182,6 +182,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/lists/growth", a.GetListsGrowth)
 		g.GET("/api/lists/optin/pending", pm(a.GetOptinPending, "subscribers:manage"))
 		g.POST("/api/lists/optin/resend", pm(a.ResendOptins, "subscribers:manage"))
+
+		g.GET("/api/forms", pm(a.GetForms, "lists:get_all"))
+		g.GET("/api/forms/:id/stats", pm(hasID(a.GetFormStats), "lists:get_all"))
+		g.POST("/api/forms", pm(a.CreateForm, "lists:manage_all"))
+		g.PUT("/api/forms/:id", pm(hasID(a.UpdateForm), "lists:manage_all"))
+		g.DELETE("/api/forms/:id", pm(hasID(a.DeleteForm), "lists:manage_all"))
 		g.GET("/api/lists/:id/activity", hasID(a.GetListActivity))
 		g.GET("/api/lists/:id", hasID(a.GetList))
 		g.POST("/api/lists", pm(a.CreateList, "lists:manage_all"))
@@ -392,6 +398,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// Public subscriber facing views.
 		g.GET("/subscription/form", a.SubscriptionFormPage)
 		g.POST("/subscription/form", a.SubscriptionForm)
+		g.GET("/f/:slug", noIndex(a.FormPage))
+		g.POST("/f/:slug", a.FormSubmit)
+		g.GET("/f/:slug/popup.js", a.FormPopup)
 		g.GET("/subscription/:campUUID/:subUUID", noIndex(a.hasUUID(a.hasSub(a.SubscriptionPage), "campUUID", "subUUID")))
 		g.POST("/subscription/:campUUID/:subUUID", a.hasUUID(a.hasSub(a.SubscriptionPrefs), "campUUID", "subUUID"))
 		g.POST("/subscription/:campUUID/:subUUID/resubscribe", a.hasUUID(a.hasSub(a.Resubscribe), "campUUID", "subUUID"))

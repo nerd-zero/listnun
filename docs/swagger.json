@@ -2226,6 +2226,170 @@
                 }
             }
         },
+        "/api/forms": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get signup forms",
+                "operationId": "getForms",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/FormResp"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Create a signup form",
+                "operationId": "createForm",
+                "parameters": [
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Update a signup form",
+                "operationId": "updateForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Delete a signup form",
+                "operationId": "deleteForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get a form's figures",
+                "operationId": "getFormStats",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormStats"
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "produces": [
@@ -8164,6 +8328,130 @@
                 }
             }
         },
+        "FormReq": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormResp": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "embed_html": {
+                    "description": "EmbedHTML is a form to paste into a website.",
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "popup_script": {
+                    "description": "PopupScript is a script tag that shows the form as a popup.",
+                    "type": "string"
+                },
+                "signups": {
+                    "description": "Signups is how many people signed up in the last 30 days (lists of\nforms only).",
+                    "type": "integer"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "URL is the form's hosted page.",
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormStats": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "integer"
+                },
+                "signups": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "I18nLang": {
             "type": "object",
             "properties": {
@@ -10863,6 +11151,21 @@
                 },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "models.FormField": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "description": "Key is email, name, or attribs.\u003cname\u003e for an attribute.",
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
                 }
             }
         },

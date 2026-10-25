@@ -311,3 +311,11 @@ input[type="checkbox"], input[type="radio"] {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Saved signup forms (/f/<form>). */
+.signup-intro { margin: -4px 0 4px; color: var(--text-2); }
+.signup-form .optional { font-weight: 400; color: var(--text-3); }
+.signup-error { margin: 0; color: var(--bad-fg, #a33f2c); font-size: 14px; }
+.signup-note { margin: 0; font-size: 13px; color: var(--text-3); }
+/* In the popup's frame: no page chrome, the form fills the frame. */
+.is-embed .wrap { padding-top: 32px; padding-bottom: 24px; }

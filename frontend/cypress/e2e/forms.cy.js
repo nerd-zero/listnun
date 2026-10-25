@@ -4,34 +4,32 @@ describe('Forms', () => {
   it('Opens forms page', () => {
     cy.resetDB();
     cy.loginAndVisit('/admin/lists/forms');
+    cy.contains('No signup forms yet');
   });
 
-  it('Checks public lists', () => {
-    cy.get('[data-cy=lists] [data-cy=list]')
-      .should('contain', 'Opt-in list')
-      .its('length')
-      .should('eq', 1);
+  it('Creates and publishes a form', () => {
+    cy.contains('button', 'New form').click();
+    cy.get('[data-cy=form-name]').clear().type('Newsletter signup');
 
-    // Every public list is preselected, so the form HTML is shown straight away.
-    cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').should('be.checked');
-    cy.get('[data-cy=form] [data-cy=html]').should('exist');
-    cy.get('[data-cy=form] [data-cy=no-selection]').should('not.exist');
+    // A form can't go live without a list.
+    cy.get('[data-cy=form-list]').contains('Opt-in list').click();
+    cy.get('[data-cy=btn-publish]').click();
+
+    cy.get('[data-cy=form-card]').should('contain', 'Newsletter signup').and('contain', 'Live');
+    // The page address comes from the name the form was published with.
+    cy.get('[data-cy=form-url]').should('have.attr', 'href').and('contain', '/f/newsletter-signup');
   });
 
-  it('Selects public list', () => {
-    cy.request(`${apiUrl}/api/lists?per_page=all`).then((response) => {
-      const { uuid } = response.body.data.results.find((l) => l.name === 'Opt-in list');
+  it('Signs up on the hosted page', () => {
+    cy.visit(`${apiUrl}/f/newsletter-signup`);
+    cy.get('input[name=email]').type('form-signup@test.com');
+    cy.get('[data-cy=btn-subscribe]').click();
+    cy.contains(/confirm|subscribed/i);
 
-      // Deselect the list: the HTML goes away.
-      cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').uncheck({ force: true });
-      cy.get('[data-cy=form] [data-cy=html]').should('not.exist');
-      cy.get('[data-cy=form] [data-cy=no-selection]').should('exist');
-      cy.get('[data-cy=form] [data-cy=preview]').should('have.attr', 'srcdoc').and('not.contain', uuid);
-
-      // Select it again: the list's UUID appears in the form HTML.
-      cy.get('[data-cy=lists] [data-cy=list] input[type=checkbox]').check({ force: true });
-      cy.get('[data-cy=form] [data-cy=html]').should('exist');
-      cy.get('[data-cy=form] [data-cy=preview]').should('have.attr', 'srcdoc').and('contain', uuid);
+    cy.request(`${apiUrl}/api/subscribers?per_page=all`).should((response) => {
+      const sub = response.body.data.results.find((s) => s.email === 'form-signup@test.com');
+      expect(sub, 'subscriber from the form').to.not.equal(undefined);
+      expect(sub.lists.map((l) => l.name)).to.include('Opt-in list');
     });
   });
 
