@@ -130,10 +130,10 @@ export function navGroups(t: Translate, can: Can): NavGroup[] {
   if (can('users:*', 'roles:*')) {
     workspace.push({
       key: 'users',
-      label: t('globals.terms.users'),
+      label: t('users.team'),
       icon: 'users',
       to: { name: can('users:get') ? 'users' : 'userRoles' },
-      names: ['users', 'userRoles', 'listRoles', 'apiUsers'],
+      names: ['users', 'userRoles', 'listRoles'],
     });
   }
   if (can('settings:*')) {

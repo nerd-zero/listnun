@@ -9504,6 +9504,10 @@ const docTemplate = `{
                     "description": "ReplyTracking is whether this tenant has campaign reply tracking set\nup (its \"replies\" setup, pushed by the platform), so the editor only\noffers the switch when it would do something.",
                     "type": "boolean"
                 },
+                "require_2fa": {
+                    "description": "Require2FA is security.require_2fa, so Team can stop asking for it\nonce it's on.",
+                    "type": "boolean"
+                },
                 "root_url": {
                     "type": "string"
                 },

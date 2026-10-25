@@ -1464,6 +1464,11 @@ definitions:
           up (its "replies" setup, pushed by the platform), so the editor only
           offers the switch when it would do something.
         type: boolean
+      require_2fa:
+        description: |-
+          Require2FA is security.require_2fa, so Team can stop asking for it
+          once it's on.
+        type: boolean
       root_url:
         type: string
       scrub_enabled:

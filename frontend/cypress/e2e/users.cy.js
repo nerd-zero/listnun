@@ -186,6 +186,22 @@ describe('Users ', () => {
     cy.confirmAction();
     cy.rows().should('have.length', 3);
   });
+
+  it('Changes a role from the list', () => {
+    // Row 2 is "first" (user 2), on the "first" role.
+    cy.pvSelect('tbody tr:nth-child(2) [data-cy=role-select]', 'second');
+    cy.request(`${apiUrl}/api/users/2`).should((response) => {
+      expect(response.body.data.user_role.name).to.equal('second');
+    });
+  });
+
+  it('Folds deactivated accounts away', () => {
+    cy.rows().eq(1).then((row) => rowMenu(row, 'Deactivate'));
+    cy.rows().should('have.length', 2);
+    cy.get('[data-cy=toggle-deactivated]').should('contain', '1 deactivated account').click();
+    cy.rows().should('have.length', 3);
+    cy.rows().last().find('[data-cy=role-select]').should('not.exist');
+  });
 });
 
 describe('Login ', () => {

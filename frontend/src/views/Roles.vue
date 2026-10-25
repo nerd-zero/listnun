@@ -1,6 +1,6 @@
 <template>
   <div class="ln-page roles">
-    <users-tabs>
+    <users-tabs :members="members">
       <PvButton v-if="$can('roles:manage')" icon="pi pi-plus" :label="$t('users.newRole')" data-cy="btn-new" @click="startNew" />
     </users-tabs>
 
@@ -114,6 +114,7 @@ const selected = ref<Loose | null>(null);
 const creating = ref(false);
 const draft = ref<Loose>({});
 const formKey = ref(0);
+const members = ref<number | null>(null);
 const counts = ref<Record<number, number>>({});
 const clone = reactive({
   open: false, busy: false, name: '', source: null as Loose | null,
@@ -164,7 +165,9 @@ function fetchCounts() {
   if (!$can('users:get')) return;
   listUsers().then((data) => {
     const c: Record<number, number> = {};
-    (data as unknown as Loose[]).forEach((u) => {
+    const users = data as unknown as Loose[];
+    members.value = users.filter((u) => u.type !== 'api' && u.status !== 'disabled').length;
+    users.forEach((u) => {
       const id = isUser.value ? u.userRole?.id : u.listRole?.id;
       if (id) c[id] = (c[id] || 0) + 1;
     });
