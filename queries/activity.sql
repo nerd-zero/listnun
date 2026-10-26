@@ -2,8 +2,10 @@
 INSERT INTO activity_log (tenant_id, level, source, message) VALUES ($1, $2, $3, $4);
 
 -- name: get-activity
--- The workspace's most recent activity, newest first.
+-- The workspace's most recent activity, newest first. $2 limits it to one
+-- source ('' for all).
 SELECT id, level, source, message, created_at FROM activity_log
+    WHERE ($2 = '' OR source = $2)
     ORDER BY created_at DESC, id DESC LIMIT $1;
 
 -- name: prune-activity

@@ -21,6 +21,10 @@ type pipe struct {
 	stopped    atomic.Bool
 	withErrors atomic.Bool
 
+	// errReported is set once the run's first send error is reported
+	// (see Manager.reportSendError).
+	errReported atomic.Bool
+
 	m *Manager
 }
 

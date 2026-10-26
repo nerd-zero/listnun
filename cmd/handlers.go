@@ -324,6 +324,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
 		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
+		g.GET("/tenants/:id/activity", hasID(a.GetOperatorTenantActivity))
 		g.GET("/usage", a.GetOperatorPlatformUsage)
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}

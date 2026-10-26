@@ -32,14 +32,15 @@ func (c *Core) LogActivity(tenantID int, level, source, message string) {
 	}
 }
 
-// GetActivity returns up to limit of the workspace's latest activity lines.
-func (c *Core) GetActivity(ctx context.Context, tenantID, limit int) ([]models.ActivityEntry, error) {
+// GetActivity returns up to limit of the workspace's latest activity lines,
+// only those from source when it's set.
+func (c *Core) GetActivity(ctx context.Context, tenantID, limit int, source string) ([]models.ActivityEntry, error) {
 	if limit < 1 || limit > activityMaxLines {
 		limit = activityMaxLines
 	}
 	out := []models.ActivityEntry{}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.GetActivity).Select(&out, limit)
+		return stmtx(tx, c.q.GetActivity).Select(&out, limit, source)
 	})
 	if err != nil {
 		c.log.Printf("error fetching activity log: %v", err)

@@ -249,6 +249,14 @@ func (s *store) RecordTxSendResult(tenantID int, txMessageID int64, messenger st
 	s.core.RecordTxSendResult(tenantID, txMessageID, messenger, err)
 }
 
+// RecordCampaignSendError records a campaign's send failure in its
+// workspace's activity log (Settings › Logs), which the operator API also
+// hands to listnun's console.
+func (s *store) RecordCampaignSendError(c *models.Campaign, err error) {
+	s.core.LogActivity(c.TenantID, models.ActivityError, "sending",
+		fmt.Sprintf("“%s” couldn't send: %s", c.Name, core.DescribeSendError(err)))
+}
+
 // RecordBounce records a bounce event and returns the bounce count.
 func (s *store) RecordBounce(b models.Bounce) (int64, int, error) {
 	var res = struct {
