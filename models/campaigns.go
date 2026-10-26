@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"regexp"
 	"strings"
 	txttpl "text/template"
 
@@ -280,4 +281,20 @@ func (c *Campaign) ConvertContent(from, to string) (string, error) {
 	}
 
 	return out, nil
+}
+
+// unsubLinkRe matches a template tag that renders a subscriber's
+// unsubscribe or preferences link, e.g. {{ UnsubscribeURL }}.
+var unsubLinkRe = regexp.MustCompile(`\{\{-?\s*(UnsubscribeURL|ManageURL)\b`)
+
+// HasUnsubscribeLink reports whether the campaign's email gives the
+// subscriber a visible way to unsubscribe: a {{ UnsubscribeURL }} or
+// {{ ManageURL }} in its body or in the template around it. Gmail and
+// Yahoo require one from bulk senders, on top of the List-Unsubscribe
+// header. A visual campaign ignores its template, so only its body counts.
+func (c *Campaign) HasUnsubscribeLink() bool {
+	if c.ContentType != CampaignContentTypeVisual && unsubLinkRe.MatchString(c.TemplateBody) {
+		return true
+	}
+	return unsubLinkRe.MatchString(c.Body)
 }

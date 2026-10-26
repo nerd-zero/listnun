@@ -363,13 +363,13 @@
         <ul class="ln-card camp-checks">
           <li v-for="c in checks" :key="c.key" :class="`is-${c.tone}`">
             <span class="camp-check-mark" aria-hidden="true">
-              <i :class="['pi', c.tone === 'ok' ? 'pi-check' : (c.tone === 'warn' ? 'pi-exclamation-triangle' : 'pi-info')]" />
+              <i :class="['pi', CHECK_ICONS[c.tone]]" />
             </span>
             <span class="camp-check-text">
               <strong>{{ c.title }}</strong>
               <span class="ln-small">{{ c.text }}</span>
             </span>
-            <PvButton v-if="c.fix && c.tone === 'warn'" :label="c.fix.label" size="small" severity="secondary" outlined @click="c.fix.run" />
+<PvButton v-if="c.fix && (c.tone === 'warn' || c.tone === 'bad')" :label="c.fix.label" size="small" severity="secondary" outlined @click="c.fix.run" />
             <button v-else-if="c.fix" type="button" class="ln-link-btn" @click="c.fix.run">{{ c.fix.label }}</button>
           </li>
         </ul>
@@ -472,15 +472,21 @@ import DialogForm from '../components/ui/DialogForm.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
+import { campaignHasUnsubLink, withUnsubFooter } from '../composables/unsubLink';
 
 // Campaigns, lists and templates are the API's loose camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 type StepKey = 'settings' | 'content' | 'schedule' | 'review';
 
+const CHECK_ICONS = {
+  ok: 'pi-check', warn: 'pi-exclamation-triangle', bad: 'pi-times', info: 'pi-info',
+};
+
 interface Check {
   key: string;
-  tone: 'ok' | 'warn' | 'info';
+  // bad blocks sending.
+  tone: 'ok' | 'warn' | 'info' | 'bad';
   title: string;
   text: string;
   fix?: { label: string; run: () => void };
@@ -639,6 +645,22 @@ const allMessengers = computed(() => {
   return [...email, ...others];
 });
 const campaignTemplates = computed(() => ((templates.value as Loose[]) || []).filter((tpl) => tpl.type === 'campaign'));
+
+// Gmail and Yahoo filter bulk email without a visible unsubscribe link,
+// and the server refuses to start or schedule a campaign without one.
+const hasUnsub = computed(() => {
+  const tpl = campaignTemplates.value.find((x: Loose) => x.id === form.content.templateId);
+  return campaignHasUnsubLink(form.content.contentType, String(form.content.body || ''), tpl?.body);
+});
+
+// A visual email's blocks are edited in the builder, so its fix goes there.
+function addUnsubLink() {
+  if (form.content.contentType === 'visual') {
+    goStep('content');
+    return;
+  }
+  form.content = { ...form.content, body: withUnsubFooter(form.content.contentType, String(form.content.body || '')) };
+}
 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const rootUrl = computed(() => (serverConfig.value as Loose).root_url || '');
 
@@ -668,6 +690,7 @@ const primaryCy = computed(() => {
 const primaryDisabled = computed(() => {
   if (isNew.value) return !form.name || !form.subject || !canManage.value;
   if (step.value === 'review' && !canEdit.value && !canUnSchedule.value) return true;
+  if (step.value === 'review' && canSend.value && (canStart.value || canSchedule.value) && !hasUnsub.value) return true;
   return false;
 });
 
@@ -734,6 +757,20 @@ const checks = computed<Check[]>(() => {
     }
     : {
       key: 'content', tone: 'warn', title: t('campaigns.content'), text: t('campaigns.checkEmpty'), fix: { label: t('campaigns.fix'), run: () => goStep('content') },
+    });
+  out.push(hasUnsub.value
+    ? {
+      key: 'unsub', tone: 'ok', title: t('campaigns.checkUnsub'), text: t('campaigns.checkUnsubOk'),
+    }
+    : {
+      key: 'unsub',
+      tone: 'bad',
+      title: t('campaigns.checkUnsub'),
+      text: t(form.content.contentType === 'visual' ? 'campaigns.checkUnsubMissingVisual' : 'campaigns.checkUnsubMissing'),
+      fix: canEdit.value ? {
+        label: t(form.content.contentType === 'visual' ? 'campaigns.fix' : 'campaigns.addUnsubLink'),
+        run: addUnsubLink,
+      } : undefined,
     });
   // A test matters: nothing else shows the email as subscribers get it.
   // Missing or out of date, it's a warning with the button to send one.
@@ -1399,6 +1436,7 @@ onBeforeUnmount(() => {
   i { font-size: 10px; }
   .is-ok & { background: var(--ln-success); color: #fff; }
   .is-warn & { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
+  .is-bad & { background: var(--ln-danger-bg); color: var(--ln-danger-fg); }
 }
 .camp-check-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 
