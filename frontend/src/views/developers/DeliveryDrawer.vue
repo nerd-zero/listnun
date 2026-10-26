@@ -28,7 +28,7 @@
             <ol class="whd-attempts">
               <li v-for="a in d.history" :key="`${a.attempt}-${a.createdAt}`">
                 <span class="ln-mono">{{ a.attempt }}</span>
-                <span class="ln-mono" :class="codeClass(a.statusCode)">{{ a.statusCode || '—' }}</span>
+                <span class="ln-mono" :class="codeClass(a.statusCode)" :title="a.error || undefined">{{ a.statusCode || (a.error ? $t('developers.webhooks.noResponse') : '—') }}</span>
                 <span class="ln-mono">{{ duration(a.durationMs) }}</span>
                 <span class="ln-small">{{ clock(a.createdAt) }}</span>
               </li>

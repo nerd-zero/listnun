@@ -5,6 +5,9 @@
     <div class="message-body">
         {{ .Data.Message }}
     </div>
+    {{ if .Data.Link }}
+        <p class="links" style="margin-top: 16px"><a href="{{ .Data.Link.URL }}">{{ .Data.Link.Label }}</a></p>
+    {{ end }}
 </section>
 {{ template "footer" .}}
 {{ end }}

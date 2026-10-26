@@ -889,6 +889,63 @@ ALTER TABLE segments ENABLE ROW LEVEL SECURITY; ALTER TABLE segments FORCE ROW L
 DROP POLICY IF EXISTS tenant_isolation ON segments;
 CREATE POLICY tenant_isolation ON segments USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
 
+-- Finished subscriber imports (v6.38.0), for the Import page's history.
+DROP TABLE IF EXISTS imports CASCADE;
+CREATE TABLE imports (
+    id          SERIAL PRIMARY KEY,
+    tenant_id   INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    name        TEXT NOT NULL,
+    mode        TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    total       INTEGER NOT NULL DEFAULT 0,
+    imported    INTEGER NOT NULL DEFAULT 0,
+    added       INTEGER NOT NULL DEFAULT 0,
+    skipped     INTEGER NOT NULL DEFAULT 0,
+    failed      INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_imports_tenant ON imports(tenant_id, created_at DESC);
+ALTER TABLE imports ENABLE ROW LEVEL SECURITY; ALTER TABLE imports FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON imports;
+CREATE POLICY tenant_isolation ON imports USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
+-- Saved signup forms and their events (v6.39.0).
+DROP TABLE IF EXISTS form_events CASCADE;
+DROP TABLE IF EXISTS forms CASCADE;
+CREATE TABLE forms (
+    id               SERIAL PRIMARY KEY,
+    tenant_id        INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    uuid             uuid NOT NULL UNIQUE,
+    slug             TEXT NOT NULL,
+    name             TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'draft',
+    heading          TEXT NOT NULL DEFAULT '',
+    intro            TEXT NOT NULL DEFAULT '',
+    list_ids         INTEGER[] NOT NULL DEFAULT '{}',
+    fields           JSONB NOT NULL DEFAULT '[]',
+    button_label     TEXT NOT NULL DEFAULT '',
+    success_message  TEXT NOT NULL DEFAULT '',
+    captcha          BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, slug)
+);
+CREATE TABLE form_events (
+    id             BIGSERIAL PRIMARY KEY,
+    tenant_id      INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    form_id        INTEGER NOT NULL REFERENCES forms(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    kind           TEXT NOT NULL,
+    subscriber_id  INTEGER NULL REFERENCES subscribers(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    created_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_form_events_form ON form_events(form_id, created_at);
+ALTER TABLE forms ENABLE ROW LEVEL SECURITY; ALTER TABLE forms FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON forms;
+CREATE POLICY tenant_isolation ON forms USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+ALTER TABLE form_events ENABLE ROW LEVEL SECURITY; ALTER TABLE form_events FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON form_events;
+CREATE POLICY tenant_isolation ON form_events USING (tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::INTEGER OR NULLIF(current_setting('app.current_tenant', true), '') IS NULL);
+
 DROP TABLE IF EXISTS campaign_replies CASCADE;
 CREATE TABLE campaign_replies (
     id                   BIGSERIAL PRIMARY KEY,

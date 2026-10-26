@@ -26,7 +26,9 @@ describe('Templates', () => {
   });
 
   it('Counts default templates', () => {
-    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 4);
+    // Campaign templates only; the transactional one is under Developers.
+    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 3);
+    card('Default campaign template').should('contain', 'Used by');
   });
 
   it('Clones campaign template', () => {
@@ -38,24 +40,19 @@ describe('Templates', () => {
     card('cloned campaign').should('exist');
   });
 
-  it('Clones tx template', () => {
-    cardMenu('Sample transactional template', 'Clone');
-    cy.get('#tpl-clone-name').clear().type('cloned tx');
-    cy.dialog().find('[data-cy=btn-save]').click();
-
-    // Verify the newly created card.
-    card('cloned tx').should('exist');
-  });
-
   it('Edits template', () => {
+    // The editor is its own page.
     cy.get('[data-cy=template-1] [data-cy=btn-edit]').click();
-    cy.dialog().find('input[name=name]').clear().type('edited');
+    cy.location('pathname').should('eq', '/admin/campaigns/templates/1');
+    cy.get('[data-cy=tpl-name]').clear().type('edited');
 
     const htmlBody = '<span>test</span><div class="wrap">{{ template "content" . }}</div>';
-    setCode('.p-dialog .tpl-form-code', htmlBody);
+    setCode('.tpe-editor', htmlBody);
+    cy.get('.tpe-frame').should('have.attr', 'srcdoc').and('contain', 'test');
 
-    cy.dialog().find('[data-cy=btn-save]').click();
-    cy.get('.tpl-form-dialog').should('not.exist');
+    cy.get('[data-cy=btn-save]').click();
+    cy.get('[data-cy=btn-save]').should('be.disabled');
+    cy.get('.tpe-back').click();
     cy.get('[data-cy=template-1] .tpls-title').contains('edited');
   });
 
@@ -74,8 +71,8 @@ describe('Templates', () => {
   });
 
   it('Previews tx templates', () => {
-    // Cloned tx template.
-    cy.request(`${apiUrl}/api/templates/6/preview`).then((resp) => {
+    // The sample transactional template (edited under Developers).
+    cy.request(`${apiUrl}/api/templates/3/preview`).then((resp) => {
       expect(resp.body).to.contain('Order number');
     });
   });
@@ -101,12 +98,10 @@ describe('Templates', () => {
   });
 
   it('Deletes template', () => {
-    ['Default archive template', 'Sample transactional template'].forEach((t) => {
-      cardMenu(t, 'Delete');
-      cy.confirmAction();
-      card(t).should('not.exist');
-    });
+    cardMenu('Default archive template', 'Delete');
+    cy.confirmAction();
+    card('Default archive template').should('not.exist');
 
-    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 4);
+    cy.get('.tpls-card[data-cy^="template-"]').should('have.length', 3);
   });
 });

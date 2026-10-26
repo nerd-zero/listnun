@@ -55,15 +55,9 @@ func (a *App) GetBounce(c echo.Context) error {
 //	@Router			/api/bounces [get]
 func (a *App) GetBounces(c echo.Context) error {
 	var (
-		campID, _ = strconv.Atoi(c.QueryParam("campaign_id"))
-		orderBy   = c.FormValue("order_by")
-		order     = c.FormValue("order")
-		filter    = models.BounceFilter{
-			CampaignID: campID,
-			Source:     c.FormValue("source"),
-			Type:       c.FormValue("type"),
-			Search:     strings.TrimSpace(c.FormValue("query")),
-		}
+		orderBy = c.FormValue("order_by")
+		order   = c.FormValue("order")
+		filter  = bounceFilter(c)
 
 		pg = a.pg.NewFromURL(c.Request().URL.Query())
 	)
@@ -144,8 +138,12 @@ func (a *App) GetSubscriberBounces(c echo.Context) error {
 //	@Summary		Delete bounce records
 //	@Tags			bounces
 //	@Produce		json
-//	@Param			all	query		bool	false	"Delete all bounces"
+//	@Param			all	query		bool	false	"Delete every bounce matching the filters below"
 //	@Param			id	query		[]int	false	"Bounce IDs to delete"
+//	@Param			campaign_id	query		int		false	"With all: only this campaign's bounces"
+//	@Param			source		query		string	false	"With all: only bounces from this source"
+//	@Param			type		query		string	false	"With all: only this type (soft, hard, complaint)"
+//	@Param			query		query		string	false	"With all: subscriber e-mail or campaign name contains this"
 //	@Success		200
 //	@Failure		400	{object}	echo.HTTPError
 //	@Router			/api/bounces [delete]
@@ -166,8 +164,8 @@ func (a *App) DeleteBounces(c echo.Context) error {
 		ids = res
 	}
 
-	// Delete bounces from the DB.
-	if err := a.core.DeleteBounces(c.Request().Context(), tenantID(c), ids, all); err != nil {
+	// Delete bounces from the DB. "All" means all that match the filters.
+	if err := a.core.DeleteBounces(c.Request().Context(), tenantID(c), ids, all, bounceFilter(c)); err != nil {
 		return err
 	}
 
@@ -188,7 +186,7 @@ func (a *App) DeleteBounces(c echo.Context) error {
 func (a *App) DeleteBounce(c echo.Context) error {
 	// Delete bounces from the DB.
 	id := getID(c)
-	if err := a.core.DeleteBounces(c.Request().Context(), tenantID(c), []int{id}, false); err != nil {
+	if err := a.core.DeleteBounces(c.Request().Context(), tenantID(c), []int{id}, false, models.BounceFilter{}); err != nil {
 		return err
 	}
 
@@ -203,9 +201,13 @@ func (a *App) DeleteBounce(c echo.Context) error {
 //	@Produce		json
 //	@Success		200
 //	@Failure		500	{object}	echo.HTTPError
+//	@Param			campaign_id	query		int		false	"Only this campaign's bounces"
+//	@Param			source		query		string	false	"Only bounces from this source"
+//	@Param			type		query		string	false	"Only this type (soft, hard, complaint)"
+//	@Param			query		query		string	false	"Subscriber e-mail or campaign name contains this"
 //	@Router			/api/bounces/blocklist [put]
 func (a *App) BlocklistBouncedSubscribers(c echo.Context) error {
-	if err := a.core.BlocklistBouncedSubscribers(c.Request().Context(), tenantID(c)); err != nil {
+	if err := a.core.BlocklistBouncedSubscribers(c.Request().Context(), tenantID(c), bounceFilter(c)); err != nil {
 		return err
 	}
 
@@ -458,4 +460,16 @@ func (a *App) validateBounceFields(ctx context.Context, tenantID int, b models.B
 	}
 
 	return b, nil
+}
+
+// bounceFilter reads the bounce list's filters from the request, so actions
+// on "all" bounces act on exactly what the list shows.
+func bounceFilter(c echo.Context) models.BounceFilter {
+	campID, _ := strconv.Atoi(c.QueryParam("campaign_id"))
+	return models.BounceFilter{
+		CampaignID: campID,
+		Source:     c.FormValue("source"),
+		Type:       c.FormValue("type"),
+		Search:     strings.TrimSpace(c.FormValue("query")),
+	}
 }

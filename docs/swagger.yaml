@@ -502,6 +502,15 @@ definitions:
           $ref: '#/definitions/CampaignStatusCount'
         type: array
     type: object
+  CheckImportReq:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column'
+        type: array
+      file_id:
+        type: string
+    type: object
   CleanupRun:
     properties:
       action:
@@ -715,6 +724,91 @@ definitions:
       unsubscribed:
         type: integer
     type: object
+  FormReq:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+    type: object
+  FormResp:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      created_at:
+        type: string
+      embed_html:
+        description: EmbedHTML is a form to paste into a website.
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      id:
+        type: integer
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      popup_script:
+        description: PopupScript is a script tag that shows the form as a popup.
+        type: string
+      signups:
+        description: |-
+          Signups is how many people signed up in the last 30 days (lists of
+          forms only).
+        type: integer
+      slug:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+      updated_at:
+        type: string
+      url:
+        description: URL is the form's hosted page.
+        type: string
+      uuid:
+        type: string
+    type: object
+  FormStats:
+    properties:
+      blocked:
+        type: integer
+      confirmed:
+        type: integer
+      signups:
+        type: integer
+      views:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -722,8 +816,55 @@ definitions:
       name:
         type: string
     type: object
+  ImportFile:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn'
+        type: array
+      delim:
+        type: string
+      file_id:
+        type: string
+      name:
+        type: string
+      rows:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+    type: object
+  ImportRecord:
+    properties:
+      added:
+        type: integer
+      created_at:
+        type: string
+      failed:
+        type: integer
+      id:
+        type: integer
+      imported:
+        type: integer
+      mode:
+        type: string
+      name:
+        type: string
+      skipped:
+        type: integer
+      status:
+        type: string
+      total:
+        type: integer
+    type: object
   ImportStatus:
     properties:
+      added:
+        description: |-
+          Added is how many of Imported are new subscribers; the rest were
+          already here. Blocklist imports don't count it.
+        type: integer
       failed:
         description: |-
           Failed is the number of valid rows the database rejected, i.e. the
@@ -1323,12 +1464,26 @@ definitions:
           up (its "replies" setup, pushed by the platform), so the editor only
           offers the switch when it would do something.
         type: boolean
+      require_2fa:
+        description: |-
+          Require2FA is security.require_2fa, so Team can stop asking for it
+          once it's on.
+        type: boolean
       root_url:
         type: string
       scrub_enabled:
         type: boolean
       update:
         $ref: '#/definitions/AppUpdate'
+      upload_extensions:
+        description: |-
+          UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+          Media accepts, so the upload area can say so.
+        items:
+          type: string
+        type: array
+      upload_max_file_size:
+        type: integer
       version:
         type: string
     type: object
@@ -1828,6 +1983,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -1853,6 +2011,19 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  TemplateTestReq:
+    properties:
+      body:
+        type: string
+      emails:
+        description: Emails must be existing subscribers the user can see.
+        items:
+          type: string
+        type: array
+      type:
+        description: Type is campaign or campaign_visual.
         type: string
     type: object
   TenantReplies:
@@ -1994,6 +2165,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -2474,6 +2648,74 @@ definitions:
       match:
         $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Match'
     type: object
+  github_com_nerd-zero_listnun_internal_subimporter.CheckResult:
+    properties:
+      existing:
+        description: Existing is how many of them are already subscribers.
+        type: integer
+      num_problems:
+        description: |-
+          NumProblems counts the rows that wouldn't be imported; Problems lists
+          up to maxProblems of them.
+        type: integer
+      problems:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+        type: array
+      rows:
+        type: integer
+      valid:
+        description: Valid is the number of different, valid addresses in the file.
+        type: integer
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Column:
+    properties:
+      as:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn:
+    properties:
+      as:
+        type: string
+      header:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+      samples:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Problem:
+    properties:
+      reason:
+        type: string
+      row:
+        description: |-
+          Row is the row's line in the file as a spreadsheet numbers it: the
+          header is row 1.
+        type: integer
+      value:
+        type: string
+    type: object
+  models.FormField:
+    properties:
+      key:
+        description: Key is email, name, or attribs.<name> for an attribute.
+        type: string
+      label:
+        type: string
+      required:
+        type: boolean
+    type: object
   models.Tenant:
     properties:
       created_at:
@@ -2545,7 +2787,7 @@ paths:
     delete:
       operationId: deleteBounces
       parameters:
-      - description: Delete all bounces
+      - description: Delete every bounce matching the filters below
         in: query
         name: all
         type: boolean
@@ -2556,6 +2798,22 @@ paths:
           type: integer
         name: id
         type: array
+      - description: 'With all: only this campaign''s bounces'
+        in: query
+        name: campaign_id
+        type: integer
+      - description: 'With all: only bounces from this source'
+        in: query
+        name: source
+        type: string
+      - description: 'With all: only this type (soft, hard, complaint)'
+        in: query
+        name: type
+        type: string
+      - description: 'With all: subscriber e-mail or campaign name contains this'
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -2671,6 +2929,23 @@ paths:
   /api/bounces/blocklist:
     put:
       operationId: blocklistBouncedSubscribers
+      parameters:
+      - description: Only this campaign's bounces
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Only bounces from this source
+        in: query
+        name: source
+        type: string
+      - description: Only this type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Subscriber e-mail or campaign name contains this
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -3975,6 +4250,114 @@ paths:
       summary: Resend a webhook delivery
       tags:
       - developers
+  /api/forms:
+    get:
+      operationId: getForms
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/FormResp'
+            type: array
+      summary: Get signup forms
+      tags:
+      - forms
+    post:
+      consumes:
+      - application/json
+      operationId: createForm
+      parameters:
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a signup form
+      tags:
+      - forms
+  /api/forms/{id}:
+    delete:
+      operationId: deleteForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+      summary: Delete a signup form
+      tags:
+      - forms
+    put:
+      consumes:
+      - application/json
+      operationId: updateForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a signup form
+      tags:
+      - forms
+  /api/forms/{id}/stats:
+    get:
+      operationId: getFormStats
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormStats'
+      summary: Get a form's figures
+      tags:
+      - forms
   /api/health:
     get:
       operationId: healthCheck
@@ -4016,10 +4399,10 @@ paths:
       - multipart/form-data
       operationId: importSubscribers
       parameters:
-      - description: CSV or ZIP file
+      - description: CSV or ZIP file; leave out when params.file_id names an uploaded
+          one
         in: formData
         name: file
-        required: true
         type: file
       - description: JSON-encoded import options (subimporter.SessionOpt)
         in: formData
@@ -4044,6 +4427,72 @@ paths:
       summary: Import subscribers from a CSV or ZIP file
       tags:
       - import
+  /api/import/subscribers/check:
+    post:
+      consumes:
+      - application/json
+      operationId: checkImport
+      parameters:
+      - description: File and columns
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/CheckImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check an import before starting it
+      tags:
+      - import
+  /api/import/subscribers/file:
+    post:
+      consumes:
+      - multipart/form-data
+      operationId: uploadImportFile
+      parameters:
+      - description: CSV, or a ZIP with a CSV in it
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ImportFile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Upload a file to import
+      tags:
+      - import
+  /api/import/subscribers/history:
+    get:
+      operationId: getRecentImports
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ImportRecord'
+            type: array
+      summary: Recent imports
+      tags:
+      - import
   /api/import/subscribers/logs:
     get:
       operationId: getImportLogs
@@ -4055,6 +4504,21 @@ paths:
           schema:
             type: string
       summary: Get import log
+      tags:
+      - import
+  /api/import/subscribers/problems:
+    get:
+      operationId: getImportProblems
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+            type: array
+      summary: Rows an import didn't import
       tags:
       - import
   /api/lang/{lang}:
@@ -6822,6 +7286,32 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Preview a template body
+      tags:
+      - templates
+  /api/templates/test:
+    post:
+      consumes:
+      - application/json
+      operationId: testTemplate
+      parameters:
+      - description: Template body and who gets the test
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/TemplateTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test of a campaign template
       tags:
       - templates
   /api/users:

@@ -145,9 +145,9 @@ func (c *Core) bounceAction(tenantID int, typ string) (int, string, bool) {
 }
 
 // BlocklistBouncedSubscribers blocklists all bounced subscribers.
-func (c *Core) BlocklistBouncedSubscribers(ctx context.Context, tenantID int) error {
+func (c *Core) BlocklistBouncedSubscribers(ctx context.Context, tenantID int, f models.BounceFilter) error {
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		_, err := stmtx(tx, c.q.BlocklistBouncedSubscribers).Exec()
+		_, err := stmtx(tx, c.q.BlocklistBouncedSubscribers).Exec(f.CampaignID, f.Source, f.Type, f.Search)
 		return err
 	})
 	if err != nil {
@@ -160,13 +160,14 @@ func (c *Core) BlocklistBouncedSubscribers(ctx context.Context, tenantID int) er
 
 // DeleteBounce deletes a list.
 func (c *Core) DeleteBounce(ctx context.Context, tenantID int, id int) error {
-	return c.DeleteBounces(ctx, tenantID, []int{id}, false)
+	return c.DeleteBounces(ctx, tenantID, []int{id}, false, models.BounceFilter{})
 }
 
-// DeleteBounces deletes multiple lists.
-func (c *Core) DeleteBounces(ctx context.Context, tenantID int, ids []int, all bool) error {
+// DeleteBounces deletes the bounces in ids, or with all, every bounce the
+// filter matches (the whole list the person is looking at).
+func (c *Core) DeleteBounces(ctx context.Context, tenantID int, ids []int, all bool, f models.BounceFilter) error {
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		_, err := stmtx(tx, c.q.DeleteBounces).Exec(pq.Array(ids), all)
+		_, err := stmtx(tx, c.q.DeleteBounces).Exec(pq.Array(ids), all, f.CampaignID, f.Source, f.Type, f.Search)
 		return err
 	})
 	if err != nil {

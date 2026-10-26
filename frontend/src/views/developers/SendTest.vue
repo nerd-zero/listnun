@@ -58,6 +58,9 @@
             <div class="dev-send-label-row">
               <label for="send-data">{{ $t('developers.send.data') }} <span class="ln-muted">JSON</span></label>
               <button v-if="templateSample" type="button" class="ln-link-btn" @click="useSample">{{ $t('developers.send.useSample') }}</button>
+              <button v-else-if="missing.length" type="button" class="ln-link-btn" data-cy="fill-missing" @click="fillMissing">
+                {{ $t('developers.send.fillMissing') }}
+              </button>
             </div>
             <code-editor id="send-data" v-model="dataText" lang="json" :autofocus="false" class="dev-send-data" />
             <p v-if="!dataValid" class="ln-field-error">{{ $t('developers.templates.invalidJson') }}</p>
@@ -174,7 +177,7 @@ import {
 import PageHeader from '../../components/ui/PageHeader.vue';
 import StatusTag from '../../components/ui/StatusTag.vue';
 import CodeEditor from '../../components/CodeEditor.vue';
-import { missingVars, txDataVars } from './txVars';
+import { missingVars, txDataVars, withMissing } from './txVars';
 
 // How often to refresh the sent message's status, and for how long.
 const POLL_MS = 1000;
@@ -213,7 +216,9 @@ const templateSample = computed(() => {
   return s && Object.keys(s).length ? s : null;
 });
 
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.value.trim()));
+/** A full address: something@domain.tld. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailValid = computed(() => EMAIL_RE.test(recipient.value.trim()));
 
 const parsedData = computed<Record<string, unknown> | null>(() => {
   try {
@@ -272,6 +277,12 @@ function copyCurl() {
 
 function useSample() {
   if (templateSample.value) dataText.value = JSON.stringify(templateSample.value, null, 2);
+}
+
+// Without a template sample, this gives each missing variable an empty
+// value to type over.
+function fillMissing() {
+  if (parsedData.value) dataText.value = JSON.stringify(withMissing(vars.value, parsedData.value), null, 2);
 }
 
 function lookupSubscriber() {
@@ -351,7 +362,10 @@ onMounted(() => {
     })
     .finally(() => { loadingTemplates.value = false; });
   if ($can('apikeys:get')) listAPIKeys().then((list) => { keys.value = list; });
-  recipient.value = (profile.value as { email?: string }).email || '';
+  // Start from your own address when it's a full one; built-in admin
+  // accounts can have addresses like admin@listnun.
+  const own = (profile.value as { email?: string }).email || '';
+  if (EMAIL_RE.test(own)) recipient.value = own;
 });
 
 onBeforeUnmount(() => window.clearTimeout(pollTimer));
@@ -374,7 +388,10 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer));
   gap: 16px;
 }
 .dev-send-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+// The global .code-editor is a fixed 65vh box; here it fits its content.
+.dev-send-data.code-editor { height: auto; min-height: 0; border: 0; }
 .dev-send-data :deep(.cm-editor) {
+  height: auto;
   min-height: 180px;
   max-height: 320px;
   border: 1px solid var(--ln-border-strong);

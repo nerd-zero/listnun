@@ -147,7 +147,7 @@
         <div class="tpl-preview-body">
           <div class="tpl-mail" :style="{ maxWidth: device === 'mobile' ? '375px' : '640px' }">
             <div class="tpl-mail-head">
-              <span><strong>{{ orgName }}</strong> &lt;{{ preview?.from }}&gt;</span>
+              <span><strong>{{ sender.name }}</strong> &lt;{{ sender.address }}&gt;</span>
               <span>{{ preview?.subject }}</span>
             </div>
             <PvMessage v-if="previewError" severity="error" class="tpl-preview-error">{{ previewError }}</PvMessage>
@@ -245,6 +245,15 @@ const canManage = computed(() => $can('templates:manage'));
 const hasSendTest = computed(() => router.hasRoute('devSendTest'));
 const orgName = computed(() => (serverConfig.value as { organization_name?: string }).organization_name || 'listnun');
 
+// The preview's From is usually already "Name <address>"; show it as an
+// inbox would, falling back to the workspace name for a bare address.
+const sender = computed(() => {
+  const from = preview.value?.from || '';
+  const m = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1] || orgName.value, address: m[2] };
+  return { name: orgName.value, address: from };
+});
+
 const clientOptions = computed(() => [
   { value: 'light', label: t('developers.templates.lightClient') },
   { value: 'dark', label: t('developers.templates.darkClient') },
@@ -317,6 +326,9 @@ function fetchTemplates(select?: string) {
       if (want) {
         load(want);
       } else if (list.length) {
+        // /developers/templates and /developers/templates/:id are separate
+        // routes sharing this instance, so the update hook won't load it.
+        load(String(list[0].id));
         router.replace({ name: 'devTemplate', params: { id: list[0].id } });
       }
     })
@@ -425,7 +437,10 @@ onMounted(() => fetchTemplates());
   background: transparent;
   padding: 2px 6px;
   margin-left: -6px;
-  max-width: 360px;
+  // Grows with the name where the browser supports it.
+  field-sizing: content;
+  min-width: 12ch;
+  max-width: min(560px, 50vw);
 
   &:hover:not(:disabled), &:focus { border-color: var(--ln-border-strong); background: var(--ln-card); }
 }
@@ -516,11 +531,33 @@ onMounted(() => fetchTemplates());
 }
 .tpl-ok { color: var(--ln-success-fg); font-size: 12px; }
 .tpl-bad { color: var(--ln-danger-fg); font-size: 12px; }
+// The global .code-editor is a fixed 65vh box; the sample fits its content.
+.tpl-sample-code.code-editor { height: auto; min-height: 0; border: 0; }
 .tpl-sample-code :deep(.cm-editor) {
+  height: auto;
   min-height: 140px;
   max-height: 260px;
   border: 1px solid var(--ln-border-strong);
   border-radius: var(--ln-radius);
+}
+
+// On desktop the editor fills the window like the artboard: the code
+// scrolls inside its pane and the sample data stays in view beneath it.
+@media (min-width: 992px) {
+  .tpl-editor { height: calc(100vh - 56px); min-height: 0; }
+  .tpl-grid { min-height: 0; }
+  .tpl-list, .tpl-preview { overflow-y: auto; }
+  .tpl-edit { min-height: 0; }
+  .tpl-tabs {
+    min-height: 0;
+    :deep(.p-tabpanels) { min-height: 0; overflow: hidden; }
+    :deep(.p-tabpanel) { overflow-y: auto; }
+  }
+  .tpl-code {
+    min-height: 0;
+    :deep(.cm-editor) { min-height: 0; }
+  }
+  .tpl-sample { flex: none; }
 }
 
 .tpl-preview {

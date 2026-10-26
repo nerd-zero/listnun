@@ -91,7 +91,7 @@
             </PvColumn>
             <PvColumn :header="$t('developers.webhooks.response')">
               <template #body="{ data }">
-                <span class="ln-mono" :class="codeClass(data.lastStatusCode, data.status)">{{ data.lastStatusCode || (data.status === 'pending' ? '…' : '—') }}</span>
+                <span class="ln-mono" :class="codeClass(data.lastStatusCode, data.status)">{{ data.lastStatusCode || (data.status === 'pending' ? '…' : $t('developers.webhooks.noResponse')) }}</span>
               </template>
             </PvColumn>
             <PvColumn :header="$t('developers.webhooks.time')">
