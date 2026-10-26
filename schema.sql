@@ -205,6 +205,11 @@ CREATE TABLE campaigns (
     -- (models.CampaignTracking).
     tracking            JSONB NOT NULL DEFAULT '{}',
 
+    -- Who last edited the campaign (v6.36.0). No foreign key: users is
+    -- created below, and the copied name is what's shown.
+    updated_by       INTEGER NULL,
+    updated_by_name  TEXT NOT NULL DEFAULT '',
+
     started_at       TIMESTAMP WITH TIME ZONE,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()

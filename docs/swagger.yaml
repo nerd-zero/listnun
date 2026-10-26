@@ -351,6 +351,50 @@ definitions:
       timestamp:
         type: string
     type: object
+  CampaignListRef:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  CampaignOverviewItem:
+    properties:
+      audience:
+        type: integer
+      bounced:
+        type: integer
+      clicked:
+        type: integer
+      id:
+        type: integer
+      lists:
+        items:
+          $ref: '#/definitions/CampaignListRef'
+        type: array
+      name:
+        type: string
+      opened:
+        type: integer
+      pause_reason:
+        type: string
+      send_at:
+        type: string
+      sent:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      to_send:
+        type: integer
+      updated_at:
+        type: string
+      updated_by_name:
+        type: string
+      uuid:
+        type: string
+    type: object
   CampaignRepliesPage:
     properties:
       counts:
@@ -420,6 +464,13 @@ definitions:
       replies:
         type: integer
     type: object
+  CampaignStatusCount:
+    properties:
+      count:
+        type: integer
+      status:
+        type: string
+    type: object
   CampaignTracking:
     properties:
       links:
@@ -439,6 +490,17 @@ definitions:
           forwarded to the campaign's own Reply-To (internal/replies). Off
           unless the server has reply tracking configured.
         type: boolean
+    type: object
+  CampaignsOverview:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/CampaignOverviewItem'
+        type: array
+      counts:
+        items:
+          $ref: '#/definitions/CampaignStatusCount'
+        type: array
     type: object
   CleanupRun:
     properties:
@@ -3038,6 +3100,23 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get currently auto-paused campaigns
+      tags:
+      - campaigns
+  /api/campaigns/overview:
+    get:
+      operationId: getCampaignsOverview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CampaignsOverview'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the campaigns overview
       tags:
       - campaigns
   /api/campaigns/running/stats:

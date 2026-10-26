@@ -80,6 +80,14 @@ const routes: RouteRecordRaw[] = [
     path: '/campaigns',
     name: 'campaigns',
     meta: { title: 'globals.terms.campaigns', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
+    component: () => import('../views/CampaignsOverview.vue'),
+  },
+  {
+    // Every campaign, filterable, with bulk actions: the overview's
+    // "Show all sent" and "All drafts".
+    path: '/campaigns/all',
+    name: 'allCampaigns',
+    meta: { title: 'globals.terms.campaigns', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
     component: () => import('../views/Campaigns.vue'),
   },
   {

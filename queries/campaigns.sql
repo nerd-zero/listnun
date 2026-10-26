@@ -541,3 +541,47 @@ WITH view AS (
 INSERT INTO campaign_views (campaign_id, subscriber_id, tenant_id)
     VALUES((SELECT campaign_id FROM view), (SELECT subscriber_id FROM view), $3);
 
+
+-- name: set-campaign-editor
+-- Records who last edited campaign $1.
+UPDATE campaigns SET updated_by = $2, updated_by_name = $3 WHERE id = $1;
+
+-- name: get-campaigns-overview
+-- The campaigns on the Campaigns overview: every running and paused one,
+-- the next $3 scheduled, the $4 latest drafts and the $5 latest sent,
+-- among those the user can see ($1 all, else those on lists $2). Opens
+-- and clicks count people, as get-list-recent-campaigns does.
+WITH visible AS (
+    SELECT c.* FROM campaigns c
+    WHERE $1 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_id = c.id AND list_id = ANY($2::INT[]))
+),
+picked AS (
+    (SELECT id FROM visible WHERE status IN ('running', 'paused'))
+    UNION ALL
+    (SELECT id FROM visible WHERE status = 'scheduled' ORDER BY send_at ASC NULLS LAST LIMIT $3)
+    UNION ALL
+    (SELECT id FROM visible WHERE status = 'draft' ORDER BY updated_at DESC LIMIT $4)
+    UNION ALL
+    (SELECT id FROM visible WHERE status = 'finished' ORDER BY COALESCE(started_at, updated_at) DESC LIMIT $5)
+)
+SELECT c.id, c.uuid, c.name, c.status, c.pause_reason, c.send_at, c.started_at, c.updated_at,
+    c.updated_by_name, c.to_send, c.sent,
+    COALESCE((SELECT JSON_AGG(JSON_BUILD_OBJECT('id', COALESCE(cl.list_id, 0), 'name', cl.list_name) ORDER BY cl.list_name)
+        FROM campaign_lists cl WHERE cl.campaign_id = c.id), '[]') AS lists,
+    -- People on the campaign's lists who'd get it, for scheduled campaigns.
+    (SELECT COUNT(DISTINCT sl.subscriber_id) FROM subscriber_lists sl
+        WHERE c.status = 'scheduled' AND sl.status != 'unsubscribed'
+        AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience,
+    (SELECT COUNT(*) FROM bounces WHERE campaign_id = c.id) AS bounced,
+    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
+        FROM campaign_views WHERE campaign_id = c.id) AS opened,
+    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
+        FROM link_clicks WHERE campaign_id = c.id) AS clicked
+    FROM campaigns c WHERE c.id IN (SELECT id FROM picked);
+
+-- name: get-campaign-status-counts
+-- How many campaigns are in each status, among those the user can see
+-- ($1 all, else those on lists $2).
+SELECT status, COUNT(*) AS count FROM campaigns c
+    WHERE $1 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_id = c.id AND list_id = ANY($2::INT[]))
+    GROUP BY status;
