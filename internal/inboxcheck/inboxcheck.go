@@ -328,15 +328,42 @@ func audienceChecks(in Input) []Check {
 		out = append(out, check("inactive", GroupAudience, share <= maxInactiveShare,
 			map[string]string{"pct": percent(share), "n": fmt.Sprint(in.Inactive), "days": fmt.Sprint(InactiveDays)}))
 	}
-	if in.Sent >= minRateSample {
-		complaints := float64(in.Complaints) / float64(in.Sent)
-		out = append(out, check("complaints", GroupAudience, complaints <= maxComplaintRate,
-			map[string]string{"pct": percent(complaints), "days": fmt.Sprint(RecentDays)}))
-		bounces := float64(in.HardBounces) / float64(in.Sent)
-		out = append(out, check("bounces", GroupAudience, bounces <= maxBounceRate,
-			map[string]string{"pct": percent(bounces), "days": fmt.Sprint(RecentDays)}))
+	if r := RecentRates(in.Sent, in.HardBounces, in.Complaints); r.Judged {
+		out = append(out, check("complaints", GroupAudience, !r.ComplaintsHigh,
+			map[string]string{"pct": percent(r.ComplaintRate), "days": fmt.Sprint(RecentDays)}))
+		out = append(out, check("bounces", GroupAudience, !r.BouncesHigh,
+			map[string]string{"pct": percent(r.BounceRate), "days": fmt.Sprint(RecentDays)}))
 	}
 	return out
+}
+
+// Rates is a workspace's complaint and hard-bounce rates over RecentDays,
+// judged against what Gmail and Yahoo tolerate.
+type Rates struct {
+	ComplaintRate float64 `json:"complaint_rate"`
+	BounceRate    float64 `json:"bounce_rate"`
+	// Judged is false below minRateSample sends, when the rates say
+	// nothing yet and the High flags stay false.
+	Judged         bool `json:"judged"`
+	ComplaintsHigh bool `json:"complaints_high"`
+	BouncesHigh    bool `json:"bounces_high"`
+}
+
+// RecentRates rates sent campaign messages' hard bounces and complaints.
+func RecentRates(sent, hardBounces, complaints int) Rates {
+	if sent <= 0 {
+		return Rates{}
+	}
+	r := Rates{
+		ComplaintRate: float64(complaints) / float64(sent),
+		BounceRate:    float64(hardBounces) / float64(sent),
+		Judged:        sent >= minRateSample,
+	}
+	if r.Judged {
+		r.ComplaintsHigh = r.ComplaintRate > maxComplaintRate
+		r.BouncesHigh = r.BounceRate > maxBounceRate
+	}
+	return r
 }
 
 // percent formats a share for a sentence: "0.4%", "62%".

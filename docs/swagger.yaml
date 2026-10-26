@@ -2583,6 +2583,47 @@ definitions:
       pause_reason:
         $ref: '#/definitions/null.String'
     type: object
+  github_com_nerd-zero_listnun_internal_core.CampaignRef:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_core.SendingHealth:
+    properties:
+      bounce_rate:
+        type: number
+      bounces_high:
+        type: boolean
+      campaigns_without_unsubscribe:
+        description: |-
+          CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe
+          link in their content or template, so they can't start or be
+          scheduled (see models.Campaign.HasUnsubscribeLink).
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef'
+        type: array
+      complaint_rate:
+        type: number
+      complaints:
+        type: integer
+      complaints_high:
+        type: boolean
+      hard_bounces:
+        type: integer
+      judged:
+        description: |-
+          Judged is false below minRateSample sends, when the rates say
+          nothing yet and the High flags stay false.
+        type: boolean
+      sent:
+        type: integer
+      window_days:
+        type: integer
+    type: object
   github_com_nerd-zero_listnun_internal_inboxcheck.Check:
     properties:
       group:
@@ -5758,6 +5799,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a tenant's Scrub validation usage (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/sending-health:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantSendingHealth
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.SendingHealth'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's sending health (Operator API)
       tags:
       - operator
   /api/operator/tenants/{id}/setup-link:

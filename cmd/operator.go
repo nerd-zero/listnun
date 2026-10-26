@@ -874,6 +874,34 @@ func (a *App) GetOperatorTenantActivity(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetOperatorTenantSendingHealth returns a tenant's campaign complaint and
+// hard-bounce rates over the last 30 days, rated against Gmail's limits as
+// the campaign editor's inbox check rates them, and its campaign templates
+// without an unsubscribe link, so a console can show them.
+//
+//	@ID				getOperatorTenantSendingHealth
+//	@Summary		Get a tenant's sending health (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	core.SendingHealth
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/sending-health [get]
+func (a *App) GetOperatorTenantSendingHealth(c echo.Context) error {
+	id := getID(c)
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+	out, err := a.core.GetSendingHealth(c.Request().Context(), id)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetOperatorTenantScrubUsage returns a tenant's subscriber validation
 // status breakdown -- the same subscribers.scrub_status data the
 // tenant's own dashboard widget reads locally, exposed cross-tenant so

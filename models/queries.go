@@ -160,7 +160,9 @@ type Queries struct {
 
 	CountInactiveSubscribers *sqlx.Stmt `query:"count-inactive-subscribers"`
 
-	GetInboxCheckStats *sqlx.Stmt `query:"get-inbox-check-stats"`
+	GetInboxCheckStats      *sqlx.Stmt `query:"get-inbox-check-stats"`
+	GetSendingHealth        *sqlx.Stmt `query:"get-sending-health"`
+	GetUnsentCampaignBodies *sqlx.Stmt `query:"get-unsent-campaign-bodies"`
 
 	GetInactiveSubscriberIDs *sqlx.Stmt `query:"get-inactive-subscriber-ids"`
 

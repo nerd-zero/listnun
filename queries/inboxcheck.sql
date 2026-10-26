@@ -22,3 +22,28 @@ SELECT
         AND created_at >= NOW() - MAKE_INTERVAL(days => $2)) AS hard_bounces,
     (SELECT COUNT(*) FROM bounces WHERE type = 'complaint' AND campaign_id IS NOT NULL
         AND created_at >= NOW() - MAKE_INTERVAL(days => $2)) AS complaints;
+
+-- name: get-sending-health
+-- The workspace's campaign sends, hard bounces and spam complaints over the
+-- last $1 days, and its campaign templates (to find the ones without an
+-- unsubscribe link). For the operator API's sending health; runs in the
+-- workspace's session, so RLS scopes it.
+SELECT
+    (SELECT COALESCE(SUM(sent), 0) FROM campaigns
+        WHERE started_at >= NOW() - MAKE_INTERVAL(days => $1)) AS sent,
+    (SELECT COUNT(*) FROM bounces WHERE type = 'hard' AND campaign_id IS NOT NULL
+        AND created_at >= NOW() - MAKE_INTERVAL(days => $1)) AS hard_bounces,
+    (SELECT COUNT(*) FROM bounces WHERE type = 'complaint' AND campaign_id IS NOT NULL
+        AND created_at >= NOW() - MAKE_INTERVAL(days => $1)) AS complaints;
+
+-- name: get-unsent-campaign-bodies
+-- The workspace's latest unsent campaigns with their template bodies, to
+-- find the ones without an unsubscribe link (which can't start or be
+-- scheduled). $1 = how many.
+SELECT campaigns.id, campaigns.name, campaigns.status, campaigns.content_type, campaigns.body,
+    COALESCE(templates.body, '') AS template_body
+FROM campaigns
+LEFT JOIN templates ON (templates.id = campaigns.template_id)
+WHERE campaigns.status IN ('draft', 'scheduled', 'paused')
+ORDER BY campaigns.updated_at DESC
+LIMIT $1;

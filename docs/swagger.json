@@ -4491,6 +4491,53 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/sending-health": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's sending health (Operator API)",
+                "operationId": "getOperatorTenantSendingHealth",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.SendingHealth"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/setup-link": {
             "get": {
                 "security": [
@@ -11247,6 +11294,60 @@
                 },
                 "pause_reason": {
                     "$ref": "#/definitions/null.String"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_core.CampaignRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_core.SendingHealth": {
+            "type": "object",
+            "properties": {
+                "bounce_rate": {
+                    "type": "number"
+                },
+                "bounces_high": {
+                    "type": "boolean"
+                },
+                "campaigns_without_unsubscribe": {
+                    "description": "CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe\nlink in their content or template, so they can't start or be\nscheduled (see models.Campaign.HasUnsubscribeLink).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef"
+                    }
+                },
+                "complaint_rate": {
+                    "type": "number"
+                },
+                "complaints": {
+                    "type": "integer"
+                },
+                "complaints_high": {
+                    "type": "boolean"
+                },
+                "hard_bounces": {
+                    "type": "integer"
+                },
+                "judged": {
+                    "description": "Judged is false below minRateSample sends, when the rates say\nnothing yet and the High flags stay false.",
+                    "type": "boolean"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "window_days": {
+                    "type": "integer"
                 }
             }
         },
