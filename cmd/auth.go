@@ -661,8 +661,10 @@ func (a *App) doForgotPassword(c echo.Context) error {
 	// Store the reset token in tmptokens.
 	tmptokens.Set(email, passwordResetTTL, token)
 
-	// Prepare the reset URL.
-	resetURL := fmt.Sprintf("%s/admin/reset?token=%s&email=%s", a.urlCfg.RootURL, token, url.QueryEscape(email))
+	// Prepare the reset URL. The request's host is safe to use here: the
+	// tenant middleware only lets through hosts that belong to a workspace,
+	// and the user was looked up in that workspace.
+	resetURL := fmt.Sprintf("%s/admin/reset?token=%s&email=%s", a.requestRootURL(c), token, url.QueryEscape(email))
 
 	// Prepare the email.
 	var msg bytes.Buffer
