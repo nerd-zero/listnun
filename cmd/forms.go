@@ -73,7 +73,7 @@ func (a *App) GetForms(c echo.Context) error {
 
 	out := make([]formResp, len(forms))
 	for i, f := range forms {
-		out[i] = a.formResp(f, lists)
+		out[i] = a.formResp(c, f, lists)
 	}
 	return c.JSON(http.StatusOK, okResp{out})
 }
@@ -117,7 +117,7 @@ func (a *App) CreateForm(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, okResp{a.formResp(out, lists)})
+	return c.JSON(http.StatusOK, okResp{a.formResp(c, out, lists)})
 }
 
 // UpdateForm saves changes to a signup form.
@@ -142,7 +142,7 @@ func (a *App) UpdateForm(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, okResp{a.formResp(out, lists)})
+	return c.JSON(http.StatusOK, okResp{a.formResp(c, out, lists)})
 }
 
 // DeleteForm deletes a signup form. Its page and embeds stop working.
@@ -233,16 +233,16 @@ func formLists(f models.Form, public []models.List) []models.List {
 	return out
 }
 
-func (a *App) formURL(f models.Form) string {
-	return fmt.Sprintf("%s/f/%s", a.urlCfg.RootURL, f.Slug)
+func (a *App) formURL(c echo.Context, f models.Form) string {
+	return fmt.Sprintf("%s/f/%s", a.requestRootURL(c), f.Slug)
 }
 
 // formResp adds a form's sharing snippets.
-func (a *App) formResp(f models.Form, public []models.List) formResp {
-	out := formResp{Form: f, URL: a.formURL(f)}
+func (a *App) formResp(c echo.Context, f models.Form, public []models.List) formResp {
+	out := formResp{Form: f, URL: a.formURL(c, f)}
 
 	var b bytes.Buffer
-	data := formPageData{Form: f, Lists: formLists(f, public), Action: out.URL, Root: a.urlCfg.RootURL}
+	data := formPageData{Form: f, Lists: formLists(f, public), Action: out.URL, Root: a.requestRootURL(c)}
 	if f.Captcha {
 		data.Captcha = a.captchaWidget()
 	}
@@ -328,7 +328,7 @@ func (a *App) formPage(c echo.Context, f models.Form) (formPageData, error) {
 	out := formPageData{
 		Form:   f,
 		Lists:  formLists(f, public),
-		Action: a.formURL(f),
+		Action: a.formURL(c, f),
 		Embed:  c.QueryParam("embed") == "1",
 		Values: map[string]string{},
 	}
@@ -515,5 +515,5 @@ func (a *App) FormPopup(c echo.Context) error {
 		return c.String(http.StatusOK, "/* this form isn't published */\n")
 	}
 	key := "listnun-popup-" + url.PathEscape(f.UUID)
-	return c.String(http.StatusOK, fmt.Sprintf(popupJS, a.formURL(f), key, popupEveryDays, popupDelayMS))
+	return c.String(http.StatusOK, fmt.Sprintf(popupJS, a.formURL(c, f), key, popupEveryDays, popupDelayMS))
 }

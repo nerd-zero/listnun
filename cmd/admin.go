@@ -53,6 +53,17 @@ type serverConfig struct {
 	ReplyTracking bool `json:"reply_tracking"`
 } // @name ServerConfig
 
+// requestRootURL is the address of the workspace c was made to.
+// a.urlCfg.RootURL is a single boot-time value derived from tenant 1's
+// settings, so with multi-tenancy every other workspace would otherwise
+// be handed tenant 1's address for its own links.
+func (a *App) requestRootURL(c echo.Context) string {
+	if !a.cfg.MultiTenancyEnabled {
+		return a.urlCfg.RootURL
+	}
+	return c.Scheme() + "://" + c.Request().Host
+}
+
 // GetServerConfig returns general server config.
 //
 //	@ID				getServerConfig
@@ -62,17 +73,8 @@ type serverConfig struct {
 //	@Success		200	{object}	serverConfig
 //	@Router			/api/config [get]
 func (a *App) GetServerConfig(c echo.Context) error {
-	rootURL := a.urlCfg.RootURL
-	if a.cfg.MultiTenancyEnabled {
-		// a.urlCfg.RootURL is a single boot-time value derived from
-		// tenant 1's settings - every other tenant's admin SPA would
-		// otherwise be told tenant 1's public URL for its own lists/
-		// campaigns. Derive it from the actual request instead.
-		rootURL = c.Scheme() + "://" + c.Request().Host
-	}
-
 	out := serverConfig{
-		RootURL:       rootURL,
+		RootURL:       a.requestRootURL(c),
 		FromEmail:     a.cfg.FromEmail,
 		Lang:          a.cfg.Lang,
 		Permissions:   a.cfg.PermissionsRaw,
