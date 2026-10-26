@@ -956,15 +956,7 @@ func (a *App) sendTestMessage(sub models.Subscriber, camp *models.Campaign) erro
 // validateCampaignFields validates incoming campaign field values.
 func (a *App) validateCampaignFields(ctx context.Context, tenantID int, c campReq) (campReq, error) {
 	if c.FromEmail == "" {
-		// a.cfg.FromEmail is a single boot-time value derived from tenant
-		// 1's settings (see cmd/init.go's initSettings) - falling back to
-		// it here would send every other tenant's campaigns under tenant
-		// 1's From address. Look up this tenant's own app.from_email
-		// instead, only falling back to the global default if that fails.
-		c.FromEmail = a.cfg.FromEmail
-		if s, err := a.core.GetSettings(ctx, tenantID); err == nil && s.AppFromEmail != "" {
-			c.FromEmail = s.AppFromEmail
-		}
+		c.FromEmail = a.tenantFromEmail(ctx, tenantID)
 	} else if !reFromAddress.Match([]byte(c.FromEmail)) {
 		imp, err := a.importers.Get(ctx, tenantID)
 		if err != nil {
