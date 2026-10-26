@@ -261,6 +261,13 @@ INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
 DELETE FROM subscriber_lists
     WHERE (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST($1::INT[]) a, UNNEST($2::INT[]) b);
 
+-- name: confirm-subscriptions
+-- Manually confirms pending (unconfirmed) subscriptions on behalf of subscribers.
+-- Unsubscribed subscriptions are left alone so an admin can't silently re-opt someone in.
+UPDATE subscriber_lists SET status='confirmed', updated_at=NOW()
+    WHERE status='unconfirmed'
+    AND (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST($1::INT[]) a, UNNEST($2::INT[]) b);
+
 -- name: confirm-subscription-optin
 -- A blocklisted subscriber's lists stay unconfirmed, even from an old link.
 WITH subID AS (
@@ -461,6 +468,13 @@ INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
 WITH subs AS (%query%)
 DELETE FROM subscriber_lists
     WHERE (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST(ARRAY(SELECT id FROM subs)) a, UNNEST($5::INT[]) b);
+
+-- name: confirm-subscriptions-by-query
+-- raw: true
+WITH subs AS (%query%)
+UPDATE subscriber_lists SET status='confirmed', updated_at=NOW()
+    WHERE status='unconfirmed'
+    AND (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST(ARRAY(SELECT id FROM subs)) a, UNNEST($5::INT[]) b);
 
 -- name: unsubscribe-subscribers-from-lists-by-query
 -- raw: true
