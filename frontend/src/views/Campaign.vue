@@ -373,6 +373,36 @@
             <button v-else-if="c.fix" type="button" class="ln-link-btn" @click="c.fix.run">{{ c.fix.label }}</button>
           </li>
         </ul>
+
+        <section class="camp-inbox" aria-labelledby="camp-inbox-h" data-cy="inbox-check">
+          <div class="camp-inbox-head">
+            <h3 id="camp-inbox-h" class="ln-section-title">{{ $t('campaigns.inbox.title') }}</h3>
+            <span v-if="inbox.checks.length" class="ln-small">
+              {{ $t('campaigns.inbox.summary', { pass: inboxPassing.length, total: inbox.checks.length }) }}
+            </span>
+          </div>
+          <PvSkeleton v-if="inbox.loading && !inbox.checks.length" height="64px" />
+          <p v-else-if="inbox.error" class="ln-small">{{ $t('campaigns.inbox.error') }}</p>
+          <template v-else-if="inbox.checks.length">
+            <ul v-if="inboxFailing.length" class="ln-card camp-checks">
+              <li v-for="c in inboxFailing" :key="c.id" class="is-warn">
+                <span class="camp-check-mark" aria-hidden="true"><i class="pi pi-exclamation-triangle" /></span>
+                <span class="camp-check-text">
+                  <strong>{{ c.title }}</strong>
+                  <span class="ln-small">{{ c.text }}</span>
+                </span>
+                <button v-if="c.fix" type="button" class="ln-link-btn" @click="c.fix.run">{{ c.fix.label }}</button>
+              </li>
+            </ul>
+            <p v-else class="ln-small camp-inbox-ok"><i class="pi pi-check" aria-hidden="true" /> {{ $t('campaigns.inbox.allPass') }}</p>
+            <details v-if="inboxPassing.length" class="camp-inbox-passing">
+              <summary class="ln-small">{{ $t('campaigns.inbox.showPassing', { n: inboxPassing.length }) }}</summary>
+              <ul>
+                <li v-for="c in inboxPassing" :key="c.id" class="ln-small">{{ c.title }}</li>
+              </ul>
+            </details>
+          </template>
+        </section>
       </section>
 
       <footer class="camp-foot">
@@ -732,6 +762,57 @@ const testCurrent = computed(() => !!lastTest.value && lastTest.value.sig === co
 
 const bodyText = computed(() => String(form.content.body || '').replace(/<[^>]*>/g, '').trim());
 
+// The inbox check: what commonly sends email to spam (internal/inboxcheck).
+// It reads the campaign as saved, which reaching the Review step does.
+interface InboxCheck {
+  id: string;
+  group: 'content' | 'subject' | 'sender' | 'audience';
+  pass: boolean;
+  params?: Record<string, string>;
+}
+const inbox = reactive<{ checks: InboxCheck[]; loading: boolean; error: boolean }>({ checks: [], loading: false, error: false });
+
+function fetchInboxCheck() {
+  if (!data.value.id) return;
+  inbox.loading = true;
+  $api.getCampaignInboxCheck(data.value.id)
+    .then((d: unknown) => { inbox.checks = (d as InboxCheck[]) || []; inbox.error = false; })
+    .catch(() => { inbox.error = true; })
+    .finally(() => { inbox.loading = false; });
+}
+
+watch(() => [step.value, data.value.id], ([s]) => {
+  if (s === 'review') fetchInboxCheck();
+}, { immediate: true });
+
+const INBOX_FIX_STEP: Partial<Record<InboxCheck['group'], StepKey>> = {
+  content: 'content', subject: 'settings', sender: 'settings',
+};
+
+// The words for a check. An empty subject reads better as its own line
+// than as "0 characters".
+function inboxText(c: InboxCheck): string {
+  const p = c.params || {};
+  if (c.id === 'subjectLength' && p.n === '0') return t('campaigns.inbox.subjectEmptyWarn');
+  if (c.id === 'links') return t('campaigns.inbox.linksWarn', { n: Number(p.n) }, Number(p.n));
+  return t(`campaigns.inbox.${c.id}Warn`, p);
+}
+
+const inboxRows = computed(() => inbox.checks.map((c) => {
+  let fix: Check['fix'];
+  if (c.id === 'inactive') {
+    fix = { label: t('campaigns.inbox.openCleanup'), run: () => { router.push({ name: 'settings', params: { section: 'inactive' } }); } };
+  } else if (canEdit.value) {
+    const target = INBOX_FIX_STEP[c.group];
+    if (target) fix = { label: t('campaigns.fix'), run: () => goStep(target) };
+  }
+  return {
+    ...c, title: t(`campaigns.inbox.${c.id}`), text: c.pass ? '' : inboxText(c), fix,
+  };
+}));
+const inboxFailing = computed(() => inboxRows.value.filter((c) => !c.pass));
+const inboxPassing = computed(() => inboxRows.value.filter((c) => c.pass));
+
 const checks = computed<Check[]>(() => {
   const out: Check[] = [];
   out.push(form.subject && form.fromEmail
@@ -799,9 +880,7 @@ const checks = computed<Check[]>(() => {
         px ? t('campaigns.tracking.checkPixels', { n: px }, px) : '',
       ].filter(Boolean).join('\u2003'),
     });
-    out.push({
-      key: 'plain', tone: 'info', title: t('campaigns.plainTextVersion'), text: form.altbody !== null ? t('campaigns.checkPlainCustom') : t('campaigns.plainTextNone'),
-    });
+    // The plain-text version is in the inbox check below.
   }
   if (form.tracking.replies && replyTrackingOn.value) {
     out.push({
@@ -1072,6 +1151,7 @@ function askSend() {
     text: [
       t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.text`, { n: audience.value.toLocaleString() }),
       testCurrent.value ? '' : t('campaigns.confirm.noTest'),
+      inboxFailing.value.length ? t('campaigns.confirm.inboxWarnings', { n: inboxFailing.value.length }, inboxFailing.value.length) : '',
     ].filter(Boolean).join(' '),
     label: t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.action`),
     danger: false,
@@ -1437,6 +1517,23 @@ onBeforeUnmount(() => {
   .is-ok & { background: var(--ln-success); color: #fff; }
   .is-warn & { background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
   .is-bad & { background: var(--ln-danger-bg); color: var(--ln-danger-fg); }
+}
+.camp-inbox { margin-top: 28px; }
+.camp-inbox-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.camp-inbox-ok {
+  color: var(--ln-text-2);
+  i { color: var(--ln-success); margin-right: 4px; }
+}
+.camp-inbox-passing {
+  margin-top: 12px;
+  summary { cursor: pointer; color: var(--ln-text-2); }
+  ul { margin: 8px 0 0; padding-left: 20px; color: var(--ln-text-2); }
 }
 .camp-check-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 

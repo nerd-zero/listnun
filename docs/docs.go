@@ -929,6 +929,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/{id}/inbox-check": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Check a campaign for inbox placement problems",
+                "operationId": "getCampaignInboxCheck",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_inboxcheck.Check"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/{id}/preview": {
             "post": {
                 "consumes": [
@@ -11210,6 +11254,27 @@ const docTemplate = `{
                 },
                 "pause_reason": {
                     "$ref": "#/definitions/null.String"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_inboxcheck.Check": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "params": {
+                    "description": "Open-ended: each check's own placeholders.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "pass": {
+                    "type": "boolean"
                 }
             }
         },

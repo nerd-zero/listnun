@@ -2583,6 +2583,20 @@ definitions:
       pause_reason:
         $ref: '#/definitions/null.String'
     type: object
+  github_com_nerd-zero_listnun_internal_inboxcheck.Check:
+    properties:
+      group:
+        type: string
+      id:
+        type: string
+      params:
+        additionalProperties:
+          type: string
+        description: 'Open-ended: each check''s own placeholders.'
+        type: object
+      pass:
+        type: boolean
+    type: object
   github_com_nerd-zero_listnun_internal_segments.Condition:
     properties:
       field:
@@ -3267,6 +3281,35 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Convert campaign content format
+      tags:
+      - campaigns
+  /api/campaigns/{id}/inbox-check:
+    get:
+      operationId: getCampaignInboxCheck
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_inboxcheck.Check'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check a campaign for inbox placement problems
       tags:
       - campaigns
   /api/campaigns/{id}/preview:
