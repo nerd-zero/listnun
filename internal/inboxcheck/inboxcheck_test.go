@@ -116,3 +116,20 @@ func TestRun_AllowsCommonCases(t *testing.T) {
 		t.Fatalf("failing = %v, want none", f)
 	}
 }
+
+func TestRecentRates(t *testing.T) {
+	if r := RecentRates(0, 0, 0); r != (Rates{}) {
+		t.Errorf("no sends = %+v, want zero", r)
+	}
+	// Too few sends to judge: rates are reported, never flagged.
+	if r := RecentRates(50, 10, 5); r.Judged || r.ComplaintsHigh || r.BouncesHigh || r.BounceRate != 0.2 {
+		t.Errorf("50 sends = %+v, want rates but no flags", r)
+	}
+	r := RecentRates(1000, 30, 2)
+	if !r.Judged || !r.ComplaintsHigh || !r.BouncesHigh {
+		t.Errorf("1000 sends, 3%% bounces, 0.2%% complaints = %+v, want both flagged", r)
+	}
+	if r := RecentRates(1000, 20, 1); r.ComplaintsHigh || r.BouncesHigh {
+		t.Errorf("exactly at the limits = %+v, want neither flagged", r)
+	}
+}

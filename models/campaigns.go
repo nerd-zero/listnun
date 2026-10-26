@@ -293,8 +293,14 @@ var unsubLinkRe = regexp.MustCompile(`\{\{-?\s*(UnsubscribeURL|ManageURL)\b`)
 // Yahoo require one from bulk senders, on top of the List-Unsubscribe
 // header. A visual campaign ignores its template, so only its body counts.
 func (c *Campaign) HasUnsubscribeLink() bool {
-	if c.ContentType != CampaignContentTypeVisual && unsubLinkRe.MatchString(c.TemplateBody) {
+	if c.ContentType != CampaignContentTypeVisual && HasUnsubscribeTag(c.TemplateBody) {
 		return true
 	}
-	return unsubLinkRe.MatchString(c.Body)
+	return HasUnsubscribeTag(c.Body)
+}
+
+// HasUnsubscribeTag reports whether src (a template or campaign body) has
+// a tag that renders an unsubscribe or preferences link.
+func HasUnsubscribeTag(src string) bool {
+	return unsubLinkRe.MatchString(src)
 }

@@ -36,6 +36,8 @@ func testCoreForInboxCheck(t *testing.T, pool *sqlx.DB) *Core {
 		q: &models.Queries{
 			GetInboxCheckStats:       prep("inboxcheck.sql", "get-inbox-check-stats"),
 			CountInactiveSubscribers: prep("cleanup.sql", "count-inactive-subscribers"),
+			GetSendingHealth:         prep("inboxcheck.sql", "get-sending-health"),
+			GetUnsentCampaignBodies:  prep("inboxcheck.sql", "get-unsent-campaign-bodies"),
 		},
 		i18n: lang,
 		log:  log.New(os.Stderr, "", 0),
@@ -92,5 +94,35 @@ func TestGetInboxCheckStats(t *testing.T) {
 	want := InboxCheckStats{Audience: 2, Inactive: 1, Sent: 200, HardBounces: 2, Complaints: 1}
 	if got != want {
 		t.Fatalf("stats = %+v, want %+v", got, want)
+	}
+
+	// The same rates for the console, plus the unsent campaigns that can't
+	// be sent for want of an unsubscribe link.
+	var footer, bare int
+	pool.Get(&footer, `INSERT INTO templates (tenant_id, name, type, subject, body) VALUES ($1, 'Footer', 'campaign', '', '{{ template "content" . }}<a href="{{ UnsubscribeURL }}">Unsubscribe</a>') RETURNING id`, f.tenant)
+	pool.Get(&bare, `INSERT INTO templates (tenant_id, name, type, subject, body) VALUES ($1, 'Bare', 'campaign', '', '{{ template "content" . }}') RETURNING id`, f.tenant)
+	draft := func(tenant int, name, status string, tpl int, body string) int {
+		var id int
+		if err := pool.Get(&id, `INSERT INTO campaigns (tenant_id, uuid, name, subject, from_email, body, content_type, status, messenger, template_id)
+			VALUES ($1, gen_random_uuid(), $2, 'subj', 'a@example.com', $5, 'richtext', $3, 'email', $4) RETURNING id`,
+			tenant, name, status, tpl, body); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	blocked := draft(f.tenant, "No link", "draft", bare, "<p>Hi</p>")
+	draft(f.tenant, "Link in body", "draft", bare, `<a href="{{ UnsubscribeURL }}">x</a>`)
+	draft(f.tenant, "Link in template", "scheduled", footer, "<p>Hi</p>")
+	draft(f.tenant, "Already sent", "finished", bare, "<p>Hi</p>")
+
+	h, err := c.GetSendingHealth(ctx, f.tenant)
+	if err != nil {
+		t.Fatalf("GetSendingHealth: %v", err)
+	}
+	if h.Sent != 200 || h.HardBounces != 2 || h.Complaints != 1 || !h.Judged || !h.ComplaintsHigh || h.BouncesHigh {
+		t.Errorf("health = %+v, want 200 sent, 2 hard bounces (1%%), 1 complaint (0.5%%, high)", h)
+	}
+	if want := (CampaignRef{ID: blocked, Name: "No link", Status: "draft"}); len(h.CampaignsWithoutUnsubscribe) != 1 || h.CampaignsWithoutUnsubscribe[0] != want {
+		t.Errorf("campaigns without unsubscribe = %+v, want only %+v", h.CampaignsWithoutUnsubscribe, want)
 	}
 }
