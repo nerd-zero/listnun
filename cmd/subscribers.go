@@ -684,6 +684,8 @@ func (a *App) ManageSubscriberLists(c echo.Context) error {
 		err = a.core.DeleteSubscriptions(ctx, tID, subIDs, listIDs)
 	case "unsubscribe":
 		err = a.core.UnsubscribeLists(ctx, tID, subIDs, listIDs, nil)
+	case "confirm":
+		err = a.core.ConfirmSubscriptions(ctx, tID, subIDs, listIDs)
 	default:
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidAction"))
 	}
@@ -886,7 +888,7 @@ func (a *App) BlocklistSubscribersByQuery(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
-// ManageSubscriberListsByQuery bulk adds/removes/unsubscribes subscribers
+// ManageSubscriberListsByQuery bulk adds/removes/unsubscribes/confirms subscribers
 // from one or more lists based on an arbitrary SQL expression.
 //
 //	@ID			manageSubscriberListsByQuery
@@ -944,6 +946,8 @@ func (a *App) ManageSubscriberListsByQuery(c echo.Context) error {
 		err = a.core.DeleteSubscriptionsByQuery(c.Request().Context(), tenantID(c), req.Search, req.Query, sourceListIDs, targetListIDs, req.SubscriptionStatus)
 	case "unsubscribe":
 		err = a.core.UnsubscribeListsByQuery(c.Request().Context(), tenantID(c), req.Search, req.Query, sourceListIDs, targetListIDs, req.SubscriptionStatus)
+	case "confirm":
+		err = a.core.ConfirmSubscriptionsByQuery(c.Request().Context(), tenantID(c), req.Search, req.Query, sourceListIDs, targetListIDs, req.SubscriptionStatus)
 	default:
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidAction"))
 	}

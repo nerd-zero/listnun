@@ -95,6 +95,41 @@ func (c *Core) DeleteSubscriptionsByQuery(ctx context.Context, tenantID int, sea
 	return nil
 }
 
+// ConfirmSubscriptions marks subscribers' unconfirmed list subscriptions as
+// 'confirmed', for an admin confirming double opt-in on a subscriber's behalf.
+func (c *Core) ConfirmSubscriptions(ctx context.Context, tenantID int, subIDs, listIDs []int) error {
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.q.ConfirmSubscriptions).Exec(pq.Array(subIDs), pq.Array(listIDs))
+		return err
+	})
+	if err != nil {
+		c.log.Printf("error confirming subscriptions: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.subscribers}", "error", err.Error()))
+	}
+
+	return nil
+}
+
+// ConfirmSubscriptionsByQuery marks unconfirmed list subscriptions as 'confirmed' by a given arbitrary query expression.
+// sourceListIDs is the list of list IDs to filter the subscriber query with.
+func (c *Core) ConfirmSubscriptionsByQuery(ctx context.Context, tenantID int, searchStr, queryExp string, sourceListIDs, targetListIDs []int, subStatus string) error {
+	if sourceListIDs == nil {
+		sourceListIDs = []int{}
+	}
+
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return c.q.ExecSubQueryTpl(searchStr, queryExp, c.q.ConfirmSubscriptionsByQuery, sourceListIDs, tx, subStatus, pq.Array(targetListIDs))
+	})
+	if err != nil {
+		c.log.Printf("error confirming subscriptions by query: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorUpdating", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
+	}
+
+	return nil
+}
+
 // UnsubscribeLists sets list subscriptions to 'unsubscribed'.
 func (c *Core) UnsubscribeLists(ctx context.Context, tenantID int, subIDs, listIDs []int, listUUIDs []string) error {
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {

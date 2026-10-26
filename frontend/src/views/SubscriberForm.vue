@@ -85,8 +85,12 @@
                 <PvColumn field="status" :header="$t('globals.fields.status')" class="status">
                   <template #body="{ data: row }">
                     <div class="sub-status-cell">
-                      <PvTag :severity="subStatusSeverity(row.subscriptionStatus)" size="small"
-                        :value="$t(`subscribers.status.${row.subscriptionStatus}`)" />
+                      <PvTag :severity="subStatusSeverity(subStatus(row))" size="small"
+                        :value="$t(`subscribers.status.${subStatus(row)}`)" />
+                      <a v-if="$can('subscribers:manage') && subStatus(row) === 'unconfirmed' && row.optin === 'double' && !row.restricted"
+                        href="#" class="sub-confirm" data-cy="btn-confirm-subscription" @click.prevent="confirmSubscription(row)">
+                        <i class="pi pi-check" /> {{ $t('subscribers.markConfirmed') }}
+                      </a>
                       <span v-if="row.optin === 'double' && row.subscriptionMeta.optinIp" class="sub-ip">
                         {{ row.subscriptionMeta.optinIp }}
                       </span>
@@ -188,7 +192,7 @@ const emit = defineEmits(['finished', 'close']);
 
 const { $utils } = useGlobal();
 const {
-  createSubscriber, updateSubscriber, sendSubscriberOptin, deleteSubscriberBounces,
+  createSubscriber, updateSubscriber, sendSubscriberOptin, deleteSubscriberBounces, manageSubscriberLists,
 } = subscribersApi();
 const { getSubscriberBounces } = bouncesApi();
 const { t } = useI18n();
@@ -223,6 +227,22 @@ function subStatusSeverity(status: string) {
 }
 
 function toggleMeta(id: number) { visibleMeta[id] = !visibleMeta[id]; }
+
+// Subscriptions confirmed from this form, shown as confirmed without
+// refetching the subscriber (data is a prop owned by the parent).
+const confirmedListIDs = reactive(new Set<number>());
+
+function subStatus(row: any) {
+  return confirmedListIDs.has(row.id) ? 'confirmed' : row.subscriptionStatus;
+}
+
+function confirmSubscription(row: any) {
+  manageSubscriberLists({ ids: [form.id], action: 'confirm', target_list_ids: [row.id] } as never).then(() => {
+    confirmedListIDs.add(row.id);
+    emit('finished');
+    $utils.toast(t('subscribers.subscriptionConfirmed'));
+  });
+}
 
 function fetchBounces() {
   getSubscriberBounces(form.id).then((data: any) => { bounces.value = data; });
@@ -340,6 +360,7 @@ onMounted(() => {
 .sub-restricted { color: var(--ln-text-4); font-style: italic; }
 .sub-status-cell { display: flex; flex-direction: column; gap: 0.2rem; }
 .sub-ip { font-size: 0.75rem; color: var(--ln-text-4); }
+.sub-confirm { font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem; }
 
 .bounces-header { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
 .delete-link { font-size: 0.85rem; color: var(--ln-danger); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; &:hover { text-decoration: underline; } }

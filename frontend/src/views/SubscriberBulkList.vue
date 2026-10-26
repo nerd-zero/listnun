@@ -20,13 +20,21 @@
             <PvRadioButton v-model="form.action" name="action" value="unsubscribe" input-id="action-unsubscribe" data-cy="check-list-unsubscribe" />
             <span>{{ $t('subscribers.markUnsubscribed') }}</span>
           </label>
+          <label class="radio-item">
+            <PvRadioButton v-model="form.action" name="action" value="confirm" input-id="action-confirm" data-cy="check-list-confirm" />
+            <span>{{ $t('subscribers.markConfirmed') }}</span>
+          </label>
         </div>
       </div>
 
       <list-selector label="Target lists" placeholder="Lists to apply to" v-model="form.lists" :selected="form.lists"
         :all="lists.results" />
 
-      <div class="lm-field">
+      <div v-if="form.action === 'confirm'" class="lm-field">
+        <small class="lm-help">{{ $t('subscribers.markConfirmedHelp') }}</small>
+      </div>
+
+      <div v-if="form.action === 'add'" class="lm-field">
         <div class="check-row">
           <PvCheckbox v-model="form.preconfirm" data-cy="preconfirm" :binary="true" :true-value="true" :false-value="false" :disabled="!hasOptinList" input-id="preconfirm" />
           <label for="preconfirm" class="check-label">{{ $t('subscribers.preconfirm') }}</label>
@@ -58,7 +66,7 @@ const form = reactive({ action: 'add', lists: [] as any[], preconfirm: false });
 const hasOptinList = computed(() => form.lists.some((l: any) => l.optin === 'double'));
 
 function onSubmit() {
-  emit('finished', form.action, form.preconfirm, form.lists);
+  emit('finished', form.action, form.action === 'add' && form.preconfirm, form.lists);
   emit('close');
 }
 </script>

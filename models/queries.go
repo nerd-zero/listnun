@@ -27,6 +27,7 @@ type Queries struct {
 	BlocklistSubscribers            *sqlx.Stmt `query:"blocklist-subscribers"`
 	AddSubscribersToLists           *sqlx.Stmt `query:"add-subscribers-to-lists"`
 	DeleteSubscriptions             *sqlx.Stmt `query:"delete-subscriptions"`
+	ConfirmSubscriptions            *sqlx.Stmt `query:"confirm-subscriptions"`
 	DeleteUnconfirmedSubscriptions  *sqlx.Stmt `query:"delete-unconfirmed-subscriptions"`
 	ConfirmSubscriptionOptin        *sqlx.Stmt `query:"confirm-subscription-optin"`
 	UnsubscribeSubscribersFromLists *sqlx.Stmt `query:"unsubscribe-subscribers-from-lists"`
@@ -73,6 +74,7 @@ type Queries struct {
 	BlocklistSubscribersByQuery            string     `query:"blocklist-subscribers-by-query"`
 	DeleteSubscriptionsByQuery             string     `query:"delete-subscriptions-by-query"`
 	UnsubscribeSubscribersFromListsByQuery string     `query:"unsubscribe-subscribers-from-lists-by-query"`
+	ConfirmSubscriptionsByQuery            string     `query:"confirm-subscriptions-by-query"`
 
 	CreateList        *sqlx.Stmt `query:"create-list"`
 	QueryLists        string     `query:"query-lists"`
