@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/goyesql/v2"
@@ -127,5 +129,49 @@ func TestBounces_AllActionsFollowTheFilter(t *testing.T) {
 	}
 	if got := types(theirs); len(got) != 1 || status(dan) != "enabled" {
 		t.Errorf("other workspace: bounces %v, dan %s; want its soft bounce untouched", got, status(dan))
+	}
+}
+
+// A bounce for an address that isn't a subscriber (a transactional email,
+// or a subscriber already deleted) is skipped, not an error. Regression: the
+// insert failed on tenant_id's NOT NULL check before subscriber_id's, so
+// every such Postmark webhook logged "error recording bounce" twice.
+func TestRecordBounce_SkipsUnknownSubscriber(t *testing.T) {
+	pool := testPool(t)
+	qs, err := goyesql.ParseFile("../../queries/bounces.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, err := pool.Preparex(qs["record-bounce"].Query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { stmt.Close() })
+	lang, err := i18n.New([]byte(`{"_.code":"en","_.name":"English"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Core{
+		db:   pool,
+		q:    &models.Queries{RecordBounce: stmt},
+		i18n: lang,
+		log:  log.New(os.Stderr, "", 0),
+	}
+	c.consts.BounceActions = map[string]struct {
+		Count  int
+		Action string
+	}{"hard": {Count: 1, Action: "blocklist"}}
+
+	// A campaign UUID skips the transactional message lookup.
+	err = c.RecordBounce(models.Bounce{
+		Email:        "nobody-here@example.com",
+		CampaignUUID: "00000000-0000-0000-0000-000000000000",
+		Type:         "hard",
+		Source:       "postmark",
+		Meta:         json.RawMessage(`{}`),
+		CreatedAt:    time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("RecordBounce: %v, want nil", err)
 	}
 }

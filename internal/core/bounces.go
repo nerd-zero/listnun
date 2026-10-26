@@ -115,8 +115,11 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 		b.TenantID)
 
 	if err != nil {
-		// Ignore the error if it complained of no subscriber.
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Column == "subscriber_id" {
+		// Ignore the error if it complained of no subscriber. With no
+		// subscriber, record-bounce inserts NULL for both tenant_id (taken
+		// from the subscriber) and subscriber_id, and tenant_id's NOT NULL
+		// check fails first.
+		if pqErr, ok := err.(*pq.Error); ok && (pqErr.Column == "subscriber_id" || pqErr.Column == "tenant_id") {
 			c.log.Printf("bounced subscriber (%s / %s) not found", b.SubscriberUUID, b.Email)
 			return nil
 		}
