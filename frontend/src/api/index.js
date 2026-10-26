@@ -333,6 +333,13 @@ export const updateCampaign = async (id, data) => http.put(
   { loading: models.campaigns },
 );
 
+// The campaign's inbox check (internal/inboxcheck), as saved. Params keep
+// their case: they're the i18n placeholders.
+export const getCampaignInboxCheck = async (id) => http.get(
+  `/api/campaigns/${id}/inbox-check`,
+  { camelCase: (keyPath) => !keyPath.includes('.params') },
+);
+
 export const changeCampaignStatus = async (id, status) => http.put(
   `/api/campaigns/${id}/status`,
   { status },
