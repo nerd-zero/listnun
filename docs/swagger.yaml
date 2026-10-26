@@ -1750,10 +1750,23 @@ definitions:
         items:
           type: integer
         type: array
+      engagement:
+        $ref: '#/definitions/SubscriberEngagement'
       link_clicks:
         items:
           type: integer
         type: array
+    type: object
+  SubscriberEngagement:
+    properties:
+      campaigns:
+        type: integer
+      clicked:
+        type: integer
+      last_opened_at:
+        type: string
+      opened:
+        type: integer
     type: object
   SubscriberExportProfile:
     properties:

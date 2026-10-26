@@ -143,7 +143,18 @@ type SubscriberExportProfile struct {
 type SubscriberActivity struct {
 	CampaignViews json.RawMessage `db:"campaign_views" json:"campaign_views"`
 	LinkClicks    json.RawMessage `db:"link_clicks" json:"link_clicks"`
+
+	Engagement SubscriberEngagement `db:"-" json:"engagement"`
 } // @name SubscriberActivity
+
+// SubscriberEngagement is how many campaigns went to a subscriber's lists
+// while they were on them, and how many of those they opened and clicked.
+type SubscriberEngagement struct {
+	Campaigns    int       `db:"campaigns" json:"campaigns"`
+	Opened       int       `db:"opened" json:"opened"`
+	Clicked      int       `db:"clicked" json:"clicked"`
+	LastOpenedAt null.Time `db:"last_opened_at" json:"last_opened_at" swaggertype:"string"`
+} // @name SubscriberEngagement
 
 // SplitUnsubscribed names the public lists a subscriber just left
 // (unsubbedIDs) and the public lists they are still on, for the page shown
