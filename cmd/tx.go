@@ -171,11 +171,19 @@ func (a *App) sendTx(ctx context.Context, tenantID int, m models.TxMessage, orig
 		return nil, err
 	}
 
-	// Get the cached tx template.
+	// Get the cached tx template. A template that doesn't exist still leaves
+	// a failed entry per recipient in the message log, so the mistake shows
+	// up there and not only in the caller's error handling.
 	tpl, err := a.manager.GetTpl(tenantID, m.TemplateID)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusBadRequest,
-			a.i18n.Ts("globals.messages.notFound", "name", fmt.Sprintf("template %d", m.TemplateID)))
+		msg := a.i18n.Ts("globals.messages.notFound", "name", fmt.Sprintf("template %d", m.TemplateID))
+		var ids []string
+		for _, r := range m.Recipients() {
+			if ref := a.logTx(ctx, tenantID, m, nil, origin, models.Subscriber{Email: r.Label}, r.ID, msg); ref.UUID != "" {
+				ids = append(ids, ref.UUID)
+			}
+		}
+		return ids, echo.NewHTTPError(http.StatusBadRequest, msg)
 	}
 
 	// The workspace logo, for templates that include the brand-logo block.
@@ -325,15 +333,25 @@ func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *
 		payload = []byte("{}")
 	}
 
+	// tpl is nil when the requested template doesn't exist: the entry then
+	// links to no template, and the payload keeps the ID that was asked for.
+	var (
+		tplID            int
+		tplName, tplSubj string
+	)
+	if tpl != nil {
+		tplID, tplName, tplSubj = m.TemplateID, tpl.Name, tpl.Subject
+	}
+
 	rec := models.NewTxLogMessage{
 		UUID:         core.NewTxMessageUUID(),
 		APIKeyID:     origin.APIKeyID,
 		Sender:       origin.Sender,
-		TemplateID:   m.TemplateID,
-		TemplateName: tpl.Name,
+		TemplateID:   tplID,
+		TemplateName: tplName,
 		SubscriberID: sub.ID,
 		Recipient:    sub.Email,
-		Subject:      core.TxLogSubject(m.Subject, tpl.Subject, failure != ""),
+		Subject:      core.TxLogSubject(m.Subject, tplSubj, failure != ""),
 		Status:       models.TxStatusQueued,
 		Messenger:    m.Messenger,
 		SourceIP:     origin.SourceIP,

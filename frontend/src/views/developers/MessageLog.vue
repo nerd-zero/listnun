@@ -68,7 +68,7 @@
                 <span class="dev-log-item-to">{{ m.recipient }}</span>
                 <span class="dev-log-item-sub">
                   <span :class="`dev-log-fg is-${tone(m.status)}`">{{ $t(`developers.log.status.${m.status}`) }}</span>
-                  <span>{{ m.templateName }}</span>
+                  <span>{{ m.templateName || '—' }}</span>
                 </span>
               </span>
               <time class="ln-mono dev-log-item-time">{{ hhmm(m.createdAt) }}</time>
@@ -113,7 +113,7 @@
           </template>
         </PvColumn>
         <PvColumn :header="$t('developers.log.template')">
-          <template #body="{ data }">{{ data.templateName }}</template>
+          <template #body="{ data }">{{ data.templateName || '—' }}</template>
         </PvColumn>
         <PvColumn v-if="!openId" :header="$t('developers.log.key')">
           <template #body="{ data }"><span class="ln-mono">{{ data.sender }}</span></template>
