@@ -76,6 +76,8 @@ type App struct {
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
+	// optinResends holds the tenants with a bulk opt-in resend running.
+	optinResends sync.Map
 
 	// Channel for passing reload signals.
 	chReload chan os.Signal

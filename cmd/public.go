@@ -585,7 +585,8 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 
 	out := subFormTpl{}
 	out.Title = a.i18n.T("public.sub")
-	out.Lists = lists
+	// ?l=<list UUID> is a link to one list's form (Lists › Signup form).
+	out.Lists = models.ListsByUUID(lists, c.QueryParams()["l"])
 
 	// Captcha configuration for template rendering.
 	out.Captcha = a.captchaWidget()

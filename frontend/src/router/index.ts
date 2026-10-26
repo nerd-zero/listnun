@@ -21,7 +21,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/lists',
     name: 'lists',
-    meta: { title: 'globals.terms.lists', group: 'lists' },
+    // view: /lists and /lists/:id are one page, so picking a card keeps
+    // the cards loaded; keepScroll keeps the place in them.
+    meta: {
+      title: 'globals.terms.lists', group: 'lists', view: 'lists', keepScroll: true,
+    },
     component: () => import('../views/Lists.vue'),
   },
   {
@@ -33,7 +37,9 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/lists/:id',
     name: 'list',
-    meta: { title: 'globals.terms.lists', group: 'lists' },
+    meta: {
+      title: 'globals.terms.lists', group: 'lists', view: 'lists', keepScroll: true,
+    },
     component: () => import('../views/Lists.vue'),
   },
   {
@@ -270,9 +276,13 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 
-  scrollBehavior(to) {
+  scrollBehavior(to, from, savedPosition) {
     if (to.hash) {
       return { el: to.hash };
+    }
+    // Within a page that opts in, the page manages its own scrolling.
+    if (to.meta.keepScroll && from.meta.keepScroll) {
+      return savedPosition || false;
     }
     return { top: 0, left: 0 };
   },
