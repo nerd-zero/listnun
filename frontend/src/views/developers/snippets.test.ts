@@ -21,6 +21,13 @@ describe('snippet', () => {
     });
   });
 
+  it('tells the assistant to keep the key server-side and explains unknown recipients', () => {
+    const s = snippet('llm', input);
+    expect(s).toContain('server-side');
+    expect(s).toContain('"subscriber_mode": "external"');
+    expect(s).toContain('order_id, note');
+  });
+
   it('escapes single quotes in the curl body', () => {
     expect(snippet('curl', input)).toContain("it'\\''s here");
   });

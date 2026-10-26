@@ -52,8 +52,9 @@
 
         <template v-if="!shown || shown.key === 'test' || shown.key === 'log' || isMobile">
           <PvSelectButton v-model="lang" :options="langOptions" option-label="label" option-value="value" :allow-empty="false" class="dev-ov-langs" />
+          <p v-if="lang === 'llm'" class="ln-small dev-ov-llm-help">{{ $t('developers.overview.llmHelp') }}</p>
           <div class="dev-ov-code">
-            <pre class="ln-code">{{ code }}</pre>
+            <pre class="ln-code" :class="{ 'dev-ov-prose': lang === 'llm' }">{{ code }}</pre>
             <!-- Positioned by this wrapper, not the button: PrimeVue's ripple
                  sets an inline position: relative on the button itself. -->
             <div class="dev-ov-copy-wrap">
@@ -432,11 +433,14 @@ onMounted(() => {
   @media (max-width: 767px) { padding: 0; }
 }
 .dev-ov-snippet-help { margin: -8px 0 0; }
+.dev-ov-llm-help { margin: 0; }
 .dev-ov-langs { align-self: flex-start; @media (max-width: 767px) { align-self: stretch; :deep(.p-togglebutton) { flex: 1; } } }
 .dev-ov-code {
   position: relative;
 
   pre { padding-right: 96px; min-height: 160px; white-space: pre; }
+  // The AI prompt is prose, so wrap it rather than scroll sideways.
+  pre.dev-ov-prose { white-space: pre-wrap; max-height: 360px; overflow-y: auto; }
 
   // Phones: the button sits in a strip under the code, inside the same
   // dark box, so it can't scroll under the sticky "send from the browser" bar.
