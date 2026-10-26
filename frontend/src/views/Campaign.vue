@@ -47,7 +47,7 @@
         </div>
       </div>
 
-      <nav class="camp-steps" :aria-label="$t('campaigns.steps')">
+      <nav ref="stepsNav" class="camp-steps" :aria-label="$t('campaigns.steps')">
         <button
           v-for="(s, i) in steps"
           :key="s.key"
@@ -571,6 +571,12 @@ const steps = computed<{ key: StepKey; label: string }[]>(() => [
   { key: 'review', label: t('campaigns.stepReview') },
 ]);
 const stepIndex = computed(() => steps.value.findIndex((s) => s.key === step.value));
+
+// On a phone the steps scroll sideways, so keep the current one in view.
+const stepsNav = ref<HTMLElement | null>(null);
+watch(step, () => nextTick(() => {
+  stepsNav.value?.querySelector('.is-current')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}));
 // Which way the last step change went, so the new step slides in from
 // that side (motion.scss).
 const stepDir = ref<'ln-steps-next' | 'ln-steps-prev'>('ln-steps-next');
@@ -1241,7 +1247,18 @@ onBeforeUnmount(() => {
   &.is-done { color: var(--ln-text); border-bottom-color: var(--ln-success); }
   &.is-current { color: var(--ln-text); font-weight: 600; border-bottom-color: var(--ln-ink); }
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
-  @media (max-width: 600px) { font-size: 0; gap: 0; justify-content: center; }
+}
+// Phones keep the step names and scroll the row sideways, as in the
+// mobile editor artboard, instead of shrinking each step to its number.
+@media (max-width: 600px) {
+  .camp-steps {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+  .camp-step { flex: none; white-space: nowrap; font-size: 14px; }
 }
 .camp-step-mark {
   width: 20px;

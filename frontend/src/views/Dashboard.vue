@@ -32,7 +32,7 @@
       <div class="ln-tile" data-cy="messages">
         <span class="ln-tile-label">{{ $t('dashboard.emailsSent') }}</span>
         <span class="ln-tile-value">{{ ov ? ov.sent.toLocaleString() : '—' }}</span>
-        <span class="ln-tile-sub">{{ ov ? $t('dashboard.campaignsStarted', { n: ov.campaignsStarted }) : '' }}</span>
+        <span class="ln-tile-sub">{{ ov ? $t('dashboard.campaignsStarted', { n: ov.campaignsStarted }, ov.campaignsStarted) : '' }}</span>
       </div>
       <div class="ln-tile" data-cy="bounce-rate">
         <span class="ln-tile-label">{{ $t('dashboard.bounceRate') }}</span>
