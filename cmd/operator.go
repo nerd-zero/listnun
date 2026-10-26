@@ -843,6 +843,37 @@ func (a *App) GetOperatorTenant(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetOperatorTenantActivity returns a tenant's latest activity log lines
+// (its Settings › Logs), so a console can show problems like failing
+// sends without server access.
+//
+//	@ID				getOperatorTenantActivity
+//	@Summary		Get a tenant's activity log (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			source	query		string	false	"Only lines from this source, e.g. sending"
+//	@Param			limit	query		int		false	"Lines to return (max 500)"
+//	@Success		200		{object}	[]models.ActivityEntry
+//	@Failure		401		{object}	echo.HTTPError
+//	@Failure		404		{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/activity [get]
+func (a *App) GetOperatorTenantActivity(c echo.Context) error {
+	id := getID(c)
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	out, err := a.core.GetActivity(c.Request().Context(), id, limit, c.QueryParam("source"))
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetOperatorTenantScrubUsage returns a tenant's subscriber validation
 // status breakdown -- the same subscribers.scrub_status data the
 // tenant's own dashboard widget reads locally, exposed cross-tenant so

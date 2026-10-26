@@ -23,7 +23,7 @@ const activityPruneInterval = 6 * time.Hour
 //	@Router		/api/settings/logs [get]
 func (a *App) GetActivityLog(c echo.Context) error {
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	out, err := a.core.GetActivity(c.Request().Context(), tenantID(c), limit)
+	out, err := a.core.GetActivity(c.Request().Context(), tenantID(c), limit, "")
 	if err != nil {
 		return err
 	}

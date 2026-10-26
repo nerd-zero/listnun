@@ -67,6 +67,10 @@ type Store interface {
 	// RecordTxSendResult records a transactional message's send outcome
 	// in the message log.
 	RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error)
+
+	// RecordCampaignSendError records that a campaign couldn't send, with
+	// the messenger's error, where the workspace can see it.
+	RecordCampaignSendError(camp *models.Campaign, err error)
 }
 
 // Messenger is an interface for a generic messaging backend,
@@ -330,27 +334,6 @@ func (m *Manager) PushMessage(msg models.Message) error {
 	case m.msgQ <- msg:
 	case <-t.C:
 		m.log.Printf("message push timed out: '%s'", msg.Subject)
-		return errors.New("message push timed out")
-	}
-
-	return nil
-}
-
-// PushCampaignMessage pushes a campaign messages into a queue to be sent out by the workers.
-// It times out if the queue is busy.
-func (m *Manager) PushCampaignMessage(msg CampaignMessage) error {
-	t := time.NewTicker(pushTimeout)
-	defer t.Stop()
-
-	// Load any media/attachments.
-	if err := m.attachMedia(msg.Campaign); err != nil {
-		return err
-	}
-
-	select {
-	case m.campMsgQ <- msg:
-	case <-t.C:
-		m.log.Printf("message push timed out: '%s'", msg.Subject())
 		return errors.New("message push timed out")
 	}
 
@@ -692,32 +675,10 @@ func (m *Manager) worker() {
 			}
 			numMsg++
 
-			// Outgoing message.
-			out := models.Message{
-				TenantID:    msg.Campaign.TenantID,
-				From:        msg.from,
-				To:          []string{msg.to},
-				Subject:     msg.subject,
-				ContentType: msg.Campaign.ContentType,
-				Body:        msg.body,
-				AltBody:     msg.altBody,
-				Subscriber:  msg.Subscriber,
-				Campaign:    msg.Campaign,
-				Attachments: msg.Campaign.Attachments,
-			}
-
-			out.Headers = m.campaignHeaders(msg)
-
-			// Push the message to the messenger.
-			msgr, err := m.getMessenger(context.Background(), msg.Campaign.TenantID, msg.Campaign.Messenger)
-			if err == nil {
-				err = msgr.Push(out)
-			}
-			if err == nil {
-				m.countSent(msgr, out)
-			}
+			err := m.sendCampaignMessage(msg)
 			if err != nil {
 				m.log.Printf("error sending message in campaign %s: subscriber %d: %v", msg.Campaign.Name, msg.Subscriber.ID, err)
+				m.reportSendError(msg, err)
 			}
 
 			// Increment the send rate or the error counter if there was an error.
@@ -761,6 +722,56 @@ func (m *Manager) worker() {
 			}
 		}
 	}
+}
+
+// sendCampaignMessage renders msg into an outgoing message and pushes it
+// to the campaign's messenger, counting it as sent when that works.
+func (m *Manager) sendCampaignMessage(msg CampaignMessage) error {
+	// Outgoing message.
+	out := models.Message{
+		TenantID:    msg.Campaign.TenantID,
+		From:        msg.from,
+		To:          []string{msg.to},
+		Subject:     msg.subject,
+		ContentType: msg.Campaign.ContentType,
+		Body:        msg.body,
+		AltBody:     msg.altBody,
+		Subscriber:  msg.Subscriber,
+		Campaign:    msg.Campaign,
+		Attachments: msg.Campaign.Attachments,
+	}
+
+	out.Headers = m.campaignHeaders(msg)
+
+	msgr, err := m.getMessenger(context.Background(), msg.Campaign.TenantID, msg.Campaign.Messenger)
+	if err == nil {
+		err = msgr.Push(out)
+	}
+	if err == nil {
+		m.countSent(msgr, out)
+	}
+
+	return err
+}
+
+// SendTestMessage sends msg straight away, without the campaign queue, so
+// the caller gets the messenger's error (an SMTP login failure, say)
+// instead of a send that quietly fails later.
+func (m *Manager) SendTestMessage(msg CampaignMessage) error {
+	if err := m.attachMedia(msg.Campaign); err != nil {
+		return err
+	}
+	return m.sendCampaignMessage(msg)
+}
+
+// reportSendError records a campaign's send failure in the workspace's
+// activity log, once per campaign run: every message usually fails the
+// same way, and the run pauses itself after too many errors anyway.
+func (m *Manager) reportSendError(msg CampaignMessage, err error) {
+	if msg.pipe == nil || !msg.pipe.errReported.CompareAndSwap(false, true) {
+		return
+	}
+	m.store.RecordCampaignSendError(msg.Campaign, err)
 }
 
 // campaignHeaders returns the headers of one campaign message: the

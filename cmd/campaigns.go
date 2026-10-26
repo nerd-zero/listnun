@@ -910,7 +910,13 @@ func (a *App) sendTestMessage(sub models.Subscriber, camp *models.Campaign) erro
 		return echo.NewHTTPError(http.StatusNotFound, a.i18n.Ts("templates.errorRendering", "error", err.Error()))
 	}
 
-	return a.manager.PushCampaignMessage(msg)
+	if err := a.manager.SendTestMessage(msg); err != nil {
+		reason := core.DescribeSendError(err)
+		a.core.LogActivity(camp.TenantID, models.ActivityError, "sending",
+			fmt.Sprintf("Test of “%s” to %s couldn't send: %s", camp.Name, sub.Email, reason))
+		return errors.New(reason)
+	}
+	return nil
 }
 
 // validateCampaignFields validates incoming campaign field values.
