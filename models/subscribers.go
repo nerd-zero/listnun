@@ -40,6 +40,10 @@ type Subscriber struct {
 	// or unset (Scrub not configured for this tenant / a legacy row).
 	ScrubStatus    null.String `db:"scrub_status" json:"scrub_status"`
 	ScrubCheckedAt null.Time   `db:"scrub_checked_at" json:"scrub_checked_at"`
+
+	// LastOpenedAt is when they last opened a campaign, set only by
+	// subscriber searches (Subscribers' "Last opened" column).
+	LastOpenedAt null.Time `db:"last_opened_at" json:"last_opened_at"`
 } // @name Subscriber
 
 type subLists struct {

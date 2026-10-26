@@ -17,6 +17,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/internal/scrub"
+	"github.com/nerd-zero/listnun/internal/segments"
 	"github.com/nerd-zero/listnun/internal/subimporter"
 	"github.com/nerd-zero/listnun/models"
 )
@@ -37,6 +38,10 @@ type subQueryReq struct {
 	Status             string `json:"status"`
 	SubscriptionStatus string `json:"subscription_status"`
 	All                bool   `json:"all"`
+
+	// Segment narrows the people acted on, like Query, but is compiled
+	// from known fields so it needs no SQL query permission.
+	Segment *segments.Segment `json:"segment,omitempty"`
 } // @name SubscriberQueryReq
 
 // subOptin contains the data that's passed to the double opt-in e-mail template.
@@ -155,6 +160,14 @@ func (a *App) QuerySubscribers(c echo.Context) error {
 		}
 	}
 
+	// A segment is compiled here from known fields and quoted values, so
+	// it needs no SQL permission. It narrows any SQL query given too.
+	segExp, err := a.segmentQuery(c.FormValue("segment"))
+	if err != nil {
+		return err
+	}
+	query = andSQL(query, segExp)
+
 	var (
 		searchStr = strings.TrimSpace(c.FormValue("search"))
 		subStatus = c.FormValue("subscription_status")
@@ -229,6 +242,14 @@ func (a *App) ExportSubscribers(c echo.Context) error {
 				a.i18n.Ts("globals.messages.permissionDenied", "name", auth.PermSubscribersSqlQuery))
 		}
 	}
+
+	// Narrow to the segment being viewed, compiled here like
+	// QuerySubscribers' segment parameter.
+	segExp, err := a.segmentQuery(c.FormValue("segment"))
+	if err != nil {
+		return err
+	}
+	query = andSQL(query, segExp)
 
 	// Get the batched export iterator.
 	exp, err := a.core.ExportSubscribers(c.Request().Context(), tenantID(c), searchStr, query, subIDs, listIDs, subStatus, a.cfg.DBBatchSize)
@@ -775,7 +796,7 @@ func (a *App) DeleteSubscribersByQuery(c echo.Context) error {
 		// If the "all" flag is set, ignore any subquery that may be present.
 		req.Search = ""
 		req.Query = ""
-	} else if req.Search == "" && req.Query == "" {
+	} else if req.Search == "" && req.Query == "" && req.Segment == nil {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "query"))
 	}
 
@@ -784,6 +805,15 @@ func (a *App) DeleteSubscribersByQuery(c echo.Context) error {
 		if !user.HasPerm(auth.PermSubscribersSqlQuery) {
 			return echo.NewHTTPError(http.StatusForbidden,
 				a.i18n.Ts("globals.messages.permissionDenied", "name", auth.PermSubscribersSqlQuery))
+		}
+	}
+
+	// Add the segment, after the SQL permission check: it's compiled
+	// here, not user SQL.
+	if !req.All {
+		var err error
+		if req.Query, err = a.withSegment(req.Query, req.Segment); err != nil {
+			return err
 		}
 	}
 
@@ -825,7 +855,7 @@ func (a *App) BlocklistSubscribersByQuery(c echo.Context) error {
 		// If the "all" flag is set, ignore any subquery that may be present.
 		req.Search = ""
 		req.Query = ""
-	} else if req.Search == "" && req.Query == "" {
+	} else if req.Search == "" && req.Query == "" && req.Segment == nil {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "query"))
 	}
 	// Does the user have the subscribers:sql_query permission?
@@ -833,6 +863,15 @@ func (a *App) BlocklistSubscribersByQuery(c echo.Context) error {
 		if !user.HasPerm(auth.PermSubscribersSqlQuery) {
 			return echo.NewHTTPError(http.StatusForbidden,
 				a.i18n.Ts("globals.messages.permissionDenied", "name", auth.PermSubscribersSqlQuery))
+		}
+	}
+
+	// Add the segment, after the SQL permission check: it's compiled
+	// here, not user SQL.
+	if !req.All {
+		var err error
+		if req.Query, err = a.withSegment(req.Query, req.Segment); err != nil {
+			return err
 		}
 	}
 
@@ -880,6 +919,15 @@ func (a *App) ManageSubscriberListsByQuery(c echo.Context) error {
 		if !user.HasPerm(auth.PermSubscribersSqlQuery) {
 			return echo.NewHTTPError(http.StatusForbidden,
 				a.i18n.Ts("globals.messages.permissionDenied", "name", auth.PermSubscribersSqlQuery))
+		}
+	}
+
+	// Add the segment, after the SQL permission check: it's compiled
+	// here, not user SQL.
+	if !req.All {
+		var err error
+		if req.Query, err = a.withSegment(req.Query, req.Segment); err != nil {
+			return err
 		}
 	}
 

@@ -1,27 +1,100 @@
 <template>
   <div class="ln-page subs" :class="{ 'has-drawer': !!openSub && !isMobile }">
-    <page-header :title="$t('globals.terms.subscribers')" :count="subscribers.total ?? null">
+    <page-header :title="$t('globals.terms.subscribers')" :subtitle="summary">
       <template #after-title>
         <span v-if="currentList" class="ln-small">
           / {{ currentList.name }}<template v-if="queryParams.subStatus"> ({{ $t(`subscribers.status.${queryParams.subStatus}`) }})</template>
         </span>
       </template>
       <PvButton
+        v-if="!isMobile"
+        v-tooltip.bottom="$t('subscribers.export')"
         severity="secondary"
         outlined
         icon="pi pi-download"
-        :label="$t('subscribers.export')"
+        :aria-label="$t('subscribers.export')"
         data-cy="btn-export-subscribers"
         @click="askExport"
       />
       <PvButton
+        v-if="$can('subscribers:import')"
+        severity="secondary"
+        outlined
+        icon="pi pi-upload"
+        :label="$t('menu.import')"
+        @click="$router.push({ name: 'import' })"
+      />
+      <PvButton
         v-if="$can('subscribers:manage')"
         icon="pi pi-plus"
-        :label="$t('subscribers.newSubscriber')"
+        :label="$t('subscribers.addPerson')"
         data-cy="btn-new"
         @click="showNewForm"
       />
     </page-header>
+
+    <div class="subs-layout">
+      <!-- Segments: built in, then saved by the team. -->
+      <nav v-if="!isMobile" class="subs-segs" :aria-label="$t('subscribers.segments.title')">
+        <span class="subs-segs-label">{{ $t('subscribers.segments.title') }}</span>
+        <a
+          v-for="b in builtIns"
+          :key="b.key"
+          href="#"
+          class="subs-seg"
+          :aria-current="segKey === b.key ? 'true' : undefined"
+          data-cy="segment"
+          @click.prevent="pickSegment(b.key)"
+        >
+          <span>{{ $t(`subscribers.segments.builtin.${b.key}`) }}</span>
+          <span class="subs-seg-n">{{ countLabel(b.key) }}</span>
+        </a>
+        <span class="subs-segs-label">{{ $t('subscribers.segments.saved') }}</span>
+        <a
+          v-for="g in saved"
+          :key="g.id"
+          href="#"
+          class="subs-seg"
+          :aria-current="segKey === `s${g.id}` ? 'true' : undefined"
+          data-cy="saved-segment"
+          @click.prevent="pickSegment(`s${g.id}`)"
+        >
+          <span class="subs-seg-name">{{ g.name }}</span>
+          <span class="subs-seg-n">{{ countLabel(`s${g.id}`) }}</span>
+        </a>
+        <button v-if="$can('subscribers:manage')" type="button" class="subs-seg subs-seg-new" @click="newSegment">
+          <i class="pi pi-plus" aria-hidden="true" /> {{ $t('subscribers.segments.new') }}
+        </button>
+      </nav>
+
+      <div class="subs-main">
+        <div v-if="isMobile" class="subs-chips" role="tablist" :aria-label="$t('subscribers.segments.title')">
+          <button
+            v-for="c in chips"
+            :key="c.key"
+            type="button"
+            role="tab"
+            class="subs-chip"
+            :aria-selected="segKey === c.key"
+            @click="pickSegment(c.key)"
+          >
+            {{ c.name }}<span v-if="segKey === c.key">{{ countLabel(c.key) }}</span>
+          </button>
+        </div>
+
+        <segment-builder
+          v-model="seg"
+          :title="currentSaved?.name || ''"
+          :count="loading.subscribers && !subscribers.total ? null : (subscribers.total ?? null)"
+          :total="counts.everyone"
+          :lists="listOptions"
+          :can-save="$can('subscribers:manage') && seg.conditions.length > 0"
+          :can-sql="$can('subscribers:sql_query')"
+          :can-delete="$can('subscribers:manage') && !!currentSaved"
+          @save="askSave"
+          @sql="editAsSql"
+          @delete="askDeleteSegment"
+        />
 
     <div class="subs-filters">
       <form class="subs-search" role="search" @submit.prevent="onSubmit">
@@ -29,8 +102,8 @@
           <PvInputIcon class="pi pi-search" />
           <PvInputText
             v-model="queryInput"
-            :placeholder="$t('subscribers.searchPlaceholder')"
-            :aria-label="$t('subscribers.searchPlaceholder')"
+            :placeholder="$t('subscribers.findPerson')"
+            :aria-label="$t('subscribers.findPerson')"
             :disabled="isSearchAdvanced"
             data-cy="search"
             @input="onSimpleQueryInput"
@@ -38,6 +111,7 @@
         </PvIconField>
       </form>
       <PvSelect
+        v-if="queryParams.listID"
         :model-value="queryParams.listID"
         :options="listOptions"
         option-label="name"
@@ -49,10 +123,10 @@
         @update:model-value="onListPick"
       />
       <PvButton
-        :label="isSearchAdvanced ? $t('subscribers.reset') : $t('subscribers.advancedQuery')"
-        :icon="isSearchAdvanced ? 'pi pi-times' : 'pi pi-filter'"
+        v-if="isSearchAdvanced"
+        :label="$t('subscribers.reset')"
+        icon="pi pi-times"
         severity="secondary"
-        :outlined="!isSearchAdvanced"
         data-cy="btn-advanced-search"
         @click="toggleAdvancedSearch"
       />
@@ -138,59 +212,52 @@
           <span class="ln-small">{{ rangeLabel }}</span>
         </template>
 
-        <PvColumn selection-mode="multiple" header-style="width:3rem" />
+        <PvColumn v-if="!isMobile" selection-mode="multiple" header-style="width:3rem" />
 
-        <PvColumn field="email" :header="$t('globals.terms.subscriber')" sortable header-class="cy-email" header-style="width:42%">
+        <PvColumn field="email" :header="$t('subscribers.col.person')" sortable header-class="cy-email">
           <template #body="{ data }">
-            <a
-              :href="$router.resolve(`/subscribers/${data.id}`).href"
-              class="ln-row-title"
-              :class="{ 'subs-blocked': data.status === 'blocklisted' }"
-              data-cy="email"
-              :data-id="data.id"
-              @click.prevent.stop="openDrawer(data)"
-            >{{ data.email }}</a>
-            <span class="ln-row-sub" data-cy="name">{{ data.name }}</span>
-            <status-tag
-              v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
-              class="subs-scrub"
-              status="pending"
-              :label="$t(`subscribers.scrubStatus.${data.scrubStatus}`)"
-              data-cy="scrub-status"
-            />
-          </template>
-        </PvColumn>
-
-        <PvColumn field="status" :header="$t('globals.fields.status')" header-style="width:134px">
-          <template #body="{ data }">
-            <span class="subs-status" :class="`is-${data.status}`" :data-cy="data.status === 'blocklisted' ? 'blocklisted' : undefined">
-              {{ $t(`subscribers.status.${data.status}`) }}
-            </span>
-          </template>
-        </PvColumn>
-
-        <PvColumn :header="$t('globals.terms.lists')" header-class="cy-lists">
-          <template #body="{ data }">
-            <span class="ln-attrs" data-cy="lists">
-              <span
-                v-for="l in activeLists(data).slice(0, 2)"
-                :key="l.id"
-                class="ln-attr"
-                :title="awaitingOptin(l) ? $t('subscribers.status.unconfirmed') : ''"
-              >
-                {{ l.name }}
-                <span v-if="awaitingOptin(l)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
+            <span class="subs-person">
+              <span class="subs-avatar" aria-hidden="true">{{ initials(data) }}</span>
+              <span class="subs-person-text">
+                <span class="subs-person-name">
+                  <a
+                    :href="$router.resolve(`/subscribers/${data.id}`).href"
+                    class="ln-row-title"
+                    data-cy="name"
+                    :data-id="data.id"
+                    @click.prevent.stop="openDrawer(data)"
+                  >{{ data.name || data.email }}</a>
+                  <span v-if="data.status === 'blocklisted'" class="subs-blocked-tag" data-cy="blocklisted">{{ $t('subscribers.status.blocklisted') }}</span>
+                  <status-tag
+                    v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
+                    status="pending"
+                    :label="$t(`subscribers.scrubStatus.${data.scrubStatus}`)"
+                    data-cy="scrub-status"
+                  />
+                </span>
+                <span class="ln-row-sub" data-cy="email">{{ data.email }}</span>
               </span>
-              <span v-if="activeLists(data).length > 2" class="ln-attr ln-attr--filled">+{{ activeLists(data).length - 2 }}</span>
+              <span v-if="isMobile" class="subs-opened-m" :class="{ 'is-never': !data.lastOpenedAt }">{{ opened(data) }}</span>
             </span>
           </template>
         </PvColumn>
 
-        <PvColumn v-if="!openSub" field="created_at" :header="$t('globals.fields.createdAt')" sortable header-class="cy-created_at" header-style="width:134px">
-          <template #body="{ data }"><span class="ln-date">{{ shortDate(data.createdAt) }}</span></template>
+        <PvColumn v-if="!isMobile" :header="$t('globals.terms.lists')" header-class="cy-lists">
+          <template #body="{ data }">
+            <!-- Plain text, one list named: chips per list made every row
+                 a cluster. Waiting to confirm is the exception worth a mark. -->
+            <span class="subs-lists ln-small" data-cy="lists" :title="activeLists(data).map((l) => l.name).join(', ')">
+              {{ listsLabel(data) }}
+              <span v-if="activeLists(data).some(awaitingOptin)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
+            </span>
+          </template>
         </PvColumn>
 
-        <PvColumn v-if="!openSub" header-style="width:56px" body-style="text-align:right">
+        <PvColumn v-if="!isMobile" :header="$t('subscribers.col.lastOpened')" header-style="width:120px">
+          <template #body="{ data }"><span class="ln-date" :class="{ 'subs-never': !data.lastOpenedAt }">{{ opened(data) }}</span></template>
+        </PvColumn>
+
+        <PvColumn v-if="!openSub && !isMobile" header-style="width:56px" body-style="text-align:right">
           <template #body="{ data }">
             <button type="button" class="ln-row-menu" data-cy="row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" @click.stop="(e) => openMenu(e, data)">
               <i class="pi pi-ellipsis-h" />
@@ -199,7 +266,21 @@
         </PvColumn>
       </PvDataTable>
     </table-card>
+      </div>
+    </div>
     <PvMenu ref="menu" :model="menuItems" popup />
+
+    <!-- Save a segment -->
+    <PvDialog v-model:visible="saveDialog.open" :header="$t('subscribers.segments.saveTitle')" :style="{ width: '420px', maxWidth: 'calc(100vw - 32px)' }" modal>
+      <form class="subs-save" @submit.prevent="saveSegment">
+        <label for="seg-name">{{ $t('subscribers.segments.name') }}</label>
+        <PvInputText id="seg-name" v-model="saveDialog.name" :placeholder="$t('subscribers.segments.namePlaceholder')" required autofocus data-cy="segment-name" />
+        <div class="subs-save-foot">
+          <PvButton type="button" :label="$t('globals.buttons.cancel')" severity="secondary" text @click="saveDialog.open = false" />
+          <PvButton type="submit" :label="$t('subscribers.segments.save')" :loading="saveDialog.busy" data-cy="btn-segment-save" />
+        </div>
+      </form>
+    </PvDialog>
 
     <subscriber-drawer
       :subscriber="openSub"
@@ -259,6 +340,8 @@ import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import SubscriberBulkList from './SubscriberBulkList.vue';
 import SubscriberForm from './SubscriberForm.vue';
 import SubscriberDrawer from './SubscriberDrawer.vue';
+import SegmentBuilder from '../components/SegmentBuilder.vue';
+import type { Seg } from '../components/SegmentBuilder.vue';
 import { getSubscribers as subscribersApi } from '../api/generated/endpoints/subscribers/subscribers';
 
 // Subscribers and lists are the API's camelCased objects.
@@ -270,6 +353,7 @@ const {
   listSubscribers, getSubscriber, deleteSubscriber, deleteSubscribers,
   blocklistSubscribers, blocklistSubscribersByQuery, deleteSubscribersByQuery,
   manageSubscriberLists, manageSubscriberListsByQuery,
+  getSegments, createSegment, updateSegment, deleteSegment, countSegments, segmentSQL,
 } = subscribersApi();
 const { t } = useI18n();
 const route = useRoute();
@@ -278,7 +362,7 @@ const store = useMainStore();
 const { refreshTick, loading } = storeToRefs(store);
 const subscribers = computed(() => (store.subscribers as Loose) || {});
 const lists = computed(() => (store.lists as Loose) || {});
-const { shortDate } = useTime();
+const { shortDate, ago } = useTime();
 const isMobile = useMedia('(max-width: 991px)');
 
 const {
@@ -313,9 +397,149 @@ const confirm = reactive({
   secondary: null as { label: string; run: () => void } | null,
 });
 
+// Built-in segments, as conditions the segment compiler understands.
+const builtIns: { key: string; seg: Seg }[] = [
+  { key: 'everyone', seg: { match: 'all', conditions: [] } },
+  { key: 'engaged', seg: { match: 'all', conditions: [{ field: 'last_opened', op: 'in_last', value: '90' }] } },
+  { key: 'new', seg: { match: 'all', conditions: [{ field: 'joined', op: 'in_last', value: '30' }] } },
+  { key: 'neverOpened', seg: { match: 'all', conditions: [{ field: 'last_opened', op: 'never' }] } },
+  { key: 'unconfirmed', seg: { match: 'all', conditions: [{ field: 'unconfirmed', op: 'is' }] } },
+  { key: 'blocklisted', seg: { match: 'all', conditions: [{ field: 'status', op: 'is', value: 'blocklisted' }] } },
+];
+
+interface SavedSeg { id: number; name: string; match: 'all' | 'any'; conditions: Seg['conditions'] }
+
+const seg = ref<Seg>({ match: 'all', conditions: [] });
+const segKey = ref<string>((route.query.segment as string) || 'everyone');
+const saved = ref<SavedSeg[]>([]);
+const counts = ref<Record<string, number>>({});
+const saveDialog = reactive({ open: false, name: '', busy: false });
+
+const currentSaved = computed(() => saved.value.find((g) => `s${g.id}` === segKey.value) || null);
+const chips = computed(() => [
+  ...(currentSaved.value ? [{ key: segKey.value, name: currentSaved.value.name }] : []),
+  ...builtIns.map((b) => ({ key: b.key, name: t(`subscribers.segments.builtin.${b.key}`) })),
+  ...saved.value.filter((g) => `s${g.id}` !== segKey.value).map((g) => ({ key: `s${g.id}`, name: g.name })),
+]);
+
+function segFor(key: string): Seg {
+  const b = builtIns.find((x) => x.key === key);
+  if (b) return b.seg;
+  const g = saved.value.find((x) => `s${x.id}` === key);
+  return g ? { match: g.match, conditions: g.conditions } : builtIns[0].seg;
+}
+
+function countLabel(key: string): string {
+  return counts.value[key] === undefined ? '' : String($utils.niceNumber(counts.value[key]));
+}
+
+function pickSegment(key: string) {
+  segKey.value = key;
+  seg.value = JSON.parse(JSON.stringify(segFor(key)));
+  router.replace({ query: { ...route.query, segment: key === 'everyone' ? undefined : key } });
+}
+
+function newSegment() {
+  segKey.value = 'everyone';
+  seg.value = { match: 'all', conditions: [] };
+}
+
+function fetchCounts() {
+  const keys = [...builtIns.map((b) => b.key), ...saved.value.map((g) => `s${g.id}`)];
+  countSegments({ segments: keys.map(segFor) } as never).then((d) => {
+    const n = (d as unknown as number[]) || [];
+    counts.value = Object.fromEntries(keys.map((k, i) => [k, n[i]]));
+  }).catch(() => {});
+}
+
+function fetchSegments() {
+  return getSegments().then((d) => {
+    saved.value = (d as unknown as SavedSeg[]) || [];
+    fetchCounts();
+  });
+}
+
+function askSave() {
+  if (currentSaved.value) {
+    persistSegment(currentSaved.value.name);
+    return;
+  }
+  saveDialog.name = '';
+  saveDialog.open = true;
+}
+
+function saveSegment() {
+  if (saveDialog.name.trim()) persistSegment(saveDialog.name.trim());
+}
+
+function persistSegment(name: string) {
+  saveDialog.busy = true;
+  const body = { name, match: seg.value.match, conditions: seg.value.conditions };
+  const req = currentSaved.value ? updateSegment(currentSaved.value.id, body as never) : createSegment(body as never);
+  req.then((d) => {
+    const g = d as unknown as SavedSeg;
+    saveDialog.open = false;
+    $utils.toast(t('subscribers.segments.savedToast', { name: g.name }));
+    fetchSegments().then(() => { segKey.value = `s${g.id}`; router.replace({ query: { ...route.query, segment: `s${g.id}` } }); });
+  }).finally(() => { saveDialog.busy = false; });
+}
+
+function askDeleteSegment() {
+  const g = currentSaved.value;
+  if (!g) return;
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.segments.deleteTitle', { name: g.name }),
+    text: t('subscribers.segments.deleteText'),
+    label: t('subscribers.segments.delete'),
+    typed: '',
+    danger: true,
+    secondary: null,
+    run: () => {
+      confirm.busy = true;
+      deleteSegment(g.id).then(() => {
+        confirm.open = false;
+        pickSegment('everyone');
+        fetchSegments();
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+// editAsSql swaps the conditions for the SQL they compile to, in the
+// advanced query box.
+function editAsSql() {
+  segmentSQL(seg.value as never).then((d) => {
+    const { sql } = d as unknown as { sql: string };
+    queryParams.queryExp = sql === 'TRUE' ? '' : sql;
+    queryParams.search = '';
+    queryInput.value = '';
+    isSearchAdvanced.value = true;
+    seg.value = { match: 'all', conditions: [] };
+  });
+}
+
+function segmentParam(): string | undefined {
+  return seg.value.conditions.length ? JSON.stringify(seg.value) : undefined;
+}
+
+function initials(sub: Loose): string {
+  const src = (sub.name || sub.email || '').trim();
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function opened(sub: Loose): string {
+  return sub.lastOpenedAt ? ago(sub.lastOpenedAt) : t('subscribers.never');
+}
+
 const rows = computed<Loose[]>(() => subscribers.value.results || []);
 const numSelected = computed(() => (bulk.all ? (subscribers.value.total || 0) : bulk.checked.length));
 const listOptions = computed(() => lists.value.results || []);
+const summary = computed(() => {
+  if (counts.value.everyone === undefined) return '';
+  return t('subscribers.summary', { n: $utils.niceNumber(counts.value.everyone), lists: listOptions.value.length });
+});
 const currentList = computed(() => (queryParams.listID ? listOptions.value.find((l: Loose) => l.id === queryParams.listID) : null));
 const isFiltered = computed(() => !!(queryParams.search || queryParams.queryExp || queryParams.listID || queryParams.subStatus));
 
@@ -332,6 +556,14 @@ const rangeLabel = computed(() => {
   const from = (queryParams.page - 1) * per + 1;
   return t('developers.log.range', { from, to: Math.min(queryParams.page * per, total), total: total.toLocaleString() });
 });
+
+// listsLabel names the first list and counts the rest ("Weekly digest
+// +2 more").
+function listsLabel(sub: Loose): string {
+  const ls = activeLists(sub);
+  if (!ls.length) return '';
+  return ls.length > 1 ? `${ls[0].name} ${t('subscribers.moreLists', { n: ls.length - 1 })}` : ls[0].name;
+}
 
 function activeLists(s: Loose): Loose[] {
   return (s.lists || []).filter((l: Loose) => l.subscriptionStatus !== 'unsubscribed');
@@ -410,6 +642,7 @@ function querySubscribers(params?: Partial<typeof queryParams>) {
     subscription_status: queryParams.subStatus,
     order_by: queryParams.orderBy,
     order: queryParams.order,
+    segment: segmentParam(),
   };
   if (queryParams.queryExp) delete qp.search;
   else delete qp.query;
@@ -457,6 +690,7 @@ function byQuery(): Loose {
     query: queryParams.queryExp,
     list_ids: queryParams.listID ? [queryParams.listID] : null,
     subscription_status: queryParams.subStatus,
+    segment: seg.value.conditions.length ? seg.value : undefined,
   };
 }
 
@@ -566,6 +800,8 @@ function askExport() {
       else if (queryParams.queryExp) q.append('query', queryParams.queryExp);
       if (queryParams.listID) q.append('list_id', String(queryParams.listID));
       if (queryParams.subStatus) q.append('subscription_status', queryParams.subStatus);
+      const sp = segmentParam();
+      if (sp) q.append('segment', sp);
       if (!bulk.all && bulk.checked.length > 0) bulk.checked.forEach((s) => q.append('id', String(s.id)));
       document.location.href = `${uris.exportSubscribers}?${q.toString()}`;
     },
@@ -587,6 +823,7 @@ function bulkChangeLists(action: string, preconfirm: boolean, listItems: Loose[]
   } else {
     data.query = queryParams.queryExp;
     data.subscription_status = queryParams.subStatus;
+    if (seg.value.conditions.length) data.segment = seg.value;
     req = manageSubscriberListsByQuery(data as never);
   }
   req.then(() => {
@@ -622,6 +859,7 @@ function openMenu(e: Event, s: Loose) {
 }
 
 watch(refreshTick, () => querySubscribers());
+watch(seg, () => querySubscribers({ page: 1 }), { deep: true });
 
 // /subscribers and /subscribers/:id share this view (meta.view), so the
 // drawer follows the id in the URL instead of the page being rebuilt.
@@ -637,6 +875,11 @@ watch(() => route.params.id, (id) => {
 onMounted(() => {
   if (route.params.listID) queryParams.listID = parseInt(route.params.listID as string, 10);
   if (route.query.subscription_status) queryParams.subStatus = route.query.subscription_status as string;
+  fetchSegments().then(() => {
+    // A saved segment in the URL loads once the segments have.
+    if (segKey.value !== 'everyone') seg.value = JSON.parse(JSON.stringify(segFor(segKey.value)));
+  });
+  if (builtIns.some((b) => b.key === segKey.value)) seg.value = JSON.parse(JSON.stringify(segFor(segKey.value)));
   querySubscribers();
   if (route.params.id) {
     getSubscriber(parseInt(route.params.id as string, 10)).then((data) => { openSub.value = data as unknown as Loose; });
@@ -651,6 +894,120 @@ onMounted(() => {
 .subs { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
 .subs.has-drawer { padding-right: 440px; }
 
+.subs-layout { display: flex; gap: 24px; align-items: flex-start; }
+.subs-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.subs-segs {
+  flex: none;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 72px;
+}
+.subs-segs-label {
+  padding: 0 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-text-3);
+
+  &:not(:first-child) { margin-top: 18px; }
+}
+.subs-seg {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-2);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { background: var(--ln-hover); color: var(--ln-text); text-decoration: none; }
+  &[aria-current] { background: var(--ln-muted); color: var(--ln-text); font-weight: 600; }
+}
+.subs-seg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subs-seg-n {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ln-text-3);
+  font-variant-numeric: tabular-nums;
+  // Only the open segment shows its count; the rest on hover or focus.
+  opacity: 0;
+  transition: opacity var(--ln-dur-fast) var(--ln-ease);
+
+  .subs-seg:hover &, .subs-seg:focus-visible &, .subs-seg[aria-current] & { opacity: 1; }
+}
+.subs-seg-new { margin-top: 4px; justify-content: flex-start; font-weight: 500; i { font-size: 12px; } }
+
+.subs-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+.subs-chip {
+  flex: none;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--ln-radius);
+  border: 1px solid var(--ln-border);
+  background: var(--ln-card);
+  color: var(--ln-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  span { color: var(--ln-text-3); font-weight: 400; }
+  &[aria-selected="true"] { border-color: var(--ln-ink); background: var(--ln-muted); }
+}
+
+.subs-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.subs-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 99px;
+  background: var(--ln-muted);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.subs-person-text { flex: 1; min-width: 0; display: flex; flex-direction: column; .ln-row-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+.subs-person-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.subs-blocked-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ln-danger-bg);
+  color: var(--ln-danger-fg);
+  font-size: 11px;
+  font-weight: 500;
+}
+.subs-opened-m { flex: none; font-size: 12px; color: var(--ln-text-2); &.is-never { color: var(--ln-text-4); } }
+.subs-never { color: var(--ln-text-4); }
+.subs-lists { color: var(--ln-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; .subs-unconf { margin-left: 8px; } }
+
+.subs-save { display: flex; flex-direction: column; gap: 8px; label { font-size: 13px; font-weight: 500; } }
+.subs-save-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
 .subs-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .subs-search {
   flex: 1 1 280px;
@@ -660,6 +1017,11 @@ onMounted(() => {
   @media (max-width: 767px) { max-width: none; }
 }
 .subs-list { width: 200px; }
+@media (max-width: 991px) {
+  .subs-segs { display: none; }
+  // Phones show people as a list, as in the mobile artboard.
+  .subs-main :deep(.p-datatable-thead) { display: none; }
+}
 .subs-advanced { display: flex; flex-direction: column; gap: 10px; }
 .subs-advanced-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 
