@@ -130,4 +130,25 @@ describe('Forms', () => {
       expect(data.results[1].lists.find((s) => s.id === 3).subscription_status).to.equal('unconfirmed');
     });
   });
+
+  it('Unsubscribes from everything from the preferences page', () => {
+    cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
+      const subUUID = response.body.data.results[1].uuid;
+
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
+        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}?manage=true`);
+      });
+    });
+
+    // It asks first, then blocklists and leaves every list.
+    cy.on('window:confirm', () => true);
+    cy.get('[data-cy=btn-unsub-all]').click();
+
+    cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
+      const { data } = response.body;
+      expect(data.results[1].status).to.equal('blocklisted');
+      data.results[1].lists.forEach((l) => expect(l.subscription_status).to.equal('unsubscribed'));
+    });
+  });
 });

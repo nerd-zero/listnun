@@ -262,8 +262,9 @@ DELETE FROM subscriber_lists
     WHERE (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST($1::INT[]) a, UNNEST($2::INT[]) b);
 
 -- name: confirm-subscription-optin
+-- A blocklisted subscriber's lists stay unconfirmed, even from an old link.
 WITH subID AS (
-    SELECT id FROM subscribers WHERE uuid = $1::UUID
+    SELECT id FROM subscribers WHERE uuid = $1::UUID AND status != 'blocklisted'
 ),
 listIDs AS (
     SELECT id FROM lists WHERE uuid = ANY($2::UUID[])

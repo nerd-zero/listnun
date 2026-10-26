@@ -37,7 +37,6 @@
             {{ if .Data.Subscriptions }}
                 <div class="field">
                     <span class="field-label">{{ L.T "globals.terms.lists" }}</span>
-                    <p class="help">{{ L.T "public.managePrefsUnsub" }}</p>
                     <ul class="lists" data-cy="lists">
                         {{ range $i, $l := .Data.Subscriptions }}
                             {{ if ne $l.SubscriptionStatus.String "unsubscribed" }}
@@ -56,22 +55,26 @@
                 </div>
             {{ end }}
 
-            {{ if .Data.AllowBlocklist }}
-                <div class="check-row">
-                    <input id="privacy-blocklist" type="checkbox" name="blocklist" value="true" onchange="unsubAll(event)" />
-                    <span>
-                        <label for="privacy-blocklist" class="link-danger">{{ L.T "public.unsubEverything" }}</label>
-                        <span class="description">{{ L.T "public.unsubFull" }}</span>
-                    </span>
-                </div>
-            {{ end }}
-
             <button type="submit" class="button" id="btn-unsub">{{ L.T "public.savePrefs" }}</button>
         </form>
+
+        {{/* Leaving everything is its own action, not a box beside the lists:
+             it posts without "manage", which unsubscribes from all lists and
+             blocklists, so it asks first. */}}
+        {{ if .Data.AllowBlocklist }}
+            <hr class="divider" style="margin: 20px 0 16px" />
+            <form method="post" class="unsub-all-form">
+                <input type="hidden" name="blocklist" value="true" />
+                <p class="links">
+                    <button type="submit" class="link-btn link-danger" data-cy="btn-unsub-all"
+                        onclick="return confirmUnsubAll()">{{ L.T "public.unsubEverything" }}</button>
+                </p>
+            </form>
+        {{ end }}
     {{ end }}
 
     {{ if or .Data.AllowExport .Data.AllowWipe }}
-        <hr class="divider" style="margin: 20px 0 16px" />
+        {{ if not (and .Data.ShowManage .Data.AllowBlocklist) }}<hr class="divider" style="margin: 20px 0 16px" />{{ end }}
         <form id="data-form" class="data-form" method="post" action="">
             <p class="links">
                 {{ if .Data.AllowExport }}
@@ -92,16 +95,8 @@
         return confirm("{{ L.T "public.privacyConfirmWipe" }}");
     }
 
-    function unsubAll(e) {
-        var off = e.target.checked;
-        var name = document.querySelector("input[name=name]");
-        if (name) {
-            if (off) { name.disabled = "disabled"; } else { name.removeAttribute("disabled"); }
-        }
-
-        document.querySelectorAll('input[type=checkbox][name=l]').forEach(function(l) {
-            if (off) { l.disabled = "disabled"; } else { l.removeAttribute("disabled"); }
-        });
+    function confirmUnsubAll() {
+        return confirm("{{ L.T "public.unsubEverythingConfirm" }}");
     }
 </script>
 

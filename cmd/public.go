@@ -110,12 +110,23 @@ type optinReq struct {
 type optinTpl struct {
 	publicTpl
 	optinReq
+	// Email is who asked to join, shown so the person can tell the request
+	// is theirs. Empty if the subscriber couldn't be read.
+	Email string
 }
 
 type msgTpl struct {
 	publicTpl
 	MessageTitle string
 	Message      string
+	// Link is an optional next step under the message, such as going back
+	// to the preferences that were just saved.
+	Link *msgLink
+}
+
+type msgLink struct {
+	URL   string
+	Label string
 }
 
 // captchaWidget is what a page needs to render the active captcha widget.
@@ -316,6 +327,9 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	// Only show preference management if it's enabled in settings.
 	if a.cfg.Privacy.AllowPreferences {
 		out.ShowManage = showManage
+		if showManage {
+			out.Title = a.i18n.T("public.manageTitle")
+		}
 
 		// Get the subscriber's lists from the DB to render in the template.
 		subs, err := a.core.GetSubscriptions(c.Request().Context(), tenantID(c), 0, subUUID, false)
@@ -484,8 +498,9 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 
 	}
 
-	return c.Render(http.StatusOK, tplMessage,
-		makeMsgTpl(a.i18n.T("globals.messages.done"), "", a.i18n.T("public.prefsSaved")))
+	out := makeMsgTpl(a.i18n.T("globals.messages.done"), "", a.i18n.T("public.prefsSaved"))
+	out.Link = &msgLink{URL: "?manage=true", Label: a.i18n.T("public.backToPrefs")}
+	return c.Render(http.StatusOK, tplMessage, out)
 }
 
 // OptinPage renders the double opt-in confirmation page that subscribers
@@ -524,6 +539,13 @@ func (a *App) OptinPage(c echo.Context) error {
 			makeMsgTpl(a.i18n.T("public.noSubTitle"), "", a.i18n.Ts("public.noSubInfo")))
 	}
 
+	// A blocklisted subscriber can't rejoin from an old confirmation link,
+	// same as on the subscription page.
+	sub, err := a.core.GetSubscriber(c.Request().Context(), tenantID(c), 0, subUUID, "")
+	if err == nil && sub.Status == models.SubscriberStatusBlockListed {
+		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("public.noSubTitle"), "", a.i18n.Ts("public.blocklisted")))
+	}
+
 	if confirm || !a.cfg.ShowOptinPage {
 		return a.confirmOptinSubscription(c, subUUID, req.ListUUIDs, lists)
 	}
@@ -531,6 +553,9 @@ func (a *App) OptinPage(c echo.Context) error {
 	var out optinTpl
 	out.Lists = lists
 	out.SubUUID = subUUID
+	if err == nil {
+		out.Email = sub.Email
+	}
 	out.Title = a.i18n.T("public.confirmOptinSubTitle")
 
 	return c.Render(http.StatusOK, "optin", out)
