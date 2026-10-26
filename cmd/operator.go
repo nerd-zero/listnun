@@ -1362,6 +1362,10 @@ func (a *App) SetOperatorTenantSMTP(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant SMTP")
 	}
 
+	// The tenant's messenger is cached from its first send, so without this
+	// campaigns keep sending with the old credentials until a restart.
+	a.tenantMsgrs.Invalidate(id)
+
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
