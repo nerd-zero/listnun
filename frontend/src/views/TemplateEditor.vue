@@ -83,6 +83,12 @@
               <template #tag><code class="ln-mono">{{ CONTENT_TAG }}</code></template>
             </i18n-t>
           </p>
+          <p v-if="form.type === 'campaign' && !hasUnsubLink(form.body)" class="ln-small tpe-must tpe-warn" role="status">
+            <i class="pi pi-exclamation-triangle" aria-hidden="true" />
+            <i18n-t keypath="templates.noUnsubLink" tag="span">
+              <template #tag><code class="ln-mono">{{ UNSUB_TAG }}</code></template>
+            </i18n-t>
+          </p>
         </template>
       </section>
 
@@ -147,6 +153,7 @@ import StatusTag from '../components/ui/StatusTag.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getTemplates as templatesApi } from '../api/generated/endpoints/templates/templates';
 import { getUsers as usersApi } from '../api/generated/endpoints/users/users';
+import { hasUnsubLink } from '../composables/unsubLink';
 
 // A template as the API returns it, camelCased.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -155,6 +162,7 @@ interface Popover { show: (e: Event) => void; hide: () => void }
 // How long to wait after typing before re-rendering the preview.
 const PREVIEW_DEBOUNCE_MS = 500;
 const CONTENT_TAG = '{{ template "content" . }}';
+const UNSUB_TAG = '<a href="{{ UnsubscribeURL }}">Unsubscribe</a>';
 // What a campaign template can use, shown one click away under the code.
 const VARIABLES = [
   { code: CONTENT_TAG, label: 'templates.var.content' },
@@ -447,6 +455,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload));
   border-top: 1px solid #2c2f36;
   color: #8b8f99;
   code { color: #f0a868; }
+}
+.tpe-warn {
+  color: #f0c36b;
+  i { margin-right: 6px; font-size: 12px; }
 }
 .tpe-preview {
   display: flex;

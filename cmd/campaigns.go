@@ -444,6 +444,18 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 		o = c
 	}
 
+	// A scheduled campaign sends without another status change, so an
+	// edit can't take its unsubscribe link away.
+	if cm.Status == models.CampaignStatusScheduled {
+		ok, err := a.campaignHasUnsubLink(c.Request().Context(), tenantID(c), o.Campaign)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("campaigns.noUnsubLink"))
+		}
+	}
+
 	out, err := a.core.UpdateCampaign(c.Request().Context(), tenantID(c), id, o.Campaign, o.ListIDs, o.MediaIDs)
 	if err != nil {
 		return err
@@ -451,6 +463,20 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 	a.recordCampaignEditor(c, id)
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// campaignHasUnsubLink reports whether camp, with the template it's set
+// to use, has a visible unsubscribe link (see
+// models.Campaign.HasUnsubscribeLink).
+func (a *App) campaignHasUnsubLink(ctx context.Context, tenantID int, camp models.Campaign) (bool, error) {
+	if camp.TemplateID.Valid && camp.ContentType != models.CampaignContentTypeVisual {
+		tpl, err := a.core.GetTemplate(ctx, tenantID, int(camp.TemplateID.Int), false)
+		if err != nil {
+			return false, err
+		}
+		camp.TemplateBody = tpl.Body
+	}
+	return camp.HasUnsubscribeLink(), nil
 }
 
 // UpdateCampaignStatus handles campaign status modification.
@@ -484,6 +510,14 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 
 	// Block start/schedule when a Scrub validation job is active on any of the campaign's lists.
 	if req.Status == models.CampaignStatusRunning || req.Status == models.CampaignStatusScheduled {
+		camp, err := a.core.GetCampaignForPreview(c.Request().Context(), tenantID(c), id, 0)
+		if err != nil {
+			return err
+		}
+		if !camp.HasUnsubscribeLink() {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("campaigns.noUnsubLink"))
+		}
+
 		if blocked, listName, err := a.checkScrubJobOnCampaign(c.Request().Context(), tenantID(c), id); err == nil && blocked {
 			return echo.NewHTTPError(http.StatusBadRequest,
 				a.i18n.Ts("campaigns.scrubJobRunning", "list", listName))
