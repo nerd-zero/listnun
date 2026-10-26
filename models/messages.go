@@ -175,3 +175,27 @@ func MergeHeaders(tplHeaders, reqHeaders Headers) textproto.MIMEHeader {
 	}
 	return out
 }
+
+// TxRecipient is one addressee of a tx request as the message log names it:
+// the email, or "#<id>" with the ID when the request addressed subscriber IDs.
+type TxRecipient struct {
+	Label string
+	ID    int
+}
+
+// Recipients lists the request's addressees in request order, before any
+// subscriber lookup. IDs win when a request has both, as when sending.
+func (m TxMessage) Recipients() []TxRecipient {
+	if len(m.SubscriberIDs) > 0 {
+		out := make([]TxRecipient, 0, len(m.SubscriberIDs))
+		for _, id := range m.SubscriberIDs {
+			out = append(out, TxRecipient{Label: fmt.Sprintf("#%d", id), ID: id})
+		}
+		return out
+	}
+	out := make([]TxRecipient, 0, len(m.SubscriberEmails))
+	for _, e := range m.SubscriberEmails {
+		out = append(out, TxRecipient{Label: e})
+	}
+	return out
+}

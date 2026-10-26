@@ -30,6 +30,8 @@ type Template struct {
 	BodySource null.String `db:"body_source" json:"body_source,omitempty"`
 	IsDefault  bool        `db:"is_default" json:"is_default"`
 	TenantID   int         `db:"tenant_id" json:"-"`
+	// CampaignCount is how many campaigns use the template (read-only).
+	CampaignCount int `db:"campaign_count" json:"campaign_count"`
 
 	// Transactional templates only.
 	SampleData json.RawMessage `db:"sample_data" json:"sample_data,omitempty"`

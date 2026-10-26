@@ -272,7 +272,7 @@ const statusCounts = ref<Record<string, number>>({});
 const statusFilter = ref<string>((route.query.status as string) || '');
 const bulk = reactive({ checked: [] as Campaign[], all: false });
 const queryParams = reactive({
-  page: 1, query: '', orderBy: 'created_at', order: 'desc',
+  page: 1, query: (route.query.query as string) || '', orderBy: 'created_at', order: 'desc',
 });
 
 const menu = ref<PopupMenu | null>(null);

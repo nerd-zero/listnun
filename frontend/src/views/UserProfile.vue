@@ -75,7 +75,8 @@
       <section v-if="data.passwordLogin" class="ln-card ln-enter profile-card">
         <div class="ln-card-head">
           <h2 class="ln-card-title">{{ $t('users.twoFA') }}</h2>
-          <status-tag :status="twofaStatus" :label="twofaLabel" />
+          <!-- Off is a choice, not a problem: only setting up and on get a tag. -->
+          <status-tag v-if="totpOn || totpQR" :status="twofaStatus" :label="twofaLabel" />
         </div>
 
         <div v-if="totpOn" class="profile-body profile-row">
@@ -168,14 +169,8 @@ const disablePwEl = ref<Loose | null>(null);
 const orgName = computed(() => (serverConfig.value as Loose).organization_name || '');
 const totpOn = computed(() => data.value.twofaType === 'totp');
 const detailsDirty = computed(() => form.name !== (data.value.name || '') || form.email !== (data.value.email || ''));
-const twofaStatus = computed(() => {
-  if (totpOn.value) return 'active';
-  return totpQR.value ? 'pending' : 'disabled';
-});
-const twofaLabel = computed(() => {
-  if (totpOn.value) return t('users.on');
-  return totpQR.value ? t('users.settingUp') : t('users.off');
-});
+const twofaStatus = computed(() => (totpOn.value ? 'active' : 'pending'));
+const twofaLabel = computed(() => (totpOn.value ? t('users.on') : t('users.settingUp')));
 const groupedSecret = computed(() => (totpSecret.value.match(/.{1,4}/g) || []).join(' '));
 const initials = computed(() => {
   const src = String(data.value.name || data.value.username || '?').trim();

@@ -10,7 +10,9 @@
   flex-wrap: wrap;
   margin-bottom: 20px;
 }
-.ln-page-header-text { min-width: 0; }
+// The text takes the room and wraps; actions keep their width on the right
+// until the screen is too narrow for both.
+.ln-page-header-text { flex: 1 1 320px; min-width: 0; }
 .ln-page-header-title {
   display: flex;
   align-items: baseline;
@@ -33,6 +35,7 @@
   color: var(--ln-text-2);
 }
 .ln-page-header-actions {
+  flex: 0 1 auto;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -677,6 +680,11 @@ pre.ln-code, .ln-code {
 // ── Settings sections ───────────────────────────────────
 // The section views (views/settings/*.vue) use generic field markup; this
 // gives them the redesign's cards, labels and help text in one place.
+// A Settings section built from SetCard groups (see components/ui).
+// Room at the end so the floating "Unsaved changes" bar never covers the
+// last setting.
+.set-cards { display: flex; flex-direction: column; gap: 16px; padding-bottom: 72px; }
+
 .ln-settings {
   > div > .items, > div > .settings-card, .smtp-card, .settings-card {
     background: var(--ln-card);
@@ -754,4 +762,14 @@ input.p-inputtext:not(.p-inputtext-sm):not(.p-inputtext-lg) { padding-block: 0; 
   th:hover .p-datatable-sort-icon,
   th:focus-visible .p-datatable-sort-icon,
   .p-datatable-column-sorted .p-datatable-sort-icon { opacity: 1; }
+}
+
+// ── Side drawer ─────────────────────────────────────────
+// The message and webhook-delivery drawers. Global, not in either
+// component, so whichever one a page loads gets the same width.
+.p-drawer.msg-drawer {
+  width: 460px;
+  max-width: 100vw;
+  border-left: 1px solid var(--ln-border);
+  box-shadow: var(--ln-shadow-pop);
 }

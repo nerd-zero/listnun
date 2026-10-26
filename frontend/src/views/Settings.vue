@@ -1,11 +1,15 @@
 <template>
   <div class="ln-split settings-page">
-    <aside class="settings-side">
+    <!-- Narrow screens: the overview's cards are the menu, and each
+         section links back to them instead of stacking 15 links above
+         every form. -->
+    <aside v-if="!compact" class="settings-side">
       <h1 class="ln-page-title settings-side-title">{{ $t('settings.title') }}</h1>
-      <sub-nav :items="navItems" :active="section" :label="$t('settings.title')" />
-      <template v-if="maintenanceItems.length">
-        <hr class="settings-side-sep">
-        <sub-nav :items="maintenanceItems" :active="section" :label="$t('maintenance.title')" />
+      <sub-nav :items="overviewItems" :active="section" :label="$t('settings.overview.name')" />
+      <!-- Sections grouped by what they're about, as in the design. -->
+      <template v-for="g in navGroups" :key="g.key">
+        <span class="settings-side-group">{{ g.label }}</span>
+        <sub-nav :items="g.items" :active="section" :label="g.label" />
       </template>
       <p class="ln-small settings-version">{{ version }}</p>
     </aside>
@@ -15,11 +19,16 @@
       <Transition name="ln-fade" mode="out-in">
         <div :key="section">
           <header class="settings-head">
+            <router-link v-if="compact && section !== 'overview'" :to="{ name: 'settings' }" class="settings-back ln-small">
+              <i class="pi pi-angle-left" aria-hidden="true" /> {{ $t('settings.title') }}
+            </router-link>
+            <span v-if="groupLabel" class="ln-small settings-eyebrow">{{ groupLabel }}</span>
             <h2 class="ln-page-title">{{ current.label }}</h2>
             <p class="settings-head-text">{{ current.help }}</p>
           </header>
 
-          <maintenance v-if="section === 'maintenance'" />
+          <settings-overview v-if="section === 'overview'" :form="form" />
+          <maintenance v-else-if="section === 'maintenance'" />
           <activity-log v-else-if="section === 'logs'" />
 
           <template v-else>
@@ -71,6 +80,7 @@ import { useI18n } from 'vue-i18n';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useMedia } from '../composables/useMedia';
 import {
   getSettings, updateSettings, getServerConfig, getHealth,
 } from '../api';
@@ -89,6 +99,7 @@ import PrivacySettings from './settings/privacy.vue';
 import SecuritySettings from './settings/security.vue';
 import SmtpSettings from './settings/smtp.vue';
 import Maintenance from './Maintenance.vue';
+import SettingsOverview from './settings/overview.vue';
 import ActivityLog from './settings/ActivityLog.vue';
 
 // The settings object is the server's flat, dotted-key map.
@@ -113,6 +124,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { serverConfig } = storeToRefs(useMainStore());
+const compact = useMedia('(max-width: 991px)');
 
 const isLoading = ref(false);
 // formCopy is the settings as last fetched, to detect changes.
@@ -123,58 +135,63 @@ const version = computed(() => (serverConfig.value as Loose).version || '');
 
 const sections = computed<Section[]>(() => [
   {
-    key: 'general', label: t('settings.general.name'), help: t('settings.help.general'), keys: ['app.'],
+    key: 'general', label: t('settings.nav.general'), help: t('settings.help.general'), keys: ['app.'],
   },
   {
-    key: 'performance', label: t('settings.performance.name'), help: t('settings.help.performance'), keys: PERFORMANCE_KEYS,
+    key: 'performance', label: t('settings.nav.performance'), help: t('settings.help.performance'), keys: PERFORMANCE_KEYS,
   },
   {
-    key: 'privacy', label: t('settings.privacy.name'), help: t('settings.help.privacy'), keys: ['privacy.'],
+    key: 'privacy', label: t('settings.nav.privacy'), help: t('settings.help.privacy'), keys: ['privacy.'],
   },
   {
-    key: 'security', label: t('settings.security.name'), help: t('settings.help.security'), keys: ['security.'],
+    key: 'security', label: t('settings.nav.security'), help: t('settings.help.security'), keys: ['security.'],
   },
   {
-    key: 'media', label: t('settings.media.title'), help: t('settings.help.media'), keys: ['upload.'],
+    key: 'media', label: t('settings.nav.media'), help: t('settings.help.media'), keys: ['upload.'],
   },
   {
-    key: 'smtp', label: t('settings.smtp.name'), help: t('settings.help.smtp'), keys: ['smtp'],
+    key: 'smtp', label: t('settings.nav.smtp'), help: t('settings.help.smtp'), keys: ['smtp'],
   },
   {
-    key: 'bounces', label: t('settings.bounces.name'), help: t('settings.help.bounces'), keys: ['bounce.'],
+    key: 'bounces', label: t('settings.nav.bounces'), help: t('settings.help.bounces'), keys: ['bounce.'],
   },
   {
-    key: 'messengers', label: t('settings.messengers.name'), help: t('settings.help.messengers'), keys: ['messengers'],
+    key: 'messengers', label: t('settings.nav.messengers'), help: t('settings.help.messengers'), keys: ['messengers'],
   },
   {
-    key: 'appearance', label: t('settings.appearance.name'), help: t('settings.help.appearance'), keys: ['appearance.'],
+    key: 'appearance', label: t('settings.nav.appearance'), help: t('settings.help.appearance'), keys: ['appearance.'],
   },
   {
-    key: 'scrub', label: t('settings.scrub.name'), help: t('settings.help.scrub'), keys: ['scrub'],
+    key: 'scrub', label: t('settings.nav.scrub'), help: t('settings.help.scrub'), keys: ['scrub'],
   },
   {
-    key: 'inactive', label: t('settings.inactive.name'), help: t('settings.help.inactive'), keys: ['inactive_cleanup'],
+    key: 'inactive', label: t('settings.nav.inactive'), help: t('settings.help.inactive'), keys: ['inactive_cleanup'],
   },
 ]);
 
 const maintenanceSection = computed<Section>(() => ({
-  key: 'maintenance', label: t('maintenance.title'), help: t('maintenance.help'), keys: [],
+  key: 'maintenance', label: t('settings.nav.maintenance'), help: t('maintenance.help'), keys: [],
 }));
 
 const logsSection = computed<Section>(() => ({
-  key: 'logs', label: t('settings.logs.title'), help: t('settings.logs.help'), keys: [],
+  key: 'logs', label: t('settings.nav.logs'), help: t('settings.logs.help'), keys: [],
+}));
+
+const overviewSection = computed<Section>(() => ({
+  key: 'overview', label: t('settings.overview.title'), help: t('settings.overview.help'), keys: [],
 }));
 
 const section = computed(() => {
   if (route.name === 'maintenance') return 'maintenance';
   if (route.name === 'settingsLogs') return 'logs';
   const s = route.params.section as string | undefined;
-  return sections.value.some((x) => x.key === s) ? (s as string) : 'general';
+  return sections.value.some((x) => x.key === s) ? (s as string) : 'overview';
 });
 
 const current = computed(() => {
   if (section.value === 'maintenance') return maintenanceSection.value;
   if (section.value === 'logs') return logsSection.value;
+  if (section.value === 'overview') return overviewSection.value;
   return sections.value.find((s) => s.key === section.value) || sections.value[0];
 });
 
@@ -193,15 +210,41 @@ const dirtySections = computed<Section[]>(() => {
 const hasFormChanged = computed(() => dirtySections.value.length > 0);
 const dirtyLabels = computed(() => dirtySections.value.map((s) => s.label).join(', '));
 
-const navItems = computed<SubNavItem[]>(() => (!$can('settings:get') ? [] : sections.value.map((s) => ({
-  key: s.key,
-  label: s.label,
-  to: { name: 'settings', params: { section: s.key } },
-}))));
-const maintenanceItems = computed<SubNavItem[]>(() => [
-  ...($can('settings:maintain') ? [{ key: 'maintenance', label: t('maintenance.title'), to: { name: 'maintenance' } }] : []),
-  ...($can('settings:get') ? [{ key: 'logs', label: t('settings.logs.title'), to: { name: 'settingsLogs' } }] : []),
-]);
+// The menu's groups, in the design's order; each names its sections.
+const NAV_GROUPS: { key: string; sections: string[] }[] = [
+  { key: 'sending', sections: ['smtp', 'performance', 'messengers'] },
+  { key: 'deliverability', sections: ['bounces', 'inactive', 'scrub'] },
+  { key: 'subscribers', sections: ['privacy'] },
+  { key: 'security', sections: ['security'] },
+  { key: 'workspace', sections: ['general', 'appearance', 'media'] },
+];
+
+// The open section's group, shown small above its title.
+const groupLabel = computed(() => {
+  if (section.value === 'maintenance' || section.value === 'logs') return t('settings.group.data');
+  const g = NAV_GROUPS.find((x) => x.sections.includes(section.value));
+  return g ? t(`settings.group.${g.key}`) : '';
+});
+
+const overviewItems = computed<SubNavItem[]>(() => (!$can('settings:get') ? [] : [
+  { key: 'overview', label: t('settings.overview.name'), to: { name: 'settings' } },
+]));
+const navGroups = computed(() => {
+  if (!$can('settings:get')) return [];
+  const groups = NAV_GROUPS.map((g) => ({
+    key: g.key,
+    label: t(`settings.group.${g.key}`),
+    items: g.sections.map((k) => {
+      const sct = sections.value.find((x) => x.key === k)!;
+      return { key: k, label: sct.label, to: { name: 'settings', params: { section: k } } } as SubNavItem;
+    }),
+  }));
+  const data: SubNavItem[] = [
+    ...($can('settings:maintain') ? [{ key: 'maintenance', label: t('settings.nav.maintenance'), to: { name: 'maintenance' } }] : []),
+    { key: 'logs', label: t('settings.nav.logs'), to: { name: 'settingsLogs' } },
+  ];
+  return [...groups, { key: 'data', label: t('settings.group.data'), items: data }];
+});
 
 function isDummy(pwd: string) {
   return !pwd || (pwd.match(/•/g) || []).length === pwd.length;
@@ -399,6 +442,8 @@ onMounted(() => {
 <style scoped lang="scss">
 .settings-page {
   grid-template-columns: 200px minmax(0, 1fr);
+  // One column when narrow: this rule otherwise overrides .ln-split's.
+  @media (max-width: 991px) { grid-template-columns: minmax(0, 1fr); }
   gap: 40px;
   padding-bottom: 80px;
 }
@@ -409,6 +454,16 @@ onMounted(() => {
   @media (max-width: 991px) { position: static; }
 }
 .settings-side-title { margin-bottom: 16px; }
+.settings-eyebrow { display: block; margin-bottom: 2px; color: var(--ln-text-3); }
+.settings-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px; color: var(--ln-text-2); }
+.settings-side-group {
+  display: block;
+  margin: 16px 0 4px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-text-3);
+}
 .settings-side-sep { border: 0; border-top: 1px solid var(--ln-border); margin: 12px 10px; }
 .settings-version { padding: 16px 10px 0; color: var(--ln-text-4); }
 .settings-main { max-width: 820px; min-width: 0; }

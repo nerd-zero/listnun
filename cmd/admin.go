@@ -27,7 +27,14 @@ type serverConfig struct {
 		DisableTracking    bool `json:"disable_tracking"`
 		IndividualTracking bool `json:"individual_tracking"`
 	} `json:"privacy"`
-	MediaProvider    string          `json:"media_provider"`
+	MediaProvider string `json:"media_provider"`
+	// UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+	// Media accepts, so the upload area can say so.
+	UploadExtensions  []string `json:"upload_extensions"`
+	UploadMaxFileSize int      `json:"upload_max_file_size"`
+	// Require2FA is security.require_2fa, so Team can stop asking for it
+	// once it's on.
+	Require2FA       bool            `json:"require_2fa"`
 	Messengers       []string        `json:"messengers"`
 	Langs            []i18nLang      `json:"langs"`
 	Lang             string          `json:"lang"`
@@ -127,6 +134,9 @@ func (a *App) GetServerConfig(c echo.Context) error {
 
 	if s, err := a.core.GetSettings(c.Request().Context(), tenantID(c)); err == nil {
 		out.ScrubEnabled = s.Scrub.Enabled && s.Scrub.URL != "" && s.Scrub.APIKey != ""
+		out.UploadExtensions = s.UploadExtensions
+		out.UploadMaxFileSize = s.UploadMaxFileSize
+		out.Require2FA = s.SecurityRequire2FA
 
 		// a.cfg.FromEmail (out.FromEmail's default above) is a single
 		// boot-time value derived from tenant 1's settings - every other

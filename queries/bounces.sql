@@ -83,7 +83,18 @@ WHERE ($1 = 0 OR bounces.campaign_id = $1)
     AND ($3 = '' OR subscribers.email ILIKE '%' || $3 || '%' OR campaigns.name ILIKE '%' || $3 || '%');
 
 -- name: delete-bounces
-DELETE FROM bounces WHERE $2 = TRUE OR id = ANY($1);
+-- Deletes the bounces in $1, or with $2, every bounce matching the same
+-- filters as query-bounces: $3 campaign, $4 source, $5 type, $6 e-mail or
+-- campaign name. Empty filters match everything.
+DELETE FROM bounces WHERE id = ANY($1) OR ($2 = TRUE AND id IN (
+    SELECT b.id FROM bounces b
+    LEFT JOIN subscribers s ON (s.id = b.subscriber_id)
+    LEFT JOIN campaigns c ON (c.id = b.campaign_id)
+    WHERE ($3 = 0 OR b.campaign_id = $3)
+        AND ($4 = '' OR b.source = $4)
+        AND ($5 = '' OR b.type::TEXT = $5)
+        AND ($6 = '' OR s.email ILIKE '%' || $6 || '%' OR c.name ILIKE '%' || $6 || '%')
+));
 
 -- name: delete-bounces-by-subscriber
 WITH sub AS (
@@ -92,8 +103,17 @@ WITH sub AS (
 DELETE FROM bounces WHERE subscriber_id = (SELECT id FROM sub);
 
 -- name: blocklist-bounced-subscribers
+-- Blocklists everyone with a bounce matching the same filters as
+-- query-bounces: $1 campaign, $2 source, $3 type, $4 e-mail or campaign
+-- name. Empty filters match everything.
 WITH subs AS (
-    SELECT subscriber_id FROM bounces
+    SELECT DISTINCT b.subscriber_id FROM bounces b
+    LEFT JOIN subscribers s ON (s.id = b.subscriber_id)
+    LEFT JOIN campaigns c ON (c.id = b.campaign_id)
+    WHERE ($1 = 0 OR b.campaign_id = $1)
+        AND ($2 = '' OR b.source = $2)
+        AND ($3 = '' OR b.type::TEXT = $3)
+        AND ($4 = '' OR s.email ILIKE '%' || $4 || '%' OR c.name ILIKE '%' || $4 || '%')
 ),
 b AS (
     UPDATE subscribers SET status='blocklisted', updated_at=NOW()

@@ -145,7 +145,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "boolean",
-                        "description": "Delete all bounces",
+                        "description": "Delete every bounce matching the filters below",
                         "name": "all",
                         "in": "query"
                     },
@@ -157,6 +157,30 @@ const docTemplate = `{
                         "collectionFormat": "csv",
                         "description": "Bounce IDs to delete",
                         "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "With all: only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: subscriber e-mail or campaign name contains this",
+                        "name": "query",
                         "in": "query"
                     }
                 ],
@@ -183,6 +207,32 @@ const docTemplate = `{
                 ],
                 "summary": "Blocklist all bounced subscribers",
                 "operationId": "blocklistBouncedSubscribers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Subscriber e-mail or campaign name contains this",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK"
@@ -567,6 +617,32 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/campaigns/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get the campaigns overview",
+                "operationId": "getCampaignsOverview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CampaignsOverview"
                         }
                     },
                     "500": {
@@ -2207,6 +2283,170 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/forms": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get signup forms",
+                "operationId": "getForms",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/FormResp"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Create a signup form",
+                "operationId": "createForm",
+                "parameters": [
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Update a signup form",
+                "operationId": "updateForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Delete a signup form",
+                "operationId": "deleteForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get a form's figures",
+                "operationId": "getFormStats",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormStats"
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "produces": [
@@ -2258,10 +2498,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "CSV or ZIP file",
+                        "description": "CSV or ZIP file; leave out when params.file_id names an uploaded one",
                         "name": "file",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -2311,6 +2550,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/import/subscribers/check": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Check an import before starting it",
+                "operationId": "checkImport",
+                "parameters": [
+                    {
+                        "description": "File and columns",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CheckImportReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/file": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Upload a file to import",
+                "operationId": "uploadImportFile",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "CSV, or a ZIP with a CSV in it",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ImportFile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Recent imports",
+                "operationId": "getRecentImports",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ImportRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/import/subscribers/logs": {
             "get": {
                 "produces": [
@@ -2326,6 +2666,29 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/problems": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Rows an import didn't import",
+                "operationId": "getImportProblems",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                            }
                         }
                     }
                 }
@@ -4784,6 +5147,224 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/segments": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get saved segments",
+                "operationId": "getSegments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/SavedSegment"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Save a segment",
+                "operationId": "createSegment",
+                "parameters": [
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/count": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Count the people in segments",
+                "operationId": "countSegments",
+                "parameters": [
+                    {
+                        "description": "Segments to count",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentCountsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/sql": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get a segment's SQL condition",
+                "operationId": "segmentSQL",
+                "parameters": [
+                    {
+                        "description": "Segment",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentSQLResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Update a saved segment",
+                "operationId": "updateSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Delete a saved segment",
+                "operationId": "deleteSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "produces": [
@@ -6053,6 +6634,46 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/templates/test": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "templates"
+                ],
+                "summary": "Send a test of a campaign template",
+                "operationId": "testTemplate",
+                "parameters": [
+                    {
+                        "description": "Template body and who gets the test",
+                        "name": "test",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TemplateTestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/templates/{id}": {
             "get": {
                 "produces": [
@@ -7290,6 +7911,73 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignListRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignOverviewItem": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "integer"
+                },
+                "bounced": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lists": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignListRef"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
+                },
+                "pause_reason": {
+                    "type": "string"
+                },
+                "send_at": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "to_send": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by_name": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "CampaignRepliesPage": {
             "type": "object",
             "properties": {
@@ -7387,6 +8075,17 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignStatusCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "CampaignTracking": {
             "type": "object",
             "properties": {
@@ -7404,6 +8103,37 @@ const docTemplate = `{
                 "replies": {
                     "description": "Replies swaps each email's Reply-To for a per-message listnun reply\naddress, so replies are recorded against the campaign and then\nforwarded to the campaign's own Reply-To (internal/replies). Off\nunless the server has reply tracking configured.",
                     "type": "boolean"
+                }
+            }
+        },
+        "CampaignsOverview": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignOverviewItem"
+                    }
+                },
+                "counts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignStatusCount"
+                    }
+                }
+            }
+        },
+        "CheckImportReq": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column"
+                    }
+                },
+                "file_id": {
+                    "type": "string"
                 }
             }
         },
@@ -7589,6 +8319,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
+                },
                 "list_uuids": {
                     "type": "array",
                     "items": {
@@ -7711,6 +8445,130 @@ const docTemplate = `{
                 }
             }
         },
+        "FormReq": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormResp": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "embed_html": {
+                    "description": "EmbedHTML is a form to paste into a website.",
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "popup_script": {
+                    "description": "PopupScript is a script tag that shows the form as a popup.",
+                    "type": "string"
+                },
+                "signups": {
+                    "description": "Signups is how many people signed up in the last 30 days (lists of\nforms only).",
+                    "type": "integer"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "URL is the form's hosted page.",
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormStats": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "integer"
+                },
+                "signups": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "I18nLang": {
             "type": "object",
             "properties": {
@@ -7722,9 +8580,77 @@ const docTemplate = `{
                 }
             }
         },
+        "ImportFile": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn"
+                    }
+                },
+                "delim": {
+                    "type": "string"
+                },
+                "file_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ImportRecord": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imported": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "ImportStatus": {
             "type": "object",
             "properties": {
+                "added": {
+                    "description": "Added is how many of Imported are new subscribers; the rest were\nalready here. Blocklist imports don't count it.",
+                    "type": "integer"
+                },
                 "failed": {
                     "description": "Failed is the number of valid rows the database rejected, i.e. the\nrows of a batch whose insert or commit failed.",
                     "type": "integer"
@@ -8494,6 +9420,38 @@ const docTemplate = `{
                 }
             }
         },
+        "SavedSegment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "match": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "ServerConfig": {
             "type": "object",
             "properties": {
@@ -8577,6 +9535,10 @@ const docTemplate = `{
                     "description": "ReplyTracking is whether this tenant has campaign reply tracking set\nup (its \"replies\" setup, pushed by the platform), so the editor only\noffers the switch when it would do something.",
                     "type": "boolean"
                 },
+                "require_2fa": {
+                    "description": "Require2FA is security.require_2fa, so Team can stop asking for it\nonce it's on.",
+                    "type": "boolean"
+                },
                 "root_url": {
                     "type": "string"
                 },
@@ -8585,6 +9547,16 @@ const docTemplate = `{
                 },
                 "update": {
                     "$ref": "#/definitions/AppUpdate"
+                },
+                "upload_extensions": {
+                    "description": "UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what\nMedia accepts, so the upload area can say so.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "upload_max_file_size": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string"
@@ -9154,6 +10126,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
+                },
                 "lists": {
                     "type": "array",
                     "items": {
@@ -9194,11 +10170,31 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "engagement": {
+                    "$ref": "#/definitions/SubscriberEngagement"
+                },
                 "link_clicks": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "SubscriberEngagement": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "last_opened_at": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
                 }
             }
         },
@@ -9258,6 +10254,14 @@ const docTemplate = `{
                 "search": {
                     "type": "string"
                 },
+                "segment": {
+                    "description": "Segment narrows the people acted on, like Query, but is compiled\nfrom known fields so it needs no SQL query permission.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -9283,6 +10287,10 @@ const docTemplate = `{
                 },
                 "body_source": {
                     "$ref": "#/definitions/null.String"
+                },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -9320,6 +10328,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "TemplateTestReq": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "emails": {
+                    "description": "Emails must be existing subscribers the user can see.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "description": "Type is campaign or campaign_visual.",
                     "type": "string"
                 }
             }
@@ -9522,6 +10549,10 @@ const docTemplate = `{
                 },
                 "body_source": {
                     "$ref": "#/definitions/null.String"
+                },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -10025,6 +11056,25 @@ const docTemplate = `{
                 }
             }
         },
+        "cmd.segmentCountsReq": {
+            "type": "object",
+            "properties": {
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                    }
+                }
+            }
+        },
+        "cmd.segmentSQLResp": {
+            "type": "object",
+            "properties": {
+                "sql": {
+                    "type": "string"
+                }
+            }
+        },
         "echo.HTTPError": {
             "type": "object",
             "properties": {
@@ -10098,6 +11148,193 @@ const docTemplate = `{
                 },
                 "pause_reason": {
                     "$ref": "#/definitions/null.String"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Condition": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Field"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "op": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Op"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Field": {
+            "type": "string",
+            "enum": [
+                "attribute",
+                "email",
+                "name",
+                "joined",
+                "list",
+                "status",
+                "unconfirmed",
+                "last_opened",
+                "last_clicked"
+            ],
+            "x-enum-varnames": [
+                "FieldAttribute",
+                "FieldEmail",
+                "FieldName",
+                "FieldJoined",
+                "FieldList",
+                "FieldStatus",
+                "FieldUnconfirmed",
+                "FieldLastOpened",
+                "FieldLastClicked"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Match": {
+            "type": "string",
+            "enum": [
+                "all",
+                "any"
+            ],
+            "x-enum-varnames": [
+                "MatchAll",
+                "MatchAny"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Op": {
+            "type": "string",
+            "enum": [
+                "is",
+                "is_not",
+                "contains",
+                "exists",
+                "in_last",
+                "not_in_last",
+                "before",
+                "after",
+                "never"
+            ],
+            "x-enum-varnames": [
+                "OpIs",
+                "OpIsNot",
+                "OpContains",
+                "OpExists",
+                "OpInLast",
+                "OpNotInLast",
+                "OpBefore",
+                "OpAfter",
+                "OpNever"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Segment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "match": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Match"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.CheckResult": {
+            "type": "object",
+            "properties": {
+                "existing": {
+                    "description": "Existing is how many of them are already subscribers.",
+                    "type": "integer"
+                },
+                "num_problems": {
+                    "description": "NumProblems counts the rows that wouldn't be imported; Problems lists\nup to maxProblems of them.",
+                    "type": "integer"
+                },
+                "problems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                    }
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "valid": {
+                    "description": "Valid is the number of different, valid addresses in the file.",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Column": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "header": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                },
+                "samples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Problem": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "row": {
+                    "description": "Row is the row's line in the file as a spreadsheet numbers it: the\nheader is row 1.",
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FormField": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "description": "Key is email, name, or attribs.\u003cname\u003e for an attribute.",
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
                 }
             }
         },

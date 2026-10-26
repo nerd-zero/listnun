@@ -383,6 +383,7 @@ func (a *App) CreateCampaign(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	a.recordCampaignEditor(c, out.ID)
 
 	return c.JSON(http.StatusOK, okResp{out})
 }
@@ -447,6 +448,7 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	a.recordCampaignEditor(c, id)
 
 	return c.JSON(http.StatusOK, okResp{out})
 }

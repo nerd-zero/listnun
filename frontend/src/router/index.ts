@@ -80,6 +80,14 @@ const routes: RouteRecordRaw[] = [
     path: '/campaigns',
     name: 'campaigns',
     meta: { title: 'globals.terms.campaigns', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
+    component: () => import('../views/CampaignsOverview.vue'),
+  },
+  {
+    // Every campaign, filterable, with bulk actions: the overview's
+    // "Show all sent" and "All drafts".
+    path: '/campaigns/all',
+    name: 'allCampaigns',
+    meta: { title: 'globals.terms.campaigns', group: 'campaigns', perms: ['campaigns:get_all', 'campaigns:get'] },
     component: () => import('../views/Campaigns.vue'),
   },
   {
@@ -93,6 +101,15 @@ const routes: RouteRecordRaw[] = [
     name: 'templates',
     meta: { title: 'globals.terms.templates', group: 'campaigns', perms: ['templates:get'] },
     component: () => import('../views/Templates.vue'),
+  },
+  {
+    // One campaign template, full page; "new" makes one (?type=campaign_visual).
+    path: '/campaigns/templates/:id',
+    name: 'template',
+    meta: {
+      title: 'globals.terms.template', section: 'globals.terms.templates', group: 'campaigns', perms: ['templates:get'],
+    },
+    component: () => import('../views/TemplateEditor.vue'),
   },
   {
     path: '/campaigns/analytics',
@@ -202,8 +219,8 @@ const routes: RouteRecordRaw[] = [
     name: 'users',
     meta: {
       view: 'users',
-      title: 'globals.terms.users',
-      section: 'globals.terms.users',
+      title: 'users.members',
+      section: 'users.team',
       group: 'users',
       perms: ['users:get'],
     },
@@ -215,28 +232,22 @@ const routes: RouteRecordRaw[] = [
     name: 'user',
     meta: {
       view: 'users',
-      title: 'globals.terms.users',
-      section: 'globals.terms.users',
+      title: 'users.members',
+      section: 'users.team',
       group: 'users',
       perms: ['users:get'],
     },
     component: () => import('../views/Users.vue'),
   },
-  {
-    path: '/users/api',
-    name: 'apiUsers',
-    meta: {
-      title: 'users.apiUsers', section: 'globals.terms.users', group: 'users', perms: ['users:get'],
-    },
-    component: () => import('../views/ApiUsers.vue'),
-  },
+  // API users moved to Developers -> API keys, which lists the old ones.
+  { path: '/users/api', redirect: { name: 'devKeys' } },
   {
     path: '/users/roles/users',
     name: 'userRoles',
     meta: {
       view: 'roles',
-      title: 'users.userRoles',
-      section: 'globals.terms.users',
+      title: 'users.roles',
+      section: 'users.team',
       group: 'users',
       perms: ['roles:get'],
     },
@@ -247,8 +258,8 @@ const routes: RouteRecordRaw[] = [
     name: 'listRoles',
     meta: {
       view: 'roles',
-      title: 'users.listRoles',
-      section: 'globals.terms.users',
+      title: 'users.listAccess',
+      section: 'users.team',
       group: 'users',
       perms: ['roles:get'],
     },

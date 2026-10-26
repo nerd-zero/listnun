@@ -10,8 +10,17 @@
       />
     </page-header>
 
-    <PvMessage v-if="privacy.disable_tracking" severity="warn" icon="pi pi-exclamation-triangle">{{ $t('analytics.trackingDisabled') }}</PvMessage>
-    <PvMessage v-else-if="!privacy.individual_tracking" severity="info" icon="pi pi-info-circle">{{ $t('analytics.nonIndividualTracking') }}</PvMessage>
+    <!-- The one banner: tracking is off, which someone can fix. -->
+    <PvMessage
+      v-if="privacy.disable_tracking && !trackingNoticeHidden"
+      severity="warn"
+      icon="pi pi-exclamation-triangle"
+      closable
+      @close="hideTrackingNotice"
+    >
+      {{ $t('analytics.trackingDisabled') }}
+      <router-link v-if="$can('settings:get')" :to="{ name: 'settings', params: { section: 'privacy' } }" class="ana-fix">{{ $t('analytics.turnOnTracking') }}</router-link>
+    </PvMessage>
 
     <section class="ln-card ana-filters">
       <PvAutoComplete
@@ -77,9 +86,24 @@
             <PvSkeleton v-if="loadingAny" width="80px" height="28px" />
             <template v-else>{{ m.value.toLocaleString() }}</template>
           </span>
-          <span class="ln-small">{{ m.sub }}</span>
+          <span class="ln-small ana-sub">
+            <template v-if="m.rates">
+              <span v-for="r in m.rates" :key="r.id" class="ana-rate">
+                <span
+                  v-if="form.campaigns.length > 1"
+                  class="ana-chip-dot"
+                  role="img"
+                  :aria-label="nameFor(r.id)"
+                  :style="{ background: colorFor(r.id) }"
+                />{{ r.rate }}
+              </span>
+              <span v-if="m.rates.length" class="ana-of">{{ $t('analytics.ofSendsShort') }}</span>
+            </template>
+            <template v-else>{{ m.sub }}</template>
+          </span>
         </button>
       </div>
+      <p v-if="!privacy.disable_tracking && !privacy.individual_tracking" class="ln-small ana-note">{{ $t('analytics.nonUnique') }}</p>
 
       <section class="ln-card ana-chart">
         <div class="ana-chart-head">
@@ -127,16 +151,6 @@
               </li>
             </ul>
           </div>
-          <h3 v-if="form.campaigns.length > 1" class="ln-field-label">{{ $t('analytics.byCampaign') }}</h3>
-          <div v-if="form.campaigns.length > 1" class="ana-bounce-bar" aria-hidden="true">
-            <span v-for="c in bounceByCampaign" :key="c.id" :style="{ width: `${c.share}%`, background: colorFor(c.id) }" />
-          </div>
-          <ul v-if="form.campaigns.length > 1" class="ana-bounce-rows">
-            <li v-for="c in bounceByCampaign" :key="c.id">
-              <span><span class="ana-chip-dot" :style="{ background: colorFor(c.id) }" />{{ c.name }}</span>
-              <strong>{{ c.count.toLocaleString() }}</strong>
-            </li>
-          </ul>
           <router-link v-if="$can('bounces:get')" :to="{ name: 'bounces', query: { campaign_id: form.campaigns[0]?.id } }" class="ana-review">
             {{ $t('analytics.reviewBounces') }} →
           </router-link>
@@ -210,31 +224,47 @@ function colorFor(id: number): string {
   return `var(--ln-${tone === 'ink' ? 'ink' : tone})`;
 }
 
+function nameFor(id: number): string {
+  return form.campaigns.find((c) => c.id === id)?.name || '';
+}
+
 function total(rows: Loose[], id?: number): number {
   return rows.reduce((n, r) => (id === undefined || r.campaignId === id ? n + (r.count || 0) : n), 0);
 }
 
-// rates describes a total as a share of each campaign's sends.
-function rates(rows: Loose[]): string {
+// rates is each campaign's total as a share of its sends, leaving out
+// campaigns at zero (or with nothing sent) so only what happened shows.
+function rates(rows: Loose[]): { id: number; rate: string }[] {
   return form.campaigns
-    .map((c) => (c.sent ? `${((total(rows, c.id) / c.sent) * 100).toFixed(1)}%` : '—'))
-    .join(t('analytics.and'));
+    .filter((c) => c.sent && total(rows, c.id) > 0)
+    .map((c) => {
+      const pct = (total(rows, c.id) / c.sent) * 100;
+      return { id: c.id, rate: `${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%` };
+    });
+}
+
+// The tracking-off banner, once dismissed, stays hidden in this browser.
+const TRACKING_NOTICE_KEY = 'ln-analytics-tracking-dismissed';
+const trackingNoticeHidden = ref(localStorage.getItem(TRACKING_NOTICE_KEY) === '1');
+function hideTrackingNotice() {
+  localStorage.setItem(TRACKING_NOTICE_KEY, '1');
+  trackingNoticeHidden.value = true;
 }
 
 const links = computed(() => data.links.rows.slice(0, 10) as { url: string; count: number }[]);
 
 const metricCards = computed(() => [
   {
-    key: 'views', label: t('campaigns.views'), value: total(data.views.rows), sub: rates(data.views.rows),
+    key: 'views', label: t('campaigns.views'), value: total(data.views.rows), rates: rates(data.views.rows), sub: '',
   },
   {
-    key: 'clicks', label: t('campaigns.clicks'), value: total(data.clicks.rows), sub: rates(data.clicks.rows),
+    key: 'clicks', label: t('campaigns.clicks'), value: total(data.clicks.rows), rates: rates(data.clicks.rows), sub: '',
   },
   {
-    key: 'bounces', label: t('globals.terms.bounces'), value: total(data.bounces.rows), sub: t('analytics.ofSends', { rate: rates(data.bounces.rows) }),
+    key: 'bounces', label: t('globals.terms.bounces'), value: total(data.bounces.rows), rates: rates(data.bounces.rows), sub: '',
   },
   {
-    key: 'links', label: t('analytics.links'), value: data.links.rows.length, sub: t('analytics.clickedOnce'),
+    key: 'links', label: t('analytics.links'), value: data.links.rows.length, rates: null, sub: t('analytics.clickedOnce'),
   },
 ]);
 
@@ -273,16 +303,6 @@ const chartSeries = computed<ChartSeries[]>(() => {
       label: c.name,
       tone: SERIES[i % SERIES.length],
       data: buckets.value.map((d) => byBucket.get(d.valueOf()) || 0),
-    };
-  });
-});
-
-const bounceByCampaign = computed(() => {
-  const all = total(data.bounces.rows) || 1;
-  return form.campaigns.map((c) => {
-    const count = total(data.bounces.rows, c.id);
-    return {
-      id: c.id, name: c.name, count, share: (count / all) * 100,
     };
   });
 });
@@ -433,6 +453,12 @@ onMounted(() => {
   &.is-on { border-color: var(--ln-ink); box-shadow: 0 0 0 1px var(--ln-ink); }
   &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
+// Each campaign's rate next to its colour, then "of sends" once.
+.ana-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 1.4em; }
+.ana-rate { display: inline-flex; align-items: center; gap: 5px; }
+.ana-of { margin-left: -6px; }
+.ana-note { margin: -4px 0 0; }
+.ana-fix { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-left: 4px; }
 .ana-chart { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .ana-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ana-legend {

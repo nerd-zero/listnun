@@ -289,12 +289,3 @@ watch(() => props.messageId, (id) => {
   background: var(--ln-muted);
 }
 </style>
-
-<style lang="scss">
-.p-drawer.msg-drawer {
-  width: 460px;
-  max-width: 100vw;
-  border-left: 1px solid var(--ln-border);
-  box-shadow: var(--ln-shadow-pop);
-}
-</style>

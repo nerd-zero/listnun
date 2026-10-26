@@ -1,135 +1,110 @@
 <template>
-  <div class="items">
-    <div class="field">
-      <div class="flex items-center gap-2">
-        <PvToggleSwitch v-model="data['security.oidc']['enabled']" name="security.oidc" />
-        <span>{{ $t('settings.security.enableOIDC') }}</span>
-      </div>
-      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.OIDCHelp') }}</small>
-    </div>
+  <div class="set-cards">
+    <set-card :title="$t('settings.sec.sso')" :help="$t('settings.sec.ssoHelp')">
+      <set-row :label="$t('settings.sec.ssoOn')" :help="$t('settings.sec.ssoOnHelp')" toggle>
+        <PvToggleSwitch v-model="oidc.enabled" name="security.oidc" :aria-label="$t('settings.sec.ssoOn')" />
+      </set-row>
+      <template v-if="oidc.enabled">
+        <set-row :label="$t('settings.security.OIDCURL')" label-for="sec-oidc-url">
+          <template #help>
+            <span class="sec-presets">
+              {{ $t('settings.smtpx.fillFor') }}
+              <a href="#" @click.prevent="setProvider('google')">Google</a>
+              <a href="#" @click.prevent="setProvider('microsoft')">Microsoft</a>
+              <a href="#" @click.prevent="setProvider('apple')">Apple</a>
+            </span>
+          </template>
+          <PvInputText
+            id="sec-oidc-url"
+            v-model="oidc.provider_url"
+            name="oidc.provider_url"
+            placeholder="https://login.yoursite.com"
+            :maxlength="300"
+            required
+            type="url"
+            pattern="https?://.*"
+            class="ln-mono"
+          />
+        </set-row>
+        <set-row :label="$t('settings.sec.buttonName')" :help="$t('settings.sec.buttonNameHelp')" label-for="sec-oidc-name">
+          <PvInputText id="sec-oidc-name" v-model="oidc.provider_name" name="oidc.provider_name" :maxlength="200" />
+        </set-row>
+        <set-row :label="$t('settings.security.OIDCClientID')" label-for="sec-oidc-client">
+          <PvInputText id="sec-oidc-client" ref="clientIdEl" v-model="oidc.client_id" name="oidc.client_id" :maxlength="200" required class="ln-mono" />
+        </set-row>
+        <set-row :label="$t('settings.security.OIDCClientSecret')">
+          <PvPassword v-model="oidc.client_secret" name="oidc.client_secret" :maxlength="200" required :feedback="false" :aria-label="$t('settings.security.OIDCClientSecret')" />
+        </set-row>
+        <set-row :label="$t('settings.security.OIDCRedirectURL')" :help="$t('settings.sec.redirectHelp')">
+          <code class="sec-redirect"><copy-text :text="`${serverConfig.root_url}/auth/oidc`" /></code>
+          <template v-if="!isURLOk" #note>{{ $t('settings.sec.redirectWarn') }}</template>
+        </set-row>
+      </template>
+    </set-card>
 
-    <div class="flex flex-col gap-4" :class="{ disabled: !data['security.oidc']['enabled'] }">
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCURL') }}</label>
-        <PvInputText v-model="data['security.oidc']['provider_url']" name="oidc.provider_url"
-          placeholder="https://login.yoursite.com" :disabled="!data['security.oidc']['enabled']" :maxlength="300"
-          required type="url" pattern="https?://.*" class="w-full" />
-        <div class="quick-links mt-2">
-          <a href="#" @click.prevent="() => setProvider('google')">Google</a>
-          <a href="#" @click.prevent="() => setProvider('microsoft')">Microsoft</a>
-          <a href="#" @click.prevent="() => setProvider('apple')">Apple</a>
-        </div>
-      </div>
+    <set-card :title="$t('settings.sec.twofa')">
+      <set-row :label="$t('settings.sec.twofaAll')" :help="$t('settings.sec.twofaAllHelp')" toggle>
+        <PvToggleSwitch v-model="data['security.require_2fa']" input-id="require-2fa" name="security.require_2fa" :aria-label="$t('settings.sec.twofaAll')" />
+      </set-row>
+    </set-card>
 
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCName') }}</label>
-        <PvInputText v-model="data['security.oidc']['provider_name']" name="oidc.provider_name"
-          :disabled="!data['security.oidc']['enabled']" :maxlength="200" class="w-full" />
-      </div>
+    <set-card :title="$t('settings.sec.captcha')" :help="$t('settings.sec.captchaHelp')">
+      <set-row :label="$t('settings.sec.captchaOn')" :help="legacyCaptcha ? $t('settings.security.captchaLegacy', { name: legacyCaptcha }) : $t('settings.sec.captchaOnHelp')" toggle>
+        <PvToggleSwitch v-model="captchaEnabled" input-id="captcha-forms" name="security.captcha" :aria-label="$t('settings.sec.captchaOn')" />
+      </set-row>
+      <template v-if="captchaEnabled">
+        <set-row :label="$t('settings.sec.siteKey')" :help="$t('settings.sec.siteKeyHelp')" label-for="turnstile-key">
+          <PvInputText id="turnstile-key" v-model="data['security.captcha']['turnstile']['key']" name="turnstile_key" :maxlength="200" required class="ln-mono" />
+        </set-row>
+        <set-row :label="$t('settings.sec.secretKey')">
+          <PvPassword
+            v-model="data['security.captcha']['turnstile']['secret']"
+            input-id="turnstile-secret"
+            name="turnstile_secret"
+            :maxlength="200"
+            required
+            :feedback="false"
+            :aria-label="$t('settings.sec.secretKey')"
+          />
+        </set-row>
+        <set-row :label="$t('settings.security.captchaLogin')" :help="$t('settings.sec.loginHelp')" toggle>
+          <PvToggleSwitch v-model="data['security.captcha'].login" input-id="captcha-login" name="captcha_login" :aria-label="$t('settings.security.captchaLogin')" />
+        </set-row>
+      </template>
+    </set-card>
 
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCClientID') }}</label>
-        <PvInputText v-model="data['security.oidc']['client_id']" name="oidc.client_id" ref="clientIdEl"
-          :disabled="!data['security.oidc']['enabled']" :maxlength="200" required class="w-full" />
-      </div>
-
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCClientSecret') }}</label>
-        <PvPassword v-model="data['security.oidc']['client_secret']" name="oidc.client_secret"
-          :disabled="!data['security.oidc']['enabled']" :maxlength="200" required :feedback="false" class="w-full" />
-      </div>
-
-      <hr class="m-0" />
-
-      <div class="field">
-        <div class="flex items-center gap-2">
-          <PvToggleSwitch v-model="data['security.oidc']['auto_create_users']" :disabled="!data['security.oidc']['enabled']"
-            name="oidc.auto_create_users" />
-          <span>{{ $t('settings.security.OIDCAutoCreateUsers') }}</span>
-        </div>
-        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.OIDCAutoCreateUsersHelp') }}</small>
-      </div>
-
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCDefaultUserRole') }}</label>
-        <PvSelect v-model="data['security.oidc']['default_user_role_id']"
-          :disabled="!data['security.oidc']['enabled'] || !data['security.oidc']['auto_create_users']"
-          name="oidc.default_user_role_id"
-          :options="userRoles" option-label="name" option-value="id" class="w-full" />
-        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.OIDCDefaultRoleHelp') }}</small>
-      </div>
-
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCDefaultListRole') }}</label>
-        <PvSelect v-model="data['security.oidc']['default_list_role_id']"
-          :disabled="!data['security.oidc']['enabled'] || !data['security.oidc']['auto_create_users']"
-          name="oidc.default_list_role_id"
-          :options="listRoleOptions" option-label="name" option-value="id" class="w-full" />
-        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.OIDCDefaultRoleHelp') }}</small>
-      </div>
-
-      <hr class="m-0" />
-
-      <div class="field">
-        <label class="block mb-1 text-sm font-medium">{{ $t('settings.security.OIDCRedirectURL') }}</label>
-        <code><copy-text :text="`${serverConfig.root_url}/auth/oidc`" /></code>
-      </div>
-      <p v-if="data['security.oidc']['enabled'] && !isURLOk" class="text-red-500 text-sm mt-1">
-        <i class="pi pi-exclamation-triangle" />
-        {{ $t('settings.security.OIDCRedirectWarning') }}
-      </p>
-    </div>
-
-    <hr class="m-0" />
-
-    <div class="field">
-      <div class="flex items-center gap-2">
-        <PvToggleSwitch v-model="captchaEnabled" input-id="captcha-forms" name="security.captcha" />
-        <label for="captcha-forms">{{ $t('settings.security.captchaForms') }}</label>
-      </div>
-      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaFormsHelp') }}</small>
-      <small v-if="legacyCaptcha" class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaLegacy', { name: legacyCaptcha }) }}</small>
-    </div>
-
-    <div v-if="captchaEnabled" class="flex flex-col gap-4">
-      <div class="field">
-        <label for="turnstile-key" class="block mb-1 text-sm font-medium">{{ $t('settings.security.turnstileSiteKey') }}</label>
-        <PvInputText id="turnstile-key" v-model="data['security.captcha']['turnstile']['key']" name="turnstile_key" :maxlength="200"
-          required class="w-full ln-mono" />
-        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.turnstileKeyHelp') }}</small>
-      </div>
-      <div class="field">
-        <label for="turnstile-secret" class="block mb-1 text-sm font-medium">{{ $t('settings.security.captchaSecret') }}</label>
-        <PvPassword v-model="data['security.captcha']['turnstile']['secret']" input-id="turnstile-secret" name="turnstile_secret"
-          :maxlength="200" required :feedback="false" class="w-full" />
-      </div>
-      <div class="field">
-        <div class="flex items-center gap-2">
-          <PvToggleSwitch v-model="data['security.captcha'].login" input-id="captcha-login" name="captcha_login" />
-          <label for="captcha-login">{{ $t('settings.security.captchaLogin') }}</label>
-        </div>
-        <small class="block mt-1 text-color-secondary">{{ $t('settings.security.captchaLoginHelp') }}</small>
-      </div>
-    </div>
-
-    <hr class="m-0" />
-
-    <div class="field">
-      <div class="flex items-center gap-2">
-        <PvToggleSwitch v-model="data['security.require_2fa']" input-id="require-2fa" name="security.require_2fa" />
-        <label for="require-2fa">{{ $t('settings.security.require2fa') }}</label>
-      </div>
-      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.require2faHelp') }}</small>
-    </div>
-
-    <hr class="m-0" />
-
-    <p class="settings-section-label">{{ $t('settings.security.trustedURLs') }} / CORS</p>
-    <div class="field">
-      <PvTextarea v-model="trustedURLs" name="trusted_urls" rows="5"
-        placeholder="https://example.com" class="w-full" />
-      <small class="block mt-1 text-color-secondary">{{ $t('settings.security.trustedURLsHelp') }}</small>
-    </div>
+    <set-card :title="$t('settings.ws.advanced')" :help="$t('settings.sec.advancedHelp')" collapsible :summary="advancedSummary">
+      <template v-if="oidc.enabled">
+        <set-row :label="$t('settings.security.OIDCAutoCreateUsers')" :help="$t('settings.sec.autoCreateHelp')" toggle>
+          <PvToggleSwitch v-model="oidc.auto_create_users" name="oidc.auto_create_users" :aria-label="$t('settings.security.OIDCAutoCreateUsers')" />
+        </set-row>
+        <template v-if="oidc.auto_create_users">
+          <set-row :label="$t('settings.security.OIDCDefaultUserRole')">
+            <PvSelect
+              v-model="oidc.default_user_role_id"
+              name="oidc.default_user_role_id"
+              :options="userRoles"
+              option-label="name"
+              option-value="id"
+              :aria-label="$t('settings.security.OIDCDefaultUserRole')"
+            />
+          </set-row>
+          <set-row :label="$t('settings.security.OIDCDefaultListRole')">
+            <PvSelect
+              v-model="oidc.default_list_role_id"
+              name="oidc.default_list_role_id"
+              :options="listRoleOptions"
+              option-label="name"
+              option-value="id"
+              :aria-label="$t('settings.security.OIDCDefaultListRole')"
+            />
+          </set-row>
+        </template>
+      </template>
+      <set-row :label="$t('settings.sec.trusted')" :help="$t('settings.sec.trustedHelp')" label-for="sec-trusted" wide>
+        <PvTextarea id="sec-trusted" v-model="trustedURLs" name="trusted_urls" rows="3" placeholder="https://example.com" class="ln-mono" />
+      </set-row>
+    </set-card>
   </div>
 </template>
 
@@ -142,6 +117,8 @@ import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../../store';
 import { useGlobal } from '../../composables/useGlobal';
 import CopyText from '../../components/CopyText.vue';
+import SetCard from '../../components/ui/SetCard.vue';
+import SetRow from '../../components/ui/SetRow.vue';
 import { getRoles } from '../../api/generated/endpoints/roles/roles';
 
 const OIDC_PROVIDERS: Record<string, string> = {
@@ -160,6 +137,13 @@ const { serverConfig: serverConfigRef, userRoles, listRoles } = storeToRefs(stor
 const serverConfig = computed(() => serverConfigRef.value as any);
 const clientIdEl = ref<any>(null);
 const data = props.form;
+const oidc = computed(() => data['security.oidc']);
+
+// What the closed Advanced card says.
+const advancedSummary = computed(() => {
+  const n = (data['security.trusted_urls'] || []).filter((u: string) => u && u.trim()).length;
+  return t('settings.sec.advancedSummary', { n }, n);
+});
 
 const listRoleOptions = computed(() => [
   { id: null, name: `— ${t('globals.terms.none')} —` },
@@ -234,7 +218,19 @@ function setProvider(provider: string) {
 }
 </script>
 
-<style scoped>
-:deep(.p-password) { width: 100%; }
-:deep(.p-password-input) { width: 100%; }
+<style scoped lang="scss">
+.sec-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+
+  a { color: var(--ln-text-2); text-decoration: underline; }
+}
+.sec-redirect {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+
+  :deep(.pi) { margin-left: 6px; }
+}
+:deep(.p-password), :deep(.p-password-input) { width: 100%; }
 </style>

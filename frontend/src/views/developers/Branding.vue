@@ -27,7 +27,8 @@
           </div>
         </section>
 
-        <section class="ln-card">
+        <!-- The dark logo and layout only matter once there's a logo. -->
+        <section v-if="hasLogo" class="ln-card">
           <div class="ln-card-head dev-brand-card-head">
             <div>
               <h2 class="ln-card-title">
@@ -42,7 +43,7 @@
           </div>
         </section>
 
-        <section class="ln-card ln-card-pad dev-brand-layout">
+        <section v-if="hasLogo" class="ln-card ln-card-pad dev-brand-layout">
           <div class="dev-brand-row">
             <div class="ln-field">
               <label for="brand-width">{{ $t('developers.branding.width') }}</label>
@@ -111,13 +112,16 @@
             </div>
           </div>
         </div>
-        <p class="ln-card ln-card-pad dev-brand-note">
-          <i class="pi pi-info-circle" aria-hidden="true" />
+        <p class="ln-card ln-card-pad dev-brand-note" :class="{ 'is-warn': noneUse }">
+          <i :class="noneUse ? 'pi pi-exclamation-triangle' : 'pi pi-info-circle'" aria-hidden="true" />
           <span>
             <i18n-t keypath="developers.branding.usage" tag="span">
               <template #block><code class="ln-mono">brand-logo</code></template>
             </i18n-t>
             {{ usageLine }}
+            <router-link v-if="noneUse && $can('templates:get')" :to="{ name: 'devTemplates' }" class="dev-brand-fix">
+              {{ $t('developers.branding.openTemplates') }}
+            </router-link>
           </span>
         </p>
       </div>
@@ -179,9 +183,13 @@ const usageLine = computed(() => {
   const n = usingBlock.value.length;
   const total = templates.value.length;
   if (!total) return '';
-  if (n === total) return t('developers.branding.usageAll', { n: total });
-  return t('developers.branding.usageSome', { n, total });
+  if (!n) return t('developers.branding.usageNone');
+  if (n === total) return t('developers.branding.usageAll', { n: total }, total);
+  return t('developers.branding.usageSome', { n, total }, total);
 });
+// No template has the block, so a logo wouldn't show anywhere yet.
+const noneUse = computed(() => templates.value.length > 0 && usingBlock.value.length === 0);
+const hasLogo = computed(() => !!(form.value?.logo || form.value?.logoDark));
 
 function logoFor(client: string): string | null {
   if (!form.value?.logo) return null;
@@ -283,6 +291,8 @@ onMounted(() => {
   h3 { margin: 0 0 12px; font-size: 17px; font-weight: 600; }
   p { margin: 0 0 16px; opacity: .85; }
 }
+.dev-brand-note.is-warn { border-color: transparent; background: var(--ln-warn-bg); color: var(--ln-warn-fg); }
+.dev-brand-fix { margin-left: 4px; font-weight: 600; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .dev-brand-mail-logo {
   padding-bottom: 16px;
   margin-bottom: 16px;

@@ -144,6 +144,7 @@ SELECT id from sub;
 -- name: upsert-subscriber
 -- Upserts a subscriber where existing subscribers get their names and attributes overwritten.
 -- If $7 = true, update name/attribs. If $8 = true, update subscription status.
+-- inserted says whether the subscriber is new.
 WITH sub AS (
     INSERT INTO subscribers as s (uuid, email, name, attribs, status, tenant_id)
     VALUES($1, $2, $3, $4, 'enabled', $9)
@@ -152,7 +153,8 @@ WITH sub AS (
         name=(CASE WHEN $7 THEN $3 ELSE s.name END),
         attribs=(CASE WHEN $7 THEN $4 ELSE s.attribs END),
         updated_at=NOW()
-    RETURNING uuid, id, status
+    -- xmax is 0 on a row this statement inserted rather than updated.
+    RETURNING uuid, id, status, (xmax = 0) AS inserted
 ),
 subs AS (
     INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
@@ -162,7 +164,7 @@ subs AS (
     SET updated_at = NOW(),
         status = CASE WHEN $8 THEN EXCLUDED.status ELSE subscriber_lists.status END
 )
-SELECT uuid, id from sub;
+SELECT uuid, id, inserted FROM sub;
 
 -- name: upsert-blocklist-subscriber
 -- Upserts a subscriber where the update will only set the status to blocklisted
@@ -260,8 +262,9 @@ DELETE FROM subscriber_lists
     WHERE (subscriber_id, list_id) = ANY(SELECT a, b FROM UNNEST($1::INT[]) a, UNNEST($2::INT[]) b);
 
 -- name: confirm-subscription-optin
+-- A blocklisted subscriber's lists stay unconfirmed, even from an old link.
 WITH subID AS (
-    SELECT id FROM subscribers WHERE uuid = $1::UUID
+    SELECT id FROM subscribers WHERE uuid = $1::UUID AND status != 'blocklisted'
 ),
 listIDs AS (
     SELECT id FROM lists WHERE uuid = ANY($2::UUID[])
@@ -342,7 +345,10 @@ DELETE FROM subscriber_lists
 -- there's a COUNT() OVER() that still returns the total result count
 -- for pagination in the frontend, albeit being a field that'll repeat
 -- with every resultant row.
-SELECT subscribers.* FROM subscribers
+-- last_opened_at is computed only for the page of rows returned.
+SELECT subscribers.*,
+    (SELECT MAX(v.created_at) FROM campaign_views v WHERE v.subscriber_id = subscribers.id) AS last_opened_at
+    FROM subscribers
     LEFT JOIN subscriber_lists
     ON (
         -- Optional list filtering.
@@ -532,3 +538,26 @@ clicks AS (
 SELECT
     COALESCE((SELECT JSON_AGG(v) FROM views v), '[]') as campaign_views,
     COALESCE((SELECT JSON_AGG(c) FROM clicks c), '[]') as link_clicks;
+
+-- name: get-subscriber-engagement
+-- Subscriber $1's engagement for the person panel. campaigns counts the
+-- campaigns that reached them: those that started on one of their lists
+-- while they were on it (after they joined, before they left), plus any
+-- they opened or clicked, which must have reached them. Per-person sends
+-- aren't recorded, so this is what can be said accurately.
+SELECT
+    (SELECT COUNT(*) FROM (
+        SELECT c.id FROM campaigns c
+            JOIN campaign_lists cl ON cl.campaign_id = c.id
+            JOIN subscriber_lists sl ON sl.list_id = cl.list_id AND sl.subscriber_id = $1
+            WHERE c.type = 'regular' AND c.status IN ('running', 'paused', 'finished')
+            AND c.started_at >= sl.created_at
+            AND (sl.status != 'unsubscribed' OR c.started_at <= sl.updated_at)
+        UNION
+        SELECT campaign_id FROM campaign_views WHERE subscriber_id = $1 AND campaign_id IS NOT NULL
+        UNION
+        SELECT campaign_id FROM link_clicks WHERE subscriber_id = $1 AND campaign_id IS NOT NULL
+    ) reached) AS campaigns,
+    (SELECT COUNT(DISTINCT campaign_id) FROM campaign_views WHERE subscriber_id = $1) AS opened,
+    (SELECT COUNT(DISTINCT campaign_id) FROM link_clicks WHERE subscriber_id = $1) AS clicked,
+    (SELECT MAX(created_at) FROM campaign_views WHERE subscriber_id = $1) AS last_opened_at;

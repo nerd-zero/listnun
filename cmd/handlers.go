@@ -161,8 +161,19 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/import/subscribers/logs", pm(a.GetImportSubscriberStats, "subscribers:import"))
 		g.POST("/api/import/subscribers", pm(a.ImportSubscribers, "subscribers:import"))
 		g.DELETE("/api/import/subscribers", pm(a.StopImportSubscribers, "subscribers:import"))
+		g.POST("/api/import/subscribers/file", pm(a.UploadImportFile, "subscribers:import"))
+		g.POST("/api/import/subscribers/check", pm(a.CheckImport, "subscribers:import"))
+		g.GET("/api/import/subscribers/problems", pm(a.GetImportProblems, "subscribers:import"))
+		g.GET("/api/import/subscribers/history", pm(a.GetRecentImports, "subscribers:import"))
 
 		// Individual list permissions are applied directly within handleGetLists.
+		g.GET("/api/segments", pm(a.GetSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments", pm(a.CreateSegment, "subscribers:manage"))
+		g.POST("/api/segments/count", pm(a.CountSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments/sql", pm(a.SegmentSQL, "subscribers:get_all", "subscribers:get"))
+		g.PUT("/api/segments/:id", pm(hasID(a.UpdateSegment), "subscribers:manage"))
+		g.DELETE("/api/segments/:id", pm(hasID(a.DeleteSegment), "subscribers:manage"))
+
 		g.GET("/api/lists", a.GetLists)
 		g.GET("/api/lists/scrub", pm(a.GetScrubListStatus, "settings:manage"))
 		g.GET("/api/lists/scrub/history", pm(a.GetScrubHistory, "settings:manage"))
@@ -172,6 +183,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/lists/summary", a.GetListsSummary)
 		g.GET("/api/lists/optin/pending", pm(a.GetOptinPending, "subscribers:manage"))
 		g.POST("/api/lists/optin/resend", pm(a.ResendOptins, "subscribers:manage"))
+
+		g.GET("/api/forms", pm(a.GetForms, "lists:get_all"))
+		g.GET("/api/forms/:id/stats", pm(hasID(a.GetFormStats), "lists:get_all"))
+		g.POST("/api/forms", pm(a.CreateForm, "lists:manage_all"))
+		g.PUT("/api/forms/:id", pm(hasID(a.UpdateForm), "lists:manage_all"))
+		g.DELETE("/api/forms/:id", pm(hasID(a.DeleteForm), "lists:manage_all"))
 		g.GET("/api/lists/:id/activity", hasID(a.GetListActivity))
 		g.GET("/api/lists/:id", hasID(a.GetList))
 		g.POST("/api/lists", pm(a.CreateList, "lists:manage_all"))
@@ -180,6 +197,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/lists/:id", hasID(a.DeleteList))
 
 		g.GET("/api/campaigns", pm(a.GetCampaigns, "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/overview", pm(a.GetCampaignsOverview, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/running/stats", pm(a.GetRunningCampaignStats, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/auto-paused", pm(a.GetAutoPausedCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
@@ -208,6 +226,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/templates/:id", pm(hasID(a.GetTemplate), "templates:get"))
 		g.GET("/api/templates/:id/preview", pm(hasID(a.PreviewTemplate), "templates:get"))
 		g.POST("/api/templates/preview", pm(a.PreviewTemplateBody, "templates:get"))
+		g.POST("/api/templates/test", pm(a.TestTemplate, "templates:manage"))
 		g.POST("/api/templates", pm(a.CreateTemplate, "templates:manage"))
 		g.PUT("/api/templates/:id", pm(hasID(a.UpdateTemplate), "templates:manage"))
 		g.PUT("/api/templates/:id/default", pm(hasID(a.TemplateSetDefault), "templates:manage"))
@@ -381,6 +400,9 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// Public subscriber facing views.
 		g.GET("/subscription/form", a.SubscriptionFormPage)
 		g.POST("/subscription/form", a.SubscriptionForm)
+		g.GET("/f/:slug", noIndex(a.FormPage))
+		g.POST("/f/:slug", a.FormSubmit)
+		g.GET("/f/:slug/popup.js", a.FormPopup)
 		g.GET("/subscription/:campUUID/:subUUID", noIndex(a.hasUUID(a.hasSub(a.SubscriptionPage), "campUUID", "subUUID")))
 		g.POST("/subscription/:campUUID/:subUUID", a.hasUUID(a.hasSub(a.SubscriptionPrefs), "campUUID", "subUUID"))
 		g.POST("/subscription/:campUUID/:subUUID/resubscribe", a.hasUUID(a.hasSub(a.Resubscribe), "campUUID", "subUUID"))

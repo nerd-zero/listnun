@@ -340,7 +340,7 @@ const attention = computed<Attention[]>(() => {
       tone: 'neutral',
       title: t('dashboard.attnDrafts', { n: ov.value.staleDrafts }),
       text: t('dashboard.attnDraftsText'),
-      to: { name: 'campaigns', query: { status: 'draft' } },
+      to: { name: 'allCampaigns', query: { status: 'draft' } },
     });
   }
   return out;

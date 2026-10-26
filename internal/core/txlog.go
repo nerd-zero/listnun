@@ -254,3 +254,17 @@ func (c *Core) PruneTxMessages() (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+// TxLogSubject is the subject the message log shows: the rendered one, or
+// the template's when the request didn't override it. A message that failed
+// before rendering has no real subject, so raw template tags like
+// "{{ .Subscriber.Name }}" are left out rather than shown as if sent.
+func TxLogSubject(subject, templateSubject string, failed bool) string {
+	if subject == "" {
+		subject = templateSubject
+	}
+	if failed && strings.Contains(subject, "{{") {
+		return ""
+	}
+	return subject
+}

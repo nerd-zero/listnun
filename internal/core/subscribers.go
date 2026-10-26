@@ -248,7 +248,10 @@ func (c *Core) GetSubscriberProfileForExport(ctx context.Context, tenantID int, 
 func (c *Core) GetSubscriberActivity(ctx context.Context, tenantID int, id int) (models.SubscriberActivity, error) {
 	var out models.SubscriberActivity
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.GetSubscriberActivity).Get(&out, id)
+		if err := stmtx(tx, c.q.GetSubscriberActivity).Get(&out, id); err != nil {
+			return err
+		}
+		return stmtx(tx, c.q.GetSubscriberEngagement).Get(&out.Engagement, id)
 	})
 	if err != nil {
 		c.log.Printf("error fetching subscriber activity: %v", err)

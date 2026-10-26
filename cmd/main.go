@@ -35,6 +35,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/events"
 	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/importstage"
 	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
 	"github.com/nerd-zero/listnun/internal/usage"
@@ -54,6 +55,7 @@ type App struct {
 	tenantMsgrs *tenantMessengers
 	emailMsgr   manager.Messenger
 	importers   *tenantImporters
+	importStage *importstage.Stage
 	auth        *auth.Auth
 	media       *tenantMedia
 	operator    *operatorStore
@@ -326,6 +328,7 @@ func main() {
 		tenantMsgrs: tenantMsgrs,
 		emailMsgr:   emailMsgr,
 		importers:   importers,
+		importStage: importstage.New(),
 		auth:        auth,
 		media:       mediaResolver,
 		operator:    opStore,

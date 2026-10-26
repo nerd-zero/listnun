@@ -351,6 +351,50 @@ definitions:
       timestamp:
         type: string
     type: object
+  CampaignListRef:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  CampaignOverviewItem:
+    properties:
+      audience:
+        type: integer
+      bounced:
+        type: integer
+      clicked:
+        type: integer
+      id:
+        type: integer
+      lists:
+        items:
+          $ref: '#/definitions/CampaignListRef'
+        type: array
+      name:
+        type: string
+      opened:
+        type: integer
+      pause_reason:
+        type: string
+      send_at:
+        type: string
+      sent:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      to_send:
+        type: integer
+      updated_at:
+        type: string
+      updated_by_name:
+        type: string
+      uuid:
+        type: string
+    type: object
   CampaignRepliesPage:
     properties:
       counts:
@@ -420,6 +464,13 @@ definitions:
       replies:
         type: integer
     type: object
+  CampaignStatusCount:
+    properties:
+      count:
+        type: integer
+      status:
+        type: string
+    type: object
   CampaignTracking:
     properties:
       links:
@@ -439,6 +490,26 @@ definitions:
           forwarded to the campaign's own Reply-To (internal/replies). Off
           unless the server has reply tracking configured.
         type: boolean
+    type: object
+  CampaignsOverview:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/CampaignOverviewItem'
+        type: array
+      counts:
+        items:
+          $ref: '#/definitions/CampaignStatusCount'
+        type: array
+    type: object
+  CheckImportReq:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column'
+        type: array
+      file_id:
+        type: string
     type: object
   CleanupRun:
     properties:
@@ -566,6 +637,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       list_uuids:
         items:
           type: string
@@ -648,6 +724,91 @@ definitions:
       unsubscribed:
         type: integer
     type: object
+  FormReq:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+    type: object
+  FormResp:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      created_at:
+        type: string
+      embed_html:
+        description: EmbedHTML is a form to paste into a website.
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      id:
+        type: integer
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      popup_script:
+        description: PopupScript is a script tag that shows the form as a popup.
+        type: string
+      signups:
+        description: |-
+          Signups is how many people signed up in the last 30 days (lists of
+          forms only).
+        type: integer
+      slug:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+      updated_at:
+        type: string
+      url:
+        description: URL is the form's hosted page.
+        type: string
+      uuid:
+        type: string
+    type: object
+  FormStats:
+    properties:
+      blocked:
+        type: integer
+      confirmed:
+        type: integer
+      signups:
+        type: integer
+      views:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -655,8 +816,55 @@ definitions:
       name:
         type: string
     type: object
+  ImportFile:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn'
+        type: array
+      delim:
+        type: string
+      file_id:
+        type: string
+      name:
+        type: string
+      rows:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+    type: object
+  ImportRecord:
+    properties:
+      added:
+        type: integer
+      created_at:
+        type: string
+      failed:
+        type: integer
+      id:
+        type: integer
+      imported:
+        type: integer
+      mode:
+        type: string
+      name:
+        type: string
+      skipped:
+        type: integer
+      status:
+        type: string
+      total:
+        type: integer
+    type: object
   ImportStatus:
     properties:
+      added:
+        description: |-
+          Added is how many of Imported are new subscribers; the rest were
+          already here. Blocklist imports don't count it.
+        type: integer
       failed:
         description: |-
           Failed is the number of valid rows the database rejected, i.e. the
@@ -1184,6 +1392,27 @@ definitions:
       updated_at:
         type: string
     type: object
+  SavedSegment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      created_at:
+        type: string
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      match:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
   ServerConfig:
     properties:
       console_url:
@@ -1242,12 +1471,26 @@ definitions:
           up (its "replies" setup, pushed by the platform), so the editor only
           offers the switch when it would do something.
         type: boolean
+      require_2fa:
+        description: |-
+          Require2FA is security.require_2fa, so Team can stop asking for it
+          once it's on.
+        type: boolean
       root_url:
         type: string
       scrub_enabled:
         type: boolean
       update:
         $ref: '#/definitions/AppUpdate'
+      upload_extensions:
+        description: |-
+          UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+          Media accepts, so the upload area can say so.
+        items:
+          type: string
+        type: array
+      upload_max_file_size:
+        type: integer
       version:
         type: string
     type: object
@@ -1636,6 +1879,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       lists:
         items:
           type: integer
@@ -1664,10 +1912,23 @@ definitions:
         items:
           type: integer
         type: array
+      engagement:
+        $ref: '#/definitions/SubscriberEngagement'
       link_clicks:
         items:
           type: integer
         type: array
+    type: object
+  SubscriberEngagement:
+    properties:
+      campaigns:
+        type: integer
+      clicked:
+        type: integer
+      last_opened_at:
+        type: string
+      opened:
+        type: integer
     type: object
   SubscriberExportProfile:
     properties:
@@ -1706,6 +1967,12 @@ definitions:
         type: string
       search:
         type: string
+      segment:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        description: |-
+          Segment narrows the people acted on, like Query, but is compiled
+          from known fields so it needs no SQL query permission.
       status:
         type: string
       subscription_status:
@@ -1723,6 +1990,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -1748,6 +2018,19 @@ definitions:
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  TemplateTestReq:
+    properties:
+      body:
+        type: string
+      emails:
+        description: Emails must be existing subscribers the user can see.
+        items:
+          type: string
+        type: array
+      type:
+        description: Type is campaign or campaign_visual.
         type: string
     type: object
   TenantReplies:
@@ -1889,6 +2172,9 @@ definitions:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
       headers:
@@ -2230,6 +2516,18 @@ definitions:
       queued:
         type: integer
     type: object
+  cmd.segmentCountsReq:
+    properties:
+      segments:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        type: array
+    type: object
+  cmd.segmentSQLResp:
+    properties:
+      sql:
+        type: string
+    type: object
   echo.HTTPError:
     properties:
       message: {}
@@ -2284,6 +2582,146 @@ definitions:
         type: string
       pause_reason:
         $ref: '#/definitions/null.String'
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Condition:
+    properties:
+      field:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Field'
+      key:
+        type: string
+      op:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Op'
+      value:
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Field:
+    enum:
+    - attribute
+    - email
+    - name
+    - joined
+    - list
+    - status
+    - unconfirmed
+    - last_opened
+    - last_clicked
+    type: string
+    x-enum-varnames:
+    - FieldAttribute
+    - FieldEmail
+    - FieldName
+    - FieldJoined
+    - FieldList
+    - FieldStatus
+    - FieldUnconfirmed
+    - FieldLastOpened
+    - FieldLastClicked
+  github_com_nerd-zero_listnun_internal_segments.Match:
+    enum:
+    - all
+    - any
+    type: string
+    x-enum-varnames:
+    - MatchAll
+    - MatchAny
+  github_com_nerd-zero_listnun_internal_segments.Op:
+    enum:
+    - is
+    - is_not
+    - contains
+    - exists
+    - in_last
+    - not_in_last
+    - before
+    - after
+    - never
+    type: string
+    x-enum-varnames:
+    - OpIs
+    - OpIsNot
+    - OpContains
+    - OpExists
+    - OpInLast
+    - OpNotInLast
+    - OpBefore
+    - OpAfter
+    - OpNever
+  github_com_nerd-zero_listnun_internal_segments.Segment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      match:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Match'
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.CheckResult:
+    properties:
+      existing:
+        description: Existing is how many of them are already subscribers.
+        type: integer
+      num_problems:
+        description: |-
+          NumProblems counts the rows that wouldn't be imported; Problems lists
+          up to maxProblems of them.
+        type: integer
+      problems:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+        type: array
+      rows:
+        type: integer
+      valid:
+        description: Valid is the number of different, valid addresses in the file.
+        type: integer
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Column:
+    properties:
+      as:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn:
+    properties:
+      as:
+        type: string
+      header:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+      samples:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Problem:
+    properties:
+      reason:
+        type: string
+      row:
+        description: |-
+          Row is the row's line in the file as a spreadsheet numbers it: the
+          header is row 1.
+        type: integer
+      value:
+        type: string
+    type: object
+  models.FormField:
+    properties:
+      key:
+        description: Key is email, name, or attribs.<name> for an attribute.
+        type: string
+      label:
+        type: string
+      required:
+        type: boolean
     type: object
   models.Tenant:
     properties:
@@ -2356,7 +2794,7 @@ paths:
     delete:
       operationId: deleteBounces
       parameters:
-      - description: Delete all bounces
+      - description: Delete every bounce matching the filters below
         in: query
         name: all
         type: boolean
@@ -2367,6 +2805,22 @@ paths:
           type: integer
         name: id
         type: array
+      - description: 'With all: only this campaign''s bounces'
+        in: query
+        name: campaign_id
+        type: integer
+      - description: 'With all: only bounces from this source'
+        in: query
+        name: source
+        type: string
+      - description: 'With all: only this type (soft, hard, complaint)'
+        in: query
+        name: type
+        type: string
+      - description: 'With all: subscriber e-mail or campaign name contains this'
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -2482,6 +2936,23 @@ paths:
   /api/bounces/blocklist:
     put:
       operationId: blocklistBouncedSubscribers
+      parameters:
+      - description: Only this campaign's bounces
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Only bounces from this source
+        in: query
+        name: source
+        type: string
+      - description: Only this type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Subscriber e-mail or campaign name contains this
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -3038,6 +3509,23 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get currently auto-paused campaigns
+      tags:
+      - campaigns
+  /api/campaigns/overview:
+    get:
+      operationId: getCampaignsOverview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CampaignsOverview'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the campaigns overview
       tags:
       - campaigns
   /api/campaigns/running/stats:
@@ -3769,6 +4257,114 @@ paths:
       summary: Resend a webhook delivery
       tags:
       - developers
+  /api/forms:
+    get:
+      operationId: getForms
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/FormResp'
+            type: array
+      summary: Get signup forms
+      tags:
+      - forms
+    post:
+      consumes:
+      - application/json
+      operationId: createForm
+      parameters:
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a signup form
+      tags:
+      - forms
+  /api/forms/{id}:
+    delete:
+      operationId: deleteForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+      summary: Delete a signup form
+      tags:
+      - forms
+    put:
+      consumes:
+      - application/json
+      operationId: updateForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a signup form
+      tags:
+      - forms
+  /api/forms/{id}/stats:
+    get:
+      operationId: getFormStats
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormStats'
+      summary: Get a form's figures
+      tags:
+      - forms
   /api/health:
     get:
       operationId: healthCheck
@@ -3810,10 +4406,10 @@ paths:
       - multipart/form-data
       operationId: importSubscribers
       parameters:
-      - description: CSV or ZIP file
+      - description: CSV or ZIP file; leave out when params.file_id names an uploaded
+          one
         in: formData
         name: file
-        required: true
         type: file
       - description: JSON-encoded import options (subimporter.SessionOpt)
         in: formData
@@ -3838,6 +4434,72 @@ paths:
       summary: Import subscribers from a CSV or ZIP file
       tags:
       - import
+  /api/import/subscribers/check:
+    post:
+      consumes:
+      - application/json
+      operationId: checkImport
+      parameters:
+      - description: File and columns
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/CheckImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check an import before starting it
+      tags:
+      - import
+  /api/import/subscribers/file:
+    post:
+      consumes:
+      - multipart/form-data
+      operationId: uploadImportFile
+      parameters:
+      - description: CSV, or a ZIP with a CSV in it
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ImportFile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Upload a file to import
+      tags:
+      - import
+  /api/import/subscribers/history:
+    get:
+      operationId: getRecentImports
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ImportRecord'
+            type: array
+      summary: Recent imports
+      tags:
+      - import
   /api/import/subscribers/logs:
     get:
       operationId: getImportLogs
@@ -3849,6 +4511,21 @@ paths:
           schema:
             type: string
       summary: Get import log
+      tags:
+      - import
+  /api/import/subscribers/problems:
+    get:
+      operationId: getImportProblems
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+            type: array
+      summary: Rows an import didn't import
       tags:
       - import
   /api/lang/{lang}:
@@ -5507,6 +6184,149 @@ paths:
       summary: Update a user role
       tags:
       - roles
+  /api/segments:
+    get:
+      operationId: getSegments
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/SavedSegment'
+            type: array
+      summary: Get saved segments
+      tags:
+      - subscribers
+    post:
+      consumes:
+      - application/json
+      operationId: createSegment
+      parameters:
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a segment
+      tags:
+      - subscribers
+  /api/segments/{id}:
+    delete:
+      operationId: deleteSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+      summary: Delete a saved segment
+      tags:
+      - subscribers
+    put:
+      consumes:
+      - application/json
+      operationId: updateSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a saved segment
+      tags:
+      - subscribers
+  /api/segments/count:
+    post:
+      consumes:
+      - application/json
+      operationId: countSegments
+      parameters:
+      - description: Segments to count
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cmd.segmentCountsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: integer
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count the people in segments
+      tags:
+      - subscribers
+  /api/segments/sql:
+    post:
+      consumes:
+      - application/json
+      operationId: segmentSQL
+      parameters:
+      - description: Segment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.segmentSQLResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a segment's SQL condition
+      tags:
+      - subscribers
   /api/settings:
     get:
       operationId: getSettings
@@ -6486,6 +7306,32 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Preview a template body
+      tags:
+      - templates
+  /api/templates/test:
+    post:
+      consumes:
+      - application/json
+      operationId: testTemplate
+      parameters:
+      - description: Template body and who gets the test
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/TemplateTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test of a campaign template
       tags:
       - templates
   /api/users:
