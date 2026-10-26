@@ -171,7 +171,7 @@ func (a *App) PreviewTxTemplate(c echo.Context) error {
 		Subject: m.Subject,
 		HTML:    string(m.Body),
 		Text:    m.AltBody,
-		From:    a.cfg.FromEmail,
+		From:    a.tenantFromEmail(c.Request().Context(), tenantID(c)),
 	}})
 }
 

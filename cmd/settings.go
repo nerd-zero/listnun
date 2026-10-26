@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -606,7 +607,7 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 	}
 
 	m := models.Message{}
-	m.From = a.cfg.FromEmail
+	m.From = a.tenantFromEmail(c.Request().Context(), tenantID(c))
 	m.To = []string{to}
 	m.Subject = a.i18n.T("settings.smtp.testConnection")
 	m.Body = b.Bytes()
@@ -954,4 +955,16 @@ func validateCleanup(s cleanup.Settings) error {
 		return s.Rules.Validate()
 	}
 	return fmt.Errorf("unknown mode %q", s.Mode)
+}
+
+// tenantFromEmail returns tenantID's own default From (its app.from_email).
+// a.cfg.FromEmail is a single boot-time value derived from tenant 1's
+// settings (see cmd/init.go's initSettings), so it's only the fallback for
+// when the lookup fails or the tenant hasn't set one -- anything sent on a
+// tenant's behalf must not go out under tenant 1's address.
+func (a *App) tenantFromEmail(ctx context.Context, tenantID int) string {
+	if s, err := a.core.GetSettings(ctx, tenantID); err == nil && s.AppFromEmail != "" {
+		return s.AppFromEmail
+	}
+	return a.cfg.FromEmail
 }

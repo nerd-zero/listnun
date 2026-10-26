@@ -440,7 +440,7 @@ func (a *App) validateTxMessage(ctx context.Context, tenantID int, m models.TxMe
 	}
 
 	if m.FromEmail == "" {
-		m.FromEmail = a.cfg.FromEmail
+		m.FromEmail = a.tenantFromEmail(ctx, tenantID)
 	}
 
 	if m.Messenger == "" {

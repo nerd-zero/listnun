@@ -433,10 +433,7 @@ func (a *App) TestTemplate(c echo.Context) error {
 		return err
 	}
 
-	from := a.cfg.FromEmail
-	if s, err := a.core.GetSettings(ctx, tID); err == nil && a.cfg.MultiTenancyEnabled && s.AppFromEmail != "" {
-		from = s.AppFromEmail
-	}
+	from := a.tenantFromEmail(ctx, tID)
 	camp := models.Campaign{
 		TenantID:     tID,
 		UUID:         dummyUUID,
