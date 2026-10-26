@@ -81,8 +81,9 @@
     </section>
 
     <template v-if="!isMobile">
-      <!-- Last 24 hours -->
-      <section v-if="$can('tx:logs')" class="ln-tiles" :aria-label="$t('developers.overview.last24h')">
+      <!-- Last 24 hours. Until anything has been sent the quickstart is
+           the job, so the numbers and the recent list wait for a first send. -->
+      <section v-if="$can('tx:logs') && hasSent" class="ln-tiles" :aria-label="$t('developers.overview.last24h')">
         <div class="ln-tile">
           <span class="ln-tile-label">{{ $t('developers.overview.sent24h') }}</span>
           <span class="ln-tile-value">{{ stats ? stats.sent.toLocaleString() : '—' }}</span>
@@ -91,12 +92,12 @@
         <div class="ln-tile">
           <span class="ln-tile-label is-success">{{ $t('developers.log.status.delivered') }}</span>
           <span class="ln-tile-value">{{ pct(stats?.delivered) }}</span>
-          <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.delivered || 0).toLocaleString() }) }}</span>
+          <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.delivered || 0).toLocaleString() }, stats?.delivered || 0) }}</span>
         </div>
         <div class="ln-tile">
           <span class="ln-tile-label is-warn">{{ $t('developers.log.status.bounced') }}</span>
           <span class="ln-tile-value">{{ pct(stats?.bounced) }}</span>
-          <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.bounced || 0).toLocaleString() }) }}</span>
+          <span class="ln-small">{{ $t('developers.overview.messages', { n: (stats?.bounced || 0).toLocaleString() }, stats?.bounced || 0) }}</span>
         </div>
         <div class="ln-tile">
           <span class="ln-tile-label is-danger">{{ $t('developers.log.status.failed') }}</span>
@@ -105,8 +106,8 @@
         </div>
       </section>
 
-      <div class="dev-ov-grid">
-        <section v-if="$can('tx:logs')" class="ln-card dev-ov-recent">
+      <div class="dev-ov-grid" :class="{ 'is-solo': !hasSent || !$can('tx:logs') }">
+        <section v-if="$can('tx:logs') && hasSent" class="ln-card dev-ov-recent">
           <div class="ln-card-head">
             <h2 class="ln-card-title">{{ $t('developers.overview.recent') }}</h2>
             <router-link :to="{ name: 'devLog' }" class="dev-ov-link">{{ $t('developers.overview.openLog') }}</router-link>
@@ -138,7 +139,7 @@
           </router-link>
           <router-link v-if="$can('templates:get')" :to="{ name: 'devTemplates' }" class="ln-card ln-card-pad dev-ov-card">
             <h2 class="ln-card-title">{{ $t('developers.overview.txTemplates') }}</h2>
-            <span class="ln-small">{{ $t('developers.overview.templateCount', { n: templates.length }) }}</span>
+            <span class="ln-small">{{ $t('developers.overview.templateCount', { n: templates.length }, templates.length) }}</span>
           </router-link>
           <router-link v-if="$can('templates:get')" :to="{ name: 'devBranding' }" class="ln-card ln-card-pad dev-ov-card">
             <h2 class="ln-card-title">{{ $t('developers.branding.title') }}</h2>
@@ -151,7 +152,7 @@
             :class="{ 'is-dashed': !hooks.length }"
           >
             <h2 class="ln-card-title">{{ $t('developers.webhooks.title') }}</h2>
-            <span class="ln-small">{{ hooks.length ? $t('developers.overview.hookCount', { n: hooks.length }) : $t('developers.webhooks.emptyText') }}</span>
+            <span class="ln-small">{{ hooks.length ? $t('developers.overview.hookCount', { n: hooks.length }, hooks.length) : $t('developers.webhooks.emptyText') }}</span>
             <span v-if="!hooks.length" class="dev-ov-add">{{ $t('developers.webhooks.add') }} →</span>
           </router-link>
         </aside>
@@ -211,6 +212,9 @@ const hooks = ref<WebhookEndpoint[]>([]);
 const branding = ref<Branding | null>(null);
 const stats = ref<TxStats | null>(null);
 const recent = ref<TxLogMessage[] | null>(null);
+// Anything sent yet? Unknown while loading counts as yes, so the page
+// doesn't jump for workspaces that do send.
+const hasSent = computed(() => recent.value === null || recent.value.length > 0);
 const lang = ref<SnippetLang>('curl');
 const selected = ref<Step['key'] | null>(null);
 const copied = ref(false);
@@ -464,6 +468,11 @@ onMounted(() => {
 }
 .dev-ov-row-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dev-ov-side { display: flex; flex-direction: column; gap: 16px; }
+// No recent messages yet: the shortcut cards take the full width in a row.
+.dev-ov-grid.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+  .dev-ov-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
 .dev-ov-card {
   display: flex;
   flex-direction: column;

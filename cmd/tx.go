@@ -333,7 +333,7 @@ func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *
 		TemplateName: tpl.Name,
 		SubscriberID: sub.ID,
 		Recipient:    sub.Email,
-		Subject:      m.Subject,
+		Subject:      core.TxLogSubject(m.Subject, tpl.Subject, failure != ""),
 		Status:       models.TxStatusQueued,
 		Messenger:    m.Messenger,
 		SourceIP:     origin.SourceIP,
@@ -341,10 +341,6 @@ func (a *App) logTx(ctx context.Context, tenantID int, m models.TxMessage, tpl *
 		Body:         string(m.Body),
 		Events:       []models.NewTxLogEvent{{Type: models.TxEventAccepted, Detail: origin.Accepted}},
 	}
-	if rec.Subject == "" {
-		rec.Subject = tpl.Subject
-	}
-
 	if failure != "" {
 		rec.Status = models.TxStatusFailed
 		rec.Error = failure

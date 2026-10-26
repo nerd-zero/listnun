@@ -1,7 +1,7 @@
 <template>
   <div class="ln-page dev-keys">
     <page-header :title="$t('developers.keys.title')" :count="keys.length || null">
-      <template #search>
+      <template v-if="keys.length || query" #search>
         <form class="ln-search" role="search" @submit.prevent="fetchKeys">
           <PvIconField>
             <PvInputIcon class="pi pi-search" />
@@ -187,7 +187,7 @@
         <p class="ln-small">
           {{ $t('developers.keys.scopesHelp') }}
           <template v-for="s in API_KEY_SCOPES" :key="s">
-            <br><code class="ln-mono">{{ s }}</code> {{ scopeHelp(s).toLowerCase() }}.
+            <br><code class="ln-mono">{{ s }}</code> {{ scopeHelp(s) }}.
           </template>
         </p>
       </section>

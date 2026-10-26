@@ -17,3 +17,11 @@ export function txDataVars(...sources: string[]): string[] {
 export function missingVars(vars: string[], data: Record<string, unknown>): string[] {
   return vars.filter((v) => !(v in data));
 }
+
+// withMissing returns data with an empty string for each variable it
+// doesn't have yet, keeping what's already there and its order.
+export function withMissing(vars: string[], data: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...data };
+  missingVars(vars, data).forEach((v) => { out[v] = ''; });
+  return out;
+}
