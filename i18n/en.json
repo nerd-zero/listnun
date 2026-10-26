@@ -1755,6 +1755,8 @@
     "developers.overview.lang.node": "Node",
     "developers.overview.lang.python": "Python",
     "developers.overview.lang.go": "Go",
+    "developers.overview.lang.llm": "AI prompt",
+    "developers.overview.llmHelp": "Paste this into Claude, ChatGPT, Cursor or Copilot in your project and it will write the integration for your stack.",
     "developers.overview.copySnippet": "Copy snippet",
     "developers.overview.orBrowser": "Or send from the browser",
     "developers.overview.browserInstead": "Send from the browser instead",

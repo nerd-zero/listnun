@@ -1,9 +1,11 @@
 // Code snippets for the Developers quickstart: the same POST /api/tx call
-// in each language, using the workspace's own URL, key and template.
+// in each language, using the workspace's own URL, key and template. 'llm'
+// is a prompt to paste into an AI coding assistant instead of code, for
+// users who'd rather have it write the integration in their own stack.
 
-export type SnippetLang = 'curl' | 'node' | 'python' | 'go';
+export type SnippetLang = 'curl' | 'node' | 'python' | 'go' | 'llm';
 
-export const SNIPPET_LANGS: SnippetLang[] = ['curl', 'node', 'python', 'go'];
+export const SNIPPET_LANGS: SnippetLang[] = ['curl', 'node', 'python', 'go', 'llm'];
 
 export interface SnippetInput {
   rootUrl: string;
@@ -19,6 +21,47 @@ function body(i: SnippetInput, indent: string): string {
     .split('\n')
     .map((l, n) => (n === 0 ? l : indent + l))
     .join('\n');
+}
+
+function llmPrompt(i: SnippetInput, url: string): string {
+  const vars = Object.keys(i.data);
+  return [
+    `Add transactional email sending to my app using the listnun API. ${i.templateName ? `The first email is "${i.templateName}".` : ''}`.trim(),
+    '',
+    '## Endpoint',
+    `POST ${url}`,
+    'Content-Type: application/json',
+    '',
+    '## Auth',
+    `HTTP Basic auth. Username is the API key name "${i.keyName}", password is the API key secret.`,
+    'Read the secret from the LISTNUN_API_KEY environment variable. Never hardcode it or send it to the browser:',
+    'call this API from server-side code only.',
+    '',
+    '## Request body',
+    body(i, ''),
+    '',
+    `- template_id: ${i.templateId} is the transactional template to render.`,
+    vars.length
+      ? `- data: values the template uses (${vars.join(', ')}). Fill them from my app's own data, not hardcoded samples.`
+      : '- data: values the template uses. Fill them from my app\'s own data.',
+    '- subscriber_email: the recipient. By default they must already be a subscriber in the workspace, or the',
+    '  send fails with HTTP 400. To email anyone (e.g. order receipts to guests), add "subscriber_mode": "external";',
+    '  "subscriber_mode": "fallback" uses the subscriber record when it exists and sends anyway when it doesn\'t.',
+    '- Optional: "subject" overrides the template subject, "from_email" overrides the sender,',
+    '  "headers" is a list of {"Header-Name": "value"} objects.',
+    '',
+    '## Responses',
+    '- 200 {"data": true}: accepted for delivery.',
+    '- 400 {"message": "..."}: bad request (unknown recipient, missing field, template error). Don\'t retry; log the message.',
+    '- 401/403: wrong key name or secret, or the key lacks the tx:send scope.',
+    '- 429 or 5xx: retry with exponential backoff, a few attempts at most.',
+    '',
+    '## What I want',
+    '- A small, reusable sendTransactionalEmail(to, templateId, data) function in my project\'s language and HTTP',
+    '  client, with a 10s timeout and the error handling above.',
+    '- Call it where this email should go out, and document LISTNUN_API_KEY in my env example/config.',
+    '- Ask me which language/framework to use if it isn\'t clear from the project.',
+  ].join('\n');
 }
 
 export function snippet(lang: SnippetLang, i: SnippetInput): string {
@@ -66,6 +109,9 @@ export function snippet(lang: SnippetLang, i: SnippetInput): string {
         'req.Header.Set("Content-Type", "application/json")',
         'resp, err := http.DefaultClient.Do(req)',
       ].join('\n');
+
+    case 'llm':
+      return llmPrompt(i, url);
 
     default:
       return [
