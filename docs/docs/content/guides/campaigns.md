@@ -136,6 +136,6 @@ Opens are counted with a tracking image, which many email apps block until the r
 
 If your workspace has reply tracking, the **Tracking** card on the Content step has a **Track replies** switch. It's off by default. If you don't see it, reply tracking isn't set up for your workspace.
 
-With it on, each email's Reply-To is a listnun reply address unique to that subscriber, so subscribers see that address when they reply. listnun records each reply and forwards it to the campaign's Reply-To address, or its From address if it has none, with the subscriber as the Reply-To. You can answer them straight from your own inbox.
+With it on, each email's Reply-To is a listnun reply address unique to that subscriber, so subscribers see that address when they reply. On listnun.app, you can put these addresses on your own domain, such as `reply.yourcompany.com`, under **Reply domain** on the workspace's page in the console. listnun records each reply and forwards it to the campaign's Reply-To address, or its From address if it has none, with the subscriber as the Reply-To. You can answer them straight from your own inbox.
 
 Once the campaign starts sending, a **Replies** card on the campaign shows how many replies came in, who replied, and each reply. Out-of-office and other automatic replies are kept and marked **Auto-reply**, but aren't counted as replies.

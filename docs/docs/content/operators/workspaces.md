@@ -102,11 +102,23 @@ curl -X PUT -H "Authorization: Bearer a-long-random-secret" \
 
 | Field | Notes |
 | :---- | :---- |
-| `inbound_address` | The Postmark server's inbound address. Each email's Reply-To adds a token to it (`<local>+<token>@<domain>`). Empty turns reply tracking off for the workspace. |
+| `inbound_address` | The Postmark server's inbound address, or the same local part on a [reply domain](#reply-domains). Each email's Reply-To adds a token to it (`<local>+<token>@<domain>`). Empty turns reply tracking off for the workspace. |
 | `secret` | Signs the reply tokens, at least 16 characters. Keep it stable: changing it orphans replies to emails already sent. |
 | `webhook_username`, `webhook_password` | The basic-auth credentials Postmark sends with each inbound webhook. |
 
-Then point the Postmark server's inbound webhook at `https://<workspace host>/webhooks/replies/postmark` with the same credentials. A reply is only accepted if it arrives at that workspace's inbound address with a token signed by its secret. The setup is stored apart from the workspace's settings, so the workspace's admins can't see or change it, and the **Track replies** switch only appears in its campaigns once it's set.
+Then point the Postmark server's inbound webhook at `https://<workspace host>/webhooks/replies/postmark` with the same credentials. A reply is only accepted if it arrives at an address with that workspace's inbound local part and a token signed by its secret. The domain isn't checked, so the address can move to a reply domain without breaking replies to emails already sent. The setup is stored apart from the workspace's settings, so the workspace's admins can't see or change it, and the **Track replies** switch only appears in its campaigns once it's set.
+
+#### Reply domains
+
+Reply addresses can use the workspace's own domain instead of `inbound.postmarkapp.com`:
+
+1. The workspace publishes an MX record for a subdomain it uses only for replies: `reply.acme.com MX 10 inbound.postmarkapp.com`. Not its main domain: that MX would send all of its own mail to Postmark.
+2. Set that domain as the Postmark server's inbound domain (`InboundDomain` on `PUT /servers/{id}`). Postmark lets an inbound domain belong to only one server.
+3. Send the replies setup again with `inbound_address` set to the server's inbound local part on the new domain, e.g. `abc123@reply.acme.com`, and the **same** secret.
+
+Keeping the local part means replies to emails sent before the switch, addressed to `abc123+<token>@inbound.postmarkapp.com`, still match. To undo it, send the setup with the original address first, then clear the server's inbound domain, so no new email carries an address Postmark no longer accepts.
+
+On hosted listnun, the console does all of this from the workspace page's **Reply domain** section.
 
 ### Usage for billing
 
