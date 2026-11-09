@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1166,6 +1166,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1307,6 +1313,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1475,6 +1537,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -2575,7 +2665,7 @@
 <tr>
 <td><code>POST</code></td>
 <td><code>/webhooks/scrub/batch</code></td>
-<td>Mail Validation (Scrub) results</td>
+<td>Email validation (Scrub) results</td>
 </tr>
 <tr>
 <td><code>GET</code></td>
@@ -2637,7 +2727,7 @@ Container info: <code>sudo docker inspect listnun_listnun</code></p>
 <p>Docker logs to <code>/dev/stdout</code> and <code>/dev/stderr</code>. The logs are collected by the docker daemon and stored in your node's host path (by default). The same can be configured (/etc/docker/daemon.json) in your docker daemon settings to setup other logging drivers, logrotate policy and more, which you can read about <a href="https://docs.docker.com/config/containers/logging/configure/">here</a>.</p>
 <h3 id="binary">Binary<a class="headerlink" href="#binary" title="Permanent link">&para;</a></h3>
 <p>listnun logs to <code>stdout</code>, which is usually not saved to any file. To save listnun logs to a file use <code>./listnun &gt; listnun.log</code>.</p>
-<p><strong>Settings › Logs</strong> in the admin app is each workspace's own activity log (settings changes, campaign and import events, webhook failures), kept in the database for 30 days. It isn't the server log.</p>
+<p><strong>Settings › Activity log</strong> in the admin app is each workspace's own activity log (settings changes, campaign and import events, webhook failures), kept in the database for 30 days. It isn't the server log.</p>
 <p>For a systemd service, you can use <code>ExecStart=/bin/bash -ce "exec /usr/bin/listnun --config /etc/listnun/config.toml --static-dir /etc/listnun/static &gt;&gt;/etc/listnun/listnun.log 2&gt;&amp;1"</code> to create a log file that persists after restarts. <a href="https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606">More info</a>.</p>
 <h2 id="time-zone">Time zone<a class="headerlink" href="#time-zone" title="Permanent link">&para;</a></h2>
 <p>To change listnun's time zone (logs, etc.) edit <code>docker-compose.yml</code>:
@@ -2647,7 +2737,7 @@ Container info: <code>sudo docker inspect listnun_listnun</code></p>
 with any Timezone listed <a href="https://en.wikipedia.org/wiki/List_of_tz_database_time_zones">here</a>. Then run <code>sudo docker-compose stop ; sudo docker-compose up</code> after making changes.</p>
 <h2 id="smtp">SMTP<a class="headerlink" href="#smtp" title="Permanent link">&para;</a></h2>
 <h3 id="retries">Retries<a class="headerlink" href="#retries" title="Permanent link">&para;</a></h3>
-<p><strong>Settings › SMTP › Retries</strong> denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.</p>
+<p><strong>Settings › Mail servers › Retries</strong> denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.</p>
 <h2 id="smtp-ports">SMTP ports<a class="headerlink" href="#smtp-ports" title="Permanent link">&para;</a></h2>
 <p>Some server hosts block outgoing SMTP ports (25, 465). You may have to contact your host to unblock them before being able to send e-mails. Eg: <a href="https://docs.hetzner.com/cloud/servers/faq/#why-can-i-not-send-any-mails-from-my-server">Hetzner</a>.</p>
 <h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
@@ -2709,7 +2799,7 @@ with any Timezone listed <a href="https://en.wikipedia.org/wiki/List_of_tz_datab
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

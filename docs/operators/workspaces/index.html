@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1166,6 +1166,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1307,6 +1313,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1475,6 +1537,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -1760,6 +1850,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#reply-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reply tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#usage-for-billing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1964,6 +2065,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#reply-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reply tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#usage-for-billing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2015,6 +2127,7 @@
 <p>Requests for unknown hosts are rejected. Suspended or disabled workspaces show a "workspace unavailable" page: their public pages and API return <code>503</code>, and their admin app redirects to <code>console_url</code> when it's set.</p>
 <p>You'll need a wildcard DNS record (<code>*.listnun.example.com</code>) and a wildcard TLS certificate, for example from Let's Encrypt using the DNS-01 challenge.</p>
 <p>Sessions and API keys belong to one workspace. A session cookie or key from one workspace is refused on another's host.</p>
+<p>Links listnun generates use the host the request came in on, so each workspace's links point at its own address: password-reset emails, signup forms' hosted pages, embed code and popup scripts, and the archive feed. The <code>root_url</code> setting is only used for single-workspace installs. If a workspace has a custom domain, open its admin app on that domain to get links on it.</p>
 <div class="admonition note">
 <p class="admonition-title">Testing locally</p>
 <p>Browsers resolve <code>*.localhost</code> to your machine, so <code>acme.localhost:9000</code> works for reading pages. Signing in through the browser needs a real domain, though; an <code>/etc/hosts</code> entry isn't enough.</p>
@@ -2067,7 +2180,12 @@
 <tr>
 <td style="text-align: left;"><code>POST</code></td>
 <td style="text-align: left;"><code>/api/operator/tenants/:id/setup-link</code></td>
-<td style="text-align: left;">Issue a fresh setup link. Links only last as long as the server process, so reissue after a restart.</td>
+<td style="text-align: left;">Issue a fresh setup link. Links expire after 7 days, work once, and only last as long as the server process, so reissue after a restart.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/operator/tenants/:id/setup-link?token=&amp;email=</code></td>
+<td style="text-align: left;">Check a setup link without using it up: <code>{"valid": …, "password_set": …}</code>. <code>valid</code> is whether it still works for that admin; <code>password_set</code> is whether the admin has a password, meaning the link was used. Doesn't count towards the link's attempt limit.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>PUT</code></td>
@@ -2082,12 +2200,17 @@
 <tr>
 <td style="text-align: left;"><code>PUT</code></td>
 <td style="text-align: left;"><code>/api/operator/tenants/:id/smtp</code></td>
-<td style="text-align: left;">Set the workspace's SMTP server.</td>
+<td style="text-align: left;">Set the workspace's SMTP server. It's used from the next send.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;"><code>/api/operator/tenants/:id/from-email</code></td>
+<td style="text-align: left;">Set the workspace's default From address, which new campaigns start with: <code>{"from_email": "Acme &lt;news@acme.com&gt;"}</code> or a bare address. New workspaces start with a placeholder that can't send, so set this once a real sending address is verified. The workspace can still change it in its settings.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>PUT</code></td>
 <td style="text-align: left;"><code>/api/operator/tenants/:id/scrub</code></td>
-<td style="text-align: left;">Configure Mail Validation (Scrub) for the workspace.</td>
+<td style="text-align: left;">Configure email validation (Scrub) for the workspace.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>GET</code></td>
@@ -2098,6 +2221,11 @@
 <td style="text-align: left;"><code>PUT</code></td>
 <td style="text-align: left;"><code>/api/operator/tenants/:id/bounce-webhooks</code></td>
 <td style="text-align: left;">Configure bounce webhooks for the workspace's mail provider.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>PUT</code></td>
+<td style="text-align: left;"><code>/api/operator/tenants/:id/replies</code></td>
+<td style="text-align: left;">Set up <a href="#reply-tracking">reply tracking</a> for the workspace.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>PUT</code></td>
@@ -2120,6 +2248,16 @@
 <td style="text-align: left;">The same for every workspace at once, plus a daily series.</td>
 </tr>
 <tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/operator/tenants/:id/activity</code></td>
+<td style="text-align: left;">The workspace's latest activity log lines (its <strong>Settings › Activity log</strong>). <code>?source=sending</code> returns only send failures; <code>?limit=</code> up to 500.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>GET</code></td>
+<td style="text-align: left;"><code>/api/operator/tenants/:id/sending-health</code></td>
+<td style="text-align: left;">Campaign email sent, hard bounces and spam complaints over the last 30 days, rated against Gmail's limits the same way as the campaign <a href="../../guides/campaigns/#inbox-check">inbox check</a>, plus the workspace's unsent campaigns that have no unsubscribe link and so can't start.</td>
+</tr>
+<tr>
 <td style="text-align: left;"><code>GET</code> <code>POST</code> <code>DELETE</code></td>
 <td style="text-align: left;"><code>/api/operator/organizations…</code></td>
 <td style="text-align: left;">Group workspaces by customer. Deleting an organization detaches its workspaces; it doesn't delete them.</td>
@@ -2127,6 +2265,41 @@
 </tbody>
 </table>
 <p>The full request and response shapes are in the OpenAPI spec at <code>/api/swagger/index.html</code>, under <strong>operator</strong>.</p>
+<h3 id="reply-tracking">Reply tracking<a class="headerlink" href="#reply-tracking" title="Permanent link">&para;</a></h3>
+<p>Campaign <a href="../../guides/campaigns/#replies">reply tracking</a> uses each workspace's own Postmark server and its inbound stream. To turn it on for a workspace, send its setup:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer a-long-random-secret"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>https://listnun.example.com/api/operator/tenants/42/replies<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{</span>
+<span class="s1">    "inbound_address": "abc123@inbound.postmarkapp.com",</span>
+<span class="s1">    "secret": "at-least-16-characters",</span>
+<span class="s1">    "webhook_username": "replies",</span>
+<span class="s1">    "webhook_password": "…"</span>
+<span class="s1">  }'</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Field</th>
+<th style="text-align: left;">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>inbound_address</code></td>
+<td style="text-align: left;">The Postmark server's inbound address. Each email's Reply-To adds a token to it (<code>&lt;local&gt;+&lt;token&gt;@&lt;domain&gt;</code>). Empty turns reply tracking off for the workspace.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>secret</code></td>
+<td style="text-align: left;">Signs the reply tokens, at least 16 characters. Keep it stable: changing it orphans replies to emails already sent.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>webhook_username</code>, <code>webhook_password</code></td>
+<td style="text-align: left;">The basic-auth credentials Postmark sends with each inbound webhook.</td>
+</tr>
+</tbody>
+</table>
+<p>Then point the Postmark server's inbound webhook at <code>https://&lt;workspace host&gt;/webhooks/replies/postmark</code> with the same credentials. A reply is only accepted if it arrives at that workspace's inbound address with a token signed by its secret. The setup is stored apart from the workspace's settings, so the workspace's admins can't see or change it, and the <strong>Track replies</strong> switch only appears in its campaigns once it's set.</p>
 <h3 id="usage-for-billing">Usage for billing<a class="headerlink" href="#usage-for-billing" title="Permanent link">&para;</a></h3>
 <p>listnun counts each workspace's billable usage when it happens: every email sent through an SMTP messenger (one per recipient), and every address submitted for validation. Counts are kept per hour. A <code>from</code>/<code>to</code> window counts each hour once, so back-to-back billing periods never double-count. A deleted workspace's usage stays available, so it can still be invoiced.</p>
 
@@ -2185,7 +2358,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

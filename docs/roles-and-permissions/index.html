@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1261,6 +1261,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1402,6 +1408,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1570,6 +1632,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -1989,7 +2079,7 @@
 <h1 id="roles-and-permissions">Roles and permissions<a class="headerlink" href="#roles-and-permissions" title="Permanent link">&para;</a></h1>
 <p>listnun users have granular permissions to its features, including per-list permissions. Users can login with a username and password, or via an OIDC (OpenID Connect) handshake if an auth provider is connected. Various permissions can be grouped into "user roles", which can be assigned to users. List-specific permissions can be grouped into "list roles".</p>
 <h2 id="user-roles">User roles<a class="headerlink" href="#user-roles" title="Permanent link">&para;</a></h2>
-<p>A user role is a collection of user related permissions. User roles are attached to user accounts. User roles are managed in <strong>Workspace › Users › User roles</strong>. The permissions are described below.</p>
+<p>A user role is a collection of user related permissions. User roles are attached to user accounts. User roles are managed in <strong>Workspace › Team › Roles</strong>. The permissions are described below.</p>
 <table>
 <thead>
 <tr>
@@ -2170,7 +2260,7 @@
 <p>A list role is a collection of permissions assigned per list. Each list can be assigned a view (read) or manage (update) permission. List roles are attached to user accounts. Only the lists defined in a list role is accessible by the user, be it on the admin UI or via API calls. Do note that the <code>lists:get_all</code> and <code>lists:manage_all</code> permissions in user roles override all per-list permissions.</p>
 <h2 id="api-keys">API keys<a class="headerlink" href="#api-keys" title="Permanent link">&para;</a></h2>
 <p>Code that calls the API uses an <a href="../developers/api-keys/">API key</a>, not a user account. A key has its own <strong>scopes</strong> instead of a role, and can only do what its scopes allow.</p>
-<p>API users, user accounts of the "API" type, were how older versions did this. They've been turned into API keys. Existing ones keep working and are listed under <strong>Workspace › Users › API users</strong>, but new ones can't be created.</p>
+<p>API users, user accounts of the "API" type, were how older versions did this. They've been turned into API keys. Existing ones keep working and are listed, and can be migrated, under <strong>Developers › API keys</strong>, but new ones can't be created.</p>
 <h2 id="subscriberssql_query"><code>subscribers:sql_query</code><a class="headerlink" href="#subscriberssql_query" title="Permanent link">&para;</a></h2>
 <p>This permission allowers users to write and execute arbitrary SQL queries on the database. Although it is executed as a read-only transaction disallowing changing of data in the database tables, it allows querying of all lists, subscribers and other data directly from the database superceding individual list and subscriber permissions.</p>
 <p>Raw SQL expressions also make it possible to obtain Postgres database configuration and potentially interact with other Postgres system features. Give this permission ONLY to trusted users.</p>
@@ -2239,7 +2329,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

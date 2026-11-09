@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1397,6 +1397,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1538,6 +1544,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1706,6 +1768,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -2261,9 +2351,9 @@
 
 
 <h2 id="oidc-single-sign-on">OIDC Single Sign On<a class="headerlink" href="#oidc-single-sign-on" title="Permanent link">&para;</a></h2>
-<p>Listnun supports single sign-on with OIDC (OpenID Connect). Any standards compliant OIDC provider can be configured in <strong>Settings › Security</strong> -&gt; OIDC</p>
+<p>Listnun supports single sign-on with OIDC (OpenID Connect). Any standards compliant OIDC provider can be configured in <strong>Settings › Sign-in and security</strong> -&gt; OIDC</p>
 <h3 id="user-auto-creation">User auto-creation<a class="headerlink" href="#user-auto-creation" title="Permanent link">&para;</a></h3>
-<p>If <strong>Auto-create users</strong> is turned on in <strong>Settings › Security › OIDC</strong>, when users login via OIDC, an account is auto-created if an existing account is not found (based on the OIDC e-mail ID).</p>
+<p>If <strong>Auto-create users</strong> is turned on in <strong>Settings › Sign-in and security › OIDC</strong>, when users login via OIDC, an account is auto-created if an existing account is not found (based on the OIDC e-mail ID).</p>
 <h1 id="tutorials">Tutorials<a class="headerlink" href="#tutorials" title="Permanent link">&para;</a></h1>
 <p>Tutorials for configuring listnun SSO with popular OIDC providers.</p>
 <h2 id="keycloak">Keycloak<a class="headerlink" href="#keycloak" title="Permanent link">&para;</a></h2>
@@ -2288,7 +2378,7 @@
 </ul>
 </li>
 <li><strong>Login Settings</strong>:<ul>
-<li><strong>Root URL</strong>: Copy the <strong>Redirect URL for oAuth provider</strong> value from <strong>Settings › Security › OIDC</strong>. It will look like <code>https://listnun.yoursite.com/auth/oidc</code></li>
+<li><strong>Root URL</strong>: Copy the <strong>Redirect URL for oAuth provider</strong> value from <strong>Settings › Sign-in and security › OIDC</strong>. It will look like <code>https://listnun.yoursite.com/auth/oidc</code></li>
 <li><strong>Valid redirect URIs</strong>: Same as the Root URL above</li>
 <li><strong>Valid post logout redirect URIs</strong>: *</li>
 </ul>
@@ -2297,7 +2387,7 @@
 <p>After the client creation steps above, go to the client's <code>Credentials</code> tab and copy the <code>Client Secret</code>.</p>
 <h3 id="2-configure-listnun">2. Configure Listnun<a class="headerlink" href="#2-configure-listnun" title="Permanent link">&para;</a></h3>
 <ol>
-<li>In <strong>Settings › Security › OIDC</strong>.<ul>
+<li>In <strong>Settings › Sign-in and security › OIDC</strong>.<ul>
 <li><strong>Enable OIDC SSO</strong>: Turn on</li>
 <li><strong>Provider URL</strong>: <code>https://keycloak.yoursite.com/realms/{realm}</code> (replace <code>{realm}</code> with the chosen realm name). This URL is as of v26.3 and may differ across Keycloak versions.</li>
 <li><strong>Provider name</strong>: Set a name to show on the listnun login form, eg: <code>Login with OrgName</code></li>
@@ -2318,7 +2408,7 @@
 <li><strong>Signing Key</strong>: <code>authentik Self-signed Certificate</code></li>
 <li><strong>Client Type</strong>: <code>Confidential</code></li>
 <li><strong>Client ID</strong>: <code>listnun</code> (or any preferred name)</li>
-<li><strong>Redirect URIs</strong>: Copy the <strong>Redirect URL for oAuth provider</strong> value from <strong>Settings › Security › OIDC</strong>. It will look like <code>https://listnun.yoursite.com/auth/oidc</code></li>
+<li><strong>Redirect URIs</strong>: Copy the <strong>Redirect URL for oAuth provider</strong> value from <strong>Settings › Sign-in and security › OIDC</strong>. It will look like <code>https://listnun.yoursite.com/auth/oidc</code></li>
 </ul>
 </li>
 </ul>
@@ -2439,7 +2529,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

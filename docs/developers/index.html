@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1168,6 +1168,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1309,6 +1315,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1477,6 +1539,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -1841,6 +1931,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Quickstart">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#let-an-ai-assistant-write-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Let an AI assistant write it
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1912,13 +2019,17 @@
 </tbody>
 </table>
 <h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
+<p><strong>Developers › Overview</strong> walks you through four steps and ticks each one off as you go:</p>
 <ol>
-<li><strong>Create an API key</strong> with the <code>tx:send</code> scope under <strong>Developers › API keys</strong>. Copy the secret. It's shown once.</li>
+<li><strong>Create an API key</strong> with the <code>tx:send</code> scope under <strong>Developers › API keys</strong>, one per service. Copy the secret: it's shown once, so keep it in your secrets manager.</li>
 <li><strong>Pick a transactional template</strong> under <strong>Developers › Email templates</strong>, or create one. Note its ID.</li>
 <li>
-<p><strong>Send a test</strong> from your code:</p>
+<p><strong>Send a test</strong> from your code. The Overview shows the call in <strong>curl</strong>, <strong>Node</strong>, <strong>Python</strong> and <strong>Go</strong>, already filled in with your workspace's address, your key's name, your template's ID and its sample data. The examples read the secret from a <code>LISTNUN_API_KEY</code> environment variable and use HTTP Basic auth (key name as the username, secret as the password):</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">curl</label><label for="__tabbed_1_2">Node</label><label for="__tabbed_1_3">Python</label><label for="__tabbed_1_4">Go</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://yourcompany.listnun.app/api/tx<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>-H<span class="w"> </span><span class="s2">"Authorization: token my-service:lnk_live_…"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-u<span class="w"> </span><span class="s2">"my-service:</span><span class="nv">$LISTNUN_API_KEY</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-d<span class="w"> </span><span class="s1">'{</span>
 <span class="s1">    "subscriber_email": "ada@example.com",</span>
@@ -1926,11 +2037,72 @@
 <span class="s1">    "data": {"order_id": "1042", "total": "$25.00"}</span>
 <span class="s1">  }'</span>
 </code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Buffer</span><span class="p">.</span><span class="kr">from</span><span class="p">(</span>
+<span class="w">  </span><span class="sb">`my-service:</span><span class="si">${</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">LISTNUN_API_KEY</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+<span class="p">).</span><span class="nx">toString</span><span class="p">(</span><span class="s2">"base64"</span><span class="p">);</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s2">"https://yourcompany.listnun.app/api/tx"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">"POST"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s2">"Authorization"</span><span class="o">:</span><span class="w"> </span><span class="sb">`Basic </span><span class="si">${</span><span class="nx">auth</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"Content-Type"</span><span class="o">:</span><span class="w"> </span><span class="s2">"application/json"</span><span class="p">,</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">subscriber_email</span><span class="o">:</span><span class="w"> </span><span class="s2">"ada@example.com"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">template_id</span><span class="o">:</span><span class="w"> </span><span class="mf">3</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">order_id</span><span class="o">:</span><span class="w"> </span><span class="s2">"1042"</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="s2">"$25.00"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">}),</span>
+<span class="p">});</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">requests</span>
+
+<span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+    <span class="s2">"https://yourcompany.listnun.app/api/tx"</span><span class="p">,</span>
+    <span class="n">auth</span><span class="o">=</span><span class="p">(</span><span class="s2">"my-service"</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"LISTNUN_API_KEY"</span><span class="p">]),</span>
+    <span class="n">json</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">"subscriber_email"</span><span class="p">:</span> <span class="s2">"ada@example.com"</span><span class="p">,</span>
+        <span class="s2">"template_id"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">"data"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"order_id"</span><span class="p">:</span> <span class="s2">"1042"</span><span class="p">,</span> <span class="s2">"total"</span><span class="p">:</span> <span class="s2">"$25.00"</span><span class="p">},</span>
+    <span class="p">},</span>
+    <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="nx">body</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">NewReader</span><span class="p">(</span><span class="s">`{</span>
+<span class="s">  "subscriber_email": "ada@example.com",</span>
+<span class="s">  "template_id": 3,</span>
+<span class="s">  "data": {"order_id": "1042", "total": "$25.00"}</span>
+<span class="s">}`</span><span class="p">)</span>
+<span class="nx">req</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">NewRequest</span><span class="p">(</span><span class="s">"POST"</span><span class="p">,</span><span class="w"> </span><span class="s">"https://yourcompany.listnun.app/api/tx"</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="p">)</span>
+<span class="nx">req</span><span class="p">.</span><span class="nx">SetBasicAuth</span><span class="p">(</span><span class="s">"my-service"</span><span class="p">,</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"LISTNUN_API_KEY"</span><span class="p">))</span>
+<span class="nx">req</span><span class="p">.</span><span class="nx">Header</span><span class="p">.</span><span class="nx">Set</span><span class="p">(</span><span class="s">"Content-Type"</span><span class="p">,</span><span class="w"> </span><span class="s">"application/json"</span><span class="p">)</span>
+<span class="nx">resp</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">DefaultClient</span><span class="p">.</span><span class="nx">Do</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+<p>The <code>Authorization: token my-service:&lt;secret&gt;</code> header works too. See <a href="../apis/apis/#auth">Auth</a>.</p>
 </li>
 <li>
 <p><strong>Check the log</strong> under <strong>Developers › Message log</strong>. The message appears within seconds, with a timeline from accepted to delivered or bounced.</p>
 </li>
 </ol>
+<p>By default the recipient must already be a subscriber in your workspace, or the call fails with HTTP 400. To email anyone, for example receipts to guest customers, add <code>"subscriber_mode": "external"</code>. See the <a href="../apis/transactional/">Transactional API reference</a>.</p>
+<h3 id="let-an-ai-assistant-write-it">Let an AI assistant write it<a class="headerlink" href="#let-an-ai-assistant-write-it" title="Permanent link">&para;</a></h3>
+<p>The <strong>AI prompt</strong> tab, next to the code tabs, gives you a prompt instead of code. Paste it into Claude, ChatGPT, Cursor or Copilot inside your project and it writes the integration in your own language and framework.</p>
+<p>The prompt is filled in with your workspace's address, key name, template ID and the template's variables. It also tells the assistant to:</p>
+<ul>
+<li>keep the key on the server, read from <code>LISTNUN_API_KEY</code>, never in browser code,</li>
+<li>use <code>subscriber_mode</code> when the recipients aren't subscribers,</li>
+<li>retry only on HTTP 429 and 5xx, with backoff, and log 400s instead of retrying,</li>
+<li>use a 10-second timeout and wrap the call in one reusable function.</li>
+</ul>
+<p>Review what the assistant writes like any other code before you ship it.</p>
 <h2 id="the-rest-of-the-api">The rest of the API<a class="headerlink" href="#the-rest-of-the-api" title="Permanent link">&para;</a></h2>
 <p>Everything you can do in the app can also be done through the REST API: lists, subscribers, campaigns, templates, media, bounces and more. See the <a href="../apis/apis/">API introduction</a> and the reference pages under <strong>API</strong>.</p>
 <p>Template syntax for both campaigns and transactional email is in the <a href="../templating/">Templating reference</a>.</p>
@@ -1990,7 +2162,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

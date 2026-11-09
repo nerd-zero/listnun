@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1166,6 +1166,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1307,6 +1313,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1475,6 +1537,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -2019,7 +2109,7 @@
 
 
 <h1 id="media-storage">Media storage<a class="headerlink" href="#media-storage" title="Permanent link">&para;</a></h1>
-<p>Uploaded media (campaign images, attachments, logos) is stored either on the listnun server's disk or in S3-compatible object storage. Each workspace chooses in <strong>Settings › Media uploads</strong>.</p>
+<p>Uploaded media (campaign images, attachments, logos) is stored either on the listnun server's disk or in S3-compatible object storage. Each workspace chooses in <strong>Settings › File storage</strong>.</p>
 <h2 id="local-filesystem">Local filesystem<a class="headerlink" href="#local-filesystem" title="Permanent link">&para;</a></h2>
 <p>Files go in the <strong>upload path</strong> on the server (default <code>uploads</code>, relative to the working directory) and are served from the <strong>upload URI</strong> (default <code>/uploads</code>). With Docker, mount that path on a volume so uploads survive container rebuilds. See <a href="../../configuration/#media-uploads">Configuration</a>.</p>
 <p>The filesystem only works for a single server. Use S3-compatible storage if you run more than one, or host many workspaces.</p>
@@ -2086,7 +2176,7 @@
 <span class="w">  </span>-e<span class="w"> </span><span class="nv">RUSTFS_CONSOLE_ENABLE</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>rustfs/rustfs:1.0.1
 </code></pre></div>
-<p>Create a bucket in the console at <code>http://127.0.0.1:9201</code> (or with any S3 client) and give it the policy above. Then in <strong>Settings › Media uploads</strong>, choose <strong>S3-compatible</strong> with endpoint <code>http://127.0.0.1:9200</code>, region <code>us-east-1</code>, your bucket, and the keys. Links will be local, so images won't load in emails opened on other devices.</p>
+<p>Create a bucket in the console at <code>http://127.0.0.1:9201</code> (or with any S3 client) and give it the policy above. Then in <strong>Settings › File storage</strong>, choose <strong>S3-compatible</strong> with endpoint <code>http://127.0.0.1:9200</code>, region <code>us-east-1</code>, your bucket, and the keys. Links will be local, so images won't load in emails opened on other devices.</p>
 <h2 id="storage-use">Storage use<a class="headerlink" href="#storage-use" title="Permanent link">&para;</a></h2>
 <p>listnun records each file's size. Workspaces see their total on the <strong>Media</strong> page, and the operator API reports it per workspace at <code>GET /api/operator/tenants/:id/storage</code>.</p>
 
@@ -2145,7 +2235,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

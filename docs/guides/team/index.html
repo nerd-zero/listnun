@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -595,10 +595,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#users" class="md-nav__link">
+  <a href="#members" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Users
+        Members
       
     </span>
   </a>
@@ -606,10 +606,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#user-roles" class="md-nav__link">
+  <a href="#roles" class="md-nav__link">
     <span class="md-ellipsis">
       
-        User roles
+        Roles
       
     </span>
   </a>
@@ -617,10 +617,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#list-roles" class="md-nav__link">
+  <a href="#list-access" class="md-nav__link">
     <span class="md-ellipsis">
       
-        List roles
+        List access
       
     </span>
   </a>
@@ -1276,6 +1276,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1417,6 +1423,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1585,6 +1647,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -1941,10 +2031,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#users" class="md-nav__link">
+  <a href="#members" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Users
+        Members
       
     </span>
   </a>
@@ -1952,10 +2042,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#user-roles" class="md-nav__link">
+  <a href="#roles" class="md-nav__link">
     <span class="md-ellipsis">
       
-        User roles
+        Roles
       
     </span>
   </a>
@@ -1963,10 +2053,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#list-roles" class="md-nav__link">
+  <a href="#list-access" class="md-nav__link">
     <span class="md-ellipsis">
       
-        List roles
+        List access
       
     </span>
   </a>
@@ -2019,9 +2109,11 @@
 
 
 <h1 id="your-team">Your team<a class="headerlink" href="#your-team" title="Permanent link">&para;</a></h1>
-<p>Open <strong>Workspace › Users</strong> to manage who can use your workspace and what they can do. It has four tabs: <strong>Users</strong>, <strong>User roles</strong>, <strong>List roles</strong> and <strong>API users</strong>. The last only lists API users made before API keys existed; new integrations use <a href="../../developers/api-keys/">API keys</a>.</p>
-<h2 id="users">Users<a class="headerlink" href="#users" title="Permanent link">&para;</a></h2>
-<p><strong>Add user</strong> creates a teammate:</p>
+<p>Open <strong>Workspace › Team</strong> to manage who can use your workspace and what they can do. It has three tabs: <strong>Members</strong>, <strong>Roles</strong> and <strong>List access</strong>.</p>
+<p>To connect another system to listnun, don't add a member. Create an <a href="../../developers/api-keys/">API key</a> instead. API users made before API keys existed are listed, and can be migrated, under <strong>Developers › API keys</strong>.</p>
+<h2 id="members">Members<a class="headerlink" href="#members" title="Permanent link">&para;</a></h2>
+<p>The table shows each member's role, whether they use two-step verification, and when they were last active. Members who sign in with single sign-on show <strong>SSO</strong> under two-step, since their identity provider handles it.</p>
+<p><strong>Add member</strong> creates a teammate:</p>
 <table>
 <thead>
 <tr>
@@ -2052,15 +2144,16 @@
 </tr>
 <tr>
 <td style="text-align: left;"><strong>Status</strong></td>
-<td style="text-align: left;"><strong>Disabled</strong> users can't sign in.</td>
+<td style="text-align: left;"><strong>Deactivated</strong> members can't sign in.</td>
 </tr>
 </tbody>
 </table>
-<p>Open a user to change any of this later.</p>
-<p>To connect another system to listnun, don't create a user. Create an <a href="../../developers/api-keys/">API key</a> instead.</p>
-<h2 id="user-roles">User roles<a class="headerlink" href="#user-roles" title="Permanent link">&para;</a></h2>
+<p>To change someone's role, pick a new one from the picker on their row. Making someone a <strong>Super Admin</strong> asks you to confirm first. You can't change your own role, or a deactivated member's. Open a member to change anything else, or use their row's menu to <strong>Deactivate</strong> them.</p>
+<p>Deactivated members are folded away under <strong>N deactivated accounts</strong> below the table. Searching still finds them.</p>
+<p>If any active members sign in with just a password and no two-step verification, a banner says how many and links to <strong>Require two-step for everyone</strong>. See <a href="#requiring-it-for-everyone">Requiring it for everyone</a>.</p>
+<h2 id="roles">Roles<a class="headerlink" href="#roles" title="Permanent link">&para;</a></h2>
 <p>A user role is a set of permissions, such as "can send campaigns" or "can manage settings". The built-in <strong>Super Admin</strong> role can do everything. Create roles for the jobs people do, such as an <em>Editor</em> who writes campaigns but can't change settings. See <a href="../../roles-and-permissions/">Roles and permissions</a> for the full list of permissions.</p>
-<h2 id="list-roles">List roles<a class="headerlink" href="#list-roles" title="Permanent link">&para;</a></h2>
+<h2 id="list-access">List access<a class="headerlink" href="#list-access" title="Permanent link">&para;</a></h2>
 <p>A list role limits a user to particular lists: for each list, whether they can see its subscribers and whether they can manage them. Give it to users who should only work with some of your lists. A user role with <strong>lists:get_all</strong> or <strong>lists:manage_all</strong> overrides it.</p>
 <p>Deleting a list role doesn't delete the users who had it; they just lose its list access.</p>
 <h2 id="your-profile-and-two-step-verification">Your profile and two-step verification<a class="headerlink" href="#your-profile-and-two-step-verification" title="Permanent link">&para;</a></h2>
@@ -2071,7 +2164,7 @@
 <li><strong>Two-factor authentication</strong>: click <strong>Turn on</strong>, scan the QR code with an authenticator app (such as Ente Auth or Google Authenticator), and enter the 6-digit code it shows. From then on you'll be asked for a code each time you sign in. To turn it off, enter your password.</li>
 </ul>
 <h3 id="requiring-it-for-everyone">Requiring it for everyone<a class="headerlink" href="#requiring-it-for-everyone" title="Permanent link">&para;</a></h3>
-<p>An admin can turn on <strong>Settings › Security › Require two-step verification</strong>. People who sign in with a password then have to set it up before they can use the workspace: they're taken to their profile with a note explaining why. Single sign-on users and API keys aren't affected.</p>
+<p>An admin can turn on <strong>Settings › Sign-in and security › Require two-step verification</strong>. People who sign in with a password then have to set it up before they can use the workspace: they're taken to their profile with a note explaining why. Single sign-on users and API keys aren't affected.</p>
 
 
 
@@ -2128,7 +2221,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

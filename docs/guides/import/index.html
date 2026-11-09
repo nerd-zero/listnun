@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../images/listnun-mark.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -483,10 +483,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-upload-file" class="md-nav__link">
+  <a href="#1-upload" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Upload file
+        1. Upload
       
     </span>
   </a>
@@ -494,10 +494,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-options" class="md-nav__link">
+  <a href="#2-match-columns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Options
+        2. Match columns
       
     </span>
   </a>
@@ -505,10 +505,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-import" class="md-nav__link">
+  <a href="#3-choose-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Import
+        3. Choose options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-review-and-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Review and import
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recent-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recent imports
       
     </span>
   </a>
@@ -1259,6 +1281,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -1400,6 +1428,62 @@
     
   
     Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Segments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/forms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Signup forms
   
 
     
@@ -1568,6 +1652,34 @@
     
   
     Bounces
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../apis/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings
   
 
     
@@ -1924,10 +2036,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-upload-file" class="md-nav__link">
+  <a href="#1-upload" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Upload file
+        1. Upload
       
     </span>
   </a>
@@ -1935,10 +2047,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-options" class="md-nav__link">
+  <a href="#2-match-columns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Options
+        2. Match columns
       
     </span>
   </a>
@@ -1946,10 +2058,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-import" class="md-nav__link">
+  <a href="#3-choose-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Import
+        3. Choose options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-review-and-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Review and import
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recent-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recent imports
       
     </span>
   </a>
@@ -1985,103 +2119,94 @@
 
 
 <h1 id="importing-subscribers">Importing subscribers<a class="headerlink" href="#importing-subscribers" title="Permanent link">&para;</a></h1>
-<p><strong>Subscribers › Import</strong> adds many subscribers at once from a CSV file. It takes three steps.</p>
-<h2 id="1-upload-file">1. Upload file<a class="headerlink" href="#1-upload-file" title="Permanent link">&para;</a></h2>
-<p>Drop a <code>.csv</code> file on the upload area, or click to choose one. You can also upload a <code>.zip</code> containing a CSV.</p>
-<p>The first row must be the column names:</p>
+<p><strong>Subscribers › Import</strong> adds many subscribers at once from a spreadsheet. It walks you through four steps, <strong>Upload</strong>, <strong>Match columns</strong>, <strong>Choose options</strong> and <strong>Review</strong>, and nothing is written until you click <strong>Start import</strong> on the last one.</p>
+<h2 id="1-upload">1. Upload<a class="headerlink" href="#1-upload" title="Permanent link">&para;</a></h2>
+<p>Drop a <code>.csv</code> file on the upload area, or choose one from your computer. A <code>.zip</code> with one CSV inside also works. Files can be up to 50 MB, and they need a column of email addresses. <strong>Download a sample CSV</strong> shows the layout.</p>
+<p>Column names can be anything: you match them up on the next step. Commas, semicolons, tabs and other separators are detected automatically.</p>
+<div class="highlight"><pre><span></span><code>Email,First name,City
+ada@example.com,Ada,London
+alan@example.com,Alan,
+</code></pre></div>
+<p>The uploaded file is kept for two hours while you finish the steps. If it expires, upload it again.</p>
+<h2 id="2-match-columns">2. Match columns<a class="headerlink" href="#2-match-columns" title="Permanent link">&para;</a></h2>
+<p>Each column of your file is listed with its first few values and a guess at what it holds. For each, choose what to <strong>Save as</strong>:</p>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Column</th>
-<th style="text-align: left;">Required</th>
-<th style="text-align: left;">Notes</th>
+<th style="text-align: left;">Save as</th>
+<th style="text-align: left;">What happens</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>email</code></td>
-<td style="text-align: left;">Yes</td>
-<td style="text-align: left;">One address per row.</td>
+<td style="text-align: left;"><strong>Email</strong></td>
+<td style="text-align: left;">The subscriber's address. One column must be this.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>name</code></td>
-<td style="text-align: left;">No</td>
+<td style="text-align: left;"><strong>Name</strong></td>
 <td style="text-align: left;">The subscriber's name.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><code>attributes</code></td>
-<td style="text-align: left;">No</td>
-<td style="text-align: left;">Extra data as a JSON object, e.g. <code>{"city": "Harare", "plan": "pro"}</code>.</td>
+<td style="text-align: left;"><strong>Attribute</strong></td>
+<td style="text-align: left;">Saved to the subscriber's <a href="../../concepts/#attributes">attributes</a> under the column's name, e.g. <code>city</code>. Any column you keep that isn't email or name is saved as an attribute.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Attributes (JSON)</strong></td>
+<td style="text-align: left;">A column that already holds a JSON object, such as <code>{"city": "Harare", "plan": "pro"}</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Don't import</strong></td>
+<td style="text-align: left;">The column is ignored.</td>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code>email,name,attributes
-ada@example.com,Ada Lovelace,"{""city"": ""London""}"
-alan@example.com,Alan Turing,
-</code></pre></div>
-<p>Commas are the default separator. If your file uses another one, such as <code>;</code>, set it on the next step.</p>
-<h2 id="2-options">2. Options<a class="headerlink" href="#2-options" title="Permanent link">&para;</a></h2>
+<h2 id="3-choose-options">3. Choose options<a class="headerlink" href="#3-choose-options" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Option</th>
-<th style="text-align: left;">What it does</th>
+<th style="text-align: left;">Question</th>
+<th style="text-align: left;">Choices</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong>Mode</strong></td>
-<td style="text-align: left;"><strong>Subscribe</strong> adds the people to lists. <strong>Blocklist</strong> blocklists every address in the file instead, so they never get email.</td>
+<td style="text-align: left;"><strong>What should happen to these people?</strong></td>
+<td style="text-align: left;"><strong>Add them as subscribers</strong>, or <strong>Block these addresses</strong>: they never get email from this workspace and are unsubscribed from every list.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Lists</strong></td>
-<td style="text-align: left;">The lists to add subscribers to (subscribe mode).</td>
+<td style="text-align: left;"><strong>Add them to</strong></td>
+<td style="text-align: left;">The lists to add them to.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Subscription status</strong></td>
-<td style="text-align: left;"><strong>Unconfirmed</strong> (they'll need to confirm, on double opt-in lists) or <strong>Confirmed</strong> (you already have their consent).</td>
+<td style="text-align: left;"><strong>Did they agree to hear from you?</strong></td>
+<td style="text-align: left;">Only asked when a chosen list uses double opt-in. <strong>Not sure, ask them</strong>: they join once they click a confirmation email, which you send when the import is done. <strong>Yes, they opted in</strong>: they join straight away. Only pick this if you have their consent.</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Overwrite user info</strong></td>
-<td style="text-align: left;">When an email already exists, replace their name and attributes with the file's. Off keeps what you already have.</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>Overwrite subscription status</strong></td>
-<td style="text-align: left;">When someone is already on a chosen list, set their subscription to the status above. This can resubscribe people who unsubscribed, so listnun asks you to confirm.</td>
-</tr>
-<tr>
-<td style="text-align: left;"><strong>CSV delimiter</strong></td>
-<td style="text-align: left;">The column separator, if it isn't a comma.</td>
+<td style="text-align: left;"><strong>People already here</strong></td>
+<td style="text-align: left;">Shown when some addresses in the file are already subscribers. <strong>Leave them as they are</strong> only adds new people. <strong>Update their details</strong> replaces their names and attributes with the file's.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="3-import">3. Import<a class="headerlink" href="#3-import" title="Permanent link">&para;</a></h2>
-<div class="ui">
-<div class="ui-card">
-<div class="ui-card-head">Importing 4,250 of 10,000<span class="ui-tag is-warn">Importing</span></div>
-<div class="ui-card-pad ui-col">
-<div class="ui-bar"><span style="width: 36%"></span></div>
-<span class="ui-small"><span class="ui-mono">customers.csv</span>&emsp;4,250 / 10,000 records</span>
-<div class="ui-tiles"><div class="ui-tile"><span class="ui-small">Imported</span><b>4,250</b></div><div class="ui-tile"><span class="ui-small">Skipped</span><b>3</b><span class="ui-small">Malformed or invalid rows. The log lists each line.</span></div><div class="ui-tile"><span class="ui-small">Errors</span><b>0</b></div></div>
-<div class="ui-code"><span class="t">2026/10/22 18:06:41</span>  processing 'customers.csv'<br><span class="t">2026/10/22 18:06:41</span>  skipping line 18: invalid email: ada@@example<br><span class="t">2026/10/22 18:06:42</span>  imported 1000</div>
-</div>
-</div>
-<p class="ui-caption">An import part-way through.</p>
-</div>
-
-<p>The import runs on the server, so you can leave the page and come back. While it runs you see a progress bar, the number written so far, and a live log. When it finishes you see:</p>
+<h2 id="4-review-and-import">4. Review and import<a class="headerlink" href="#4-review-and-import" title="Permanent link">&para;</a></h2>
+<p>Before anything is written, the Review step checks the whole file and tells you how many new subscribers there will be, how many people are already here (and whether they'll be updated or left alone), how many will need confirming, and which rows will be skipped and why. Click <strong>Start import</strong> to go ahead.</p>
+<p>The import runs on the server, so you can leave the page and come back. While it runs you see its progress and how long is left. When it finishes you see exactly how many people were added and how many were already here.</p>
+<p>Rows that weren't imported are listed with their row number in your spreadsheet, the value and the problem:</p>
 <ul>
-<li><strong>Imported</strong>: subscribers added or updated.</li>
-<li><strong>Skipped</strong>: rows left out because they were malformed, such as a bad email address or the wrong number of columns. Each one is in the log with the reason.</li>
-<li><strong>Errors</strong>: valid rows the database refused.</li>
+<li>No email address</li>
+<li>Not a valid email address</li>
+<li>This email domain isn't allowed (see the domain lists in <a href="../settings/#privacy-and-consent">Privacy and consent</a>)</li>
+<li>Wrong number of columns</li>
 </ul>
-<p>Click <strong>Download log</strong> to keep a copy. <strong>Done</strong> clears the import so you can start another.</p>
+<p><strong>Download these rows</strong> saves them as a CSV, so you can fix them and import just those rows again.</p>
+<p>If new people need to confirm a double opt-in list, nothing is sent automatically. The finished import offers <strong>Send confirmation emails</strong>, which sends them the confirmation email. People who were sent one, or added to a list, in the last 24 hours are skipped, so nobody gets two in a row.</p>
 <p>Only one import runs at a time per workspace.</p>
+<h2 id="recent-imports">Recent imports<a class="headerlink" href="#recent-imports" title="Permanent link">&para;</a></h2>
+<p>Finished imports are listed under <strong>Recent imports</strong>, with how many people each added or blocked and how many rows it skipped.</p>
 <h2 id="tips">Tips<a class="headerlink" href="#tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Large files are fine. Rows are written in batches, and the first ones show up in your subscriber list within a second or two.</li>
 <li>Importing someone who's already on a list doesn't create a duplicate. An email address is one subscriber.</li>
-<li>If your workspace uses <a href="../settings/#mail-validation">Mail Validation</a>, imported addresses are checked in the background after the import.</li>
+<li>If your workspace uses <a href="../settings/#email-validation">email validation</a>, imported addresses are checked in the background after the import.</li>
 </ul>
 
 
@@ -2139,7 +2264,7 @@ alan@example.com,Alan Turing,
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>
