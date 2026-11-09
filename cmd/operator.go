@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/core"
+	"github.com/nerd-zero/listnun/internal/replies"
 	"github.com/nerd-zero/listnun/internal/tmptokens"
 	"github.com/nerd-zero/listnun/internal/utils"
 	"github.com/nerd-zero/listnun/models"
@@ -43,11 +45,18 @@ type operatorQueries struct {
 	CreateTenant            *sqlx.Stmt `query:"operator-create-tenant"`
 	SeedTenantSettings      *sqlx.Stmt `query:"operator-seed-tenant-settings"`
 	SetTenantRootURL        *sqlx.Stmt `query:"operator-set-tenant-root-url"`
+	SetTenantFromEmail      *sqlx.Stmt `query:"operator-set-tenant-from-email"`
 	SetTenantCustomDomain   *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP           *sqlx.Stmt `query:"operator-set-tenant-smtp"`
 	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
 	SetTenantBounceWebhooks *sqlx.Stmt `query:"operator-set-tenant-bounce-webhooks"`
+	SetTenantReplies        *sqlx.Stmt `query:"operator-set-tenant-replies"`
+	DeleteTenantReplies     *sqlx.Stmt `query:"operator-delete-tenant-replies"`
 	GetTenantScrubUsage     *sqlx.Stmt `query:"operator-get-tenant-scrub-usage"`
+	GetTenantUsage          *sqlx.Stmt `query:"operator-get-tenant-usage"`
+	GetTenantUsageDaily     *sqlx.Stmt `query:"operator-get-tenant-usage-daily"`
+	GetPlatformUsageTenants *sqlx.Stmt `query:"operator-get-platform-usage-by-tenant"`
+	GetPlatformUsageDaily   *sqlx.Stmt `query:"operator-get-platform-usage-daily"`
 	GetTenant               *sqlx.Stmt `query:"operator-get-tenant"`
 	GetTenants              *sqlx.Stmt `query:"operator-get-tenants"`
 	UpdateTenantStatus      *sqlx.Stmt `query:"operator-update-tenant-status"`
@@ -77,6 +86,37 @@ type operatorTenantScrubUsage struct {
 	Unchecked        int `db:"unchecked" json:"unchecked"`
 	TotalSubscribers int `db:"total_subscribers" json:"total_subscribers"`
 } // @name OperatorTenantScrubUsage
+
+// operatorTenantUsage is a tenant's metered billable usage over a window,
+// summed from usage_counters (see internal/usage).
+type operatorTenantUsage struct {
+	EmailsSent  int64 `db:"emails_sent" json:"emails_sent"`
+	Validations int64 `db:"validations" json:"validations"`
+	// Days is the same usage per UTC day, only with ?group=day; days with
+	// no usage are omitted.
+	Days []operatorUsageDay `db:"-" json:"days,omitempty"`
+} // @name OperatorTenantUsage
+
+// operatorUsageDay is usage on one UTC day (YYYY-MM-DD).
+type operatorUsageDay struct {
+	Day         string `db:"day" json:"day"`
+	EmailsSent  int64  `db:"emails_sent" json:"emails_sent"`
+	Validations int64  `db:"validations" json:"validations"`
+} // @name OperatorUsageDay
+
+// operatorTenantUsageTotal is one tenant's usage in a cross-tenant query.
+type operatorTenantUsageTotal struct {
+	TenantID    int   `db:"tenant_id" json:"tenant_id"`
+	EmailsSent  int64 `db:"emails_sent" json:"emails_sent"`
+	Validations int64 `db:"validations" json:"validations"`
+} // @name OperatorTenantUsageTotal
+
+// operatorPlatformUsage is every tenant's usage over a window, plus the
+// platform-wide per-day series.
+type operatorPlatformUsage struct {
+	Tenants []operatorTenantUsageTotal `json:"tenants"`
+	Days    []operatorUsageDay         `json:"days"`
+} // @name OperatorPlatformUsage
 
 // operatorOrganization is an organization row augmented with a
 // cross-tenant tenant count, only obtainable via the BYPASSRLS operator
@@ -201,6 +241,33 @@ func (s *operatorStore) GetTenant(id int) (operatorTenant, error) {
 func (s *operatorStore) GetTenantScrubUsage(id int) (operatorTenantScrubUsage, error) {
 	var out operatorTenantScrubUsage
 	if err := s.q.GetTenantScrubUsage.Get(&out, id); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantUsage(id int, from, to time.Time) (operatorTenantUsage, error) {
+	var out operatorTenantUsage
+	if err := s.q.GetTenantUsage.Get(&out, id, from, to); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetTenantUsageDaily(id int, from, to time.Time) ([]operatorUsageDay, error) {
+	out := []operatorUsageDay{}
+	if err := s.q.GetTenantUsageDaily.Select(&out, id, from, to); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *operatorStore) GetPlatformUsage(from, to time.Time) (operatorPlatformUsage, error) {
+	out := operatorPlatformUsage{Tenants: []operatorTenantUsageTotal{}, Days: []operatorUsageDay{}}
+	if err := s.q.GetPlatformUsageTenants.Select(&out.Tenants, from, to); err != nil {
+		return out, err
+	}
+	if err := s.q.GetPlatformUsageDaily.Select(&out.Days, from, to); err != nil {
 		return out, err
 	}
 	return out, nil
@@ -496,6 +563,21 @@ type operatorBounceWebhooks struct {
 	} `json:"postmark"`
 } // @name OperatorBounceWebhooks
 
+// SetTenantReplies stores tenantID's reply tracking setup under its own
+// "replies" settings key, or removes it when cfg.InboundAddress is empty.
+func (s *operatorStore) SetTenantReplies(tenantID int, cfg models.TenantReplies) error {
+	if cfg.InboundAddress == "" {
+		_, err := s.q.DeleteTenantReplies.Exec(tenantID)
+		return err
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	_, err = s.q.SetTenantReplies.Exec(tenantID, b)
+	return err
+}
+
 // SetTenantBounceWebhooks writes a tenant's bounce webhook settings: the
 // bounce.webhooks_enabled flag and the Postmark processor with its basic
 // auth credentials. BounceWebhook reads these per request, so no restart
@@ -567,6 +649,17 @@ type operatorSetupLinkResp struct {
 	SetupToken string `json:"setup_token"`
 	SetupURL   string `json:"setup_url,omitempty"`
 } // @name OperatorCreateSetupLinkResp
+
+// operatorSetupLinkStatus is the response body for
+// GetOperatorSetupLinkStatus.
+type operatorSetupLinkStatus struct {
+	// Valid is whether the setup link still works: its token exists, hasn't
+	// expired or been used, and belongs to this tenant and admin.
+	Valid bool `json:"valid"`
+	// PasswordSet is whether the admin has a password -- the setup link
+	// was used (or the password was set some other way).
+	PasswordSet bool `json:"password_set"`
+} // @name OperatorSetupLinkStatus
 
 // operatorUpdateStatusReq is the request body for UpdateOperatorTenantStatus.
 type operatorUpdateStatusReq struct {
@@ -750,6 +843,65 @@ func (a *App) GetOperatorTenant(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// GetOperatorTenantActivity returns a tenant's latest activity log lines
+// (its Settings › Logs), so a console can show problems like failing
+// sends without server access.
+//
+//	@ID				getOperatorTenantActivity
+//	@Summary		Get a tenant's activity log (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			source	query		string	false	"Only lines from this source, e.g. sending"
+//	@Param			limit	query		int		false	"Lines to return (max 500)"
+//	@Success		200		{object}	[]models.ActivityEntry
+//	@Failure		401		{object}	echo.HTTPError
+//	@Failure		404		{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/activity [get]
+func (a *App) GetOperatorTenantActivity(c echo.Context) error {
+	id := getID(c)
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	out, err := a.core.GetActivity(c.Request().Context(), id, limit, c.QueryParam("source"))
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorTenantSendingHealth returns a tenant's campaign complaint and
+// hard-bounce rates over the last 30 days, rated against Gmail's limits as
+// the campaign editor's inbox check rates them, and its campaign templates
+// without an unsubscribe link, so a console can show them.
+//
+//	@ID				getOperatorTenantSendingHealth
+//	@Summary		Get a tenant's sending health (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	core.SendingHealth
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/sending-health [get]
+func (a *App) GetOperatorTenantSendingHealth(c echo.Context) error {
+	id := getID(c)
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+	out, err := a.core.GetSendingHealth(c.Request().Context(), id)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetOperatorTenantScrubUsage returns a tenant's subscriber validation
 // status breakdown -- the same subscribers.scrub_status data the
 // tenant's own dashboard widget reads locally, exposed cross-tenant so
@@ -782,6 +934,104 @@ func (a *App) GetOperatorTenantScrubUsage(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant scrub usage")
 	}
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorTenantUsage returns a tenant's billable usage -- emails sent
+// and Scrub validations submitted -- over [from, to), as counted by this
+// instance when the work happened (usage_counters), not as reported by
+// Postmark or Scrub. Counts are hourly, attributed by bucket start, so
+// back-to-back windows never count an hour twice. Deleted tenants still
+// answer: their incurred usage outlives them.
+//
+//	@ID			getOperatorTenantUsage
+//	@Summary		Get a tenant's metered usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			from	query		string	true	"Window start, RFC 3339 (inclusive)"
+//	@Param			to		query		string	true	"Window end, RFC 3339 (exclusive)"
+//	@Param			group	query		string	false	"day: also return per-UTC-day usage"	Enums(day)
+//	@Success		200		{object}	operatorTenantUsage
+//	@Failure		400		{object}	echo.HTTPError
+//	@Failure		401		{object}	echo.HTTPError
+//	@Router			/api/operator/tenants/{id}/usage [get]
+func (a *App) GetOperatorTenantUsage(c echo.Context) error {
+	id := getID(c)
+
+	from, to, groupByDay, err := parseUsageWindow(c)
+	if err != nil {
+		return err
+	}
+
+	out, err := a.operator.GetTenantUsage(id, from, to)
+	if err != nil {
+		a.log.Printf("error getting tenant usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant usage")
+	}
+	if groupByDay {
+		if out.Days, err = a.operator.GetTenantUsageDaily(id, from, to); err != nil {
+			a.log.Printf("error getting tenant daily usage: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant usage")
+		}
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// GetOperatorPlatformUsage returns every tenant's usage over [from, to)
+// plus the platform-wide per-UTC-day series, in one call -- the admin
+// overview's source, so it needn't ask each tenant separately. Includes
+// deleted tenants.
+//
+//	@ID			getOperatorPlatformUsage
+//	@Summary		Get all tenants' metered usage (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			from	query		string	true	"Window start, RFC 3339 (inclusive)"
+//	@Param			to		query		string	true	"Window end, RFC 3339 (exclusive)"
+//	@Success		200		{object}	operatorPlatformUsage
+//	@Failure		400		{object}	echo.HTTPError
+//	@Failure		401		{object}	echo.HTTPError
+//	@Router			/api/operator/usage [get]
+func (a *App) GetOperatorPlatformUsage(c echo.Context) error {
+	from, to, _, err := parseUsageWindow(c)
+	if err != nil {
+		return err
+	}
+
+	out, err := a.operator.GetPlatformUsage(from, to)
+	if err != nil {
+		a.log.Printf("error getting platform usage: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting platform usage")
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// parseUsageWindow reads the usage endpoints' from/to (RFC 3339, from
+// strictly before to) and whether ?group=day was asked for.
+func parseUsageWindow(c echo.Context) (from, to time.Time, groupByDay bool, err error) {
+	from, err = time.Parse(time.RFC3339, c.QueryParam("from"))
+	if err != nil {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "from must be an RFC 3339 timestamp")
+	}
+	to, err = time.Parse(time.RFC3339, c.QueryParam("to"))
+	if err != nil {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "to must be an RFC 3339 timestamp")
+	}
+	if !from.Before(to) {
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "from must be before to")
+	}
+	switch c.QueryParam("group") {
+	case "":
+	case "day":
+		groupByDay = true
+	default:
+		return from, to, false, echo.NewHTTPError(http.StatusBadRequest, "group must be day")
+	}
+	return from, to, groupByDay, nil
 }
 
 // CreateOperatorTenant provisions a new tenant and its initial admin user.
@@ -891,6 +1141,53 @@ func (a *App) tenantRootURL(tenantSlug string) string {
 		scheme = "https"
 	}
 	return scheme + "://" + tenantSlug + "." + a.cfg.RootDomain
+}
+
+// GetOperatorSetupLinkStatus reports whether a setup link issued by
+// CreateOperatorTenant/CreateOperatorSetupLink still works, and whether the
+// admin has set a password -- so the platform can stop offering a dead
+// link (setup tokens expire, are single-use, and are held in memory only,
+// so an app restart invalidates every pending one). Doesn't consume the
+// token or count towards its attempt limit.
+//
+//	@ID			getOperatorSetupLinkStatus
+//	@Summary		Check a tenant admin's setup link (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Reports whether the setup token is still valid for this tenant and admin, and whether the admin has a password. Read-only: the token isn't consumed or counted as an attempt.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int		true	"Tenant ID"
+//	@Param			token	query		string	true	"The setup token (the setup_url's token parameter)"
+//	@Param			email	query		string	true	"The admin's email"
+//	@Success		200	{object}	operatorSetupLinkStatus
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/setup-link [get]
+func (a *App) GetOperatorSetupLinkStatus(c echo.Context) error {
+	id := getID(c)
+	token := strings.TrimSpace(c.QueryParam("token"))
+	email := strings.TrimSpace(c.QueryParam("email"))
+	if token == "" || !utils.ValidateEmail(email) {
+		return echo.NewHTTPError(http.StatusBadRequest, "token and a valid email are required")
+	}
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var out operatorSetupLinkStatus
+	if data, ok := tmptokens.Peek(token); ok {
+		p, isSetup := data.(operatorSetupToken)
+		out.Valid = isSetup && p.TenantID == id && strings.EqualFold(p.Email, email)
+	}
+	// A missing admin just means no password; anything else is an error.
+	if user, err := a.core.GetUser(c.Request().Context(), id, 0, "", email); err == nil {
+		out.PasswordSet = user.HasPassword
+	} else if he, ok := err.(*echo.HTTPError); !ok || he.Code != http.StatusNotFound {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, okResp{out})
 }
 
 // CreateOperatorSetupLink issues a fresh one-time setup link for an
@@ -1030,6 +1327,63 @@ func (a *App) UpdateOperatorTenantCustomDomain(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// operatorFromEmailReq is the request body for SetOperatorTenantFromEmail.
+type operatorFromEmailReq struct {
+	// FromEmail is the address, optionally with a display name
+	// ("Acme <news@acme.com>").
+	FromEmail string `json:"from_email"`
+} // @name OperatorFromEmailReq
+
+// SetOperatorTenantFromEmail sets a tenant's default From address
+// (app.from_email) -- what new campaigns start with. Tenants are seeded
+// with a placeholder ("listnun <noreply@listnun.yoursite.com>"), so the
+// platform sets the real one once it has verified a sending address for
+// the tenant. The tenant can still change it in its own settings.
+//
+//	@ID			setOperatorTenantFromEmail
+//	@Summary		Set a tenant's default From address (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's app.from_email setting, the From new campaigns start with. Accepts "address" or "Name <address>".
+//	@Tags			operator
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Tenant ID"
+//	@Param			from	body		operatorFromEmailReq	true	"Default From"
+//	@Success		200	{object}	okResp
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/from-email [put]
+func (a *App) SetOperatorTenantFromEmail(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req operatorFromEmailReq
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	addr, err := mail.ParseAddress(strings.TrimSpace(req.FromEmail))
+	if err != nil || !utils.ValidateEmail(addr.Address) {
+		return echo.NewHTTPError(http.StatusBadRequest, "from_email must be an email address, optionally with a name")
+	}
+
+	// mail.Address.String() wraps a bare address in <>, which would show
+	// up as-is in the campaign editor's From field.
+	from := addr.Address
+	if addr.Name != "" {
+		from = addr.String()
+	}
+	if _, err := a.operator.q.SetTenantFromEmail.Exec(id, from); err != nil {
+		a.log.Printf("error setting tenant from email: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant from email")
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
 // SetOperatorTenantSMTP replaces a tenant's SMTP settings with a single
 // server entry.
 //
@@ -1067,6 +1421,10 @@ func (a *App) SetOperatorTenantSMTP(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant SMTP")
 	}
 
+	// The tenant's messenger is cached from its first send, so without this
+	// campaigns keep sending with the old credentials until a restart.
+	a.tenantMsgrs.Invalidate(id)
+
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
@@ -1091,6 +1449,49 @@ func (a *App) SetOperatorTenantScrub(c echo.Context) error {
 		a.log.Printf("error setting tenant scrub: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant scrub")
 	}
+
+	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// SetOperatorTenantReplies sets (or, with an empty inbound_address,
+// removes) a tenant's campaign reply tracking setup.
+//
+//	@ID				setOperatorTenantReplies
+//	@Summary		Set a tenant's campaign reply tracking setup (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Stores the tenant's reply tracking setup: its Postmark server's inbound address, the secret that signs reply tokens and the inbound webhook's basic auth credentials. The caller points the Postmark server's inbound webhook at https://{tenant host}/webhooks/replies/postmark with the same credentials. An empty inbound_address turns reply tracking off for the tenant. Keep the secret stable: changing it orphans replies to emails already sent.
+//	@Tags			operator
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Tenant ID"
+//	@Param			replies	body		models.TenantReplies	true	"Reply tracking setup"
+//	@Success		200	{object}	okResp
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Router			/api/operator/tenants/{id}/replies [put]
+func (a *App) SetOperatorTenantReplies(c echo.Context) error {
+	id := getID(c)
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	var req models.TenantReplies
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.InboundAddress != "" {
+		if _, err := replies.NewTenantAddresser(req); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+	}
+
+	if err := a.operator.SetTenantReplies(id, req); err != nil {
+		a.log.Printf("error setting tenant reply tracking: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error setting tenant reply tracking")
+	}
+	a.replies.invalidate(id)
 
 	return c.JSON(http.StatusOK, okResp{true})
 }

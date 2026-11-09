@@ -1,525 +1,630 @@
 <template>
-  <div class="lists-page">
-    <!-- Page header -->
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title">
-          {{ $t('globals.terms.lists') }}
-          <span v-if="queryParams.status === 'archived'" class="page-title-sub">/ {{ queryParams.status }}</span>
-          <span v-if="!isNaN(lists.total)" class="page-title-count">{{ lists.total }}</span>
-        </h1>
-        <router-link
-          v-if="queryParams.status !== 'archived'"
-          :to="{ name: 'lists', query: { status: 'archived' } }"
-          class="page-sub-link"
-        >
-{{ $t('globals.buttons.view') }} {{ $t('lists.archived').toLowerCase() }} &rarr;
-</router-link>
-        <router-link v-else :to="{ name: 'lists' }" class="page-sub-link">
-          {{ $t('globals.buttons.view') }} {{ $t('menu.allLists').toLowerCase() }} &rarr;
+  <div class="ln-page lists">
+    <page-header
+      v-if="!(isMobile && selected)"
+      :title="$t('globals.terms.lists')"
+      :subtitle="summary.lists ? $t('lists.summary', { subs: summary.subscriptions.toLocaleString(), n: summary.lists.toLocaleString() }, summary.lists) : ''"
+    >
+      <template #after-title>
+        <span v-if="isArchived" class="ln-small">/ {{ $t('lists.archived') }}</span>
+      </template>
+      <PvButton v-if="$can('lists:manage_all')" icon="pi pi-plus" :label="$t('lists.newList')" data-cy="btn-new" @click="showNewForm" />
+    </page-header>
+
+    <div v-if="showBanner && !isArchived && !(isMobile && selected)" role="status" class="lists-banner" data-cy="optin-banner">
+      <span class="lists-banner-text">
+        <i class="pi pi-envelope" aria-hidden="true" />
+        <span>{{ $t('lists.unconfirmedBanner', { n: $utils.niceNumber(pending.total) }, pending.total) }}</span>
+      </span>
+      <PvButton
+        v-if="$can('subscribers:manage')"
+        :label="$t('lists.resendConfirmation')"
+        size="small"
+        severity="secondary"
+        outlined
+        data-cy="btn-resend"
+        @click="askResend"
+      />
+      <button type="button" class="lists-banner-x" :aria-label="$t('lists.banner.dismiss')" data-cy="btn-dismiss-banner" @click="dismissBanner">
+        <i class="pi pi-times" aria-hidden="true" />
+      </button>
+    </div>
+
+    <div class="lists-layout" :class="{ 'has-panel': selected }">
+      <div v-if="!(isMobile && selected)" class="lists-side">
+        <!-- Search and sort run on the server, so they reach every list,
+             not just the page of cards loaded. -->
+        <div v-if="!isMobile || total > PAGE_SIZE || search" class="lists-tools">
+          <form class="ln-search" role="search" @submit.prevent>
+            <PvIconField>
+              <PvInputIcon class="pi pi-search" />
+              <PvInputText v-model="search" name="query" :placeholder="$t('lists.find')" :aria-label="$t('lists.find')" data-cy="query" />
+            </PvIconField>
+          </form>
+          <PvSelect
+            v-if="total > 1"
+            v-model="sort"
+            :options="sortOptions"
+            option-label="label"
+            option-value="value"
+            :aria-label="$t('lists.sort.label')"
+            class="lists-sort"
+            data-cy="sort"
+          />
+        </div>
+
+        <table-skeleton v-if="!loaded" :cols="1" />
+        <empty-state
+          v-else-if="!rows.length && !search"
+          icon="pi-list"
+          :title="isArchived ? $t('states.noMatches') : $t('lists.emptyTitle')"
+          :text="isArchived ? '' : $t('lists.emptyText')"
+          :action-label="!isArchived && $can('lists:manage_all') ? $t('lists.newList') : ''"
+          @action="showNewForm"
+        />
+        <p v-else-if="!rows.length" class="ln-small">{{ $t('states.noMatchesText', { query: search }) }}</p>
+
+        <ul class="lists-cards ln-enter">
+          <li v-for="l in rows" :key="l.id">
+            <router-link
+              :to="{ name: 'list', params: { id: l.id } }"
+              class="lists-card"
+              :class="{ 'is-current': selected?.id === l.id && !isMobile }"
+              :aria-current="selected?.id === l.id ? 'page' : undefined"
+              :data-id="l.id"
+              data-cy="list-card"
+              :replace="!isMobile"
+            >
+              <span class="lists-card-row">
+                <strong class="lists-card-name" data-cy="list-name">{{ l.name }}</strong>
+                <span class="lists-card-n">{{ $utils.niceNumber(receiving(l)) }}</span>
+              </span>
+              <!-- One line, only when the list needs attention. -->
+              <span v-if="awaiting(l)" class="lists-card-unconf ln-small">{{ $t('lists.notConfirmedYet', { n: $utils.niceNumber(awaiting(l)) }) }}</span>
+              <span v-else-if="change(l) < 0" class="is-down ln-small">{{ changeLabel(l) }}</span>
+            </router-link>
+          </li>
+        </ul>
+
+        <div v-if="rows.length < total" class="lists-more">
+          <span class="ln-small">{{ $t('lists.showing', { n: $utils.niceNumber(rows.length), total: $utils.niceNumber(total) }) }}</span>
+          <PvButton :label="$t('lists.loadMore')" size="small" severity="secondary" outlined :loading="loadingMore" data-cy="btn-load-more" @click="loadMore" />
+        </div>
+
+        <router-link :to="isArchived ? { name: 'lists' } : { name: 'lists', query: { status: 'archived' } }" class="ln-small lists-archived-link">
+          {{ isArchived ? $t('lists.viewActive') : $t('lists.viewArchived') }}
         </router-link>
       </div>
-      <PvButton
-        v-if="$can('lists:manage_all')"
-        severity="primary"
-        icon="pi pi-plus"
-        :label="$t('globals.buttons.new')"
-        data-cy="btn-new"
-        @click="showNewForm"
-      />
+
+      <div v-if="selected" class="lists-main">
+        <router-link v-if="isMobile" :to="{ name: 'lists' }" class="lists-back ln-small">
+          <i class="pi pi-angle-left" aria-hidden="true" /> {{ $t('lists.back') }}
+        </router-link>
+        <list-panel
+          ref="panel"
+          :list="selected"
+          :scrub="scrubStatus[selected.id]"
+          :scrub-progress="scrubProgress[selected.id]"
+          @edit="showEditForm(selected)"
+          @menu="(e) => openMenu(e, selected!)"
+        />
+      </div>
     </div>
+    <PvMenu ref="menu" :model="menuItems" popup />
 
-    <!-- Table card -->
-    <div class="table-card">
-      <PvDataTable
-        :value="lists.results"
-        :loading="loading.listsFull"
-        v-model:selection="bulk.checked"
-        selection-mode="checkbox"
-        data-key="id"
-        :paginator="true"
-        paginator-position="bottom"
-        :rows="lists.perPage"
-        :total-records="lists.total"
-        :lazy="true"
-        @page="(e) => onPageChange(e.page + 1)"
-        sort-field="createdAt"
-        :sort-order="1"
-        @sort="(e) => onSort(e.sortField, e.sortOrder === 1 ? 'asc' : 'desc')"
-        @row-select="onTableCheck"
-        @row-unselect="onTableCheck"
-        @row-select-all="onTableCheck"
-        @row-unselect-all="onTableCheck"
-      >
-        <template #header>
-          <div class="table-toolbar">
-            <form class="search-form" @submit.prevent="fetchLists">
-              <PvIconField>
-                <PvInputIcon class="pi pi-search" />
-                <PvInputText
-                  v-model="queryParams.query"
-                  name="query"
-                  ref="query"
-                  data-cy="query"
-                  placeholder="Search lists…"
-                  class="search-input"
-                />
-              </PvIconField>
-            </form>
-
-            <div v-if="bulk.checked.length > 0" class="bulk-bar">
-              <span class="bulk-count">
-                {{ $t('globals.messages.numSelected', numSelectedLists, { num: numSelectedLists }) }}
-                <template v-if="!bulk.all && lists.total > lists.perPage">
-                  &mdash;
-                  <a href="#" @click.prevent="onSelectAll" data-cy="select-all-lists">
-                    {{ $t('globals.messages.selectAll', lists.total, { num: lists.total }) }}
-                  </a>
-                </template>
-              </span>
-              <button type="button" class="bulk-btn bulk-btn--danger" @click.prevent="onDeleteLists" data-cy="btn-delete-lists">
-                <i class="pi pi-trash" /> {{ $t('globals.buttons.delete') }}
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <PvColumn selection-mode="multiple" header-style="width:3rem" />
-
-        <PvColumn field="name" :header="$t('globals.fields.name')" header-class="cy-name" sortable>
-          <template #body="{ data }">
-            <a class="row-name" :href="`/lists/${data.id}`" @click.prevent="showEditForm(data)">{{ data.name }}</a>
-            <div class="row-tags">
-              <PvTag
-                v-if="scrubStatus[data.id]?.activeJobRequestId"
-                severity="warn"
-                :value="$t('settings.scrub.validatingProgress', { count: $utils.niceNumber(scrubProgress[data.id] || 0) })"
-              />
-              <PvTag
-                v-else-if="scrubStatus[data.id]?.lastResult"
-                severity="secondary"
-                :value="$t('settings.scrub.lastValidatedCounts', {
-                  date: $utils.niceDate(scrubStatus[data.id].lastResult.completedAt),
-                  valid: $utils.niceNumber(scrubStatus[data.id].lastResult.validCount || 0),
-                  invalid: $utils.niceNumber(scrubStatus[data.id].lastResult.invalidCount || 0),
-                })"
-              />
-              <PvTag v-for="t in data.tags" :key="t" :value="t" severity="secondary" />
-            </div>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="type" :header="$t('globals.fields.type')" header-class="cy-type" sortable style="width:20%">
-          <template #body="{ data }">
-            <div class="type-cell">
-              <PvTag
-                :severity="data.type === 'public' ? 'info' : 'secondary'"
-                :data-cy="`type-${data.type}`"
-                :value="$t(`lists.types.${data.type}`)"
-              />
-              <PvTag :severity="data.optin === 'double' ? 'warn' : 'secondary'" :data-cy="`optin-${data.optin}`">
-                <i :class="['pi', data.optin === 'double' ? 'pi-user-plus' : 'pi-user-minus']" />
-                {{ $t(`lists.optins.${data.optin}`) }}
-              </PvTag>
-              <a
-                v-if="data.optin === 'double'"
-                class="optin-send"
-                href="#"
-                @click.prevent="$utils.confirm(null, () => createOptinCampaign(data))"
-                data-cy="btn-send-optin-campaign"
-                v-tooltip.bottom="$t('lists.sendOptinCampaign')"
-              >
-                <i class="pi pi-send" />
-              </a>
-            </div>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="subscriber_count" :header="$t('globals.terms.subscribers')" header-class="cy-subscribers" sortable style="width:12%">
-          <template #body="{ data }">
-            <router-link v-if="$can('subscribers:get_all', 'subscribers:get')" class="sub-count-link" :to="`/subscribers/lists/${data.id}`">
-              <span class="sub-count">{{ $utils.formatNumber(data.subscriberCount) }}</span>
-              <span class="sub-view">{{ $t('globals.buttons.view') }}</span>
-            </router-link>
-            <span v-else class="sub-count">{{ $utils.formatNumber(data.subscriberCount) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="subscriber_counts" style="width:14%">
-          <template #body="{ data }">
-            <div class="status-breakdown">
-              <span v-for="(count, status) in filterStatuses(data)" :key="status" class="status-item">
-                <router-link :to="`/subscribers/lists/${data.id}?subscription_status=${status}`" :class="`status-link status-link--${status}`">
-                  {{ $utils.formatNumber(count) }}
-                </router-link>
-                <span class="status-label">{{ $t(`subscribers.status.${status}`, count) }}</span>
-              </span>
-            </div>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="created_at" :header="$t('globals.fields.createdAt')" header-class="cy-created_at" sortable style="width:11%">
-          <template #body="{ data }">
-            <span class="date-cell">{{ $utils.niceDate(data.createdAt) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="updated_at" :header="$t('globals.fields.updatedAt')" header-class="cy-updated_at" sortable style="width:11%">
-          <template #body="{ data }">
-            <span class="date-cell">{{ $utils.niceDate(data.updatedAt) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn style="width:8rem; text-align:right">
-          <template #body="{ data }">
-            <div class="row-actions">
-              <router-link
-                v-if="$can('campaigns:manage')"
-                :to="`/campaigns/new?list_id=${data.id}`"
-                class="row-action-btn"
-                data-cy="btn-campaign"
-                v-tooltip.bottom="$t('lists.sendCampaign')"
-              >
-<i class="pi pi-send" />
-</router-link>
-
-              <button
-                v-if="$can('lists:manage') || $canList(data.id, 'list:manage')"
-                type="button"
-                class="row-action-btn"
-                data-cy="btn-edit"
-                v-tooltip.bottom="$t('globals.buttons.edit')"
-                @click="showEditForm(data)"
-              >
-<i class="pi pi-pencil" />
-</button>
-
-              <button
-                v-if="serverConfig.scrub_enabled && $can('settings:manage')"
-                type="button"
-                class="row-action-btn"
-                :class="{ 'row-action-btn--active': scrubStatus[data.id]?.activeJobRequestId }"
-                data-cy="btn-scrub"
-                v-tooltip.bottom="$t('settings.scrub.scrubList')"
-                :disabled="!!scrubStatus[data.id]?.activeJobRequestId"
-                @click="$utils.confirm($t('settings.scrub.scrubListConfirm', { name: data.name }), () => onScrubList(data))"
-              >
-                <i class="pi pi-shield" />
-              </button>
-
-              <router-link
-                v-if="$can('subscribers:import')"
-                :to="{ name: 'import', query: { list_id: data.id } }"
-                class="row-action-btn"
-                data-cy="btn-import"
-                v-tooltip.bottom="$t('import.title')"
-              >
-<i class="pi pi-upload" />
-</router-link>
-
-              <button
-                v-if="$can('lists:manage') || $canList(data.id, 'list:manage')"
-                type="button"
-                class="row-action-btn row-action-btn--danger"
-                data-cy="btn-delete"
-                v-tooltip.bottom="$t('globals.buttons.delete')"
-                @click="onDeleteList(data)"
-              >
-<i class="pi pi-trash" />
-</button>
-            </div>
-          </template>
-        </PvColumn>
-
-        <template #empty v-if="!loading.listsFull">
-          <empty-placeholder />
-        </template>
-      </PvDataTable>
-    </div>
-
-    <!-- Add / edit form modal -->
-    <PvDialog v-model:visible="isFormVisible" :style="{ width: '580px' }" :closable="true" :show-header="false" modal @hide="onFormClose">
-      <list-form :data="curItem" :is-editing="isEditing" @finished="formFinished" @close="closeForm" />
-    </PvDialog>
-
-    <p v-if="settings['app.cache_slow_queries']" class="cache-note">
+    <p v-if="settings['app.cache_slow_queries']" class="ln-small">
       *{{ $t('globals.messages.slowQueriesCached') }}
-      <a href="https://listmonk.app/docs/maintenance/performance/" target="_blank" rel="noopener noreferrer">
-        <i class="pi pi-external-link" /> {{ $t('globals.buttons.learnMore') }}
-      </a>
+      <a href="https://listmonk.app/docs/maintenance/performance/" target="_blank" rel="noopener noreferrer">{{ $t('globals.buttons.learnMore') }}</a>
     </p>
+
+    <list-form v-if="isFormVisible" :data="curItem || {}" :is-editing="isEditing" @finished="onSaved" @close="closeForm" />
+
+    <confirm-action
+      v-model:visible="confirm.open"
+      :title="confirm.title"
+      :text="confirm.text"
+      :confirm-label="confirm.label"
+      :confirm-text="confirm.typed"
+      :danger="confirm.danger"
+      :busy="confirm.busy"
+      @confirm="confirm.run"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, watch, onMounted, onUnmounted,
+  computed, nextTick, onMounted, onUnmounted, reactive, ref, watch,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { useMainStore } from '@/store';
+import type { MenuItem } from 'primevue/menuitem';
+import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useFormDialog } from '../composables/useFormDialog';
-import { makeQueryHandlers } from '../utils';
-import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
+import { useMedia } from '../composables/useMedia';
+import PageHeader from '../components/ui/PageHeader.vue';
+import TableSkeleton from '../components/ui/TableSkeleton.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
+import ListPanel from '../components/ListPanel.vue';
 import ListForm from './ListForm.vue';
 import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
 import { getCampaigns as campaignsApi } from '../api/generated/endpoints/campaigns/campaigns';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
 
-const { $utils, $api } = useGlobal();
+// Lists and Scrub statuses are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+interface PopupMenu { toggle: (e: Event) => void }
+interface Growth { listId: number; joined: number; left: number }
+interface Pending { total: number; due: number }
+interface Refreshable { refresh: () => void }
+
+// How often to refresh validation progress while a job runs.
+const SCRUB_POLL_MS = 4000;
+
 const {
-  listLists, getList, deleteList, deleteLists,
+  $utils, $api, $can, $canList,
+} = useGlobal();
+const {
+  listLists, getList, deleteList, getListsGrowth, getListsSummary, getOptinPending, resendOptins,
 } = listsApi();
 const { createCampaign } = campaignsApi();
 const { getScrubListStatus, getScrubListProgress, scrubList } = settingsApi();
-const { t, tc } = useI18n();
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const isMobile = useMedia('(max-width: 767px)');
 const {
-  refreshTick, loading, settings, serverConfig,
+  refreshTick, settings, serverConfig,
 } = storeToRefs(useMainStore());
 
 const {
   curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
-} = useFormDialog();
-const lists = ref<any>([]);
-const scrubStatus = ref<Record<number, any>>({});
+} = useFormDialog<Loose>();
+// How many cards load at a time; more load on request, so a workspace
+// with a thousand lists isn't one column of a thousand cards.
+const PAGE_SIZE = 50;
+// How long typing pauses before a search runs.
+const SEARCH_DEBOUNCE_MS = 300;
+
+interface Summary { lists: number; subscriptions: number }
+
+const rows = ref<Loose[]>([]);
+const total = ref(0);
+const page = ref(1);
+const loaded = ref(false);
+const loadingMore = ref(false);
+const sort = ref('name');
+const summary = ref<Summary>({ lists: 0, subscriptions: 0 });
+// The list in the URL when it isn't among the cards loaded.
+const linked = ref<Loose | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+const growth = ref<Record<number, Growth>>({});
+const pending = ref<Pending>({ total: 0, due: 0 });
+const search = ref('');
+const panel = ref<Refreshable | null>(null);
+const scrubStatus = ref<Record<number, Loose>>({});
 const scrubProgress = ref<Record<number, number>>({});
 let scrubPollTimer: ReturnType<typeof setTimeout> | null = null;
-const bulk = reactive({ checked: [] as any[], all: false });
 
-const queryParams = reactive({
-  page: 1,
-  query: '',
-  orderBy: 'id',
-  order: 'asc',
-  status: (route.query.status as string) || 'active',
+const menu = ref<PopupMenu | null>(null);
+const menuFor = ref<Loose | null>(null);
+const confirm = reactive({
+  open: false, title: '', text: '', label: '', typed: '', danger: true, busy: false, run: () => {},
 });
 
-const numSelectedLists = computed(() => (bulk.all ? (lists.value as any).total : bulk.checked.length));
+const isArchived = computed(() => route.query.status === 'archived');
+const selectedId = computed(() => (route.params.id ? Number(route.params.id) : null));
+// The list in the panel: the one in the URL, else (on wide screens) the first.
+const selected = computed<Loose | null>(() => {
+  const byId = rows.value.find((l) => l.id === selectedId.value)
+    || (linked.value?.id === selectedId.value ? linked.value : null);
+  if (byId) return byId;
+  return !isMobile.value && rows.value.length ? rows.value[0] : null;
+});
+const sortOptions = computed(() => [
+  { value: 'name', label: t('lists.sort.name') },
+  { value: 'subscriber_count', label: t('lists.sort.size') },
+  { value: 'updated_at', label: t('lists.sort.updated') },
+]);
 
-const { onPageChange, onSort } = makeQueryHandlers(queryParams, fetchLists);
-
-function formFinished() { fetchLists(); }
-
-function onFormClose() {
-  if (route.params.id) router.push({ name: 'lists' });
+// awaiting is the number of double opt-in subscribers yet to confirm.
+function awaiting(l: Loose): number {
+  if (l.optin !== 'double') return 0;
+  return l.subscriberStatuses?.unconfirmed || 0;
 }
 
-function filterStatuses(list: any) {
-  const out = { ...list.subscriberStatuses };
-  if (list.optin === 'single') {
-    delete out.unconfirmed;
-    delete out.confirmed;
-  }
-  return out;
+// receiving is who gets campaigns: confirmed people, and on single opt-in
+// lists the unconfirmed too.
+function receiving(l: Loose): number {
+  const s = l.subscriberStatuses || {};
+  return (s.confirmed || 0) + (l.optin === 'double' ? 0 : (s.unconfirmed || 0));
 }
 
-// Polls GetScrubListStatus (list-level active-job-id / last-result) and,
-// for any list with a job still running, GetScrubListProgress (live
-// "n validated so far" count) -- self-scheduling via setTimeout rather
-// than setInterval so overlapping requests can't pile up, and stopping
-// itself the moment nothing is active anymore.
+function change(l: Loose): number {
+  const g = growth.value[l.id];
+  return g ? g.joined - g.left : 0;
+}
+
+function changeLabel(l: Loose): string {
+  const n = change(l);
+  if (n > 0) return t('lists.change.up', { n: $utils.niceNumber(n) });
+  if (n < 0) return t('lists.change.down', { n: $utils.niceNumber(-n) });
+  return t('lists.change.none');
+}
+
+// The banner stays dismissed until more people are waiting than when it
+// was dismissed (kept per browser).
+const BANNER_KEY = 'ln-lists-optin-dismissed';
+const bannerDismissedAt = ref<number>((() => {
+  try { return Number(localStorage.getItem(BANNER_KEY)) || 0; } catch { return 0; }
+})());
+const showBanner = computed(() => pending.value.total > bannerDismissedAt.value);
+
+function dismissBanner() {
+  bannerDismissedAt.value = pending.value.total;
+  try { localStorage.setItem(BANNER_KEY, String(pending.value.total)); } catch { /* private mode */ }
+}
+
+function refreshMinimalLists() {
+  ($api.getLists as (p: unknown) => void)({ minimal: true, per_page: 'all', status: 'active' });
+}
+
+// Polls list-level Scrub status and, for lists with a job running, its
+// live progress; it reschedules itself and stops once nothing is active.
 function fetchScrubStatus() {
-  getScrubListStatus().then((data: any) => {
-    const m: Record<number, any> = {};
-    (Array.isArray(data) ? data : []).forEach((l: any) => {
+  getScrubListStatus().then((data) => {
+    const m: Record<number, Loose> = {};
+    (Array.isArray(data) ? data : []).forEach((l: Loose) => {
       m[l.id] = { activeJobRequestId: l.activeJobRequestId, lastResult: l.lastResult };
     });
     scrubStatus.value = m;
 
-    const active = Object.entries(m).filter(([, v]: any) => v.activeJobRequestId);
-    active.forEach(([id, v]: any) => {
+    const active = Object.entries(m).filter(([, v]) => v.activeJobRequestId);
+    active.forEach(([id, v]) => {
       getScrubListProgress(Number(id), v.activeJobRequestId)
-        .then((p: any) => { scrubProgress.value[Number(id)] = p?.validated || 0; })
+        .then((p) => { scrubProgress.value[Number(id)] = (p as unknown as Loose)?.validated || 0; })
         .catch(() => {});
     });
 
     if (scrubPollTimer) clearTimeout(scrubPollTimer);
-    scrubPollTimer = active.length > 0 ? setTimeout(fetchScrubStatus, 4000) : null;
+    scrubPollTimer = active.length > 0 ? setTimeout(fetchScrubStatus, SCRUB_POLL_MS) : null;
   }).catch(() => {});
 }
 
-function fetchLists() {
-  listLists({
-    page: queryParams.page,
-    query: queryParams.query.replace(/[^\p{L}\p{N}\s]/gu, ' '),
-    order_by: queryParams.orderBy as any,
-    order: queryParams.order as any,
-    status: queryParams.status as any,
-  }).then((resp: any) => { lists.value = resp; });
-  if ((serverConfig.value as any).scrub_enabled) fetchScrubStatus();
+function fetchPending() {
+  if (!$can('subscribers:manage')) return;
+  getOptinPending().then((d) => { pending.value = d as unknown as Pending; }).catch(() => {});
 }
 
-function onScrubList(list: any) {
-  scrubList(list.id).then(() => {
-    $utils.toast(t('settings.scrub.scrubJobStarted'));
-    fetchScrubStatus();
+// fetchPage loads a page of cards: page 1 replaces them, later pages
+// append.
+function fetchPage(p: number) {
+  return listLists({
+    page: p,
+    per_page: PAGE_SIZE,
+    query: search.value.replace(/[^\p{L}\p{N}\s]/gu, ' ').trim(),
+    order_by: sort.value,
+    order: sort.value === 'name' ? 'asc' : 'desc',
+    status: isArchived.value ? 'archived' : 'active',
+  } as never).then((resp) => {
+    const r = resp as unknown as Loose;
+    rows.value = p === 1 ? (r.results || []) : [...rows.value, ...(r.results || [])];
+    total.value = r.total || 0;
+    page.value = p;
+    loaded.value = true;
   });
 }
 
-function onDeleteList(list: any) {
-  $utils.confirm(
-    t('lists.confirmDelete'),
-    () => {
-      deleteList(list.id).then(() => {
-        fetchLists();
-        $api.getLists({ minimal: true, per_page: 'all', status: 'active' });
-        $utils.toast(t('globals.messages.deleted', { name: list.name }));
+function loadMore() {
+  loadingMore.value = true;
+  fetchPage(page.value + 1).finally(() => { loadingMore.value = false; });
+}
+
+function fetchLists() {
+  fetchPage(1);
+  getListsSummary().then((d) => { summary.value = d as unknown as Summary; }).catch(() => {});
+  getListsGrowth().then((d) => {
+    const m: Record<number, Growth> = {};
+    ((d as unknown as Growth[]) || []).forEach((g) => { m[g.listId] = g; });
+    growth.value = m;
+  }).catch(() => {});
+  fetchPending();
+  if ((serverConfig.value as Loose).scrub_enabled) fetchScrubStatus();
+}
+
+function onSaved() {
+  fetchLists();
+  panel.value?.refresh();
+}
+
+function askResend() {
+  const { due } = pending.value;
+  if (!due) {
+    $utils.toast(t('lists.resendNoneDue'));
+    return;
+  }
+  Object.assign(confirm, {
+    open: true,
+    title: t('lists.resendTitle'),
+    text: t('lists.resendText', { n: $utils.niceNumber(due) }, due),
+    label: t('lists.resendConfirmation'),
+    typed: '',
+    danger: false,
+    run: () => {
+      confirm.busy = true;
+      resendOptins({}).then((d) => {
+        confirm.open = false;
+        const n = (d as unknown as Loose)?.queued || 0;
+        $utils.toast(n ? t('lists.resendStarted', { n: $utils.niceNumber(n) }, n) : t('lists.resendNoneDue'));
+        fetchPending();
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+function askScrub(l: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('settings.scrub.scrubList'),
+    text: t('settings.scrub.scrubListConfirm', { name: l.name }),
+    label: t('settings.scrub.scrubList'),
+    typed: '',
+    danger: false,
+    run: () => {
+      confirm.open = false;
+      scrubList(l.id).then(() => {
+        $utils.toast(t('settings.scrub.scrubJobStarted'));
+        fetchScrubStatus();
       });
     },
-  );
-}
-
-function onSelectAll() { bulk.all = true; }
-
-function onTableCheck() {
-  if (bulk.checked.length !== (lists.value as any).total) bulk.all = false;
-}
-
-function onDeleteLists() {
-  const name = tc('globals.terms.list', numSelectedLists.value);
-  const fn = () => {
-    const params: any = {};
-    if (!bulk.all && bulk.checked.length > 0) {
-      params.id = bulk.checked.map((l: any) => l.id);
-    } else {
-      params.query = queryParams.query.replace(/[^\p{L}\p{N}\s]/gu, ' ');
-      params.all = bulk.all;
-    }
-    deleteLists(params).then(() => {
-      fetchLists();
-      $api.getLists({ minimal: true, per_page: 'all', status: 'active' });
-      $utils.toast(tc('globals.messages.deletedCount', numSelectedLists.value, { num: numSelectedLists.value, name }));
-    });
-  };
-  $utils.confirm(tc('globals.messages.confirmDelete', numSelectedLists.value, { num: numSelectedLists.value, name: name.toLowerCase() }), fn);
-}
-
-function createOptinCampaign(list: any) {
-  const data: any = {
-    name: t('lists.optinTo', { name: list.name }),
-    subject: t('lists.confirmSub', { name: list.name }),
-    lists: [list.id],
-    from_email: (settings.value as any)['app.from_email'],
-    content_type: 'richtext',
-    messenger: 'email',
-    type: 'optin',
-  };
-  createCampaign(data).then((d: any) => {
-    router.push({ name: 'campaign', hash: '#content', params: { id: d.id } });
   });
 }
 
-watch(() => refreshTick.value, () => { fetchLists(); });
+function askOptinCampaign(l: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('lists.sendOptinCampaign'),
+    text: t('lists.optinCampaignText', { name: l.name, n: awaiting(l).toLocaleString() }),
+    label: t('lists.createOptinCampaign'),
+    typed: '',
+    danger: false,
+    run: () => {
+      confirm.busy = true;
+      createCampaign({
+        name: t('lists.optinTo', { name: l.name }),
+        subject: t('lists.confirmSub', { name: l.name }),
+        lists: [l.id],
+        from_email: (settings.value as Loose)['app.from_email'],
+        content_type: 'richtext',
+        messenger: 'email',
+        type: 'optin',
+      } as never).then((d) => {
+        confirm.open = false;
+        router.push({ name: 'campaign', hash: '#content', params: { id: (d as unknown as Loose).id } });
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
 
-onMounted(() => {
-  if (route.params.id) {
-    getList(parseInt(route.params.id as string, 10)).then((data: any) => { showEditForm(data); });
-  } else {
-    fetchLists();
+function askDelete(l: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('lists.deleteTitle', { name: l.name }),
+    text: t('lists.deleteText', { n: (l.subscriberCount || 0).toLocaleString() }),
+    label: t('lists.deleteList'),
+    typed: '',
+    danger: true,
+    run: () => {
+      confirm.busy = true;
+      deleteList(l.id).then(() => {
+        confirm.open = false;
+        if (selectedId.value === l.id) router.replace({ name: 'lists' });
+        fetchLists();
+        refreshMinimalLists();
+        $utils.toast(t('globals.messages.deleted', { name: l.name }));
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+const menuItems = computed<MenuItem[]>(() => {
+  const l = menuFor.value;
+  if (!l) return [];
+  const canManageList = $can('lists:manage') || $canList(l.id, 'list:manage');
+  const items: MenuItem[] = [];
+  if ($can('subscribers:get_all', 'subscribers:get')) {
+    items.push({ label: t('lists.viewSubscribers'), icon: 'pi pi-users', command: () => router.push(`/subscribers/lists/${l.id}`) });
+  }
+  if ($can('subscribers:import')) {
+    items.push({ label: t('import.title'), icon: 'pi pi-upload', command: () => router.push({ name: 'import', query: { list_id: l.id } }) });
+  }
+  if (l.optin === 'double' && $can('campaigns:manage')) {
+    items.push({ label: t('lists.sendOptinCampaign'), icon: 'pi pi-envelope', command: () => askOptinCampaign(l) });
+  }
+  if ((serverConfig.value as Loose).scrub_enabled && $can('settings:manage')) {
+    items.push({
+      label: t('settings.scrub.scrubList'),
+      icon: 'pi pi-shield',
+      disabled: !!scrubStatus.value[l.id]?.activeJobRequestId,
+      command: () => askScrub(l),
+    });
+  }
+  if (canManageList) {
+    items.push({ separator: true }, {
+      label: t('globals.buttons.delete'), icon: 'pi pi-trash', class: 'is-danger', command: () => askDelete(l),
+    });
+  }
+  return items;
+});
+
+function openMenu(e: Event, l: Loose) {
+  menuFor.value = l;
+  menu.value?.toggle(e);
+}
+
+watch(refreshTick, fetchLists);
+watch(sort, () => fetchPage(1));
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => fetchPage(1), SEARCH_DEBOUNCE_MS);
+});
+// On phones the panel replaces the cards: open it at the top, and come
+// back to the same place in the cards.
+// The mobile shell scrolls <body> rather than the window.
+const scrollPos = () => window.scrollY || document.body.scrollTop;
+const scrollToY = (y: number) => {
+  window.scrollTo(0, y);
+  document.body.scrollTop = y;
+};
+let cardsScrollY = 0;
+watch(selectedId, (id, prev) => {
+  if (!isMobile.value) return;
+  if (id && !prev) {
+    cardsScrollY = scrollPos();
+    scrollToY(0);
+  } else if (!id && prev) {
+    nextTick(() => scrollToY(cardsScrollY));
   }
 });
 
+// A linked list that isn't on a loaded page is fetched on its own.
+watch([selectedId, rows], ([id]) => {
+  if (!id || rows.value.some((l) => l.id === id) || linked.value?.id === id) return;
+  getList(id as number).then((d) => { linked.value = d as unknown as Loose; }).catch(() => {});
+}, { immediate: true });
+watch(isArchived, () => {
+  loaded.value = false;
+  fetchLists();
+});
+
+onMounted(fetchLists);
+
 onUnmounted(() => {
   if (scrubPollTimer) clearTimeout(scrubPollTimer);
+  if (searchTimer) clearTimeout(searchTimer);
 });
 </script>
 
 <style scoped lang="scss">
-.lists-page {
+.lists-banner {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--ln-radius-card);
+  background: var(--ln-warn-bg);
+
+  @media (max-width: 767px) { flex-direction: column; align-items: flex-start; padding-right: 44px; }
+
+  // A card-coloured button on the tinted banner, as in the artboard.
+  :deep(.p-button) { background: var(--ln-card); color: var(--ln-text); flex: none; }
+}
+.lists-banner-x {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-2);
+  cursor: pointer;
+
+  &:hover { background: rgba(0, 0, 0, .06); color: var(--ln-text); }
+  @media (max-width: 767px) { position: absolute; top: 8px; right: 8px; }
+}
+.lists-banner-text {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+
+  i { margin-top: 3px; color: var(--ln-warn-fg); }
+}
+
+.lists-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.lists-side {
+  flex: none;
+  width: 360px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 10px;
+
+  .lists-layout:not(.has-panel) & { flex: 1; width: auto; }
+  @media (max-width: 991px) { width: 300px; }
+  @media (max-width: 767px) { flex: 1; width: auto; }
 }
-
-// Page header
-
-.page-header-left { display: flex; flex-direction: column; gap: 0.25rem; }
-
-.page-title-sub { color: var(--lm-text-subtle); font-weight: 400; }
-
-.page-sub-link { font-size: 0.8rem; color: var(--lm-text-muted); text-decoration: none; &:hover { color: var(--lm-primary); } }
-
-// Table card
-
-// Toolbar
-.table-toolbar {
+.lists-main {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.search-form { flex: 1; min-width: 220px; max-width: 360px; }
-:deep(.search-input) { width: 100%; }
+  flex-direction: column;
+  gap: 12px;
 
-.bulk-bar {
+  // Wide screens: the panel stays in view beside whichever card was
+  // picked, however far down the cards it is (top: under the top bar).
+  @media (min-width: 768px) {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+  }
+}
+.lists-tools {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
-}
-.bulk-count { font-size: 0.85rem; color: var(--lm-text-muted); a { color: var(--lm-primary); } }
-.bulk-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  border: 1px solid;
-  cursor: pointer;
-  background: var(--lm-surface);
-  &--danger { color: var(--lm-danger); border-color: var(--lm-danger-border); &:hover { background: var(--lm-danger-bg); } }
-}
+  gap: 8px;
 
-// Row cells
-.row-name {
-  font-weight: 500;
-  color: var(--lm-primary);
+  .ln-search { flex: 1; width: auto; min-width: 0; }
+}
+.lists-sort { flex: none; width: 150px; }
+.lists-more {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.lists-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ln-text-2); }
+
+.lists-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lists-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--ln-radius-card);
+  border: 1px solid var(--ln-border);
+  background: var(--ln-card);
+  color: var(--ln-text);
   text-decoration: none;
+
+  &:hover { border-color: var(--ln-border-strong); text-decoration: none; }
+  &.is-current { border: 2px solid var(--ln-ink); padding: 13px 15px; }
+  &:focus-visible { outline: 2px solid var(--ln-ring); outline-offset: 2px; }
 }
-.row-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
-
-// Make secondary PvTags visible (Aura theme has no default background for secondary)
-:deep(.p-tag-secondary) {
-  background: var(--lm-bg-subtle);
-  color: var(--lm-text-secondary);
-  border: 1px solid var(--lm-border);
+.lists-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
 }
-
-.type-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.optin-send {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  color: var(--lm-text-muted);
-  text-decoration: none;
-  transition: background 0.15s, color 0.15s;
-  i { font-size: 0.8rem; }
-  &:hover { background: var(--lm-primary-light); color: var(--lm-primary); }
-}
-
-.sub-count-link { text-decoration: none; display: flex; flex-direction: column; }
-.sub-count { font-weight: 600; color: var(--lm-text); font-size: 0.95rem; }
-.sub-view { font-size: 0.72rem; color: var(--lm-text-subtle); }
-
-.status-breakdown { display: flex; flex-direction: column; gap: 0.15rem; }
-.status-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; }
-.status-link { font-weight: 600; color: var(--lm-text); text-decoration: none; &:hover { color: var(--lm-primary); } }
-.status-label { color: var(--lm-text-subtle); }
-
-.date-cell { font-size: 0.82rem; color: var(--lm-text-muted); }
-
-.cache-note {
-  font-size: 0.78rem;
-  color: var(--lm-text-subtle);
-  a { color: var(--lm-text-subtle); text-decoration: underline; }
-}
+.lists-card-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.lists-card-n { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lists-card-unconf { color: var(--ln-warn-fg); }
+.is-down { color: var(--ln-danger-fg); font-variant-numeric: tabular-nums; }
+.lists-archived-link { color: var(--ln-text-2); }
 </style>

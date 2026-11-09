@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nerd-zero/listnun/internal/auth"
@@ -21,7 +22,7 @@ import (
 //	@Tags			import
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			file	formData	file	true	"CSV or ZIP file"
+//	@Param			file	formData	file	false	"CSV or ZIP file; leave out when params.file_id names an uploaded one"
 //	@Param			params	formData	string	true	"JSON-encoded import options (subimporter.SessionOpt)"
 //	@Success		200		{object}	subimporter.Status
 //	@Failure		400		{object}	echo.HTTPError
@@ -73,6 +74,26 @@ func (a *App) ImportSubscribers(c echo.Context) error {
 		opt.SubStatus != models.SubscriptionStatusConfirmed &&
 		opt.SubStatus != models.SubscriptionStatusUnsubscribed {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("import.invalidSubStatus"))
+	}
+
+	// A file uploaded earlier (UploadImportFile) is already on disk, with
+	// its delimiter detected.
+	if opt.FileID != "" {
+		f, ok := a.importStage.Get(tenantID(c), opt.FileID, time.Now())
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("import.fileExpired"))
+		}
+		opt.Filename = f.Name
+		opt.Delim = string(f.Delim)
+		opt.TenantID = tenantID(c)
+		sess, err := imp.NewSession(opt)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError,
+				a.i18n.Ts("import.errorStarting", "error", err.Error()))
+		}
+		go sess.Start()
+		go sess.LoadCSV(f.Path, f.Delim)
+		return c.JSON(http.StatusOK, okResp{imp.GetStats()})
 	}
 
 	if len(opt.Delim) != 1 {

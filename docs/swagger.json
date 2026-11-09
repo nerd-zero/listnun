@@ -76,6 +76,18 @@
                     },
                     {
                         "type": "string",
+                        "description": "Filter by bounce type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search subscriber e-mail or campaign name",
+                        "name": "query",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Field to order results by",
                         "name": "order_by",
                         "in": "query"
@@ -126,7 +138,7 @@
                 "parameters": [
                     {
                         "type": "boolean",
-                        "description": "Delete all bounces",
+                        "description": "Delete every bounce matching the filters below",
                         "name": "all",
                         "in": "query"
                     },
@@ -138,6 +150,30 @@
                         "collectionFormat": "csv",
                         "description": "Bounce IDs to delete",
                         "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "With all: only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "With all: subscriber e-mail or campaign name contains this",
+                        "name": "query",
                         "in": "query"
                     }
                 ],
@@ -164,9 +200,81 @@
                 ],
                 "summary": "Blocklist all bounced subscribers",
                 "operationId": "blocklistBouncedSubscribers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Only this campaign's bounces",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only bounces from this source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only this type (soft, hard, complaint)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Subscriber e-mail or campaign name contains this",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bounces/counts": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "bounces"
+                ],
+                "summary": "Count bounces per type",
+                "operationId": "getBounceCounts",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by bounce source",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search subscriber e-mail or campaign name",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/BounceTypeCounts"
+                        }
                     },
                     "500": {
                         "description": "Internal Server Error",
@@ -434,7 +542,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Analytics type (views, clicks, bounces, links)",
+                        "description": "Analytics type (views, clicks, bounces, links, bounce_types)",
                         "name": "type",
                         "in": "path",
                         "required": true
@@ -502,6 +610,32 @@
                             "items": {
                                 "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/campaigns/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get the campaigns overview",
+                "operationId": "getCampaignsOverview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CampaignsOverview"
                         }
                     },
                     "500": {
@@ -788,6 +922,50 @@
                 }
             }
         },
+        "/api/campaigns/{id}/inbox-check": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Check a campaign for inbox placement problems",
+                "operationId": "getCampaignInboxCheck",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_inboxcheck.Check"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/{id}/preview": {
             "post": {
                 "consumes": [
@@ -899,6 +1077,53 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/campaigns/{id}/replies": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get a campaign's replies",
+                "operationId": "getCampaignReplies",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/CampaignRepliesPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -1074,6 +1299,1191 @@
                 }
             }
         },
+        "/api/dashboard/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "dashboard"
+                ],
+                "summary": "Get the dashboard overview",
+                "operationId": "getDashboardOverview",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "7, 30 or 90 (default 30)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DashboardOverview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/branding": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Get email branding",
+                "operationId": "getBranding",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Save email branding",
+                "operationId": "updateBranding",
+                "parameters": [
+                    {
+                        "description": "Branding",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/keys": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List API keys",
+                "operationId": "listAPIKeys",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by name",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/APIKey"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Create an API key",
+                "operationId": "createAPIKey",
+                "parameters": [
+                    {
+                        "description": "Key name and scopes",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/APIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/APIKeyWithSecret"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/keys/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Update an API key's scopes",
+                "operationId": "updateAPIKey",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Scopes",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/APIKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/APIKey"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Delete an API key",
+                "operationId": "deleteAPIKey",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/keys/{id}/revoke": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Revoke an API key",
+                "operationId": "revokeAPIKey",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/APIKey"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/keys/{id}/rotate": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Rotate an API key",
+                "operationId": "rotateAPIKey",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Key ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/APIKeyWithSecret"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/messages": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List transactional messages",
+                "operationId": "listTxMessages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Recipient or message ID",
+                        "name": "query",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "queued, sent, delivered, bounced or failed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Template ID",
+                        "name": "template_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "API key ID",
+                        "name": "api_key_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From (RFC 3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To (RFC 3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TxLogPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/messages/{uuid}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Get a transactional message",
+                "operationId": "getTxMessage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID (msg_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TxLogMessage"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/messages/{uuid}/resend": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Resend a transactional message",
+                "operationId": "resendTxMessage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Message ID (msg_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Transactional email stats, last 24 hours",
+                "operationId": "getTxStats",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TxStats"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/templates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List transactional templates",
+                "operationId": "listTxTemplates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/TxTemplate"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Create a transactional template",
+                "operationId": "createTxTemplate",
+                "parameters": [
+                    {
+                        "description": "Template",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Template"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/templates/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Preview a transactional template",
+                "operationId": "previewTxTemplate",
+                "parameters": [
+                    {
+                        "description": "Template and sample data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxPreviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/TxPreview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/templates/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Save a transactional template",
+                "operationId": "updateTxTemplate",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Template ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Template",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TxTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Template"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List webhook endpoints",
+                "operationId": "listWebhookEndpoints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/WebhookEndpoint"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Add a webhook endpoint",
+                "operationId": "createWebhookEndpoint",
+                "parameters": [
+                    {
+                        "description": "Endpoint",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpoint"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "List webhook deliveries",
+                "operationId": "listWebhookDeliveries",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "endpoint_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "pending, success, retrying or failed",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/PageResults"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries/{uuid}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Get a webhook delivery",
+                "operationId": "getWebhookDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delivery ID (whd_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookDelivery"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/deliveries/{uuid}/retry": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Resend a webhook delivery",
+                "operationId": "retryWebhookDelivery",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delivery ID (whd_…)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Update a webhook endpoint",
+                "operationId": "updateWebhookEndpoint",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Endpoint",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpointRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookEndpoint"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Delete a webhook endpoint",
+                "operationId": "deleteWebhookEndpoint",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}/secret": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Reveal a webhook signing secret",
+                "operationId": "getWebhookEndpointSecret",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookSecret"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Rotate a webhook signing secret",
+                "operationId": "rotateWebhookEndpointSecret",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookSecret"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/developers/webhooks/{id}/test": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developers"
+                ],
+                "summary": "Send a test event",
+                "operationId": "sendWebhookTest",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Endpoint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/WebhookTest"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get signup forms",
+                "operationId": "getForms",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/FormResp"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Create a signup form",
+                "operationId": "createForm",
+                "parameters": [
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Update a signup form",
+                "operationId": "updateForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Form",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FormReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Delete a signup form",
+                "operationId": "deleteForm",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forms/{id}/stats": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "forms"
+                ],
+                "summary": "Get a form's figures",
+                "operationId": "getFormStats",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Form ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/FormStats"
+                        }
+                    }
+                }
+            }
+        },
         "/api/health": {
             "get": {
                 "produces": [
@@ -1125,10 +2535,9 @@
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "CSV or ZIP file",
+                        "description": "CSV or ZIP file; leave out when params.file_id names an uploaded one",
                         "name": "file",
-                        "in": "formData",
-                        "required": true
+                        "in": "formData"
                     },
                     {
                         "type": "string",
@@ -1178,6 +2587,107 @@
                 }
             }
         },
+        "/api/import/subscribers/check": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Check an import before starting it",
+                "operationId": "checkImport",
+                "parameters": [
+                    {
+                        "description": "File and columns",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CheckImportReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/file": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Upload a file to import",
+                "operationId": "uploadImportFile",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "CSV, or a ZIP with a CSV in it",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ImportFile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Recent imports",
+                "operationId": "getRecentImports",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ImportRecord"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/import/subscribers/logs": {
             "get": {
                 "produces": [
@@ -1193,6 +2703,29 @@
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/import/subscribers/problems": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "import"
+                ],
+                "summary": "Rows an import didn't import",
+                "operationId": "getImportProblems",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                            }
                         }
                     }
                 }
@@ -1408,6 +2941,100 @@
                 }
             }
         },
+        "/api/lists/growth": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Get list growth over the last 30 days",
+                "operationId": "getListsGrowth",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ListGrowth"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/optin/pending": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Count unconfirmed double opt-in subscribers",
+                "operationId": "getOptinPending",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OptinPending"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/optin/resend": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Resend opt-in confirmations",
+                "operationId": "resendOptins",
+                "parameters": [
+                    {
+                        "description": "Lists to limit the resend to",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.optinResendReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.optinResendResp"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/lists/scrub": {
             "get": {
                 "produces": [
@@ -1475,6 +3102,26 @@
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/summary": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Count lists and their subscriptions",
+                "operationId": "getListsSummary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ListsSummary"
                         }
                     }
                 }
@@ -1601,6 +3248,41 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/lists/{id}/activity": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lists"
+                ],
+                "summary": "Get a list's recent activity",
+                "operationId": "getListActivity",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "List ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ListActivity"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -1930,6 +3612,32 @@
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/media/usage": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Get media storage usage",
+                "operationId": "getMediaUsage",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MediaUsage"
                         }
                     },
                     "500": {
@@ -2408,6 +4116,68 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/activity": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's activity log (Operator API)",
+                "operationId": "getOperatorTenantActivity",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Only lines from this source, e.g. sending",
+                        "name": "source",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Lines to return (max 500)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ActivityEntry"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/bounce-webhooks": {
             "put": {
                 "security": [
@@ -2544,6 +4314,136 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/from-email": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Writes the tenant's app.from_email setting, the From new campaigns start with. Accepts \"address\" or \"Name \u003caddress\u003e\".",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's default From address (Operator API)",
+                "operationId": "setOperatorTenantFromEmail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Default From",
+                        "name": "from",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/OperatorFromEmailReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/tenants/{id}/replies": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Stores the tenant's reply tracking setup: its Postmark server's inbound address, the secret that signs reply tokens and the inbound webhook's basic auth credentials. The caller points the Postmark server's inbound webhook at https://{tenant host}/webhooks/replies/postmark with the same credentials. An empty inbound_address turns reply tracking off for the tenant. Keep the secret stable: changing it orphans replies to emails already sent.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's campaign reply tracking setup (Operator API)",
+                "operationId": "setOperatorTenantReplies",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reply tracking setup",
+                        "name": "replies",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TenantReplies"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/scrub/usage": {
             "get": {
                 "security": [
@@ -2591,7 +4491,119 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/sending-health": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's sending health (Operator API)",
+                "operationId": "getOperatorTenantSendingHealth",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.SendingHealth"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/setup-link": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Reports whether the setup token is still valid for this tenant and admin, and whether the admin has a password. Read-only: the token isn't consumed or counted as an attempt.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Check a tenant admin's setup link (Operator API)",
+                "operationId": "getOperatorSetupLinkStatus",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The setup token (the setup_url's token parameter)",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The admin's email",
+                        "name": "email",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorSetupLinkStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -2786,6 +4798,177 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/storage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's media storage usage (Operator API)",
+                "operationId": "getOperatorTenantStorage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/MediaUsage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/tenants/{id}/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get a tenant's metered usage (Operator API)",
+                "operationId": "getOperatorTenantUsage",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window start, RFC 3339 (inclusive)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window end, RFC 3339 (exclusive)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "day"
+                        ],
+                        "type": "string",
+                        "description": "day: also return per-UTC-day usage",
+                        "name": "group",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorTenantUsage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operator/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Get all tenants' metered usage (Operator API)",
+                "operationId": "getOperatorPlatformUsage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Window start, RFC 3339 (inclusive)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Window end, RFC 3339 (exclusive)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/OperatorPlatformUsage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/profile": {
             "get": {
                 "produces": [
@@ -2819,12 +5002,12 @@
                 "operationId": "updateUserProfile",
                 "parameters": [
                     {
-                        "description": "Profile fields",
+                        "description": "Profile fields; current_password is required with a new password",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/User"
+                            "$ref": "#/definitions/ProfileUpdate"
                         }
                     }
                 ],
@@ -2837,6 +5020,12 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
                         }
@@ -3104,6 +5293,224 @@
                 }
             }
         },
+        "/api/segments": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get saved segments",
+                "operationId": "getSegments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/SavedSegment"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Save a segment",
+                "operationId": "createSegment",
+                "parameters": [
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/count": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Count the people in segments",
+                "operationId": "countSegments",
+                "parameters": [
+                    {
+                        "description": "Segments to count",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentCountsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/sql": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Get a segment's SQL condition",
+                "operationId": "segmentSQL",
+                "parameters": [
+                    {
+                        "description": "Segment",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.segmentSQLResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/segments/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Update a saved segment",
+                "operationId": "updateSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Name, match and conditions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/SavedSegment"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subscribers"
+                ],
+                "summary": "Delete a saved segment",
+                "operationId": "deleteSegment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Segment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "produces": [
@@ -3160,6 +5567,109 @@
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/inactive-cleanup": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get inactive cleanup status",
+                "operationId": "getInactiveCleanupStatus",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.cleanupStatus"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/inactive-cleanup/preview": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Preview inactive cleanup rules",
+                "operationId": "previewInactiveCleanup",
+                "parameters": [
+                    {
+                        "description": "Rules to preview",
+                        "name": "rules",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/logs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get the workspace's activity log",
+                "operationId": "getActivityLog",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Lines to return (max 500)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ActivityEntry"
+                            }
                         }
                     },
                     "500": {
@@ -4270,6 +6780,46 @@
                 }
             }
         },
+        "/api/templates/test": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "templates"
+                ],
+                "summary": "Send a test of a campaign template",
+                "operationId": "testTemplate",
+                "parameters": [
+                    {
+                        "description": "Template body and who gets the test",
+                        "name": "test",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TemplateTestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/templates/{id}": {
             "get": {
                 "produces": [
@@ -4896,6 +7446,53 @@
                 }
             }
         },
+        "/webhooks/replies/postmark": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Receive a reply to a campaign email (Postmark inbound)",
+                "operationId": "postmarkRepliesWebhook",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/webhooks/scrub/batch": {
             "post": {
                 "consumes": [
@@ -4939,6 +7536,139 @@
         }
     },
     "definitions": {
+        "APIKey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "legacy_user_id": {
+                    "description": "LegacyUserID is the API user this key was migrated from. Until that\nuser is disabled, its old username:token still authenticates.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.Int"
+                        }
+                    ]
+                },
+                "legacy_user_status": {
+                    "type": "string"
+                },
+                "legacy_username": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "prev_expires_at": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "secret_hint": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "APIKeyRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "APIKeyWithSecret": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "legacy_user_id": {
+                    "description": "LegacyUserID is the API user this key was migrated from. Until that\nuser is disabled, its old username:token still authenticates.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.Int"
+                        }
+                    ]
+                },
+                "legacy_user_status": {
+                    "type": "string"
+                },
+                "legacy_username": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "prev_expires_at": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "secret": {
+                    "type": "string"
+                },
+                "secret_hint": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "About": {
             "type": "object",
             "properties": {
@@ -4993,6 +7723,26 @@
                 },
                 "num_cpu": {
                     "type": "integer"
+                }
+            }
+        },
+        "ActivityEntry": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
                 }
             }
         },
@@ -5087,6 +7837,78 @@
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "BounceTypeCounts": {
+            "type": "object",
+            "properties": {
+                "complaint": {
+                    "type": "integer"
+                },
+                "hard": {
+                    "type": "integer"
+                },
+                "soft": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "BrandLogo": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "media_id": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "Branding": {
+            "type": "object",
+            "properties": {
+                "align": {
+                    "type": "string"
+                },
+                "link_url": {
+                    "type": "string"
+                },
+                "logo": {
+                    "$ref": "#/definitions/BrandLogo"
+                },
+                "logo_dark": {
+                    "description": "LogoDark is used by email clients in dark mode. Without it, Logo sits\non a white tile there.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/BrandLogo"
+                        }
+                    ]
+                },
+                "width": {
+                    "description": "Width is the logo's display width in px.",
+                    "type": "integer"
                 }
             }
         },
@@ -5204,6 +8026,9 @@
                 "to_send": {
                     "type": "integer"
                 },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -5228,6 +8053,261 @@
                     "type": "integer"
                 },
                 "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignListRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignOverviewItem": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "integer"
+                },
+                "bounced": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lists": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignListRef"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
+                },
+                "pause_reason": {
+                    "type": "string"
+                },
+                "send_at": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "to_send": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by_name": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignRepliesPage": {
+            "type": "object",
+            "properties": {
+                "counts": {
+                    "$ref": "#/definitions/CampaignReplyCounts"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignReply"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "CampaignReply": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "integer"
+                },
+                "forwarded_at": {
+                    "type": "string"
+                },
+                "forwarded_to": {
+                    "type": "string"
+                },
+                "from_email": {
+                    "type": "string"
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "html_body": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_auto": {
+                    "description": "IsAuto marks an automatic response (out-of-office, vacation). Kept,\nbut not counted as a reply.",
+                    "type": "boolean"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "stripped_text": {
+                    "description": "StrippedText is the reply without the quoted original message, when\nthe inbound provider could separate it.",
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "subscriber_email": {
+                    "description": "SubscriberEmail/SubscriberName are joined from subscribers; empty\nonce the subscriber is deleted (FromEmail still says who replied).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
+                "subscriber_id": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "subscriber_name": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "text_body": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignReplyCounts": {
+            "type": "object",
+            "properties": {
+                "auto": {
+                    "type": "integer"
+                },
+                "repliers": {
+                    "type": "integer"
+                },
+                "replies": {
+                    "type": "integer"
+                }
+            }
+        },
+        "CampaignStatusCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "CampaignTracking": {
+            "type": "object",
+            "properties": {
+                "links": {
+                    "description": "Links tracks every web link in the email, as if each had @TrackLink.",
+                    "type": "boolean"
+                },
+                "pixels": {
+                    "description": "Pixels are third-party tracking image URLs added to the end of the\nemail (analytics or ad platforms that count opens with an image).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "replies": {
+                    "description": "Replies swaps each email's Reply-To for a per-message listnun reply\naddress, so replies are recorded against the campaign and then\nforwarded to the campaign's own Reply-To (internal/replies). Off\nunless the server has reply tracking configured.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "CampaignsOverview": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignOverviewItem"
+                    }
+                },
+                "counts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/CampaignStatusCount"
+                    }
+                }
+            }
+        },
+        "CheckImportReq": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column"
+                    }
+                },
+                "file_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "CleanupRun": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "done": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "matched": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "started_at": {
                     "type": "string"
                 }
             }
@@ -5353,6 +8433,9 @@
                 "to_send": {
                     "type": "integer"
                 },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -5381,6 +8464,10 @@
                 },
                 "id": {
                     "type": "integer"
+                },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
                 },
                 "list_uuids": {
                     "type": "array",
@@ -5422,6 +8509,212 @@
                 }
             }
         },
+        "DashboardDay": {
+            "type": "object",
+            "properties": {
+                "bounced": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "delivered": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "new_subscribers": {
+                    "type": "integer"
+                }
+            }
+        },
+        "DashboardHotspot": {
+            "type": "object",
+            "properties": {
+                "hard": {
+                    "type": "integer"
+                },
+                "list_id": {
+                    "type": "integer"
+                },
+                "list_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "DashboardOverview": {
+            "type": "object",
+            "properties": {
+                "as_of": {
+                    "type": "string"
+                },
+                "bounce_hotspot": {
+                    "$ref": "#/definitions/DashboardHotspot"
+                },
+                "bounce_rate": {
+                    "type": "number"
+                },
+                "bounced": {
+                    "type": "integer"
+                },
+                "campaigns_started": {
+                    "type": "integer"
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DashboardDay"
+                    }
+                },
+                "new": {
+                    "type": "integer"
+                },
+                "queued": {
+                    "type": "integer"
+                },
+                "running": {
+                    "type": "integer"
+                },
+                "sent": {
+                    "description": "Filled in Go from Days.",
+                    "type": "integer"
+                },
+                "stale_drafts": {
+                    "type": "integer"
+                },
+                "subscribers": {
+                    "type": "integer"
+                },
+                "unsubscribed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "FormReq": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormResp": {
+            "type": "object",
+            "properties": {
+                "button_label": {
+                    "type": "string"
+                },
+                "captcha": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "embed_html": {
+                    "description": "EmbedHTML is a form to paste into a website.",
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FormField"
+                    }
+                },
+                "heading": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "intro": {
+                    "type": "string"
+                },
+                "list_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "popup_script": {
+                    "description": "PopupScript is a script tag that shows the form as a popup.",
+                    "type": "string"
+                },
+                "signups": {
+                    "description": "Signups is how many people signed up in the last 30 days (lists of\nforms only).",
+                    "type": "integer"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "success_message": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "URL is the form's hosted page.",
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "FormStats": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "integer"
+                },
+                "signups": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "I18nLang": {
             "type": "object",
             "properties": {
@@ -5433,17 +8726,97 @@
                 }
             }
         },
+        "ImportFile": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn"
+                    }
+                },
+                "delim": {
+                    "type": "string"
+                },
+                "file_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ImportRecord": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imported": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "ImportStatus": {
             "type": "object",
             "properties": {
+                "added": {
+                    "description": "Added is how many of Imported are new subscribers; the rest were\nalready here. Blocklist imports don't count it.",
+                    "type": "integer"
+                },
+                "failed": {
+                    "description": "Failed is the number of valid rows the database rejected, i.e. the\nrows of a batch whose insert or commit failed.",
+                    "type": "integer"
+                },
                 "imported": {
                     "type": "integer"
                 },
                 "name": {
                     "type": "string"
                 },
+                "pending": {
+                    "description": "Pending is the number of rows written in the open transaction but not\nyet committed (updated every progressStep rows). On commit they move\nto Imported, or to Failed if the commit fails. It lets progress move\nwithin a commitBatchSize batch, which a small file never leaves.",
+                    "type": "integer"
+                },
                 "risky": {
                     "description": "Risky always reads 0 during the import itself: Scrub validation is\nasynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky\nincluded -- aren't known until the /webhooks/scrub/batch callback\nresolves each submitted batch, well after this Status stops being\npolled. Kept for API/frontend type stability rather than removed.",
+                    "type": "integer"
+                },
+                "skipped": {
+                    "description": "Skipped is the number of CSV rows left out for being malformed or\ninvalid (bad e-mail, wrong column count). Each one is in the log.",
                     "type": "integer"
                 },
                 "status": {
@@ -5512,6 +8885,89 @@
                 }
             }
         },
+        "ListActivity": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ListCampaign"
+                    }
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ListActivityDay"
+                    }
+                },
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ListActivityDay": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ListCampaign": {
+            "type": "object",
+            "properties": {
+                "clicked": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
+                },
+                "send_at": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "ListGrowth": {
+            "type": "object",
+            "properties": {
+                "joined": {
+                    "type": "integer"
+                },
+                "left": {
+                    "type": "integer"
+                },
+                "list_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "ListPermission": {
             "type": "object",
             "properties": {
@@ -5566,6 +9022,33 @@
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "ListsSummary": {
+            "type": "object",
+            "properties": {
+                "lists": {
+                    "type": "integer"
+                },
+                "subscriptions": {
+                    "type": "integer"
+                }
+            }
+        },
+        "MediaUsage": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "description": "Bytes is the total size of the files whose size is known.",
+                    "type": "integer"
+                },
+                "files": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "description": "Unknown files aren't in Bytes: uploaded before sizes were recorded\nand not measured yet, or their size couldn't be read.",
+                    "type": "integer"
                 }
             }
         },
@@ -5649,6 +9132,15 @@
                 }
             }
         },
+        "OperatorFromEmailReq": {
+            "type": "object",
+            "properties": {
+                "from_email": {
+                    "description": "FromEmail is the address, optionally with a display name\n(\"Acme \u003cnews@acme.com\u003e\").",
+                    "type": "string"
+                }
+            }
+        },
         "OperatorOrganization": {
             "type": "object",
             "properties": {
@@ -5692,6 +9184,23 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "OperatorPlatformUsage": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorUsageDay"
+                    }
+                },
+                "tenants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorTenantUsageTotal"
+                    }
                 }
             }
         },
@@ -5763,6 +9272,19 @@
                 }
             }
         },
+        "OperatorSetupLinkStatus": {
+            "type": "object",
+            "properties": {
+                "password_set": {
+                    "description": "PasswordSet is whether the admin has a password -- the setup link\nwas used (or the password was set some other way).",
+                    "type": "boolean"
+                },
+                "valid": {
+                    "description": "Valid is whether the setup link still works: its token exists, hasn't\nexpired or been used, and belongs to this tenant and admin.",
+                    "type": "boolean"
+                }
+            }
+        },
         "OperatorTenant": {
             "type": "object",
             "properties": {
@@ -5827,11 +9349,68 @@
                 }
             }
         },
+        "OperatorTenantUsage": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "description": "Days is the same usage per UTC day, only with ?group=day; days with\nno usage are omitted.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OperatorUsageDay"
+                    }
+                },
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OperatorTenantUsageTotal": {
+            "type": "object",
+            "properties": {
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "tenant_id": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
+                }
+            }
+        },
         "OperatorUpdateTenantStatusReq": {
             "type": "object",
             "properties": {
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "OperatorUsageDay": {
+            "type": "object",
+            "properties": {
+                "day": {
+                    "type": "string"
+                },
+                "emails_sent": {
+                    "type": "integer"
+                },
+                "validations": {
+                    "type": "integer"
+                }
+            }
+        },
+        "OptinPending": {
+            "type": "object",
+            "properties": {
+                "due": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -5873,6 +9452,88 @@
                 }
             }
         },
+        "ProfileUpdate": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "current_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "list_role": {
+                    "$ref": "#/definitions/ListRolePermissions"
+                },
+                "list_role_id": {
+                    "type": "integer"
+                },
+                "loggedin_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "description": "For API users, this is the plaintext API token.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/null.String"
+                        }
+                    ]
+                },
+                "password_login": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tenant_id": {
+                    "type": "integer"
+                },
+                "twofa_type": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_role": {
+                    "description": "Non-DB fields filled post-retrieval.",
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "permissions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "user_role_id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "Role": {
             "type": "object",
             "properties": {
@@ -5905,9 +9566,44 @@
                 }
             }
         },
+        "SavedSegment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "match": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "ServerConfig": {
             "type": "object",
             "properties": {
+                "console_url": {
+                    "type": "string"
+                },
                 "from_email": {
                     "type": "string"
                 },
@@ -5981,6 +9677,14 @@
                         }
                     }
                 },
+                "reply_tracking": {
+                    "description": "ReplyTracking is whether this tenant has campaign reply tracking set\nup (its \"replies\" setup, pushed by the platform), so the editor only\noffers the switch when it would do something.",
+                    "type": "boolean"
+                },
+                "require_2fa": {
+                    "description": "Require2FA is security.require_2fa, so Team can stop asking for it\nonce it's on.",
+                    "type": "boolean"
+                },
                 "root_url": {
                     "type": "string"
                 },
@@ -5989,6 +9693,16 @@
                 },
                 "update": {
                     "$ref": "#/definitions/AppUpdate"
+                },
+                "upload_extensions": {
+                    "description": "UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what\nMedia accepts, so the upload area can say so.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "upload_max_file_size": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string"
@@ -6202,6 +9916,22 @@
                 "bounce.webhooks_enabled": {
                     "type": "boolean"
                 },
+                "branding": {
+                    "description": "Branding is the workspace logo shown in transactional emails through\nthe brand-logo template block (Developers \u003e Email branding).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/Branding"
+                        }
+                    ]
+                },
+                "inactive_cleanup": {
+                    "description": "InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive\ncleanup); see internal/cleanup.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Settings"
+                        }
+                    ]
+                },
                 "maintenance.db": {
                     "type": "object",
                     "properties": {
@@ -6339,6 +10069,24 @@
                                     "type": "string"
                                 }
                             }
+                        },
+                        "login": {
+                            "description": "Login also asks for the captcha on the admin sign-in page.",
+                            "type": "boolean"
+                        },
+                        "turnstile": {
+                            "type": "object",
+                            "properties": {
+                                "enabled": {
+                                    "type": "boolean"
+                                },
+                                "key": {
+                                    "type": "string"
+                                },
+                                "secret": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 },
@@ -6370,6 +10118,10 @@
                             "type": "string"
                         }
                     }
+                },
+                "security.require_2fa": {
+                    "description": "SecurityRequire2FA holds password users at their profile until they\nset up two-step verification (see auth.NeedsTwofaSetup).",
+                    "type": "boolean"
                 },
                 "security.trusted_urls": {
                     "type": "array",
@@ -6460,6 +10212,10 @@
                 "upload.filesystem.upload_uri": {
                     "type": "string"
                 },
+                "upload.max_file_size": {
+                    "description": "UploadMaxFileSize is the largest upload in KB; 0 means no limit.",
+                    "type": "integer"
+                },
                 "upload.provider": {
                     "type": "string"
                 },
@@ -6516,6 +10272,10 @@
                 "id": {
                     "type": "integer"
                 },
+                "last_opened_at": {
+                    "description": "LastOpenedAt is when they last opened a campaign, set only by\nsubscriber searches (Subscribers' \"Last opened\" column).",
+                    "type": "string"
+                },
                 "lists": {
                     "type": "array",
                     "items": {
@@ -6556,11 +10316,31 @@
                         "type": "integer"
                     }
                 },
+                "engagement": {
+                    "$ref": "#/definitions/SubscriberEngagement"
+                },
                 "link_clicks": {
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "SubscriberEngagement": {
+            "type": "object",
+            "properties": {
+                "campaigns": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "type": "integer"
+                },
+                "last_opened_at": {
+                    "type": "string"
+                },
+                "opened": {
+                    "type": "integer"
                 }
             }
         },
@@ -6620,6 +10400,14 @@
                 "search": {
                     "type": "string"
                 },
+                "segment": {
+                    "description": "Segment narrows the people acted on, like Query, but is compiled\nfrom known fields so it needs no SQL query permission.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                        }
+                    ]
+                },
                 "status": {
                     "type": "string"
                 },
@@ -6637,14 +10425,30 @@
         "Template": {
             "type": "object",
             "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
                 "body": {
                     "type": "string"
                 },
                 "body_source": {
                     "$ref": "#/definitions/null.String"
                 },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "id": {
                     "type": "integer"
@@ -6655,6 +10459,13 @@
                 "name": {
                     "type": "string"
                 },
+                "sample_data": {
+                    "description": "Transactional templates only.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "subject": {
                     "description": "Subject is only for type=tx.",
                     "type": "string"
@@ -6663,6 +10474,300 @@
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "TemplateTestReq": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "emails": {
+                    "description": "Emails must be existing subscribers the user can see.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "description": "Type is campaign or campaign_visual.",
+                    "type": "string"
+                }
+            }
+        },
+        "TenantReplies": {
+            "type": "object",
+            "properties": {
+                "inbound_address": {
+                    "description": "InboundAddress is the tenant's Postmark server's inbound address\n(\"\u003chash\u003e@inbound.postmarkapp.com\"); each message's reply address\nplus-addresses a token onto it.",
+                    "type": "string"
+                },
+                "secret": {
+                    "description": "Secret signs reply tokens (at least 16 characters). Changing it\norphans replies to emails already sent.",
+                    "type": "string"
+                },
+                "webhook_password": {
+                    "type": "string"
+                },
+                "webhook_username": {
+                    "description": "WebhookUsername/WebhookPassword are the HTTP basic-auth credentials\nthe tenant's Postmark server sends with each inbound webhook.",
+                    "type": "string"
+                }
+            }
+        },
+        "TxLogEvent": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxLogMessage": {
+            "type": "object",
+            "properties": {
+                "api_key_id": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "bounce_type": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TxLogEvent"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "messenger": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "recipient": {
+                    "type": "string"
+                },
+                "sender": {
+                    "type": "string"
+                },
+                "source_ip": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "subscriber_id": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "subscriber_status": {
+                    "type": "string"
+                },
+                "template_id": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "template_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxLogPage": {
+            "type": "object",
+            "properties": {
+                "counts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/TxLogMessage"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "TxPreview": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "string"
+                },
+                "html": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxPreviewRequest": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "data": {
+                    "description": "Arbitrary sample data, as a caller would send in `data`.",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxStats": {
+            "type": "object",
+            "properties": {
+                "bounced": {
+                    "type": "integer"
+                },
+                "delivered": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "sent_prev": {
+                    "type": "integer"
+                },
+                "top_error": {
+                    "type": "string"
+                }
+            }
+        },
+        "TxTemplate": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "body_source": {
+                    "$ref": "#/definitions/null.String"
+                },
+                "campaign_count": {
+                    "description": "CampaignCount is how many campaigns use the template (read-only).",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sample_data": {
+                    "description": "Transactional templates only.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "subject": {
+                    "description": "Subject is only for type=tx.",
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "used_this_week": {
+                    "type": "integer"
+                }
+            }
+        },
+        "TxTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "alt_body": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sample_data": {
+                    "type": "object"
+                },
+                "subject": {
                     "type": "string"
                 }
             }
@@ -6787,6 +10892,9 @@
                 "to_send": {
                     "type": "integer"
                 },
+                "tracking": {
+                    "$ref": "#/definitions/CampaignTracking"
+                },
                 "type": {
                     "type": "string"
                 },
@@ -6880,6 +10988,185 @@
                 }
             }
         },
+        "WebhookAttempt": {
+            "type": "object",
+            "properties": {
+                "attempt": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "response": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "$ref": "#/definitions/null.Int"
+                }
+            }
+        },
+        "WebhookDelivery": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "endpoint_id": {
+                    "type": "integer"
+                },
+                "endpoint_url": {
+                    "type": "string"
+                },
+                "event": {
+                    "type": "string"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/WebhookAttempt"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_duration_ms": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "last_status_code": {
+                    "$ref": "#/definitions/null.Int"
+                },
+                "message_id": {
+                    "type": "string"
+                },
+                "next_attempt_at": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookEndpoint": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "done_24h": {
+                    "description": "Last 24 hours.",
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "median_ms": {
+                    "type": "integer"
+                },
+                "ok_24h": {
+                    "type": "integer"
+                },
+                "retrying": {
+                    "type": "integer"
+                },
+                "secret_hint": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookEndpointRequest": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "description": "Status is \"active\" or \"disabled\"; empty keeps an endpoint active.",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookSecret": {
+            "type": "object",
+            "properties": {
+                "secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "WebhookTest": {
+            "type": "object",
+            "properties": {
+                "delivery_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "cmd.cleanupStatus": {
+            "type": "object",
+            "properties": {
+                "last_run": {
+                    "$ref": "#/definitions/CleanupRun"
+                },
+                "managed": {
+                    "description": "Managed are Listnun's rules, shown read-only in managed mode.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules"
+                        }
+                    ]
+                },
+                "matching": {
+                    "description": "Matching is how many subscribers the saved rules would act on now.",
+                    "type": "integer"
+                },
+                "next_run": {
+                    "type": "string"
+                },
+                "tracking": {
+                    "description": "Tracking is false when per-subscriber tracking is off, which stops\nthe cleanup from running.",
+                    "type": "boolean"
+                }
+            }
+        },
         "cmd.okResp": {
             "type": "object",
             "properties": {
@@ -6895,10 +11182,105 @@
                 }
             }
         },
+        "cmd.optinResendReq": {
+            "type": "object",
+            "properties": {
+                "list_ids": {
+                    "description": "ListIDs limits the resend to these lists. Empty means every list.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "cmd.optinResendResp": {
+            "type": "object",
+            "properties": {
+                "queued": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cmd.segmentCountsReq": {
+            "type": "object",
+            "properties": {
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment"
+                    }
+                }
+            }
+        },
+        "cmd.segmentSQLResp": {
+            "type": "object",
+            "properties": {
+                "sql": {
+                    "type": "string"
+                }
+            }
+        },
         "echo.HTTPError": {
             "type": "object",
             "properties": {
                 "message": {}
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_cleanup.Rules": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "activity": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "list_ids": {
+                    "description": "ListIDs limits the cleanup to subscribers of these lists (and, for\nunsubscribe, to these lists); empty means all lists.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "schedule": {
+                    "description": "Schedule is a standard 5-field cron expression.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_cleanup.Settings": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "activity": {
+                    "type": "string"
+                },
+                "days": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "list_ids": {
+                    "description": "ListIDs limits the cleanup to subscribers of these lists (and, for\nunsubscribe, to these lists); empty means all lists.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "schedule": {
+                    "description": "Schedule is a standard 5-field cron expression.",
+                    "type": "string"
+                }
             }
         },
         "github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign": {
@@ -6912,6 +11294,268 @@
                 },
                 "pause_reason": {
                     "$ref": "#/definitions/null.String"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_core.CampaignRef": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_core.SendingHealth": {
+            "type": "object",
+            "properties": {
+                "bounce_rate": {
+                    "type": "number"
+                },
+                "bounces_high": {
+                    "type": "boolean"
+                },
+                "campaigns_without_unsubscribe": {
+                    "description": "CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe\nlink in their content or template, so they can't start or be\nscheduled (see models.Campaign.HasUnsubscribeLink).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef"
+                    }
+                },
+                "complaint_rate": {
+                    "type": "number"
+                },
+                "complaints": {
+                    "type": "integer"
+                },
+                "complaints_high": {
+                    "type": "boolean"
+                },
+                "hard_bounces": {
+                    "type": "integer"
+                },
+                "judged": {
+                    "description": "Judged is false below minRateSample sends, when the rates say\nnothing yet and the High flags stay false.",
+                    "type": "boolean"
+                },
+                "sent": {
+                    "type": "integer"
+                },
+                "window_days": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_inboxcheck.Check": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "params": {
+                    "description": "Open-ended: each check's own placeholders.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "pass": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Condition": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Field"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "op": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Op"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Field": {
+            "type": "string",
+            "enum": [
+                "attribute",
+                "email",
+                "name",
+                "joined",
+                "list",
+                "status",
+                "unconfirmed",
+                "last_opened",
+                "last_clicked"
+            ],
+            "x-enum-varnames": [
+                "FieldAttribute",
+                "FieldEmail",
+                "FieldName",
+                "FieldJoined",
+                "FieldList",
+                "FieldStatus",
+                "FieldUnconfirmed",
+                "FieldLastOpened",
+                "FieldLastClicked"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Match": {
+            "type": "string",
+            "enum": [
+                "all",
+                "any"
+            ],
+            "x-enum-varnames": [
+                "MatchAll",
+                "MatchAny"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Op": {
+            "type": "string",
+            "enum": [
+                "is",
+                "is_not",
+                "contains",
+                "exists",
+                "in_last",
+                "not_in_last",
+                "before",
+                "after",
+                "never"
+            ],
+            "x-enum-varnames": [
+                "OpIs",
+                "OpIsNot",
+                "OpContains",
+                "OpExists",
+                "OpInLast",
+                "OpNotInLast",
+                "OpBefore",
+                "OpAfter",
+                "OpNever"
+            ]
+        },
+        "github_com_nerd-zero_listnun_internal_segments.Segment": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition"
+                    }
+                },
+                "match": {
+                    "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_segments.Match"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.CheckResult": {
+            "type": "object",
+            "properties": {
+                "existing": {
+                    "description": "Existing is how many of them are already subscribers.",
+                    "type": "integer"
+                },
+                "num_problems": {
+                    "description": "NumProblems counts the rows that wouldn't be imported; Problems lists\nup to maxProblems of them.",
+                    "type": "integer"
+                },
+                "problems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem"
+                    }
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "valid": {
+                    "description": "Valid is the number of different, valid addresses in the file.",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Column": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn": {
+            "type": "object",
+            "properties": {
+                "as": {
+                    "type": "string"
+                },
+                "header": {
+                    "type": "string"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the attribute name when As is AsAttribute.",
+                    "type": "string"
+                },
+                "samples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "github_com_nerd-zero_listnun_internal_subimporter.Problem": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                },
+                "row": {
+                    "description": "Row is the row's line in the file as a spreadsheet numbers it: the\nheader is row 1.",
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FormField": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "description": "Key is email, name, or attribs.\u003cname\u003e for an attribute.",
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
                 }
             }
         },

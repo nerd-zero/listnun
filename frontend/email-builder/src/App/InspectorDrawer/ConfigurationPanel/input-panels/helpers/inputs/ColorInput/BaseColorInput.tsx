@@ -7,7 +7,7 @@ import Picker from './Picker';
 
 const BUTTON_SX = {
   border: '1px solid',
-  borderColor: 'cadet.400',
+  borderColor: 'divider',
   width: 32,
   height: 32,
   borderRadius: '4px',
@@ -48,7 +48,7 @@ export default function ColorInput({ label, defaultValue, onChange, nullable }: 
           onChange(null);
         }}
       >
-        <CloseOutlined fontSize="small" sx={{ color: 'grey.600' }} />
+        <CloseOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
       </ButtonBase>
     );
   };

@@ -302,6 +302,13 @@ func (a *App) GetUserProfile(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{user})
 }
 
+// profileReq is the body of a profile update: the editable user fields plus
+// the current password, which is required when setting a new one.
+type profileReq struct {
+	auth.User
+	CurrentPassword string `json:"current_password"`
+} // @name ProfileUpdate
+
 // UpdateUserProfile update's the current user's profile.
 //
 //	@ID			updateUserProfile
@@ -309,19 +316,21 @@ func (a *App) GetUserProfile(c echo.Context) error {
 //	@Tags		users
 //	@Accept		json
 //	@Produce	json
-//	@Param		body	body		User	true	"Profile fields"
+//	@Param		body	body		profileReq	true	"Profile fields; current_password is required with a new password"
 //	@Success	200		{object}	User
 //	@Failure	400		{object}	echo.HTTPError
+//	@Failure	403		{object}	echo.HTTPError
 //	@Router		/api/profile [put]
 func (a *App) UpdateUserProfile(c echo.Context) error {
 	// Get the authenticated user.
 	user := auth.GetUser(c)
 
 	// Incoming params.
-	u := auth.User{}
-	if err := c.Bind(&u); err != nil {
+	var req profileReq
+	if err := c.Bind(&req); err != nil {
 		return err
 	}
+	u := req.User
 	u.PasswordLogin = user.PasswordLogin
 	u.Name = strings.TrimSpace(u.Name)
 	email := strings.TrimSpace(u.Email.String)
@@ -337,6 +346,12 @@ func (a *App) UpdateUserProfile(c echo.Context) error {
 	if u.PasswordLogin && u.Password.String != "" {
 		if !strHasLen(u.Password.String, 8, stdInputMaxLen) {
 			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "password"))
+		}
+
+		// A new password needs the current one, so an unattended session
+		// can't be used to lock the owner out.
+		if _, err := a.core.LoginUser(c.Request().Context(), tenantID(c), user.Username, req.CurrentPassword); err != nil {
+			return echo.NewHTTPError(http.StatusForbidden, a.i18n.T("users.invalidPassword"))
 		}
 	}
 

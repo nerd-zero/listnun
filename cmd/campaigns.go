@@ -383,6 +383,7 @@ func (a *App) CreateCampaign(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	a.recordCampaignEditor(c, out.ID)
 
 	return c.JSON(http.StatusOK, okResp{out})
 }
@@ -443,12 +444,39 @@ func (a *App) UpdateCampaign(c echo.Context) error {
 		o = c
 	}
 
+	// A scheduled campaign sends without another status change, so an
+	// edit can't take its unsubscribe link away.
+	if cm.Status == models.CampaignStatusScheduled {
+		ok, err := a.campaignHasUnsubLink(c.Request().Context(), tenantID(c), o.Campaign)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("campaigns.noUnsubLink"))
+		}
+	}
+
 	out, err := a.core.UpdateCampaign(c.Request().Context(), tenantID(c), id, o.Campaign, o.ListIDs, o.MediaIDs)
 	if err != nil {
 		return err
 	}
+	a.recordCampaignEditor(c, id)
 
 	return c.JSON(http.StatusOK, okResp{out})
+}
+
+// campaignHasUnsubLink reports whether camp, with the template it's set
+// to use, has a visible unsubscribe link (see
+// models.Campaign.HasUnsubscribeLink).
+func (a *App) campaignHasUnsubLink(ctx context.Context, tenantID int, camp models.Campaign) (bool, error) {
+	if camp.TemplateID.Valid && camp.ContentType != models.CampaignContentTypeVisual {
+		tpl, err := a.core.GetTemplate(ctx, tenantID, int(camp.TemplateID.Int), false)
+		if err != nil {
+			return false, err
+		}
+		camp.TemplateBody = tpl.Body
+	}
+	return camp.HasUnsubscribeLink(), nil
 }
 
 // UpdateCampaignStatus handles campaign status modification.
@@ -482,6 +510,14 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 
 	// Block start/schedule when a Scrub validation job is active on any of the campaign's lists.
 	if req.Status == models.CampaignStatusRunning || req.Status == models.CampaignStatusScheduled {
+		camp, err := a.core.GetCampaignForPreview(c.Request().Context(), tenantID(c), id, 0)
+		if err != nil {
+			return err
+		}
+		if !camp.HasUnsubscribeLink() {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("campaigns.noUnsubLink"))
+		}
+
 		if blocked, listName, err := a.checkScrubJobOnCampaign(c.Request().Context(), tenantID(c), id); err == nil && blocked {
 			return echo.NewHTTPError(http.StatusBadRequest,
 				a.i18n.Ts("campaigns.scrubJobRunning", "list", listName))
@@ -493,6 +529,9 @@ func (a *App) UpdateCampaignStatus(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	a.core.LogActivity(tenantID(c), models.ActivityInfo, "campaign",
+		fmt.Sprintf("“%s” %s by %s", out.Name, campaignStatusVerb(req.Status), auth.GetUser(c).Username))
 
 	// If the campaign is being stopped, send the signal to the manager to stop it in flight.
 	if req.Status == models.CampaignStatusPaused || req.Status == models.CampaignStatusCancelled {
@@ -798,6 +837,8 @@ func (a *App) TestCampaign(c echo.Context) error {
 	camp.AltBody = req.AltBody
 	camp.Messenger = req.Messenger
 	camp.ContentType = req.ContentType
+	// Test with the editor's tracking, so the test shows what will send.
+	camp.Tracking = req.Tracking.Normalized()
 	camp.Headers = req.Headers
 	camp.TemplateID = req.TemplateID
 	for _, id := range req.MediaIDs {
@@ -826,7 +867,7 @@ func (a *App) TestCampaign(c echo.Context) error {
 //	@Summary		Get campaign analytics
 //	@Tags			campaigns
 //	@Produce		json
-//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links)"
+//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links, bounce_types)"
 //	@Param			id		query		[]int		true	"Campaign IDs"
 //	@Param			from	query		string		true	"Start date (YYYY-MM-DD)"
 //	@Param			to		query		string		true	"End date (YYYY-MM-DD)"
@@ -864,6 +905,16 @@ func (a *App) GetCampaignViewAnalytics(c echo.Context) error {
 		return c.JSON(http.StatusOK, okResp{out})
 	}
 
+	// Bounce counts per type (soft, hard, complaint).
+	if typ == "bounce_types" {
+		out, err := a.core.GetCampaignBounceTypes(c.Request().Context(), tenantID(c), ids, from, to)
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, okResp{out})
+	}
+
 	// Get the analytics numbers from the DB for the campaigns.
 	out, err := a.core.GetCampaignAnalyticsCounts(c.Request().Context(), tenantID(c), ids, typ, from, to)
 	if err != nil {
@@ -893,21 +944,19 @@ func (a *App) sendTestMessage(sub models.Subscriber, camp *models.Campaign) erro
 		return echo.NewHTTPError(http.StatusNotFound, a.i18n.Ts("templates.errorRendering", "error", err.Error()))
 	}
 
-	return a.manager.PushCampaignMessage(msg)
+	if err := a.manager.SendTestMessage(msg); err != nil {
+		reason := core.DescribeSendError(err)
+		a.core.LogActivity(camp.TenantID, models.ActivityError, "sending",
+			fmt.Sprintf("Test of “%s” to %s couldn't send: %s", camp.Name, sub.Email, reason))
+		return errors.New(reason)
+	}
+	return nil
 }
 
 // validateCampaignFields validates incoming campaign field values.
 func (a *App) validateCampaignFields(ctx context.Context, tenantID int, c campReq) (campReq, error) {
 	if c.FromEmail == "" {
-		// a.cfg.FromEmail is a single boot-time value derived from tenant
-		// 1's settings (see cmd/init.go's initSettings) - falling back to
-		// it here would send every other tenant's campaigns under tenant
-		// 1's From address. Look up this tenant's own app.from_email
-		// instead, only falling back to the global default if that fails.
-		c.FromEmail = a.cfg.FromEmail
-		if s, err := a.core.GetSettings(ctx, tenantID); err == nil && s.AppFromEmail != "" {
-			c.FromEmail = s.AppFromEmail
-		}
+		c.FromEmail = a.tenantFromEmail(ctx, tenantID)
 	} else if !reFromAddress.Match([]byte(c.FromEmail)) {
 		imp, err := a.importers.Get(ctx, tenantID)
 		if err != nil {
@@ -978,6 +1027,15 @@ func (a *App) validateCampaignFields(ctx context.Context, tenantID int, c campRe
 
 	if len(c.ArchiveMeta) == 0 {
 		c.ArchiveMeta = json.RawMessage("{}")
+	}
+
+	c.Tracking = c.Tracking.Normalized()
+	if err := c.Tracking.Validate(); err != nil {
+		var bad models.InvalidPixelError
+		if errors.As(err, &bad) {
+			return c, errors.New(a.i18n.Ts("campaigns.trackingPixelInvalid", "url", bad.URL))
+		}
+		return c, errors.New(a.i18n.Ts("campaigns.trackingPixelsMax", "num", strconv.Itoa(models.MaxTrackingPixels)))
 	}
 
 	if c.ArchiveSlug.String != "" {
@@ -1118,4 +1176,21 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 		}
 	}
 	return false, "", nil
+}
+
+// campaignStatusVerb describes a status change for the activity log.
+func campaignStatusVerb(status string) string {
+	switch status {
+	case models.CampaignStatusRunning:
+		return "started"
+	case models.CampaignStatusScheduled:
+		return "scheduled"
+	case models.CampaignStatusPaused:
+		return "paused"
+	case models.CampaignStatusCancelled:
+		return "cancelled"
+	case models.CampaignStatusFinished:
+		return "finished"
+	}
+	return "set to " + status
 }

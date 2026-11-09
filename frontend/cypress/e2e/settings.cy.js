@@ -5,27 +5,29 @@ const faveURL = 'http://127.0.0.1:9000/public/static/logo.png';
 describe('Settings', () => {
   it('Opens settings page', () => {
     cy.resetDB();
-    cy.loginAndVisit('/admin/settings');
+    cy.loginAndVisit('/admin/settings/general');
   });
 
   it('Changes some settings', () => {
-    cy.get('.b-tabs nav a').eq(0).click();
-
+    // General.
+    cy.get('[data-cy=subnav-general]').click();
     cy.get('input[name="app.root_url"]').clear().type(rootURL);
     cy.get('input[name="app.favicon_url"]').type(faveURL);
-    cy.get('.b-tabs nav a').eq(1).click();
-    cy.get('.tab-item:visible').find('.field').first()
-      .find('button')
-      .first()
-      .click();
+
+    // Performance. All sections share one form, so edits survive switching.
+    cy.get('[data-cy=subnav-performance]').click();
+    cy.get('input[name="app.concurrency"]').clear().type('9').blur();
 
     // Enable / disable SMTP and delete one.
-    cy.get('.b-tabs nav a').eq(5).click();
-    cy.get('.tab-item:visible [data-cy=btn-enable-smtp]').eq(1).click();
-    cy.get('.tab-item:visible [data-cy=btn-delete-smtp]').first().click();
-    cy.get('.modal button.is-primary').click();
+    cy.get('[data-cy=subnav-smtp]').click();
+    cy.get('[data-cy=btn-enable-smtp]').eq(1).find('input[role=switch]').check({ force: true });
+    cy.get('[data-cy=btn-delete-smtp]').first().click();
+    // $utils.confirm() opens the global PrimeVue ConfirmDialog.
+    cy.get('.p-confirmdialog-accept-button').click();
+    cy.get('[data-cy=btn-enable-smtp]').should('have.length', 1);
 
-    cy.get('[data-cy=btn-save]').click();
+    // Save from the unsaved-changes bar.
+    cy.get('.settings-unsaved [data-cy=btn-save]').click();
     cy.wait(500);
 
     cy.waitForBackend();

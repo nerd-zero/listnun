@@ -15,7 +15,7 @@
 
     <div class="field">
       <label class="block mb-1 text-sm font-medium">{{ label + (selectedItems ? ` (${selectedItems.length})` : '') }}</label>
-      <PvAutoComplete v-model="query" :placeholder="placeholder"
+      <PvAutoComplete v-model="query" :placeholder="placeholder" data-cy="list-selector"
         :disabled="all.length === 0 || disabled"
         :suggestions="suggestions" @complete="onSearch" @item-select="onSelect" option-label="name"
         :dropdown="true" force-selection class="w-full" />

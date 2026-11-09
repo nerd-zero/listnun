@@ -77,7 +77,7 @@ export default function TemplatePanel() {
           height: 49,
           borderBottom: 1,
           borderColor: 'divider',
-          backgroundColor: 'white',
+          backgroundColor: 'background.paper',
           top: 0,
           px: 1,
         }}

@@ -19,8 +19,21 @@ type Media struct {
 	Provider    string      `json:"provider"`
 	Meta        models.JSON `db:"meta" json:"meta"`
 	URL         string      `json:"url"`
+	// Size is the stored file's size in bytes: null until measured, and
+	// SizeUnknown when it couldn't be read (see Sizer).
+	Size null.Int `db:"size" json:"size"`
 
 	Total int `db:"total" json:"-"`
+}
+
+// SizeUnknown marks a file whose size couldn't be read, so the backfill
+// doesn't retry it forever. Usage totals leave it out.
+const SizeUnknown = -1
+
+// Sizer is implemented by stores that can report a stored file's size.
+// It is used to measure files uploaded before sizes were recorded.
+type Sizer interface {
+	Size(name string) (int64, error)
 }
 
 // Store represents functions to store and retrieve media (files).

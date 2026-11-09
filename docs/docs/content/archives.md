@@ -1,7 +1,7 @@
 # Archives
 
 A global public archive is maintained on the public web interface. It can be
-enabled under Settings -> Settings -> General -> Enable public mailing list
+enabled under **Settings › Workspace** › Enable public mailing list
 archive.
 
 To make a campaign available in the public archive (provided it has been
@@ -27,6 +27,4 @@ As an example:
   "attribs": {}
 }
 ```
-
-![Archive campaign](images/archived-campaign-metadata.png)
 

@@ -1,27 +1,15 @@
 {{ define "admin-operator-setup" }}
-{{ template "header" .}}
+{{ template "auth-header" .}}
+	<h1 class="auth-title">{{ .L.T "auth.newPasswordTitle" }}</h1>
+	<p class="auth-sub">{{ .L.T "auth.setupHelp" }}</p>
 
-<section class="login">
-	<h2>{{ .L.T "users.resetPassword"}}</h2>
-
-	<form method="post" action="/admin/operator-setup" class="form">
+	<form method="post" action="/admin/operator-setup" class="auth-form">
 		<input type="hidden" name="token" value="{{ .Data.Token }}" />
-		<div>
-			<p>
-				<label for="password">{{ .L.T "users.newPassword" }}</label>
-				<input id="password" type="password" name="password" autofocus required minlength="8" />
-			</p>
-			<p>
-				<label for="password2">{{ .L.T "users.passwordRepeat" }}</label>
-				<input id="password2" type="password" name="password2" required minlength="8" />
-			</p>
+		{{ template "auth-new-password" . }}
 
-			{{ if .Data.Error }}<p><span class="error">{{ .Data.Error }}</span></p>{{ end }}
+		{{ if .Data.Error }}<p class="auth-error" role="alert">{{ .Data.Error }}</p>{{ end }}
 
-			<p class="submit"><button class="button" type="submit">{{ .L.T "users.resetPassword" }}</button></p>
-		</div>
+		<button class="auth-btn" type="submit">{{ .L.T "auth.saveAndSignIn" }}</button>
 	</form>
-</section>
-
-{{ template "footer" .}}
+{{ template "auth-footer" .}}
 {{ end }}

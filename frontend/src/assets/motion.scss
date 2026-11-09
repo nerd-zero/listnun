@@ -1,0 +1,119 @@
+// Shared motion: Vue <Transition> classes, enter animations for content
+// that appears (v-if, v-show, loaded data), and hover easing. Timings are
+// the --ln-dur-* tokens (tokens.css), which reduced motion sets to 0.
+//
+// Movement uses the `translate` property, not `transform`, so it composes
+// with elements that already position themselves with transform.
+
+@keyframes ln-fade-in { from { opacity: 0; } }
+@keyframes ln-rise-in { from { opacity: 0; translate: 0 4px; } }
+@keyframes ln-step-in-next { from { opacity: 0; translate: 16px 0; } }
+@keyframes ln-step-in-prev { from { opacity: 0; translate: -16px 0; } }
+@keyframes ln-pop-in { from { opacity: 0; scale: .6; } }
+@keyframes ln-grow-x { from { width: 0; } }
+
+// Fade and rise in once, when rendered.
+.ln-enter { animation: ln-rise-in var(--ln-dur-base) var(--ln-ease) both; }
+
+// ── <Transition> names ──────────────────────────────────
+// Page change: App.vue wraps each page in .ln-view, which takes these
+// classes so a page's own root transitions can't override them.
+.ln-page-enter-active { transition: opacity var(--ln-dur-slow) var(--ln-ease), translate var(--ln-dur-slow) var(--ln-ease); }
+.ln-page-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease-exit); }
+.ln-page-enter-from { opacity: 0; translate: 0 6px; }
+.ln-page-leave-to { opacity: 0; }
+
+.ln-fade-enter-active { transition: opacity var(--ln-dur-base) var(--ln-ease); }
+.ln-fade-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease-exit); }
+.ln-fade-enter-from, .ln-fade-leave-to { opacity: 0; }
+
+// Bars that come up from the bottom (unsaved changes).
+.ln-rise-enter-active { transition: opacity var(--ln-dur-base) var(--ln-ease), translate var(--ln-dur-base) var(--ln-ease); }
+.ln-rise-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease-exit), translate var(--ln-dur-fast) var(--ln-ease-exit); }
+.ln-rise-enter-from, .ln-rise-leave-to { opacity: 0; translate: 0 12px; }
+
+// Bars that drop in over content (a table's bulk actions).
+.ln-drop-enter-active { transition: opacity var(--ln-dur-base) var(--ln-ease), translate var(--ln-dur-base) var(--ln-ease); }
+.ln-drop-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease-exit); }
+.ln-drop-enter-from { opacity: 0; translate: 0 -6px; }
+.ln-drop-leave-to { opacity: 0; }
+
+// Lists (<TransitionGroup name="ln-list">): items rise in, fade out, and
+// the rest slide into place.
+.ln-list-enter-active { transition: opacity var(--ln-dur-base) var(--ln-ease), translate var(--ln-dur-base) var(--ln-ease); }
+.ln-list-leave-active { transition: opacity var(--ln-dur-fast) var(--ln-ease-exit); }
+.ln-list-enter-from { opacity: 0; translate: 0 -4px; }
+.ln-list-leave-to { opacity: 0; }
+.ln-list-move { transition: transform var(--ln-dur-base) var(--ln-ease); }
+
+// Copy buttons: while one says "Copied", its check pops in and the label
+// fades (the button gets .ln-copied for the moment it's showing).
+.p-button.ln-copied .p-button-icon { animation: ln-pop-in var(--ln-dur-base) var(--ln-ease); }
+.p-button.ln-copied .p-button-label { animation: ln-fade-in var(--ln-dur-base) var(--ln-ease); }
+
+// LnCollapse (components/ui/LnCollapse.vue) sets the height inline. Its
+// wrapper passes the parent's gap through, so stacked children keep their
+// spacing.
+.ln-collapse { display: flex; flex-direction: column; gap: inherit; }
+.ln-collapse-enter-active,
+.ln-collapse-leave-active {
+  overflow: hidden;
+  transition: height var(--ln-dur-base) var(--ln-ease), opacity var(--ln-dur-base) var(--ln-ease);
+}
+.ln-collapse-enter-from, .ln-collapse-leave-to { opacity: 0; }
+
+// ── Steps (campaign editor, import) ─────────────────────
+// The wrapper says which way the user moved; the step that appears slides
+// in from that side.
+.ln-steps-next > .ln-step { animation: ln-step-in-next var(--ln-dur-slow) var(--ln-ease) both; }
+.ln-steps-prev > .ln-step { animation: ln-step-in-prev var(--ln-dur-slow) var(--ln-ease) both; }
+// The same for a single step element that knows its own direction (import).
+.ln-step-next { animation: ln-step-in-next var(--ln-dur-slow) var(--ln-ease) both; }
+.ln-step-prev { animation: ln-step-in-prev var(--ln-dur-slow) var(--ln-ease) both; }
+
+// ── Content that appears ────────────────────────────────
+// Tab panels, empty/error/no-access states and lazily shown blocks animate
+// each time they're shown (display: none → shown restarts an animation).
+.p-tabpanel { animation: ln-fade-in var(--ln-dur-base) var(--ln-ease); }
+.ln-empty, .ln-error, .ln-no-access { animation: ln-rise-in var(--ln-dur-base) var(--ln-ease) both; }
+// Tables fade in when they replace their loading skeleton.
+.ln-table-card .p-datatable,
+.ln-table-card > .ln-table-body { animation: ln-fade-in var(--ln-dur-base) var(--ln-ease); }
+
+// ── Hover and press ─────────────────────────────────────
+.ln-nav-item, .ln-nav-kid, .ln-rail-item, .ln-icon-btn, .ln-link-btn, .ln-row-title, .ln-row-menu,
+.ln-subnav-item, .ln-card[role="button"], label.ln-card, a.ln-card {
+  transition:
+    background-color var(--ln-dur-fast) var(--ln-ease),
+    color var(--ln-dur-fast) var(--ln-ease),
+    border-color var(--ln-dur-fast) var(--ln-ease),
+    box-shadow var(--ln-dur-fast) var(--ln-ease);
+}
+
+// Progress bars glide to each new value.
+.p-progressbar-value { transition: width var(--ln-dur-slow) var(--ln-ease); }
+// Meter bars (list confirmations, analytics link clicks and bounce splits)
+// grow in when drawn, then ease to new values. No fill mode, so once the
+// grow ends the inline width and its transition take over.
+.lists-meter > span, .ana-link-bar > span, .ana-bounce-bar > span {
+  animation: ln-grow-x var(--ln-dur-slow) var(--ln-ease);
+  transition: width var(--ln-dur-slow) var(--ln-ease);
+}
+
+// Dimmed (disabled) blocks fade rather than snap. :where() keeps this at
+// the lowest specificity so the transition classes above still win.
+:where(.disabled, .ln-settings div) { transition: opacity var(--ln-dur-base) var(--ln-ease); }
+
+// ── Theme switch ────────────────────────────────────────
+// useDarkMode adds this class for one switch so colours cross-fade instead
+// of flipping; it's removed straight after, so it never slows other changes.
+.ln-theme-switching,
+.ln-theme-switching *,
+.ln-theme-switching *::before,
+.ln-theme-switching *::after {
+  transition:
+    background-color var(--ln-dur-slow) var(--ln-ease),
+    border-color var(--ln-dur-slow) var(--ln-ease),
+    color var(--ln-dur-slow) var(--ln-ease),
+    fill var(--ln-dur-slow) var(--ln-ease) !important;
+}

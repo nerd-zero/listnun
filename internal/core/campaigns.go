@@ -206,6 +206,7 @@ func (c *Core) CreateCampaign(ctx context.Context, tenantID int, o models.Campai
 			pq.Array(mediaIDs),
 			o.BodySource,
 			tenantID,
+			o.Tracking,
 		)
 	})
 	if err != nil {
@@ -250,6 +251,7 @@ func (c *Core) UpdateCampaign(ctx context.Context, tenantID int, id int, o model
 			pq.Array(mediaIDs),
 			o.BodySource,
 			tenantID,
+			o.Tracking,
 		)
 		return err
 	})
@@ -540,6 +542,21 @@ func (c *Core) GetCampaignAnalyticsLinks(ctx context.Context, tenantID int, camp
 	})
 	if err != nil {
 		c.log.Printf("error fetching campaign %s: %v", typ, err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
+	}
+
+	return out, nil
+}
+
+// GetCampaignBounceTypes returns bounce counts per campaign and bounce type.
+func (c *Core) GetCampaignBounceTypes(ctx context.Context, tenantID int, campIDs []int, fromDate, toDate string) ([]models.CampaignBounceTypeCount, error) {
+	out := []models.CampaignBounceTypeCount{}
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetCampaignBounceTypeCounts).Select(&out, pq.Array(campIDs), fromDate, toDate)
+	})
+	if err != nil {
+		c.log.Printf("error fetching campaign bounce types: %v", err)
 		return nil, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
 	}

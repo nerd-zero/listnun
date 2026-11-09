@@ -1,3 +1,21 @@
+// Step 1 of the import flow: upload the file. Step 2 (match columns)
+// appears once the server has read it.
+const uploadCSV = (name = 'subs.csv', content = null) => {
+  const attach = (data) => cy.get('input[type="file"]').attachFile({
+    fileContent: data, fileName: name, mimeType: 'text/csv',
+  });
+  if (content) attach(content);
+  else cy.fixture('subs.csv').then((data) => attach(data.toString()));
+  cy.contains('h2', 'Match your columns').should('exist');
+};
+
+// Picks the first list in the options step's list picker.
+const pickFirstList = () => {
+  cy.get('.imp-lists .p-autocomplete-dropdown').click();
+  cy.get('.p-autocomplete-overlay .p-autocomplete-option').first().click();
+  cy.get('.p-autocomplete-overlay').should('not.exist');
+};
+
 describe('Import', () => {
   it('Opens import page', () => {
     cy.resetDB();
@@ -6,90 +24,45 @@ describe('Import', () => {
 
   it('Imports subscribers', () => {
     const cases = [
-      {
-        chkMode: 'subscribe', status: 'enabled', chkSubStatus: 'unconfirmed', subStatus: 'unconfirmed', overwrite: true, count: 102,
-      },
-      {
-        chkMode: 'subscribe', status: 'enabled', chkSubStatus: 'confirmed', subStatus: 'confirmed', overwrite: true, count: 102,
-      },
-      {
-        chkMode: 'subscribe', status: 'enabled', chkSubStatus: 'unconfirmed', subStatus: 'confirmed', overwrite: false, count: 102,
-      },
-      {
-        chkMode: 'blocklist', status: 'blocklisted', chkSubStatus: 'unsubscribed', subStatus: 'unsubscribed', overwrite: false, count: 102,
-      },
+      { mode: 'Add them as subscribers', update: true, count: 102 },
+      { mode: 'Add them as subscribers', update: false, count: 102 },
+      { mode: 'Block these addresses', update: false, count: 102 },
     ];
 
     cases.forEach((c) => {
-      cy.get(`[data-cy=check-${c.chkMode}] .check`).click();
-      cy.get(`[data-cy=check-${c.chkSubStatus}] .check`).click();
+      uploadCSV();
+      cy.contains('button', 'Continue').click();
 
-      if (c.overwrite) {
-        cy.get('[data-cy=overwrite-user-info]').click();
-        cy.get('[data-cy=overwrite-sub-status]').click();
+      cy.contains('.p-togglebutton', c.mode).click();
+      if (c.mode === 'Add them as subscribers') {
+        pickFirstList();
+        if (c.update) cy.contains('.imp-choice', 'Update their details').click();
       }
+      cy.contains('button', 'Review import').click();
+      cy.get('[data-cy=btn-import]').click();
 
-      if (c.status === 'enabled') {
-        cy.get('.list-selector input').click();
-        cy.get('.list-selector .autocomplete a').first().click();
-      }
+      cy.get('[data-cy=import-status]', { timeout: 10000 }).should('have.attr', 'data-status', 'finished');
 
-      cy.fixture('subs.csv').then((data) => {
-        cy.get('input[type="file"]').attachFile({
-          fileContent: data.toString(),
-          fileName: 'subs.csv',
-          mimeType: 'text/csv',
-        });
-      });
+      // Clear the finished import so the next one can start.
+      cy.get('[data-cy=btn-import-done]').click();
+      cy.get('input[type="file"]').should('exist');
 
-      cy.get('button.is-primary').click();
-
-      // ONLY if .modal button.is-primary is present, click it.
-      if (c.overwrite) {
-        cy.get('.modal button.is-primary').click();
-      }
-
-      cy.get('section.wrap .has-text-success');
-      cy.get('button.is-primary').click();
-      cy.wait(100);
-
-      // Verify that 100 (+2 default) subs are imported.
+      // 100 (+2 default) subscribers.
       cy.loginAndVisit('/admin/subscribers');
-      cy.wait(100);
-      cy.get('[data-cy=count]').then(($el) => {
-        cy.expect(parseInt($el.text().trim())).to.equal(c.count);
+      cy.get('.ln-page-header .ln-page-count').should(($el) => {
+        expect(parseInt($el.text().trim(), 10)).to.equal(c.count);
       });
-
-      // Subscription status.
-      // cy.get('tbody td[data-label=E-mail]').each(($el) => {
-      // cy.wrap($el).find(`.tag.${c.subStatus}`);
-      // });
 
       cy.loginAndVisit('/admin/subscribers/import');
-      cy.wait(100);
     });
   });
 
-  it('Imports subscribers incorrectly', () => {
-    cy.wait(1000);
+  it('Needs an email column', () => {
     cy.resetDB();
-    cy.wait(1000);
     cy.loginAndVisit('/admin/subscribers/import');
 
-    cy.get('.list-selector input').click();
-    cy.get('.list-selector .autocomplete a').first().click();
-    cy.get('input[name=delim]').clear().type('|');
-
-    cy.fixture('subs.csv').then((data) => {
-      cy.get('input[type="file"]').attachFile({
-        fileContent: data.toString(),
-        fileName: 'subs.csv',
-        mimeType: 'text/csv',
-      });
-    });
-
-    cy.get('button.is-primary').click();
-    cy.wait(250);
-    cy.get('section.wrap .has-text-danger');
+    uploadCSV('people.csv', 'who,city\nAna,Harare\n');
+    cy.contains('Choose the email column').should('exist');
+    cy.contains('button', 'Continue').should('be.disabled');
   });
 });

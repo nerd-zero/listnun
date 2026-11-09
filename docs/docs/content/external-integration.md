@@ -8,4 +8,4 @@ The [subscriber APIs](apis/subscribers.md) offers several APIs to manipulate the
 
 ## Interacting directly with the DB
 
-listnun uses tables with simple schemas to represent subscribers (`subscribers`), lists (`lists`), and subscriptions (`subscriber_lists`). It is easy to add, update, and delete subscriber information directly with the database tables for advanced usecases. See the [table schemas](https://github.com/knadh/listmonk/blob/master/schema.sql) for more information.
+listnun uses tables with simple schemas to represent subscribers (`subscribers`), lists (`lists`), and subscriptions (`subscriber_lists`). It is easy to add, update, and delete subscriber information directly with the database tables for advanced usecases. See the [table schemas](https://github.com/nerd-zero/listnun/blob/master/schema.sql) for more information.

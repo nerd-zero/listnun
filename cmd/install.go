@@ -280,6 +280,8 @@ func installCampaign(campTplID, archiveTplID int, q *models.Queries) {
 		nil,
 		// tenant_id - install always seeds tenant 1.
 		1,
+		// tracking - new campaigns start with link tracking on.
+		models.CampaignTracking{Links: true, Pixels: []string{}},
 	); err != nil {
 		lo.Fatalf("error creating sample campaign: %v", err)
 	}

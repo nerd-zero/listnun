@@ -1,5 +1,94 @@
 basePath: /
 definitions:
+  APIKey:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  APIKeyRequest:
+    properties:
+      name:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  APIKeyWithSecret:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        $ref: '#/definitions/null.Int'
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      last_used_at:
+        type: string
+      legacy_user_id:
+        allOf:
+        - $ref: '#/definitions/null.Int'
+        description: |-
+          LegacyUserID is the API user this key was migrated from. Until that
+          user is disabled, its old username:token still authenticates.
+      legacy_user_status:
+        type: string
+      legacy_username:
+        type: string
+      name:
+        type: string
+      prev_expires_at:
+        type: string
+      revoked_at:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      secret:
+        type: string
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   About:
     properties:
       build:
@@ -36,6 +125,19 @@ definitions:
         type: integer
       num_cpu:
         type: integer
+    type: object
+  ActivityEntry:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      level:
+        type: string
+      message:
+        type: string
+      source:
+        type: string
     type: object
   AppUpdate:
     properties:
@@ -98,6 +200,54 @@ definitions:
         type: string
       type:
         type: string
+    type: object
+  BounceTypeCounts:
+    properties:
+      complaint:
+        type: integer
+      hard:
+        type: integer
+      soft:
+        type: integer
+      total:
+        type: integer
+    type: object
+  BrandLogo:
+    properties:
+      content_type:
+        type: string
+      filename:
+        type: string
+      height:
+        type: integer
+      media_id:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+      url:
+        type: string
+      width:
+        type: integer
+    type: object
+  Branding:
+    properties:
+      align:
+        type: string
+      link_url:
+        type: string
+      logo:
+        $ref: '#/definitions/BrandLogo'
+      logo_dark:
+        allOf:
+        - $ref: '#/definitions/BrandLogo'
+        description: |-
+          LogoDark is used by email clients in dark mode. Without it, Logo sits
+          on a white tile there.
+      width:
+        description: Width is the logo's display width in px.
+        type: integer
     type: object
   Campaign:
     properties:
@@ -181,6 +331,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -197,6 +349,185 @@ definitions:
       count:
         type: integer
       timestamp:
+        type: string
+    type: object
+  CampaignListRef:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  CampaignOverviewItem:
+    properties:
+      audience:
+        type: integer
+      bounced:
+        type: integer
+      clicked:
+        type: integer
+      id:
+        type: integer
+      lists:
+        items:
+          $ref: '#/definitions/CampaignListRef'
+        type: array
+      name:
+        type: string
+      opened:
+        type: integer
+      pause_reason:
+        type: string
+      send_at:
+        type: string
+      sent:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      to_send:
+        type: integer
+      updated_at:
+        type: string
+      updated_by_name:
+        type: string
+      uuid:
+        type: string
+    type: object
+  CampaignRepliesPage:
+    properties:
+      counts:
+        $ref: '#/definitions/CampaignReplyCounts'
+      page:
+        type: integer
+      per_page:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/CampaignReply'
+        type: array
+      total:
+        type: integer
+    type: object
+  CampaignReply:
+    properties:
+      campaign_id:
+        type: integer
+      forwarded_at:
+        type: string
+      forwarded_to:
+        type: string
+      from_email:
+        type: string
+      from_name:
+        type: string
+      html_body:
+        type: string
+      id:
+        type: integer
+      is_auto:
+        description: |-
+          IsAuto marks an automatic response (out-of-office, vacation). Kept,
+          but not counted as a reply.
+        type: boolean
+      received_at:
+        type: string
+      stripped_text:
+        description: |-
+          StrippedText is the reply without the quoted original message, when
+          the inbound provider could separate it.
+        type: string
+      subject:
+        type: string
+      subscriber_email:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: |-
+          SubscriberEmail/SubscriberName are joined from subscribers; empty
+          once the subscriber is deleted (FromEmail still says who replied).
+      subscriber_id:
+        $ref: '#/definitions/null.Int'
+      subscriber_name:
+        $ref: '#/definitions/null.String'
+      text_body:
+        type: string
+      uuid:
+        type: string
+    type: object
+  CampaignReplyCounts:
+    properties:
+      auto:
+        type: integer
+      repliers:
+        type: integer
+      replies:
+        type: integer
+    type: object
+  CampaignStatusCount:
+    properties:
+      count:
+        type: integer
+      status:
+        type: string
+    type: object
+  CampaignTracking:
+    properties:
+      links:
+        description: Links tracks every web link in the email, as if each had @TrackLink.
+        type: boolean
+      pixels:
+        description: |-
+          Pixels are third-party tracking image URLs added to the end of the
+          email (analytics or ad platforms that count opens with an image).
+        items:
+          type: string
+        type: array
+      replies:
+        description: |-
+          Replies swaps each email's Reply-To for a per-message listnun reply
+          address, so replies are recorded against the campaign and then
+          forwarded to the campaign's own Reply-To (internal/replies). Off
+          unless the server has reply tracking configured.
+        type: boolean
+    type: object
+  CampaignsOverview:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/CampaignOverviewItem'
+        type: array
+      counts:
+        items:
+          $ref: '#/definitions/CampaignStatusCount'
+        type: array
+    type: object
+  CheckImportReq:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Column'
+        type: array
+      file_id:
+        type: string
+    type: object
+  CleanupRun:
+    properties:
+      action:
+        type: string
+      done:
+        type: integer
+      error:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: integer
+      matched:
+        type: integer
+      mode:
+        type: string
+      started_at:
         type: string
     type: object
   CreateCampaignReq:
@@ -285,6 +616,8 @@ definitions:
         type: integer
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -304,6 +637,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       list_uuids:
         items:
           type: string
@@ -332,6 +670,145 @@ definitions:
       uuid:
         type: string
     type: object
+  DashboardDay:
+    properties:
+      bounced:
+        type: integer
+      date:
+        type: string
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      new_subscribers:
+        type: integer
+    type: object
+  DashboardHotspot:
+    properties:
+      hard:
+        type: integer
+      list_id:
+        type: integer
+      list_name:
+        type: string
+    type: object
+  DashboardOverview:
+    properties:
+      as_of:
+        type: string
+      bounce_hotspot:
+        $ref: '#/definitions/DashboardHotspot'
+      bounce_rate:
+        type: number
+      bounced:
+        type: integer
+      campaigns_started:
+        type: integer
+      days:
+        items:
+          $ref: '#/definitions/DashboardDay'
+        type: array
+      new:
+        type: integer
+      queued:
+        type: integer
+      running:
+        type: integer
+      sent:
+        description: Filled in Go from Days.
+        type: integer
+      stale_drafts:
+        type: integer
+      subscribers:
+        type: integer
+      unsubscribed:
+        type: integer
+    type: object
+  FormReq:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+    type: object
+  FormResp:
+    properties:
+      button_label:
+        type: string
+      captcha:
+        type: boolean
+      created_at:
+        type: string
+      embed_html:
+        description: EmbedHTML is a form to paste into a website.
+        type: string
+      fields:
+        items:
+          $ref: '#/definitions/models.FormField'
+        type: array
+      heading:
+        type: string
+      id:
+        type: integer
+      intro:
+        type: string
+      list_ids:
+        items:
+          type: integer
+        type: array
+      name:
+        type: string
+      popup_script:
+        description: PopupScript is a script tag that shows the form as a popup.
+        type: string
+      signups:
+        description: |-
+          Signups is how many people signed up in the last 30 days (lists of
+          forms only).
+        type: integer
+      slug:
+        type: string
+      status:
+        type: string
+      success_message:
+        type: string
+      updated_at:
+        type: string
+      url:
+        description: URL is the form's hosted page.
+        type: string
+      uuid:
+        type: string
+    type: object
+  FormStats:
+    properties:
+      blocked:
+        type: integer
+      confirmed:
+        type: integer
+      signups:
+        type: integer
+      views:
+        type: integer
+    type: object
   I18nLang:
     properties:
       code:
@@ -339,12 +816,71 @@ definitions:
       name:
         type: string
     type: object
+  ImportFile:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn'
+        type: array
+      delim:
+        type: string
+      file_id:
+        type: string
+      name:
+        type: string
+      rows:
+        type: integer
+      size:
+        type: integer
+      uploaded_at:
+        type: string
+    type: object
+  ImportRecord:
+    properties:
+      added:
+        type: integer
+      created_at:
+        type: string
+      failed:
+        type: integer
+      id:
+        type: integer
+      imported:
+        type: integer
+      mode:
+        type: string
+      name:
+        type: string
+      skipped:
+        type: integer
+      status:
+        type: string
+      total:
+        type: integer
+    type: object
   ImportStatus:
     properties:
+      added:
+        description: |-
+          Added is how many of Imported are new subscribers; the rest were
+          already here. Blocklist imports don't count it.
+        type: integer
+      failed:
+        description: |-
+          Failed is the number of valid rows the database rejected, i.e. the
+          rows of a batch whose insert or commit failed.
+        type: integer
       imported:
         type: integer
       name:
         type: string
+      pending:
+        description: |-
+          Pending is the number of rows written in the open transaction but not
+          yet committed (updated every progressStep rows). On commit they move
+          to Imported, or to Failed if the commit fails. It lets progress move
+          within a commitBatchSize batch, which a small file never leaves.
+        type: integer
       risky:
         description: |-
           Risky always reads 0 during the import itself: Scrub validation is
@@ -352,6 +888,11 @@ definitions:
           included -- aren't known until the /webhooks/scrub/batch callback
           resolves each submitted batch, well after this Status stops being
           polled. Kept for API/frontend type stability rather than removed.
+        type: integer
+      skipped:
+        description: |-
+          Skipped is the number of CSV rows left out for being malformed or
+          invalid (bad e-mail, wrong column count). Each one is in the log.
         type: integer
       status:
         type: string
@@ -397,6 +938,60 @@ definitions:
       uuid:
         type: string
     type: object
+  ListActivity:
+    properties:
+      campaigns:
+        items:
+          $ref: '#/definitions/ListCampaign'
+        type: array
+      days:
+        items:
+          $ref: '#/definitions/ListActivityDay'
+        type: array
+      joined:
+        type: integer
+      left:
+        type: integer
+    type: object
+  ListActivityDay:
+    properties:
+      day:
+        type: string
+      joined:
+        type: integer
+      left:
+        type: integer
+    type: object
+  ListCampaign:
+    properties:
+      clicked:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      opened:
+        type: integer
+      send_at:
+        type: string
+      sent:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      uuid:
+        type: string
+    type: object
+  ListGrowth:
+    properties:
+      joined:
+        type: integer
+      left:
+        type: integer
+      list_id:
+        type: integer
+    type: object
   ListPermission:
     properties:
       id:
@@ -433,6 +1028,26 @@ definitions:
         type: array
       name:
         type: string
+    type: object
+  ListsSummary:
+    properties:
+      lists:
+        type: integer
+      subscriptions:
+        type: integer
+    type: object
+  MediaUsage:
+    properties:
+      bytes:
+        description: Bytes is the total size of the files whose size is known.
+        type: integer
+      files:
+        type: integer
+      unknown:
+        description: |-
+          Unknown files aren't in Bytes: uploaded before sizes were recorded
+          and not measured yet, or their size couldn't be read.
+        type: integer
     type: object
   OperatorBounceWebhooks:
     properties:
@@ -485,6 +1100,14 @@ definitions:
       tenant:
         $ref: '#/definitions/models.Tenant'
     type: object
+  OperatorFromEmailReq:
+    properties:
+      from_email:
+        description: |-
+          FromEmail is the address, optionally with a display name
+          ("Acme <news@acme.com>").
+        type: string
+    type: object
   OperatorOrganization:
     properties:
       created_at:
@@ -514,6 +1137,17 @@ definitions:
         type: array
       updated_at:
         type: string
+    type: object
+  OperatorPlatformUsage:
+    properties:
+      days:
+        items:
+          $ref: '#/definitions/OperatorUsageDay'
+        type: array
+      tenants:
+        items:
+          $ref: '#/definitions/OperatorTenantUsageTotal'
+        type: array
     type: object
   OperatorSMTPEntry:
     properties:
@@ -560,6 +1194,19 @@ definitions:
       wait_timeout:
         type: string
     type: object
+  OperatorSetupLinkStatus:
+    properties:
+      password_set:
+        description: |-
+          PasswordSet is whether the admin has a password -- the setup link
+          was used (or the password was set some other way).
+        type: boolean
+      valid:
+        description: |-
+          Valid is whether the setup link still works: its token exists, hasn't
+          expired or been used, and belongs to this tenant and admin.
+        type: boolean
+    type: object
   OperatorTenant:
     properties:
       created_at:
@@ -602,10 +1249,49 @@ definitions:
       undeliverable:
         type: integer
     type: object
+  OperatorTenantUsage:
+    properties:
+      days:
+        description: |-
+          Days is the same usage per UTC day, only with ?group=day; days with
+          no usage are omitted.
+        items:
+          $ref: '#/definitions/OperatorUsageDay'
+        type: array
+      emails_sent:
+        type: integer
+      validations:
+        type: integer
+    type: object
+  OperatorTenantUsageTotal:
+    properties:
+      emails_sent:
+        type: integer
+      tenant_id:
+        type: integer
+      validations:
+        type: integer
+    type: object
   OperatorUpdateTenantStatusReq:
     properties:
       status:
         type: string
+    type: object
+  OperatorUsageDay:
+    properties:
+      day:
+        type: string
+      emails_sent:
+        type: integer
+      validations:
+        type: integer
+    type: object
+  OptinPending:
+    properties:
+      due:
+        type: integer
+      total:
+        type: integer
     type: object
   Organization:
     properties:
@@ -632,6 +1318,59 @@ definitions:
       total:
         type: integer
     type: object
+  ProfileUpdate:
+    properties:
+      avatar:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      current_password:
+        type: string
+      email:
+        $ref: '#/definitions/null.String'
+      id:
+        type: integer
+      list_role:
+        $ref: '#/definitions/ListRolePermissions'
+      list_role_id:
+        type: integer
+      loggedin_at:
+        type: string
+      name:
+        type: string
+      password:
+        allOf:
+        - $ref: '#/definitions/null.String'
+        description: For API users, this is the plaintext API token.
+      password_login:
+        type: boolean
+      status:
+        type: string
+      tenant_id:
+        type: integer
+      twofa_type:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_role:
+        description: Non-DB fields filled post-retrieval.
+        properties:
+          id:
+            type: integer
+          name:
+            type: string
+          permissions:
+            items:
+              type: string
+            type: array
+        type: object
+      user_role_id:
+        type: integer
+      username:
+        type: string
+    type: object
   Role:
     properties:
       created_at:
@@ -653,8 +1392,31 @@ definitions:
       updated_at:
         type: string
     type: object
+  SavedSegment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      created_at:
+        type: string
+      created_by_name:
+        type: string
+      id:
+        type: integer
+      match:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
   ServerConfig:
     properties:
+      console_url:
+        type: string
       from_email:
         type: string
       has_legacy_user:
@@ -703,12 +1465,32 @@ definitions:
               type: string
             type: array
         type: object
+      reply_tracking:
+        description: |-
+          ReplyTracking is whether this tenant has campaign reply tracking set
+          up (its "replies" setup, pushed by the platform), so the editor only
+          offers the switch when it would do something.
+        type: boolean
+      require_2fa:
+        description: |-
+          Require2FA is security.require_2fa, so Team can stop asking for it
+          once it's on.
+        type: boolean
       root_url:
         type: string
       scrub_enabled:
         type: boolean
       update:
         $ref: '#/definitions/AppUpdate'
+      upload_extensions:
+        description: |-
+          UploadExtensions and UploadMaxFileSize (KB, 0 = no limit) are what
+          Media accepts, so the upload area can say so.
+        items:
+          type: string
+        type: array
+      upload_max_file_size:
+        type: integer
       version:
         type: string
     type: object
@@ -848,6 +1630,18 @@ definitions:
         type: boolean
       bounce.webhooks_enabled:
         type: boolean
+      branding:
+        allOf:
+        - $ref: '#/definitions/Branding'
+        description: |-
+          Branding is the workspace logo shown in transactional emails through
+          the brand-logo template block (Developers > Email branding).
+      inactive_cleanup:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Settings'
+        description: |-
+          InactiveCleanup is inactive-subscriber cleanup (Settings › Inactive
+          cleanup); see internal/cleanup.
       maintenance.db:
         properties:
           vacuum:
@@ -949,6 +1743,18 @@ definitions:
               secret:
                 type: string
             type: object
+          login:
+            description: Login also asks for the captcha on the admin sign-in page.
+            type: boolean
+          turnstile:
+            properties:
+              enabled:
+                type: boolean
+              key:
+                type: string
+              secret:
+                type: string
+            type: object
         type: object
       security.oidc:
         properties:
@@ -969,6 +1775,11 @@ definitions:
           provider_url:
             type: string
         type: object
+      security.require_2fa:
+        description: |-
+          SecurityRequire2FA holds password users at their profile until they
+          set up two-step verification (see auth.NeedsTwofaSetup).
+        type: boolean
       security.trusted_urls:
         items:
           type: string
@@ -1028,6 +1839,9 @@ definitions:
         type: string
       upload.filesystem.upload_uri:
         type: string
+      upload.max_file_size:
+        description: UploadMaxFileSize is the largest upload in KB; 0 means no limit.
+        type: integer
       upload.provider:
         type: string
       upload.s3.aws_access_key_id:
@@ -1065,6 +1879,11 @@ definitions:
         type: string
       id:
         type: integer
+      last_opened_at:
+        description: |-
+          LastOpenedAt is when they last opened a campaign, set only by
+          subscriber searches (Subscribers' "Last opened" column).
+        type: string
       lists:
         items:
           type: integer
@@ -1093,10 +1912,23 @@ definitions:
         items:
           type: integer
         type: array
+      engagement:
+        $ref: '#/definitions/SubscriberEngagement'
       link_clicks:
         items:
           type: integer
         type: array
+    type: object
+  SubscriberEngagement:
+    properties:
+      campaigns:
+        type: integer
+      clicked:
+        type: integer
+      last_opened_at:
+        type: string
+      opened:
+        type: integer
     type: object
   SubscriberExportProfile:
     properties:
@@ -1135,6 +1967,12 @@ definitions:
         type: string
       search:
         type: string
+      segment:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        description: |-
+          Segment narrows the people acted on, like Query, but is compiled
+          from known fields so it needs no SQL query permission.
       status:
         type: string
       subscription_status:
@@ -1146,24 +1984,243 @@ definitions:
     type: object
   Template:
     properties:
+      alt_body:
+        type: string
       body:
         type: string
       body_source:
         $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
       created_at:
         type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
       id:
         type: integer
       is_default:
         type: boolean
       name:
         type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
       subject:
         description: Subject is only for type=tx.
         type: string
       type:
         type: string
       updated_at:
+        type: string
+    type: object
+  TemplateTestReq:
+    properties:
+      body:
+        type: string
+      emails:
+        description: Emails must be existing subscribers the user can see.
+        items:
+          type: string
+        type: array
+      type:
+        description: Type is campaign or campaign_visual.
+        type: string
+    type: object
+  TenantReplies:
+    properties:
+      inbound_address:
+        description: |-
+          InboundAddress is the tenant's Postmark server's inbound address
+          ("<hash>@inbound.postmarkapp.com"); each message's reply address
+          plus-addresses a token onto it.
+        type: string
+      secret:
+        description: |-
+          Secret signs reply tokens (at least 16 characters). Changing it
+          orphans replies to emails already sent.
+        type: string
+      webhook_password:
+        type: string
+      webhook_username:
+        description: |-
+          WebhookUsername/WebhookPassword are the HTTP basic-auth credentials
+          the tenant's Postmark server sends with each inbound webhook.
+        type: string
+    type: object
+  TxLogEvent:
+    properties:
+      created_at:
+        type: string
+      detail:
+        type: string
+      type:
+        type: string
+    type: object
+  TxLogMessage:
+    properties:
+      api_key_id:
+        $ref: '#/definitions/null.Int'
+      body:
+        type: string
+      bounce_type:
+        $ref: '#/definitions/null.String'
+      created_at:
+        type: string
+      error:
+        type: string
+      events:
+        items:
+          $ref: '#/definitions/TxLogEvent'
+        type: array
+      id:
+        type: string
+      messenger:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      recipient:
+        type: string
+      sender:
+        type: string
+      source_ip:
+        type: string
+      status:
+        type: string
+      subject:
+        type: string
+      subscriber_id:
+        $ref: '#/definitions/null.Int'
+      subscriber_status:
+        type: string
+      template_id:
+        $ref: '#/definitions/null.Int'
+      template_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  TxLogPage:
+    properties:
+      counts:
+        additionalProperties:
+          type: integer
+        type: object
+      page:
+        type: integer
+      per_page:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/TxLogMessage'
+        type: array
+      total:
+        type: integer
+    type: object
+  TxPreview:
+    properties:
+      from:
+        type: string
+      html:
+        type: string
+      subject:
+        type: string
+      text:
+        type: string
+    type: object
+  TxPreviewRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      data:
+        additionalProperties: {}
+        description: Arbitrary sample data, as a caller would send in `data`.
+        type: object
+      subject:
+        type: string
+    type: object
+  TxStats:
+    properties:
+      bounced:
+        type: integer
+      delivered:
+        type: integer
+      failed:
+        type: integer
+      sent:
+        type: integer
+      sent_prev:
+        type: integer
+      top_error:
+        type: string
+    type: object
+  TxTemplate:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      body_source:
+        $ref: '#/definitions/null.String'
+      campaign_count:
+        description: CampaignCount is how many campaigns use the template (read-only).
+        type: integer
+      created_at:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      id:
+        type: integer
+      is_default:
+        type: boolean
+      name:
+        type: string
+      sample_data:
+        description: Transactional templates only.
+        items:
+          type: integer
+        type: array
+      subject:
+        description: Subject is only for type=tx.
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      used_this_week:
+        type: integer
+    type: object
+  TxTemplateRequest:
+    properties:
+      alt_body:
+        type: string
+      body:
+        type: string
+      headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      name:
+        type: string
+      sample_data:
+        type: object
+      subject:
         type: string
     type: object
   UpdateCampaignContentReq:
@@ -1252,6 +2309,8 @@ definitions:
         type: string
       to_send:
         type: integer
+      tracking:
+        $ref: '#/definitions/CampaignTracking'
       type:
         type: string
       updated_at:
@@ -1312,6 +2371,126 @@ definitions:
       username:
         type: string
     type: object
+  WebhookAttempt:
+    properties:
+      attempt:
+        type: integer
+      created_at:
+        type: string
+      duration_ms:
+        type: integer
+      error:
+        type: string
+      response:
+        type: string
+      status_code:
+        $ref: '#/definitions/null.Int'
+    type: object
+  WebhookDelivery:
+    properties:
+      attempts:
+        type: integer
+      created_at:
+        type: string
+      endpoint_id:
+        type: integer
+      endpoint_url:
+        type: string
+      event:
+        type: string
+      history:
+        items:
+          $ref: '#/definitions/WebhookAttempt'
+        type: array
+      id:
+        type: string
+      last_duration_ms:
+        $ref: '#/definitions/null.Int'
+      last_status_code:
+        $ref: '#/definitions/null.Int'
+      message_id:
+        type: string
+      next_attempt_at:
+        type: string
+      payload:
+        items:
+          type: integer
+        type: array
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  WebhookEndpoint:
+    properties:
+      created_at:
+        type: string
+      done_24h:
+        description: Last 24 hours.
+        type: integer
+      events:
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      median_ms:
+        type: integer
+      ok_24h:
+        type: integer
+      retrying:
+        type: integer
+      secret_hint:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookEndpointRequest:
+    properties:
+      events:
+        items:
+          type: string
+        type: array
+      status:
+        description: Status is "active" or "disabled"; empty keeps an endpoint active.
+        type: string
+      url:
+        type: string
+    type: object
+  WebhookSecret:
+    properties:
+      secret:
+        type: string
+    type: object
+  WebhookTest:
+    properties:
+      delivery_id:
+        type: string
+    type: object
+  cmd.cleanupStatus:
+    properties:
+      last_run:
+        $ref: '#/definitions/CleanupRun'
+      managed:
+        allOf:
+        - $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+        description: Managed are Listnun's rules, shown read-only in managed mode.
+      matching:
+        description: Matching is how many subscribers the saved rules would act on
+          now.
+        type: integer
+      next_run:
+        type: string
+      tracking:
+        description: |-
+          Tracking is false when per-subscriber tracking is off, which stops
+          the cleanup from running.
+        type: boolean
+    type: object
   cmd.okResp:
     properties:
       data: {}
@@ -1324,9 +2503,76 @@ definitions:
           empty clears it, reverting the tenant to <slug>.root_domain only.
         type: string
     type: object
+  cmd.optinResendReq:
+    properties:
+      list_ids:
+        description: ListIDs limits the resend to these lists. Empty means every list.
+        items:
+          type: integer
+        type: array
+    type: object
+  cmd.optinResendResp:
+    properties:
+      queued:
+        type: integer
+    type: object
+  cmd.segmentCountsReq:
+    properties:
+      segments:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+        type: array
+    type: object
+  cmd.segmentSQLResp:
+    properties:
+      sql:
+        type: string
+    type: object
   echo.HTTPError:
     properties:
       message: {}
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Rules:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_cleanup.Settings:
+    properties:
+      action:
+        type: string
+      activity:
+        type: string
+      days:
+        type: integer
+      enabled:
+        type: boolean
+      list_ids:
+        description: |-
+          ListIDs limits the cleanup to subscribers of these lists (and, for
+          unsubscribe, to these lists); empty means all lists.
+        items:
+          type: integer
+        type: array
+      mode:
+        type: string
+      schedule:
+        description: Schedule is a standard 5-field cron expression.
+        type: string
     type: object
   github_com_nerd-zero_listnun_internal_core.AutoPausedCampaign:
     properties:
@@ -1336,6 +2582,201 @@ definitions:
         type: string
       pause_reason:
         $ref: '#/definitions/null.String'
+    type: object
+  github_com_nerd-zero_listnun_internal_core.CampaignRef:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_core.SendingHealth:
+    properties:
+      bounce_rate:
+        type: number
+      bounces_high:
+        type: boolean
+      campaigns_without_unsubscribe:
+        description: |-
+          CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe
+          link in their content or template, so they can't start or be
+          scheduled (see models.Campaign.HasUnsubscribeLink).
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef'
+        type: array
+      complaint_rate:
+        type: number
+      complaints:
+        type: integer
+      complaints_high:
+        type: boolean
+      hard_bounces:
+        type: integer
+      judged:
+        description: |-
+          Judged is false below minRateSample sends, when the rates say
+          nothing yet and the High flags stay false.
+        type: boolean
+      sent:
+        type: integer
+      window_days:
+        type: integer
+    type: object
+  github_com_nerd-zero_listnun_internal_inboxcheck.Check:
+    properties:
+      group:
+        type: string
+      id:
+        type: string
+      params:
+        additionalProperties:
+          type: string
+        description: 'Open-ended: each check''s own placeholders.'
+        type: object
+      pass:
+        type: boolean
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Condition:
+    properties:
+      field:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Field'
+      key:
+        type: string
+      op:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Op'
+      value:
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_segments.Field:
+    enum:
+    - attribute
+    - email
+    - name
+    - joined
+    - list
+    - status
+    - unconfirmed
+    - last_opened
+    - last_clicked
+    type: string
+    x-enum-varnames:
+    - FieldAttribute
+    - FieldEmail
+    - FieldName
+    - FieldJoined
+    - FieldList
+    - FieldStatus
+    - FieldUnconfirmed
+    - FieldLastOpened
+    - FieldLastClicked
+  github_com_nerd-zero_listnun_internal_segments.Match:
+    enum:
+    - all
+    - any
+    type: string
+    x-enum-varnames:
+    - MatchAll
+    - MatchAny
+  github_com_nerd-zero_listnun_internal_segments.Op:
+    enum:
+    - is
+    - is_not
+    - contains
+    - exists
+    - in_last
+    - not_in_last
+    - before
+    - after
+    - never
+    type: string
+    x-enum-varnames:
+    - OpIs
+    - OpIsNot
+    - OpContains
+    - OpExists
+    - OpInLast
+    - OpNotInLast
+    - OpBefore
+    - OpAfter
+    - OpNever
+  github_com_nerd-zero_listnun_internal_segments.Segment:
+    properties:
+      conditions:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Condition'
+        type: array
+      match:
+        $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Match'
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.CheckResult:
+    properties:
+      existing:
+        description: Existing is how many of them are already subscribers.
+        type: integer
+      num_problems:
+        description: |-
+          NumProblems counts the rows that wouldn't be imported; Problems lists
+          up to maxProblems of them.
+        type: integer
+      problems:
+        items:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+        type: array
+      rows:
+        type: integer
+      valid:
+        description: Valid is the number of different, valid addresses in the file.
+        type: integer
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Column:
+    properties:
+      as:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.InspectedColumn:
+    properties:
+      as:
+        type: string
+      header:
+        type: string
+      index:
+        type: integer
+      key:
+        description: Key is the attribute name when As is AsAttribute.
+        type: string
+      samples:
+        items:
+          type: string
+        type: array
+    type: object
+  github_com_nerd-zero_listnun_internal_subimporter.Problem:
+    properties:
+      reason:
+        type: string
+      row:
+        description: |-
+          Row is the row's line in the file as a spreadsheet numbers it: the
+          header is row 1.
+        type: integer
+      value:
+        type: string
+    type: object
+  models.FormField:
+    properties:
+      key:
+        description: Key is email, name, or attribs.<name> for an attribute.
+        type: string
+      label:
+        type: string
+      required:
+        type: boolean
     type: object
   models.Tenant:
     properties:
@@ -1408,7 +2849,7 @@ paths:
     delete:
       operationId: deleteBounces
       parameters:
-      - description: Delete all bounces
+      - description: Delete every bounce matching the filters below
         in: query
         name: all
         type: boolean
@@ -1419,6 +2860,22 @@ paths:
           type: integer
         name: id
         type: array
+      - description: 'With all: only this campaign''s bounces'
+        in: query
+        name: campaign_id
+        type: integer
+      - description: 'With all: only bounces from this source'
+        in: query
+        name: source
+        type: string
+      - description: 'With all: only this type (soft, hard, complaint)'
+        in: query
+        name: type
+        type: string
+      - description: 'With all: subscriber e-mail or campaign name contains this'
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -1441,6 +2898,14 @@ paths:
       - description: Filter by bounce source
         in: query
         name: source
+        type: string
+      - description: Filter by bounce type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Search subscriber e-mail or campaign name
+        in: query
+        name: query
         type: string
       - description: Field to order results by
         in: query
@@ -1526,6 +2991,23 @@ paths:
   /api/bounces/blocklist:
     put:
       operationId: blocklistBouncedSubscribers
+      parameters:
+      - description: Only this campaign's bounces
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Only bounces from this source
+        in: query
+        name: source
+        type: string
+      - description: Only this type (soft, hard, complaint)
+        in: query
+        name: type
+        type: string
+      - description: Subscriber e-mail or campaign name contains this
+        in: query
+        name: query
+        type: string
       produces:
       - application/json
       responses:
@@ -1536,6 +3018,36 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Blocklist all bounced subscribers
+      tags:
+      - bounces
+  /api/bounces/counts:
+    get:
+      operationId: getBounceCounts
+      parameters:
+      - description: Filter by campaign ID
+        in: query
+        name: campaign_id
+        type: integer
+      - description: Filter by bounce source
+        in: query
+        name: source
+        type: string
+      - description: Search subscriber e-mail or campaign name
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BounceTypeCounts'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count bounces per type
       tags:
       - bounces
   /api/campaigns:
@@ -1812,6 +3324,35 @@ paths:
       summary: Convert campaign content format
       tags:
       - campaigns
+  /api/campaigns/{id}/inbox-check:
+    get:
+      operationId: getCampaignInboxCheck
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_inboxcheck.Check'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check a campaign for inbox placement problems
+      tags:
+      - campaigns
   /api/campaigns/{id}/preview:
     post:
       consumes:
@@ -1890,6 +3431,37 @@ paths:
       summary: Preview a campaign as an archive page
       tags:
       - campaigns
+  /api/campaigns/{id}/replies:
+    get:
+      operationId: getCampaignReplies
+      parameters:
+      - description: Campaign ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CampaignRepliesPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a campaign's replies
+      tags:
+      - campaigns
   /api/campaigns/{id}/status:
     put:
       consumes:
@@ -1965,7 +3537,7 @@ paths:
     get:
       operationId: getCampaignAnalytics
       parameters:
-      - description: Analytics type (views, clicks, bounces, links)
+      - description: Analytics type (views, clicks, bounces, links, bounce_types)
         in: path
         name: type
         required: true
@@ -2021,6 +3593,23 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get currently auto-paused campaigns
+      tags:
+      - campaigns
+  /api/campaigns/overview:
+    get:
+      operationId: getCampaignsOverview
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/CampaignsOverview'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the campaigns overview
       tags:
       - campaigns
   /api/campaigns/running/stats:
@@ -2081,6 +3670,785 @@ paths:
       summary: Get dashboard counts
       tags:
       - dashboard
+  /api/dashboard/overview:
+    get:
+      operationId: getDashboardOverview
+      parameters:
+      - description: 7, 30 or 90 (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DashboardOverview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the dashboard overview
+      tags:
+      - dashboard
+  /api/developers/branding:
+    get:
+      operationId: getBranding
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+      summary: Get email branding
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateBranding
+      parameters:
+      - description: Branding
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Branding'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Branding'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save email branding
+      tags:
+      - developers
+  /api/developers/keys:
+    get:
+      operationId: listAPIKeys
+      parameters:
+      - description: Filter by name
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/APIKey'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List API keys
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createAPIKey
+      parameters:
+      - description: Key name and scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}:
+    delete:
+      operationId: deleteAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete an API key
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Scopes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/APIKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update an API key's scopes
+      tags:
+      - developers
+  /api/developers/keys/{id}/revoke:
+    post:
+      operationId: revokeAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKey'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Revoke an API key
+      tags:
+      - developers
+  /api/developers/keys/{id}/rotate:
+    post:
+      operationId: rotateAPIKey
+      parameters:
+      - description: Key ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/APIKeyWithSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate an API key
+      tags:
+      - developers
+  /api/developers/messages:
+    get:
+      operationId: listTxMessages
+      parameters:
+      - description: Recipient or message ID
+        in: query
+        name: query
+        type: string
+      - description: queued, sent, delivered, bounced or failed
+        in: query
+        name: status
+        type: string
+      - description: Template ID
+        in: query
+        name: template_id
+        type: integer
+      - description: API key ID
+        in: query
+        name: api_key_id
+        type: integer
+      - description: From (RFC 3339)
+        in: query
+        name: from
+        type: string
+      - description: To (RFC 3339)
+        in: query
+        name: to
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: List transactional messages
+      tags:
+      - developers
+  /api/developers/messages/{uuid}:
+    get:
+      operationId: getTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxLogMessage'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a transactional message
+      tags:
+      - developers
+  /api/developers/messages/{uuid}/resend:
+    post:
+      operationId: resendTxMessage
+      parameters:
+      - description: Message ID (msg_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a transactional message
+      tags:
+      - developers
+  /api/developers/stats:
+    get:
+      operationId: getTxStats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxStats'
+      summary: Transactional email stats, last 24 hours
+      tags:
+      - developers
+  /api/developers/templates:
+    get:
+      operationId: listTxTemplates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/TxTemplate'
+            type: array
+      summary: List transactional templates
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createTxTemplate
+      parameters:
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a transactional template
+      tags:
+      - developers
+  /api/developers/templates/{id}:
+    put:
+      consumes:
+      - application/json
+      operationId: updateTxTemplate
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Template
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Template'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a transactional template
+      tags:
+      - developers
+  /api/developers/templates/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewTxTemplate
+      parameters:
+      - description: Template and sample data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TxPreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/TxPreview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview a transactional template
+      tags:
+      - developers
+  /api/developers/webhooks:
+    get:
+      operationId: listWebhookEndpoints
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/WebhookEndpoint'
+            type: array
+      summary: List webhook endpoints
+      tags:
+      - developers
+    post:
+      consumes:
+      - application/json
+      operationId: createWebhookEndpoint
+      parameters:
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Add a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}:
+    delete:
+      operationId: deleteWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Delete a webhook endpoint
+      tags:
+      - developers
+    put:
+      consumes:
+      - application/json
+      operationId: updateWebhookEndpoint
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Endpoint
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/WebhookEndpointRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookEndpoint'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a webhook endpoint
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/secret:
+    get:
+      operationId: getWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Reveal a webhook signing secret
+      tags:
+      - developers
+    post:
+      operationId: rotateWebhookEndpointSecret
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookSecret'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Rotate a webhook signing secret
+      tags:
+      - developers
+  /api/developers/webhooks/{id}/test:
+    post:
+      operationId: sendWebhookTest
+      parameters:
+      - description: Endpoint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookTest'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test event
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      parameters:
+      - description: Endpoint ID
+        in: query
+        name: endpoint_id
+        type: integer
+      - description: pending, success, retrying or failed
+        in: query
+        name: status
+        type: string
+      - description: Page
+        in: query
+        name: page
+        type: integer
+      - description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/PageResults'
+      summary: List webhook deliveries
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}:
+    get:
+      operationId: getWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/WebhookDelivery'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a webhook delivery
+      tags:
+      - developers
+  /api/developers/webhooks/deliveries/{uuid}/retry:
+    post:
+      operationId: retryWebhookDelivery
+      parameters:
+      - description: Delivery ID (whd_…)
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend a webhook delivery
+      tags:
+      - developers
+  /api/forms:
+    get:
+      operationId: getForms
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/FormResp'
+            type: array
+      summary: Get signup forms
+      tags:
+      - forms
+    post:
+      consumes:
+      - application/json
+      operationId: createForm
+      parameters:
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Create a signup form
+      tags:
+      - forms
+  /api/forms/{id}:
+    delete:
+      operationId: deleteForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+      summary: Delete a signup form
+      tags:
+      - forms
+    put:
+      consumes:
+      - application/json
+      operationId: updateForm
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Form
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/FormReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a signup form
+      tags:
+      - forms
+  /api/forms/{id}/stats:
+    get:
+      operationId: getFormStats
+      parameters:
+      - description: Form ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/FormStats'
+      summary: Get a form's figures
+      tags:
+      - forms
   /api/health:
     get:
       operationId: healthCheck
@@ -2122,10 +4490,10 @@ paths:
       - multipart/form-data
       operationId: importSubscribers
       parameters:
-      - description: CSV or ZIP file
+      - description: CSV or ZIP file; leave out when params.file_id names an uploaded
+          one
         in: formData
         name: file
-        required: true
         type: file
       - description: JSON-encoded import options (subimporter.SessionOpt)
         in: formData
@@ -2150,6 +4518,72 @@ paths:
       summary: Import subscribers from a CSV or ZIP file
       tags:
       - import
+  /api/import/subscribers/check:
+    post:
+      consumes:
+      - application/json
+      operationId: checkImport
+      parameters:
+      - description: File and columns
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/CheckImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.CheckResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Check an import before starting it
+      tags:
+      - import
+  /api/import/subscribers/file:
+    post:
+      consumes:
+      - multipart/form-data
+      operationId: uploadImportFile
+      parameters:
+      - description: CSV, or a ZIP with a CSV in it
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ImportFile'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Upload a file to import
+      tags:
+      - import
+  /api/import/subscribers/history:
+    get:
+      operationId: getRecentImports
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ImportRecord'
+            type: array
+      summary: Recent imports
+      tags:
+      - import
   /api/import/subscribers/logs:
     get:
       operationId: getImportLogs
@@ -2161,6 +4595,21 @@ paths:
           schema:
             type: string
       summary: Get import log
+      tags:
+      - import
+  /api/import/subscribers/problems:
+    get:
+      operationId: getImportProblems
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_nerd-zero_listnun_internal_subimporter.Problem'
+            type: array
+      summary: Rows an import didn't import
       tags:
       - import
   /api/lang/{lang}:
@@ -2387,6 +4836,29 @@ paths:
       summary: Update a list
       tags:
       - lists
+  /api/lists/{id}/activity:
+    get:
+      operationId: getListActivity
+      parameters:
+      - description: List ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListActivity'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a list's recent activity
+      tags:
+      - lists
   /api/lists/{id}/scrub:
     post:
       operationId: scrubList
@@ -2438,6 +4910,67 @@ paths:
       summary: Get progress for a running Scrub validation job
       tags:
       - settings
+  /api/lists/growth:
+    get:
+      operationId: getListsGrowth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ListGrowth'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get list growth over the last 30 days
+      tags:
+      - lists
+  /api/lists/optin/pending:
+    get:
+      operationId: getOptinPending
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OptinPending'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count unconfirmed double opt-in subscribers
+      tags:
+      - lists
+  /api/lists/optin/resend:
+    post:
+      consumes:
+      - application/json
+      operationId: resendOptins
+      parameters:
+      - description: Lists to limit the resend to
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/cmd.optinResendReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.optinResendResp'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Resend opt-in confirmations
+      tags:
+      - lists
   /api/lists/scrub:
     get:
       operationId: getScrubListStatus
@@ -2485,6 +5018,19 @@ paths:
       summary: Get Scrub validation history
       tags:
       - settings
+  /api/lists/summary:
+    get:
+      operationId: getListsSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ListsSummary'
+      summary: Count lists and their subscriptions
+      tags:
+      - lists
   /api/logout:
     post:
       operationId: logout
@@ -2703,6 +5249,23 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get a media item
+      tags:
+      - media
+  /api/media/usage:
+    get:
+      operationId: getMediaUsage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get media storage usage
       tags:
       - media
   /api/operator/organizations:
@@ -2974,6 +5537,47 @@ paths:
       summary: Get a tenant (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/activity:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantActivity
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Only lines from this source, e.g. sending
+        in: query
+        name: source
+        type: string
+      - description: Lines to return (max 500)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ActivityEntry'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's activity log (Operator API)
+      tags:
+      - operator
   /api/operator/tenants/{id}/bounce-webhooks:
     put:
       consumes:
@@ -3073,6 +5677,99 @@ paths:
       summary: Set or clear a tenant's custom domain (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/from-email:
+    put:
+      consumes:
+      - application/json
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Writes the tenant's app.from_email setting, the
+        From new campaigns start with. Accepts "address" or "Name <address>".
+      operationId: setOperatorTenantFromEmail
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Default From
+        in: body
+        name: from
+        required: true
+        schema:
+          $ref: '#/definitions/OperatorFromEmailReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Set a tenant's default From address (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/replies:
+    put:
+      consumes:
+      - application/json
+      description: 'Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Stores the tenant''s reply tracking setup: its
+        Postmark server''s inbound address, the secret that signs reply tokens and
+        the inbound webhook''s basic auth credentials. The caller points the Postmark
+        server''s inbound webhook at https://{tenant host}/webhooks/replies/postmark
+        with the same credentials. An empty inbound_address turns reply tracking off
+        for the tenant. Keep the secret stable: changing it orphans replies to emails
+        already sent.'
+      operationId: setOperatorTenantReplies
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Reply tracking setup
+        in: body
+        name: replies
+        required: true
+        schema:
+          $ref: '#/definitions/TenantReplies'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Set a tenant's campaign reply tracking setup (Operator API)
+      tags:
+      - operator
   /api/operator/tenants/{id}/scrub/usage:
     get:
       description: Fork-only, off by default (see [operator] config). Requires the
@@ -3104,7 +5801,84 @@ paths:
       summary: Get a tenant's Scrub validation usage (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/sending-health:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantSendingHealth
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.SendingHealth'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's sending health (Operator API)
+      tags:
+      - operator
   /api/operator/tenants/{id}/setup-link:
+    get:
+      description: 'Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Reports whether the setup token is still valid
+        for this tenant and admin, and whether the admin has a password. Read-only:
+        the token isn''t consumed or counted as an attempt.'
+      operationId: getOperatorSetupLinkStatus
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: The setup token (the setup_url's token parameter)
+        in: query
+        name: token
+        required: true
+        type: string
+      - description: The admin's email
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorSetupLinkStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Check a tenant admin's setup link (Operator API)
+      tags:
+      - operator
     post:
       consumes:
       - application/json
@@ -3239,6 +6013,120 @@ paths:
       summary: Update a tenant's status (Operator API)
       tags:
       - operator
+  /api/operator/tenants/{id}/storage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantStorage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/MediaUsage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's media storage usage (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorTenantUsage
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Window start, RFC 3339 (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Window end, RFC 3339 (exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      - description: 'day: also return per-UTC-day usage'
+        enum:
+        - day
+        in: query
+        name: group
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorTenantUsage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get a tenant's metered usage (Operator API)
+      tags:
+      - operator
+  /api/operator/usage:
+    get:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token.
+      operationId: getOperatorPlatformUsage
+      parameters:
+      - description: Window start, RFC 3339 (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: Window end, RFC 3339 (exclusive)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/OperatorPlatformUsage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Get all tenants' metered usage (Operator API)
+      tags:
+      - operator
   /api/profile:
     get:
       operationId: getUserProfile
@@ -3257,12 +6145,12 @@ paths:
       - application/json
       operationId: updateUserProfile
       parameters:
-      - description: Profile fields
+      - description: Profile fields; current_password is required with a new password
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/User'
+          $ref: '#/definitions/ProfileUpdate'
       produces:
       - application/json
       responses:
@@ -3272,6 +6160,10 @@ paths:
             $ref: '#/definitions/User'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update current user profile
@@ -3448,6 +6340,149 @@ paths:
       summary: Update a user role
       tags:
       - roles
+  /api/segments:
+    get:
+      operationId: getSegments
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/SavedSegment'
+            type: array
+      summary: Get saved segments
+      tags:
+      - subscribers
+    post:
+      consumes:
+      - application/json
+      operationId: createSegment
+      parameters:
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Save a segment
+      tags:
+      - subscribers
+  /api/segments/{id}:
+    delete:
+      operationId: deleteSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+      summary: Delete a saved segment
+      tags:
+      - subscribers
+    put:
+      consumes:
+      - application/json
+      operationId: updateSegment
+      parameters:
+      - description: Segment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Name, match and conditions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SavedSegment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/SavedSegment'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Update a saved segment
+      tags:
+      - subscribers
+  /api/segments/count:
+    post:
+      consumes:
+      - application/json
+      operationId: countSegments
+      parameters:
+      - description: Segments to count
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/cmd.segmentCountsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: integer
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count the people in segments
+      tags:
+      - subscribers
+  /api/segments/sql:
+    post:
+      consumes:
+      - application/json
+      operationId: segmentSQL
+      parameters:
+      - description: Segment
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_segments.Segment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.segmentSQLResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get a segment's SQL condition
+      tags:
+      - subscribers
   /api/settings:
     get:
       operationId: getSettings
@@ -3518,6 +6553,73 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Update a single setting by key
+      tags:
+      - settings
+  /api/settings/inactive-cleanup:
+    get:
+      operationId: getInactiveCleanupStatus
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.cleanupStatus'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get inactive cleanup status
+      tags:
+      - settings
+  /api/settings/inactive-cleanup/preview:
+    post:
+      consumes:
+      - application/json
+      operationId: previewInactiveCleanup
+      parameters:
+      - description: Rules to preview
+        in: body
+        name: rules
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_nerd-zero_listnun_internal_cleanup.Rules'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: integer
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Preview inactive cleanup rules
+      tags:
+      - settings
+  /api/settings/logs:
+    get:
+      operationId: getActivityLog
+      parameters:
+      - description: Lines to return (max 500)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ActivityEntry'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Get the workspace's activity log
       tags:
       - settings
   /api/settings/scrub/test:
@@ -4362,6 +7464,32 @@ paths:
       summary: Preview a template body
       tags:
       - templates
+  /api/templates/test:
+    post:
+      consumes:
+      - application/json
+      operationId: testTemplate
+      parameters:
+      - description: Template body and who gets the test
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/TemplateTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Send a test of a campaign template
+      tags:
+      - templates
   /api/users:
     delete:
       operationId: deleteUsers
@@ -4632,6 +7760,37 @@ paths:
       summary: Receive a bounce webhook
       tags:
       - bounces
+  /webhooks/replies/postmark:
+    post:
+      consumes:
+      - application/json
+      operationId: postmarkRepliesWebhook
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.okResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Receive a reply to a campaign email (Postmark inbound)
+      tags:
+      - webhooks
   /webhooks/scrub/batch:
     post:
       consumes:

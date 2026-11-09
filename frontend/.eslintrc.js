@@ -53,6 +53,12 @@ module.exports = {
   ignorePatterns: ['src/email-builder.js'],
   overrides: [
     {
+      // Cypress specs and support code run in Cypress's mocha runner.
+      files: ['cypress/**/*.js'],
+      env: { mocha: true },
+      globals: { cy: 'readonly', Cypress: 'readonly', expect: 'readonly' },
+    },
+    {
       files: ['*.ts'],
       parser: '@typescript-eslint/parser',
       plugins: ['@typescript-eslint'],

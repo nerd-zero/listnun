@@ -1,249 +1,379 @@
 <template>
-  <div class="subs-page">
-    <!-- Page header -->
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title">
-          {{ $t('globals.terms.subscribers') }}
-          <span v-if="!isNaN(subscribers.total)" class="page-title-count">{{ subscribers.total }}</span>
-          <template v-if="currentList">
-            <span class="page-title-sub">/ {{ currentList.name }}</span>
-            <span v-if="queryParams.subStatus" class="page-title-sub is-capitalized">({{ queryParams.subStatus }})</span>
-          </template>
-        </h1>
-      </div>
+  <div class="ln-page subs" :class="{ 'has-drawer': !!openSub && !isMobile }">
+    <page-header :title="$t('globals.terms.subscribers')" :subtitle="summary">
+      <template #after-title>
+        <span v-if="currentList" class="ln-small">
+          / {{ currentList.name }}<template v-if="queryParams.subStatus"> ({{ $t(`subscribers.status.${queryParams.subStatus}`) }})</template>
+        </span>
+      </template>
+      <PvButton
+        v-if="!isMobile"
+        v-tooltip.bottom="$t('subscribers.export')"
+        severity="secondary"
+        outlined
+        icon="pi pi-download"
+        :aria-label="$t('subscribers.export')"
+        data-cy="btn-export-subscribers"
+        @click="askExport"
+      />
+      <PvButton
+        v-if="$can('subscribers:import')"
+        severity="secondary"
+        outlined
+        icon="pi pi-upload"
+        :label="$t('menu.import')"
+        @click="$router.push({ name: 'import' })"
+      />
       <PvButton
         v-if="$can('subscribers:manage')"
-        severity="primary"
         icon="pi pi-plus"
-        :label="$t('globals.buttons.new')"
+        :label="$t('subscribers.addPerson')"
         data-cy="btn-new"
         @click="showNewForm"
       />
+    </page-header>
+
+    <div class="subs-layout">
+      <!-- Segments: built in, then saved by the team. -->
+      <nav v-if="!isMobile" class="subs-segs" :aria-label="$t('subscribers.segments.title')">
+        <span class="subs-segs-label">{{ $t('subscribers.segments.title') }}</span>
+        <a
+          v-for="b in builtIns"
+          :key="b.key"
+          href="#"
+          class="subs-seg"
+          :aria-current="segKey === b.key ? 'true' : undefined"
+          data-cy="segment"
+          @click.prevent="pickSegment(b.key)"
+        >
+          <span>{{ $t(`subscribers.segments.builtin.${b.key}`) }}</span>
+          <span class="subs-seg-n">{{ countLabel(b.key) }}</span>
+        </a>
+        <span class="subs-segs-label">{{ $t('subscribers.segments.saved') }}</span>
+        <a
+          v-for="g in saved"
+          :key="g.id"
+          href="#"
+          class="subs-seg"
+          :aria-current="segKey === `s${g.id}` ? 'true' : undefined"
+          data-cy="saved-segment"
+          @click.prevent="pickSegment(`s${g.id}`)"
+        >
+          <span class="subs-seg-name">{{ g.name }}</span>
+          <span class="subs-seg-n">{{ countLabel(`s${g.id}`) }}</span>
+        </a>
+        <button v-if="$can('subscribers:manage')" type="button" class="subs-seg subs-seg-new" @click="newSegment">
+          <i class="pi pi-plus" aria-hidden="true" /> {{ $t('subscribers.segments.new') }}
+        </button>
+      </nav>
+
+      <div class="subs-main">
+        <div v-if="isMobile" class="subs-chips" role="tablist" :aria-label="$t('subscribers.segments.title')">
+          <button
+            v-for="c in chips"
+            :key="c.key"
+            type="button"
+            role="tab"
+            class="subs-chip"
+            :aria-selected="segKey === c.key"
+            @click="pickSegment(c.key)"
+          >
+            {{ c.name }}<span v-if="segKey === c.key">{{ countLabel(c.key) }}</span>
+          </button>
+        </div>
+
+        <segment-builder
+          v-model="seg"
+          :title="currentSaved?.name || ''"
+          :count="loading.subscribers && !subscribers.total ? null : (subscribers.total ?? null)"
+          :total="counts.everyone"
+          :lists="listOptions"
+          :can-save="$can('subscribers:manage') && seg.conditions.length > 0"
+          :can-sql="$can('subscribers:sql_query')"
+          :can-delete="$can('subscribers:manage') && !!currentSaved"
+          @save="askSave"
+          @sql="editAsSql"
+          @delete="askDeleteSegment"
+        />
+
+    <div class="subs-filters">
+      <form class="subs-search" role="search" @submit.prevent="onSubmit">
+        <PvIconField>
+          <PvInputIcon class="pi pi-search" />
+          <PvInputText
+            v-model="queryInput"
+            :placeholder="$t('subscribers.findPerson')"
+            :aria-label="$t('subscribers.findPerson')"
+            :disabled="isSearchAdvanced"
+            data-cy="search"
+            @input="onSimpleQueryInput"
+          />
+        </PvIconField>
+      </form>
+      <PvSelect
+        v-if="queryParams.listID"
+        :model-value="queryParams.listID"
+        :options="listOptions"
+        option-label="name"
+        option-value="id"
+        :placeholder="$t('subscribers.allLists')"
+        show-clear
+        filter
+        class="subs-list"
+        @update:model-value="onListPick"
+      />
+      <PvButton
+        v-if="isSearchAdvanced"
+        :label="$t('subscribers.reset')"
+        icon="pi pi-times"
+        severity="secondary"
+        data-cy="btn-advanced-search"
+        @click="toggleAdvancedSearch"
+      />
     </div>
 
-    <!-- Table card -->
-    <div class="table-card">
-      <!-- Search toolbar (outside table header for cleaner layout) -->
-      <div class="search-toolbar">
-        <form class="search-form" @submit.prevent="onSubmit">
-          <PvIconField class="search-field">
-            <PvInputIcon class="pi pi-search" />
-            <PvInputText
-              @input="onSimpleQueryInput"
-              v-model="queryInput"
-              :placeholder="$t('subscribers.queryPlaceholder')"
-              ref="query"
-              :disabled="isSearchAdvanced"
-              data-cy="search"
-              class="search-input"
-            />
-          </PvIconField>
-        </form>
+    <form v-if="isSearchAdvanced" class="ln-card ln-card-pad subs-advanced" @submit.prevent="onSubmit">
+      <PvTextarea
+        v-model="queryParams.queryExp"
+        rows="2"
+        class="ln-mono"
+        placeholder="subscribers.attribs->>'city' = 'Harare' AND subscribers.created_at > NOW() - INTERVAL '90 days'"
+        data-cy="query"
+        :aria-label="$t('subscribers.advancedQuery')"
+        @keydown="onAdvancedQueryEnter"
+      />
+      <div class="subs-advanced-foot">
+        <span class="ln-small">
+          {{ advancedHint }}.
+          <a href="https://listmonk.app/docs/querying-and-segmentation" target="_blank" rel="noopener noreferrer">{{ $t('globals.buttons.learnMore') }}</a>
+        </span>
+        <PvButton type="submit" size="small" icon="pi pi-search" :label="$t('subscribers.query')" data-cy="btn-query" />
+      </div>
+    </form>
 
-        <a href="#" class="advanced-toggle" @click.prevent="toggleAdvancedSearch" data-cy="btn-advanced-search">
-          <i :class="['pi', isSearchAdvanced ? 'pi-times' : 'pi-sliders-h']" />
-          {{ isSearchAdvanced ? $t('subscribers.reset') : $t('subscribers.advancedQuery') }}
+    <table-card
+      :selected-count="numSelected"
+      :selected-label="bulk.all ? $t('campaigns.allMatching', { num: (subscribers.total || 0).toLocaleString() }) : undefined"
+      @clear="clearSelection"
+    >
+      <template #bulk>
+        <a v-if="!bulk.all && (subscribers.total || 0) > (subscribers.perPage || 0)" href="#" @click.prevent="bulk.all = true">
+          {{ $t('subscribers.selectAllMatching', { num: (subscribers.total || 0).toLocaleString() }) }}
         </a>
-
-        <button type="button" class="toolbar-btn" @click.prevent="exportSubscribers" data-cy="btn-export-subscribers">
-          <i class="pi pi-download" /> {{ $t('subscribers.export') }}
-        </button>
-      </div>
-
-      <!-- Advanced query panel -->
-      <div v-if="isSearchAdvanced" class="advanced-panel">
-        <form @submit.prevent="onSubmit">
-          <PvTextarea
-            v-model="queryParams.queryExp"
-            @keydown="onAdvancedQueryEnter"
-            rows="3"
-            placeholder="subscribers.name LIKE '%user%' or subscribers.status='blocklisted'"
-            class="w-full"
-            data-cy="query"
-          />
-          <div class="advanced-footer">
-            <span class="advanced-help">
-              {{ $t('subscribers.advancedQueryHelp') }}.
-              <a href="https://listmonk.app/docs/querying-and-segmentation" target="_blank" rel="noopener noreferrer">
-                {{ $t('globals.buttons.learnMore') }}
-              </a>
-            </span>
-            <PvButton type="submit" severity="primary" size="small" icon="pi pi-search" :label="$t('subscribers.query')" data-cy="btn-query" />
-          </div>
-        </form>
-      </div>
+        <template v-if="$can('subscribers:manage')">
+          <button type="button" class="ln-bulk-btn" data-cy="btn-manage-lists" @click="isBulkListFormVisible = true">{{ $t('subscribers.manageLists') }}</button>
+          <button type="button" class="ln-bulk-btn" data-cy="btn-manage-blocklist" @click="askBlocklistSelected">{{ $t('subscribers.blocklist') }}</button>
+          <button type="button" class="ln-bulk-btn" data-cy="btn-delete-subscribers" @click="askDeleteSelected">{{ $t('globals.buttons.delete') }}</button>
+        </template>
+      </template>
 
       <PvDataTable
-        :value="subscribers.results ?? []"
-        :loading="loading.subscribers"
+        v-model:selection="bulk.checked"
+        :value="rows"
         data-key="id"
+        lazy
+        paginator
         :rows="subscribers.perPage"
-        :paginator="true"
-        paginator-position="bottom"
         :total-records="subscribers.total"
-        :lazy="true"
+        :first="(queryParams.page - 1) * (subscribers.perPage || 20)"
+        :loading="loading.subscribers && rows.length > 0"
+        :row-class="(s) => (openSub && s.id === openSub.id ? 'is-open' : '')"
         @page="(e) => onPageChange(e.page + 1)"
         @sort="(e) => onSort(e.sortField, e.sortOrder === 1 ? 'asc' : 'desc')"
-        selection-mode="checkbox"
-        v-model:selection="bulk.checked"
+        @row-click="(e) => openDrawer(e.data)"
         @row-select="onTableCheck"
         @row-unselect="onTableCheck"
         @row-select-all="onTableCheck"
         @row-unselect-all="onTableCheck"
       >
-        <template #header>
-          <div v-if="bulk.checked.length > 0" class="bulk-bar">
-            <span class="bulk-count">
-              {{ $t('globals.messages.numSelected', { num: numSelectedSubscribers }) }}
-              <template v-if="!bulk.all && subscribers.total > subscribers.perPage">
-                &mdash;
-                <a href="#" @click.prevent="selectAllSubscribers">
-                  {{ $t('globals.messages.selectAll', { num: subscribers.total }) }}
-                </a>
-              </template>
+        <template #empty>
+          <table-skeleton v-if="loading.subscribers" :cols="4" />
+          <empty-state
+            v-else-if="isFiltered"
+            bare
+            icon="pi-search"
+            :title="$t('states.noMatches')"
+            :text="queryInput ? $t('states.noMatchesText', { query: queryInput }) : $t('developers.log.noMatchesFilters')"
+            :action-label="$t('states.clearFilters')"
+            secondary
+            @action="clearFilters"
+          />
+          <empty-state
+            v-else
+            bare
+            icon="pi-users"
+            :title="$t('subscribers.emptyTitle')"
+            :text="$t('subscribers.emptyText')"
+            :action-label="$can('subscribers:import') ? $t('subscribers.importAction') : ''"
+            @action="$router.push({ name: 'import' })"
+          />
+        </template>
+        <template #paginatorstart>
+          <span class="ln-small">{{ rangeLabel }}</span>
+        </template>
+
+        <PvColumn v-if="!isMobile" selection-mode="multiple" header-style="width:3rem" />
+
+        <PvColumn field="email" :header="$t('subscribers.col.person')" sortable header-class="cy-email">
+          <template #body="{ data }">
+            <span class="subs-person">
+              <span class="subs-avatar" aria-hidden="true">{{ initials(data) }}</span>
+              <span class="subs-person-text">
+                <span class="subs-person-name">
+                  <a
+                    :href="$router.resolve(`/subscribers/${data.id}`).href"
+                    class="ln-row-title"
+                    data-cy="name"
+                    :data-id="data.id"
+                    @click.prevent.stop="openDrawer(data)"
+                  >{{ data.name || data.email }}</a>
+                  <span v-if="data.status === 'blocklisted'" class="subs-blocked-tag" data-cy="blocklisted">{{ $t('subscribers.status.blocklisted') }}</span>
+                  <status-tag
+                    v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
+                    status="pending"
+                    :label="$t(`subscribers.scrubStatus.${data.scrubStatus}`)"
+                    data-cy="scrub-status"
+                  />
+                </span>
+                <span class="ln-row-sub" data-cy="email">{{ data.email }}</span>
+              </span>
+              <span v-if="isMobile" class="subs-opened-m" :class="{ 'is-never': !data.lastOpenedAt }">{{ opened(data) }}</span>
             </span>
-            <button type="button" class="bulk-btn" @click.prevent="showBulkListForm" data-cy="btn-manage-lists">
-              <i class="pi pi-list" /> Manage lists
+          </template>
+        </PvColumn>
+
+        <!-- With a person open, the table keeps who they are and when they
+             last opened; their lists are in the panel. -->
+        <PvColumn v-if="!isMobile && !openSub" :header="$t('globals.terms.lists')" header-class="cy-lists">
+          <template #body="{ data }">
+            <!-- Plain text, one list named: chips per list made every row
+                 a cluster. Waiting to confirm is the exception worth a mark. -->
+            <span class="subs-lists ln-small" data-cy="lists" :title="activeLists(data).map((l) => l.name).join(', ')">
+              {{ listsLabel(data) }}
+              <span v-if="activeLists(data).some(awaitingOptin)" class="subs-unconf">{{ $t('subscribers.status.unconfirmed').toLowerCase() }}</span>
+            </span>
+          </template>
+        </PvColumn>
+
+        <PvColumn v-if="!isMobile" :header="$t('subscribers.col.lastOpened')" header-style="width:120px">
+          <template #body="{ data }"><span class="ln-date" :class="{ 'subs-never': !data.lastOpenedAt }">{{ opened(data) }}</span></template>
+        </PvColumn>
+
+        <PvColumn v-if="!openSub && !isMobile" header-style="width:56px" body-style="text-align:right">
+          <template #body="{ data }">
+            <button type="button" class="ln-row-menu" data-cy="row-menu" :aria-label="$t('globals.buttons.rowActions')" aria-haspopup="true" @click.stop="(e) => openMenu(e, data)">
+              <i class="pi pi-ellipsis-h" />
             </button>
-            <button type="button" class="bulk-btn bulk-btn--danger" @click.prevent="onDeleteSubscribers" data-cy="btn-delete-subscribers">
-              <i class="pi pi-trash" /> {{ $t('globals.buttons.delete') }}
-            </button>
-            <button type="button" class="bulk-btn bulk-btn--warn" @click.prevent="onBlocklistSubscribers" data-cy="btn-manage-blocklist">
-              <i class="pi pi-user-minus" /> Blocklist
-            </button>
-          </div>
-        </template>
-
-        <PvColumn selection-mode="multiple" header-style="width:3rem" />
-
-        <PvColumn field="email" :header="$t('subscribers.email')" header-class="cy-email" sortable>
-          <template #body="{ data }">
-            <div class="email-cell">
-              <a class="row-name" :class="{ 'row-name--blocked': data.status === 'blocklisted' }"
-                :href="`/subscribers/${data.id}`" @click.prevent="showEditForm(data)">
-                {{ data.email }}
-                <copy-text :text="`${data.email}`" hide-text />
-              </a>
-              <PvTag v-if="data.status !== 'enabled'" severity="danger" size="small" data-cy="blocklisted"
-                :value="$t(`subscribers.status.${data.status}`)" />
-              <PvTag v-if="data.scrubStatus === 'risky' || data.scrubStatus === 'unchecked_error'"
-                severity="warn" size="small" data-cy="scrub-status"
-                :value="$t(`subscribers.scrubStatus.${data.scrubStatus}`)" />
-            </div>
-            <div v-if="data.lists?.length" class="list-tags">
-              <router-link v-for="l in data.lists" :key="l.id" :to="`/subscribers/lists/${l.id}`">
-                <PvTag severity="secondary" size="small">
-                  {{ l.name }}<sup v-if="l.optin === 'double' || l.subscriptionStatus === 'unsubscribed'"> {{ $t(`subscribers.status.${l.subscriptionStatus}`) }}</sup>
-                </PvTag>
-              </router-link>
-            </div>
           </template>
         </PvColumn>
-
-        <PvColumn field="name" :header="$t('globals.fields.name')" header-class="cy-name" sortable style="width:18%">
-          <template #body="{ data }">
-            <a class="row-name" :class="{ 'row-name--blocked': data.status === 'blocklisted' }"
-              :href="`/subscribers/${data.id}`" @click.prevent="showEditForm(data)">
-              {{ data.name }}
-            </a>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="lists" :header="$t('globals.terms.lists')" header-class="cy-lists" style="width:6rem; text-align:center">
-          <template #body="{ data }">
-            <span class="list-count">{{ listCount(data.lists) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="created_at" :header="$t('globals.fields.createdAt')" header-class="cy-created_at" sortable style="width:11%">
-          <template #body="{ data }">
-            <span class="date-cell">{{ $utils.niceDate(data.createdAt) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn field="updated_at" :header="$t('globals.fields.updatedAt')" header-class="cy-updated_at" sortable style="width:11%">
-          <template #body="{ data }">
-            <span class="date-cell">{{ $utils.niceDate(data.updatedAt) }}</span>
-          </template>
-        </PvColumn>
-
-        <PvColumn style="width:7rem; text-align:right">
-          <template #body="{ data }">
-            <div class="row-actions">
-              <a :href="`/api/subscribers/${data.id}/export`" class="row-action-btn"
-                data-cy="btn-download" v-tooltip.bottom="$t('subscribers.downloadData')">
-                <i class="pi pi-download" />
-              </a>
-              <button v-if="$can('subscribers:manage')" type="button" class="row-action-btn"
-                data-cy="btn-edit" v-tooltip.bottom="$t('globals.buttons.edit')" @click="showEditForm(data)">
-                <i class="pi pi-pencil" />
-              </button>
-              <button v-if="$can('subscribers:manage')" type="button" class="row-action-btn row-action-btn--danger"
-                data-cy="btn-delete" v-tooltip.bottom="$t('globals.buttons.delete')" @click="onDeleteSubscriber(data)">
-                <i class="pi pi-trash" />
-              </button>
-            </div>
-          </template>
-        </PvColumn>
-
-        <template #empty v-if="!loading.subscribers">
-          <empty-placeholder />
-        </template>
       </PvDataTable>
+    </table-card>
+      </div>
     </div>
+    <PvMenu ref="menu" :model="menuItems" popup />
 
-    <!-- Manage list modal -->
-    <PvDialog v-model:visible="isBulkListFormVisible" :style="{ width: '500px' }" show-header="false" :closable="false" modal>
-      <subscriber-bulk-list :num-subscribers="numSelectedSubscribers" @finished="bulkChangeLists" @close="isBulkListFormVisible = false" />
+    <!-- Save a segment -->
+    <PvDialog v-model:visible="saveDialog.open" :header="$t('subscribers.segments.saveTitle')" :style="{ width: '420px', maxWidth: 'calc(100vw - 32px)' }" modal>
+      <form class="subs-save" @submit.prevent="saveSegment">
+        <label for="seg-name">{{ $t('subscribers.segments.name') }}</label>
+        <PvInputText id="seg-name" v-model="saveDialog.name" :placeholder="$t('subscribers.segments.namePlaceholder')" required autofocus data-cy="segment-name" />
+        <div class="subs-save-foot">
+          <PvButton type="button" :label="$t('globals.buttons.cancel')" severity="secondary" text @click="saveDialog.open = false" />
+          <PvButton type="submit" :label="$t('subscribers.segments.save')" :loading="saveDialog.busy" data-cy="btn-segment-save" />
+        </div>
+      </form>
     </PvDialog>
 
-    <!-- Add / edit form modal -->
-    <PvDialog v-model:visible="isFormVisible" :style="{ width: '850px' }" class="subscriber-modal" show-header="false" :closable="false" modal @hide="onFormClose">
-      <subscriber-form :data="curItem" :is-editing="isEditing" @finished="querySubscribers" @close="closeForm" />
+    <subscriber-drawer
+      :subscriber="openSub"
+      @close="closeDrawer"
+      @edit="(s) => showEditForm(s)"
+      @blocklist="(s) => askBlocklistOne(s)"
+    />
+
+    <!-- Manage lists -->
+    <PvDialog v-model:visible="isBulkListFormVisible" :style="{ width: '500px' }" :show-header="false" :closable="false" modal>
+      <subscriber-bulk-list :num-subscribers="numSelected" @finished="bulkChangeLists" @close="isBulkListFormVisible = false" />
     </PvDialog>
+
+    <!-- Add / edit -->
+    <PvDialog v-model:visible="isFormVisible" :style="{ width: '760px', maxWidth: 'calc(100vw - 32px)' }" class="subscriber-modal" :show-header="false" :closable="false" modal @hide="onFormClose">
+      <subscriber-form :data="curItem" :is-editing="isEditing" @finished="onFormFinished" @close="closeForm" />
+    </PvDialog>
+
+    <confirm-action
+      v-model:visible="confirm.open"
+      :title="confirm.title"
+      :text="confirm.text"
+      :confirm-label="confirm.label"
+      :confirm-text="confirm.typed"
+      :danger="confirm.danger"
+      :busy="confirm.busy"
+      @confirm="confirm.run"
+    >
+      <template v-if="confirm.secondary" #footer-start>
+        <PvButton :label="confirm.secondary.label" text severity="secondary" @click="confirm.secondary.run" />
+      </template>
+    </confirm-action>
   </div>
 </template>
 
 <script setup lang="ts">
 import {
-  ref, reactive, computed, watch, nextTick, onMounted,
+  computed, nextTick, onMounted, reactive, ref, watch,
 } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import type { MenuItem } from 'primevue/menuitem';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useFormDialog } from '../composables/useFormDialog';
+import { useTime } from '../composables/useTime';
+import { useMedia } from '../composables/useMedia';
 import { makeQueryHandlers } from '../utils';
-import EmptyPlaceholder from '../components/EmptyPlaceholder.vue';
 import { uris } from '../constants';
+import PageHeader from '../components/ui/PageHeader.vue';
+import TableCard from '../components/ui/TableCard.vue';
+import TableSkeleton from '../components/ui/TableSkeleton.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import StatusTag from '../components/ui/StatusTag.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import SubscriberBulkList from './SubscriberBulkList.vue';
 import SubscriberForm from './SubscriberForm.vue';
-import CopyText from '../components/CopyText.vue';
+import SubscriberDrawer from './SubscriberDrawer.vue';
+import SegmentBuilder from '../components/SegmentBuilder.vue';
+import type { Seg } from '../components/SegmentBuilder.vue';
 import { getSubscribers as subscribersApi } from '../api/generated/endpoints/subscribers/subscribers';
 
-const { $utils } = useGlobal();
+// Subscribers and lists are the API's camelCased objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+interface PopupMenu { toggle: (e: Event) => void }
+
+const { $utils, $can } = useGlobal();
 const {
   listSubscribers, getSubscriber, deleteSubscriber, deleteSubscribers,
   blocklistSubscribers, blocklistSubscribersByQuery, deleteSubscribersByQuery,
   manageSubscriberLists, manageSubscriberListsByQuery,
+  getSegments, createSegment, updateSegment, deleteSegment, countSegments, segmentSQL,
 } = subscribersApi();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useMainStore();
-const {
-  refreshTick, subscribers, lists, loading,
-} = storeToRefs(store);
+const { refreshTick, loading } = storeToRefs(store);
+const subscribers = computed(() => (store.subscribers as Loose) || {});
+const lists = computed(() => (store.lists as Loose) || {});
+const { shortDate, ago } = useTime();
+const isMobile = useMedia('(max-width: 991px)');
 
 const {
   curItem, isEditing, isFormVisible, showEditForm, showNewForm, closeForm,
-} = useFormDialog();
+} = useFormDialog<Loose>();
 const isSearchAdvanced = ref(false);
 const isBulkListFormVisible = ref(false);
-const queryEl = ref<any>(null);
-const bulk = reactive({ checked: [] as any[], all: false });
+const openSub = ref<Loose | null>(null);
+const bulk = reactive({ checked: [] as Loose[], all: false });
 const queryInput = ref('');
 const queryParams = reactive({
   queryExp: '',
@@ -255,15 +385,205 @@ const queryParams = reactive({
   subStatus: null as string | null,
 });
 
-const numSelectedSubscribers = computed(() => (bulk.all ? (subscribers.value as any).total : bulk.checked.length));
-
-const currentList = computed(() => {
-  if (!queryParams.listID || !(lists.value as any).results) return null;
-  return (lists.value as any).results.find((l: any) => l.id === queryParams.listID);
+const menu = ref<PopupMenu | null>(null);
+const menuFor = ref<Loose | null>(null);
+const confirm = reactive({
+  open: false,
+  title: '',
+  text: '',
+  label: '',
+  typed: '',
+  danger: true,
+  busy: false,
+  run: () => {},
+  secondary: null as { label: string; run: () => void } | null,
 });
 
-function listCount(ls: any[]) {
-  return ls.reduce((n: number, item: any) => n + (item.subscriptionStatus !== 'unsubscribed' ? 1 : 0), 0);
+// Built-in segments, as conditions the segment compiler understands.
+const builtIns: { key: string; seg: Seg }[] = [
+  { key: 'everyone', seg: { match: 'all', conditions: [] } },
+  { key: 'engaged', seg: { match: 'all', conditions: [{ field: 'last_opened', op: 'in_last', value: '90' }] } },
+  { key: 'new', seg: { match: 'all', conditions: [{ field: 'joined', op: 'in_last', value: '30' }] } },
+  { key: 'neverOpened', seg: { match: 'all', conditions: [{ field: 'last_opened', op: 'never' }] } },
+  { key: 'unconfirmed', seg: { match: 'all', conditions: [{ field: 'unconfirmed', op: 'is' }] } },
+  { key: 'blocklisted', seg: { match: 'all', conditions: [{ field: 'status', op: 'is', value: 'blocklisted' }] } },
+];
+
+interface SavedSeg { id: number; name: string; match: 'all' | 'any'; conditions: Seg['conditions'] }
+
+const seg = ref<Seg>({ match: 'all', conditions: [] });
+const segKey = ref<string>((route.query.segment as string) || 'everyone');
+const saved = ref<SavedSeg[]>([]);
+const counts = ref<Record<string, number>>({});
+const saveDialog = reactive({ open: false, name: '', busy: false });
+
+const currentSaved = computed(() => saved.value.find((g) => `s${g.id}` === segKey.value) || null);
+const chips = computed(() => [
+  ...(currentSaved.value ? [{ key: segKey.value, name: currentSaved.value.name }] : []),
+  ...builtIns.map((b) => ({ key: b.key, name: t(`subscribers.segments.builtin.${b.key}`) })),
+  ...saved.value.filter((g) => `s${g.id}` !== segKey.value).map((g) => ({ key: `s${g.id}`, name: g.name })),
+]);
+
+function segFor(key: string): Seg {
+  const b = builtIns.find((x) => x.key === key);
+  if (b) return b.seg;
+  const g = saved.value.find((x) => `s${x.id}` === key);
+  return g ? { match: g.match, conditions: g.conditions } : builtIns[0].seg;
+}
+
+function countLabel(key: string): string {
+  return counts.value[key] === undefined ? '' : String($utils.niceNumber(counts.value[key]));
+}
+
+function pickSegment(key: string) {
+  segKey.value = key;
+  seg.value = JSON.parse(JSON.stringify(segFor(key)));
+  router.replace({ query: { ...route.query, segment: key === 'everyone' ? undefined : key } });
+}
+
+function newSegment() {
+  segKey.value = 'everyone';
+  seg.value = { match: 'all', conditions: [] };
+}
+
+function fetchCounts() {
+  const keys = [...builtIns.map((b) => b.key), ...saved.value.map((g) => `s${g.id}`)];
+  countSegments({ segments: keys.map(segFor) } as never).then((d) => {
+    const n = (d as unknown as number[]) || [];
+    counts.value = Object.fromEntries(keys.map((k, i) => [k, n[i]]));
+  }).catch(() => {});
+}
+
+function fetchSegments() {
+  return getSegments().then((d) => {
+    saved.value = (d as unknown as SavedSeg[]) || [];
+    fetchCounts();
+  });
+}
+
+function askSave() {
+  if (currentSaved.value) {
+    persistSegment(currentSaved.value.name);
+    return;
+  }
+  saveDialog.name = '';
+  saveDialog.open = true;
+}
+
+function saveSegment() {
+  if (saveDialog.name.trim()) persistSegment(saveDialog.name.trim());
+}
+
+function persistSegment(name: string) {
+  saveDialog.busy = true;
+  const body = { name, match: seg.value.match, conditions: seg.value.conditions };
+  const req = currentSaved.value ? updateSegment(currentSaved.value.id, body as never) : createSegment(body as never);
+  req.then((d) => {
+    const g = d as unknown as SavedSeg;
+    saveDialog.open = false;
+    $utils.toast(t('subscribers.segments.savedToast', { name: g.name }));
+    fetchSegments().then(() => { segKey.value = `s${g.id}`; router.replace({ query: { ...route.query, segment: `s${g.id}` } }); });
+  }).finally(() => { saveDialog.busy = false; });
+}
+
+function askDeleteSegment() {
+  const g = currentSaved.value;
+  if (!g) return;
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.segments.deleteTitle', { name: g.name }),
+    text: t('subscribers.segments.deleteText'),
+    label: t('subscribers.segments.delete'),
+    typed: '',
+    danger: true,
+    secondary: null,
+    run: () => {
+      confirm.busy = true;
+      deleteSegment(g.id).then(() => {
+        confirm.open = false;
+        pickSegment('everyone');
+        fetchSegments();
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+// editAsSql swaps the conditions for the SQL they compile to, in the
+// advanced query box.
+function editAsSql() {
+  segmentSQL(seg.value as never).then((d) => {
+    const { sql } = d as unknown as { sql: string };
+    queryParams.queryExp = sql === 'TRUE' ? '' : sql;
+    queryParams.search = '';
+    queryInput.value = '';
+    isSearchAdvanced.value = true;
+    seg.value = { match: 'all', conditions: [] };
+  });
+}
+
+function segmentParam(): string | undefined {
+  return seg.value.conditions.length ? JSON.stringify(seg.value) : undefined;
+}
+
+function initials(sub: Loose): string {
+  const src = (sub.name || sub.email || '').trim();
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function opened(sub: Loose): string {
+  return sub.lastOpenedAt ? ago(sub.lastOpenedAt) : t('subscribers.never');
+}
+
+const rows = computed<Loose[]>(() => subscribers.value.results || []);
+const numSelected = computed(() => (bulk.all ? (subscribers.value.total || 0) : bulk.checked.length));
+const listOptions = computed(() => lists.value.results || []);
+const summary = computed(() => {
+  if (counts.value.everyone === undefined) return '';
+  return t('subscribers.summary', { n: $utils.niceNumber(counts.value.everyone), lists: listOptions.value.length });
+});
+const currentList = computed(() => (queryParams.listID ? listOptions.value.find((l: Loose) => l.id === queryParams.listID) : null));
+const isFiltered = computed(() => !!(queryParams.search || queryParams.queryExp || queryParams.listID || queryParams.subStatus));
+
+const advancedHint = computed(() => {
+  const help = t('subscribers.advancedQueryHelp');
+  if (!queryParams.queryExp || subscribers.value.total === undefined) return help;
+  return `${help}\u2003${t('subscribers.matchCount', { n: (subscribers.value.total || 0).toLocaleString() })}`;
+});
+
+const rangeLabel = computed(() => {
+  const total = subscribers.value.total || 0;
+  const per = subscribers.value.perPage || 20;
+  if (!total) return '';
+  const from = (queryParams.page - 1) * per + 1;
+  return t('developers.log.range', { from, to: Math.min(queryParams.page * per, total), total: total.toLocaleString() });
+});
+
+// listsLabel names the first list and counts the rest ("Weekly digest
+// +2 more").
+function listsLabel(sub: Loose): string {
+  const ls = activeLists(sub);
+  if (!ls.length) return '';
+  return ls.length > 1 ? `${ls[0].name} ${t('subscribers.moreLists', { n: ls.length - 1 })}` : ls[0].name;
+}
+
+function activeLists(s: Loose): Loose[] {
+  return (s.lists || []).filter((l: Loose) => l.subscriptionStatus !== 'unsubscribed');
+}
+
+// Single opt-in subscriptions are stored as unconfirmed too, so only a
+// double opt-in list's unconfirmed subscription is still waiting.
+function awaitingOptin(l: Loose): boolean {
+  return l.optin === 'double' && l.subscriptionStatus === 'unconfirmed';
+}
+
+function clearSelection() {
+  bulk.checked = [];
+  bulk.all = false;
+}
+
+function onTableCheck() {
+  if (bulk.checked.length !== (subscribers.value.total || 0)) bulk.all = false;
 }
 
 function toggleAdvancedSearch() {
@@ -274,38 +594,21 @@ function toggleAdvancedSearch() {
     queryParams.queryExp = '';
     queryParams.page = 1;
     querySubscribers();
-    nextTick(() => { queryEl.value?.$el?.focus(); });
     return;
   }
   const q = queryInput.value.replace(/'/, "''").trim();
   if (q) {
-    if ($utils.validateEmail(q)) {
-      queryParams.queryExp = `email = '${q.toLowerCase()}'`;
-    } else {
-      queryParams.queryExp = `(name ~* '${q}' OR email ~* '${q.toLowerCase()}')`;
-    }
+    queryParams.queryExp = $utils.validateEmail(q)
+      ? `email = '${q.toLowerCase()}'`
+      : `(name ~* '${q}' OR email ~* '${q.toLowerCase()}')`;
   }
 }
 
-function selectAllSubscribers() { bulk.all = true; }
-
-function onTableCheck() {
-  if (bulk.checked.length !== (subscribers.value as any).total) bulk.all = false;
-}
-
-function showBulkListForm() { isBulkListFormVisible.value = true; }
-
-function onFormClose() {
-  if (route.params.id) router.push({ name: 'subscribers' });
-}
-
-const { onPageChange, onSort } = makeQueryHandlers(queryParams, () => querySubscribers());
-
-function onSimpleQueryInput(v: any) {
-  const q = (v.target ? v.target.value : v).replace(/'/, "''").trim();
+function onSimpleQueryInput(v: Event | string) {
+  const raw = typeof v === 'string' ? v : (v.target as HTMLInputElement).value;
   queryParams.queryExp = '';
   queryParams.page = 1;
-  queryParams.search = q.toLowerCase();
+  queryParams.search = raw.replace(/'/, "''").trim().toLowerCase();
 }
 
 function onAdvancedQueryEnter(e: KeyboardEvent) {
@@ -314,9 +617,26 @@ function onAdvancedQueryEnter(e: KeyboardEvent) {
 
 function onSubmit() { querySubscribers({ page: 1 }); }
 
-function querySubscribers(params?: any) {
+function onListPick(id: number | null) {
+  if (id) router.push({ name: 'subscribers_list', params: { listID: id } });
+  else router.push({ name: 'subscribers' });
+}
+
+function clearFilters() {
+  queryInput.value = '';
+  queryParams.search = '';
+  queryParams.queryExp = '';
+  isSearchAdvanced.value = false;
+  if (queryParams.listID || queryParams.subStatus) {
+    router.push({ name: 'subscribers' });
+    return;
+  }
+  querySubscribers({ page: 1 });
+}
+
+function querySubscribers(params?: Partial<typeof queryParams>) {
   if (params) Object.assign(queryParams, params);
-  const qp: any = {
+  const qp: Record<string, unknown> = {
     list_id: queryParams.listID,
     search: queryParams.search,
     query: queryParams.queryExp,
@@ -324,199 +644,401 @@ function querySubscribers(params?: any) {
     subscription_status: queryParams.subStatus,
     order_by: queryParams.orderBy,
     order: queryParams.order,
+    segment: segmentParam(),
   };
-  if (queryParams.queryExp) {
-    delete qp.search;
-  } else {
-    delete qp.query;
-  }
+  if (queryParams.queryExp) delete qp.search;
+  else delete qp.query;
+
   nextTick(() => {
     store.setLoading({ model: 'subscribers', status: true });
-    listSubscribers(qp).then((data: any) => {
+    listSubscribers(qp as never).then((data) => {
       store.setModelResponse({ model: 'subscribers', data });
-      bulk.checked = [];
+      clearSelection();
+      if (openSub.value) {
+        const fresh = ((data as Loose).results || []).find((s: Loose) => s.id === openSub.value!.id);
+        if (fresh) openSub.value = fresh;
+      }
     }).finally(() => {
       store.setLoading({ model: 'subscribers', status: false });
     });
   });
 }
 
-function onDeleteSubscriber(sub: any) {
-  $utils.confirm(null, () => {
-    deleteSubscriber(sub.id).then(() => {
-      querySubscribers();
-      $utils.toast(t('globals.messages.deleted', { name: sub.name }));
-    });
+const { onPageChange, onSort } = makeQueryHandlers(queryParams, () => querySubscribers());
+
+function openDrawer(s: Loose) {
+  openSub.value = s;
+  window.history.replaceState(window.history.state, '', `/subscribers/${s.id}`);
+}
+
+function closeDrawer() {
+  openSub.value = null;
+  if (route.params.id) router.replace({ name: 'subscribers' });
+  else window.history.replaceState(window.history.state, '', route.fullPath);
+}
+
+function onFormClose() {
+  // Deep links to /subscribers/:id open the drawer, not the form.
+}
+
+function onFormFinished() {
+  querySubscribers();
+}
+
+// query-wide bulk actions use the current filters.
+function byQuery(): Loose {
+  return {
+    search: queryParams.search,
+    query: queryParams.queryExp,
+    list_ids: queryParams.listID ? [queryParams.listID] : null,
+    subscription_status: queryParams.subStatus,
+    segment: seg.value.conditions.length ? seg.value : undefined,
+  };
+}
+
+function askDeleteOne(s: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.confirmDeleteOneTitle', { name: s.email }),
+    text: t('subscribers.confirmDeleteOneText'),
+    label: t('globals.buttons.delete'),
+    typed: '',
+    danger: true,
+    secondary: null,
+    run: () => {
+      confirm.busy = true;
+      deleteSubscriber(s.id).then(() => {
+        confirm.open = false;
+        if (openSub.value?.id === s.id) closeDrawer();
+        querySubscribers();
+        $utils.toast(t('globals.messages.deleted', { name: s.email }));
+      }).finally(() => { confirm.busy = false; });
+    },
   });
 }
 
-function onBlocklistSubscribers() {
-  let fn: () => void;
-  if (!bulk.all && bulk.checked.length > 0) {
-    fn = () => {
-      const ids = bulk.checked.map((s: any) => s.id);
-      blocklistSubscribers({ ids }).then(() => querySubscribers());
-    };
-  } else {
-    fn = () => {
-      blocklistSubscribersByQuery({
-        search: queryParams.search,
-        query: queryParams.queryExp,
-        list_ids: queryParams.listID ? [queryParams.listID] : (null as any),
-        subscription_status: queryParams.subStatus,
-      }).then(() => querySubscribers());
-    };
-  }
-  $utils.confirm(t('subscribers.confirmBlocklist', { num: numSelectedSubscribers.value }), fn);
-}
-
-function exportSubscribers() {
-  const num = !bulk.all && bulk.checked.length > 0 ? bulk.checked.length : (subscribers.value as any).total;
-  $utils.confirm(t('subscribers.confirmExport', { num }), () => {
-    const q = new URLSearchParams();
-    if (queryParams.search) q.append('search', queryParams.search);
-    else if (queryParams.queryExp) q.append('query', queryParams.queryExp);
-    if (queryParams.listID) q.append('list_id', String(queryParams.listID));
-    if (queryParams.subStatus) q.append('subscription_status', queryParams.subStatus);
-    if (!bulk.all && bulk.checked.length > 0) {
-      bulk.checked.forEach((s: any) => q.append('id', s.id));
-    }
-    document.location.href = `${uris.exportSubscribers}?${q.toString()}`;
+function askBlocklistOne(s: Loose) {
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.confirmBlocklistOneTitle', { name: s.email }),
+    text: t('subscribers.confirmBlocklistOneText'),
+    label: t('subscribers.blocklist'),
+    typed: '',
+    danger: true,
+    secondary: null,
+    run: () => {
+      confirm.busy = true;
+      blocklistSubscribers({ ids: [s.id] } as never).then(() => {
+        confirm.open = false;
+        querySubscribers();
+      }).finally(() => { confirm.busy = false; });
+    },
   });
 }
 
-function onDeleteSubscribers() {
-  let fn: () => void;
-  if (!bulk.all && bulk.checked.length > 0) {
-    fn = () => {
-      const ids = bulk.checked.map((s: any) => s.id);
-      deleteSubscribers({ id: ids }).then(() => {
-        querySubscribers();
-        $utils.toast(t('subscribers.subscribersDeleted', { num: numSelectedSubscribers.value }));
-      });
-    };
-  } else {
-    fn = () => {
-      deleteSubscribersByQuery({
-        all: queryParams.queryExp.trim() === '' && queryParams.search.trim() === '',
-        search: queryParams.search,
-        query: queryParams.queryExp,
-        list_ids: queryParams.listID ? [queryParams.listID] : (null as any),
-        subscription_status: queryParams.subStatus,
-      }).then(() => {
-        querySubscribers();
-        $utils.toast(t('subscribers.subscribersDeleted', { num: numSelectedSubscribers.value }));
-      });
-    };
-  }
-  $utils.confirm(t('subscribers.confirmDelete', { num: numSelectedSubscribers.value }), fn);
+function blocklistSelected() {
+  confirm.busy = true;
+  const req = !bulk.all && bulk.checked.length > 0
+    ? blocklistSubscribers({ ids: bulk.checked.map((s) => s.id) } as never)
+    : blocklistSubscribersByQuery(byQuery() as never);
+  return req.then(() => {
+    confirm.open = false;
+    querySubscribers();
+  }).finally(() => { confirm.busy = false; });
 }
 
-function bulkChangeLists(action: string, preconfirm: boolean, listItems: any[]) {
-  const data: any = {
+function askBlocklistSelected() {
+  const n = numSelected.value;
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.confirmBlocklistManyTitle', { n: n.toLocaleString() }),
+    text: t('subscribers.confirmBlocklistManyText'),
+    label: t('subscribers.blocklist'),
+    typed: bulk.all ? String(n) : '',
+    danger: true,
+    secondary: null,
+    run: blocklistSelected,
+  });
+}
+
+function askDeleteSelected() {
+  const n = numSelected.value;
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.confirmDeleteManyTitle', { n: n.toLocaleString() }),
+    text: t('subscribers.confirmDeleteManyText'),
+    label: t('subscribers.deleteN', { n: n.toLocaleString() }),
+    typed: bulk.all ? String(n) : '',
+    danger: true,
+    secondary: { label: t('subscribers.blocklistInstead'), run: blocklistSelected },
+    run: () => {
+      confirm.busy = true;
+      const req = !bulk.all && bulk.checked.length > 0
+        ? deleteSubscribers({ id: bulk.checked.map((s) => s.id) } as never)
+        : deleteSubscribersByQuery({ all: !queryParams.queryExp.trim() && !queryParams.search.trim(), ...byQuery() } as never);
+      req.then(() => {
+        confirm.open = false;
+        querySubscribers();
+        $utils.toast(t('subscribers.subscribersDeleted', { num: n }));
+      }).finally(() => { confirm.busy = false; });
+    },
+  });
+}
+
+function askExport() {
+  const n = !bulk.all && bulk.checked.length > 0 ? bulk.checked.length : (subscribers.value.total || 0);
+  Object.assign(confirm, {
+    open: true,
+    title: t('subscribers.exportTitle', { n: n.toLocaleString() }),
+    text: t('subscribers.exportText'),
+    label: t('subscribers.export'),
+    typed: '',
+    danger: false,
+    secondary: null,
+    run: () => {
+      confirm.open = false;
+      const q = new URLSearchParams();
+      if (queryParams.search) q.append('search', queryParams.search);
+      else if (queryParams.queryExp) q.append('query', queryParams.queryExp);
+      if (queryParams.listID) q.append('list_id', String(queryParams.listID));
+      if (queryParams.subStatus) q.append('subscription_status', queryParams.subStatus);
+      const sp = segmentParam();
+      if (sp) q.append('segment', sp);
+      if (!bulk.all && bulk.checked.length > 0) bulk.checked.forEach((s) => q.append('id', String(s.id)));
+      document.location.href = `${uris.exportSubscribers}?${q.toString()}`;
+    },
+  });
+}
+
+function bulkChangeLists(action: string, preconfirm: boolean, listItems: Loose[]) {
+  const data: Loose = {
     action,
     search: queryParams.search,
     list_ids: queryParams.listID ? [queryParams.listID] : null,
-    target_list_ids: listItems.map((l: any) => l.id),
+    target_list_ids: listItems.map((l) => l.id),
   };
   if (preconfirm) data.status = 'confirmed';
-  let fn: any;
+  let req;
   if (!bulk.all && bulk.checked.length > 0) {
-    fn = manageSubscriberLists;
-    data.ids = bulk.checked.map((s: any) => s.id);
+    data.ids = bulk.checked.map((s) => s.id);
+    req = manageSubscriberLists(data as never);
   } else {
-    fn = manageSubscriberListsByQuery;
     data.query = queryParams.queryExp;
     data.subscription_status = queryParams.subStatus;
+    if (seg.value.conditions.length) data.segment = seg.value;
+    req = manageSubscriberListsByQuery(data as never);
   }
-  fn(data).then(() => {
+  req.then(() => {
     querySubscribers();
     $utils.toast(t('subscribers.listChangeApplied'));
   });
 }
 
-watch(() => refreshTick.value, () => { querySubscribers(); });
+const menuItems = computed<MenuItem[]>(() => {
+  const s = menuFor.value;
+  if (!s) return [];
+  const items: MenuItem[] = [
+    { label: t('subscribers.view'), icon: 'pi pi-eye', command: () => openDrawer(s) },
+    { label: t('subscribers.downloadData'), icon: 'pi pi-download', command: () => { document.location.href = `/api/subscribers/${s.id}/export`; } },
+  ];
+  if ($can('subscribers:manage')) {
+    items.splice(1, 0, { label: t('globals.buttons.edit'), icon: 'pi pi-pencil', command: () => showEditForm(s) });
+    if (s.status !== 'blocklisted') {
+      items.push({ separator: true }, {
+        label: t('subscribers.blocklist'), icon: 'pi pi-ban', class: 'is-danger', command: () => askBlocklistOne(s),
+      });
+    }
+    items.push({
+      label: t('globals.buttons.delete'), icon: 'pi pi-trash', class: 'is-danger', command: () => askDeleteOne(s),
+    });
+  }
+  return items;
+});
+
+function openMenu(e: Event, s: Loose) {
+  menuFor.value = s;
+  menu.value?.toggle(e);
+}
+
+watch(refreshTick, () => querySubscribers());
+watch(seg, () => querySubscribers({ page: 1 }), { deep: true });
+
+// /subscribers and /subscribers/:id share this view (meta.view), so the
+// drawer follows the id in the URL instead of the page being rebuilt.
+watch(() => route.params.id, (id) => {
+  if (!id) {
+    openSub.value = null;
+    return;
+  }
+  if (openSub.value && String(openSub.value.id) === id) return;
+  getSubscriber(parseInt(id as string, 10)).then((data) => { openSub.value = data as unknown as Loose; });
+});
 
 onMounted(() => {
   if (route.params.listID) queryParams.listID = parseInt(route.params.listID as string, 10);
   if (route.query.subscription_status) queryParams.subStatus = route.query.subscription_status as string;
+  fetchSegments().then(() => {
+    // A saved segment in the URL loads once the segments have.
+    if (segKey.value !== 'everyone') seg.value = JSON.parse(JSON.stringify(segFor(segKey.value)));
+  });
+  if (builtIns.some((b) => b.key === segKey.value)) seg.value = JSON.parse(JSON.stringify(segFor(segKey.value)));
+  querySubscribers();
   if (route.params.id) {
-    getSubscriber(parseInt(route.params.id as string, 10)).then((data: any) => { showEditForm(data); });
-  } else {
-    querySubscribers();
+    getSubscriber(parseInt(route.params.id as string, 10)).then((data) => { openSub.value = data as unknown as Loose; });
   }
 });
 </script>
 
 <style scoped lang="scss">
-.subs-page { display: flex; flex-direction: column; gap: 1.5rem; }
+// A double opt-in subscription still waiting for confirmation says so in
+// words (the handover allows no dots).
+.subs-unconf { margin-left: 6px; color: var(--ln-warn-fg); }
+.subs { transition: padding-right var(--ln-dur-base) var(--ln-ease); }
+.subs.has-drawer { padding-right: 460px; }
 
-// Page header
+.subs-layout { display: flex; gap: 24px; align-items: flex-start; }
+.subs-main { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 
-.page-header-left { display: flex; flex-direction: column; gap: 0.25rem; }
-
-.page-title-sub { color: var(--lm-text-subtle); font-weight: 400; font-size: 1rem; }
-
-// Table card
-
-// Search toolbar
-.search-toolbar {
-  display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1rem 0;
-  flex-wrap: wrap; border-bottom: 1px solid var(--lm-bg-subtle);
-  padding-bottom: 1rem;
+.subs-segs {
+  flex: none;
+  width: 232px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 72px;
 }
-.search-form { flex: 1; min-width: 220px; max-width: 400px; }
-:deep(.search-input) { width: 100%; }
-.advanced-toggle {
-  font-size: 0.8rem; color: var(--lm-text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;
+.subs-segs-label {
+  padding: 0 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-text-3);
+
+  &:not(:first-child) { margin-top: 18px; }
 }
-.toolbar-btn {
-  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem;
-  border: 1px solid var(--lm-border); border-radius: 7px; background: var(--lm-surface); color: var(--lm-text-muted);
-  font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+.subs-seg {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ln-radius);
+  background: transparent;
+  color: var(--ln-text-2);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { background: var(--ln-hover); color: var(--ln-text); text-decoration: none; }
+  &[aria-current] { background: var(--ln-muted); color: var(--ln-text); font-weight: 600; }
+}
+.subs-seg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subs-seg-n {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ln-text-3);
+  font-variant-numeric: tabular-nums;
+  // Only the open segment shows its count; the rest on hover or focus.
+  opacity: 0;
+  transition: opacity var(--ln-dur-fast) var(--ln-ease);
+
+  .subs-seg:hover &, .subs-seg:focus-visible &, .subs-seg[aria-current] & { opacity: 1; }
+}
+.subs-seg-new { margin-top: 4px; justify-content: flex-start; font-weight: 500; i { font-size: 12px; } }
+
+.subs-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+.subs-chip {
+  flex: none;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--ln-radius);
+  border: 1px solid var(--ln-border);
+  background: var(--ln-card);
+  color: var(--ln-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  span { color: var(--ln-text-3); font-weight: 400; }
+  &[aria-selected="true"] { border-color: var(--ln-ink); background: var(--ln-muted); }
 }
 
-// Advanced panel
-.advanced-panel {
-  padding: 1rem; background: var(--lm-bg); border-bottom: 1px solid var(--lm-border);
+.subs-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.subs-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 99px;
+  background: var(--ln-muted);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.advanced-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
-.advanced-help { font-size: 0.78rem; color: var(--lm-text-subtle); a { color: var(--lm-text-muted); } }
-
-// Bulk bar
-.bulk-bar {
-  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+.subs-person-text { flex: 1; min-width: 0; display: flex; flex-direction: column; .ln-row-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+.subs-person-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.subs-blocked-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ln-danger-bg);
+  color: var(--ln-danger-fg);
+  font-size: 11px;
+  font-weight: 500;
 }
-.bulk-count { font-size: 0.85rem; color: var(--lm-text-muted); a { color: var(--lm-primary); } }
-.bulk-btn {
-  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem;
-  border-radius: 6px; font-size: 0.8rem; font-weight: 500; border: 1px solid; cursor: pointer; background: var(--lm-surface);
-  color: var(--lm-text-muted); border-color: var(--lm-border);
-  &--danger { color: var(--lm-danger); border-color: var(--lm-danger-border); &:hover { background: var(--lm-danger-bg); } }
-  &--warn { color: var(--lm-warn); border-color: var(--lm-warn-border); &:hover { background: var(--lm-warn-bg); } }
+.subs-opened-m { flex: none; font-size: 12px; color: var(--ln-text-2); &.is-never { color: var(--ln-text-4); } }
+.subs-never { color: var(--ln-text-4); }
+.subs-lists { color: var(--ln-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; .subs-unconf { margin-left: 8px; } }
+
+.subs-save { display: flex; flex-direction: column; gap: 8px; label { font-size: 13px; font-weight: 500; } }
+.subs-save-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.subs-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.subs-search {
+  flex: 1 1 280px;
+  max-width: 360px;
+
+  .p-inputtext { width: 100%; }
+  @media (max-width: 767px) { max-width: none; }
 }
-
-// Make secondary PvTags visible
-:deep(.p-tag-secondary) {
-  background: var(--lm-bg-subtle);
-  color: var(--lm-text-secondary);
-  border: 1px solid var(--lm-border);
+.subs-list { width: 200px; }
+@media (max-width: 991px) {
+  .subs-segs { display: none; }
+  // Phones show people as a list, as in the mobile artboard.
+  .subs-main :deep(.p-datatable-thead) { display: none; }
 }
+.subs-advanced { display: flex; flex-direction: column; gap: 10px; }
+.subs-advanced-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-.toolbar-btn:hover {
-  background: var(--lm-bg-subtle);
-  border-color: var(--lm-text-muted);
-  color: var(--lm-text);
+.subs-blocked { color: var(--ln-text-3); text-decoration: line-through; }
+.subs-scrub { margin-top: 4px; }
+.subs-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ln-success-fg);
+
+  &.is-blocklisted { color: var(--ln-danger-fg); }
+  &.is-disabled { color: var(--ln-text-3); }
 }
-
-// Row cells
-.email-cell { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.row-name { font-weight: 500; color: var(--lm-primary); text-decoration: none; &:hover { text-decoration: underline; } }
-.row-name--blocked { color: var(--lm-danger); text-decoration: line-through; }
-.list-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.3rem; a { text-decoration: none; } }
-.list-count { font-weight: 600; color: var(--lm-text); }
-.date-cell { font-size: 0.82rem; color: var(--lm-text-muted); }
-
-// Row actions
-:deep(tr:has(.row-name--blocked)) { opacity: 0.6; }
+:deep(tr.is-open) { background: var(--ln-hover) !important; box-shadow: inset 3px 0 0 var(--ln-ink); }
+:deep(.p-datatable-tbody > tr) { cursor: pointer; }
 </style>

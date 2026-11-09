@@ -23,7 +23,7 @@ withDefaults(defineProps<{
   justify-content: center;
   gap: 0.5rem;
   padding: 2.5rem 1rem;
-  color: var(--lm-text-subtle);
+  color: var(--ln-text-4);
 }
 .empty-icon { font-size: 2rem; opacity: 0.5; }
 .empty-label { font-size: 0.875rem; }

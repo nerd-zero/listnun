@@ -1,63 +1,51 @@
 <template>
-  <div class="items">
-    <PvMessage v-if="data.scrub.managed_by_platform" severity="info" :closable="false">
-      {{ $t('settings.scrub.managedByPlatform') }}
-    </PvMessage>
-
-    <div class="settings-card">
-      <div class="grid">
-        <div class="col-2">
-          <div class="field">
-            <div class="flex items-center gap-2">
-              <PvToggleSwitch v-model="data.scrub.enabled" name="scrub.enabled"
-                :disabled="data.scrub.managed_by_platform" />
-              <span>{{ $t('globals.buttons.enabled') }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-10" :class="{ disabled: !data.scrub.enabled || data.scrub.managed_by_platform }">
-          <div class="field">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.scrub.url') }}</label>
-            <PvInputText v-model="data.scrub.url" name="scrub.url"
-              placeholder="https://api.thescrub.app" :maxlength="300"
-              :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
-            <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.urlHelp') }}</small>
-          </div>
-
-          <div class="field mt-4">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.scrub.apiKey') }}</label>
-            <PvPassword v-model="data.scrub.api_key" name="scrub.api_key"
-              :maxlength="300" :feedback="false"
-              :placeholder="$t('settings.scrub.apiKeyPlaceholder')"
-              :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
-            <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.apiKeyHelp') }}</small>
-          </div>
-
-          <div class="field mt-4">
-            <label class="block mb-1 text-sm font-medium">{{ $t('settings.scrub.integrationId') }}</label>
-            <PvInputText v-model="data.scrub.integration_id" name="scrub.integration_id"
-              :maxlength="64" :disabled="!data.scrub.enabled || data.scrub.managed_by_platform" class="w-full" />
-            <small class="block mt-1 text-color-secondary">{{ $t('settings.scrub.integrationIdHelp') }}</small>
-          </div>
-
-          <div class="field mt-4">
-            <PvButton severity="primary" :loading="isTesting"
-              :disabled="!data.scrub.enabled || !data.scrub.url || !data.scrub.api_key"
-              icon="pi pi-link" :label="$t('settings.scrub.testConnection')"
-              @click="testConnection" />
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="set-cards">
+    <set-card :title="$t('settings.scrubx.title')">
+      <set-row :label="$t('settings.scrubx.on')" :help="$t('settings.scrubx.onHelp')" toggle>
+        <PvToggleSwitch v-model="data.scrub.enabled" name="scrub.enabled" :disabled="locked" :aria-label="$t('settings.scrubx.on')" />
+        <template v-if="locked" #note>{{ $t('settings.scrub.managedByPlatform') }}</template>
+      </set-row>
+      <template v-if="data.scrub.enabled && !locked">
+        <set-row :label="$t('settings.scrub.url')" label-for="scrub-url">
+          <PvInputText id="scrub-url" v-model="data.scrub.url" name="scrub.url" placeholder="https://api.thescrub.app" :maxlength="300" class="ln-mono" />
+        </set-row>
+        <set-row :label="$t('settings.scrub.apiKey')">
+          <PvPassword
+            v-model="data.scrub.api_key"
+            name="scrub.api_key"
+            :maxlength="300"
+            :feedback="false"
+            :placeholder="$t('settings.scrub.apiKeyPlaceholder')"
+            :aria-label="$t('settings.scrub.apiKey')"
+          />
+        </set-row>
+        <set-row :label="$t('settings.scrub.integrationId')" :help="$t('settings.scrubx.integrationHelp')" label-for="scrub-integration">
+          <PvInputText id="scrub-integration" v-model="data.scrub.integration_id" name="scrub.integration_id" :maxlength="64" class="ln-mono" />
+        </set-row>
+        <set-row :label="$t('settings.scrub.testConnection')" :help="$t('settings.scrubx.testHelp')">
+          <span>
+            <PvButton
+              severity="secondary"
+              outlined
+              :loading="isTesting"
+              :disabled="!data.scrub.url || !data.scrub.api_key"
+              :label="$t('settings.scrub.testConnection')"
+              @click="testConnection"
+            />
+          </span>
+        </set-row>
+      </template>
+    </set-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGlobal } from '../../composables/useGlobal';
 import { getSettings as settingsApi } from '../../api/generated/endpoints/settings/settings';
+import SetCard from '../../components/ui/SetCard.vue';
+import SetRow from '../../components/ui/SetRow.vue';
 
 const props = defineProps<{ form?: any }>();
 const { $utils } = useGlobal();
@@ -65,6 +53,7 @@ const { testScrubSettings } = settingsApi();
 const { t } = useI18n();
 const data = props.form;
 const isTesting = ref(false);
+const locked = computed(() => !!data.scrub.managed_by_platform);
 
 async function testConnection() {
   isTesting.value = true;
@@ -80,6 +69,5 @@ async function testConnection() {
 </script>
 
 <style scoped lang="scss">
-:deep(.p-password) { width: 100%; }
-:deep(.p-password-input) { width: 100%; }
+:deep(.p-password), :deep(.p-password-input) { width: 100%; }
 </style>

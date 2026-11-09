@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"regexp"
 	"strings"
 	txttpl "text/template"
 
@@ -52,17 +53,18 @@ type Campaign struct {
 	Status     string      `db:"status" json:"status"`
 	// Set only when Status='paused' was set automatically (not by a
 	// user) -- see schema.sql's campaigns.pause_reason doc comment.
-	PauseReason       null.String     `db:"pause_reason" json:"pause_reason"`
-	ContentType       string          `db:"content_type" json:"content_type"`
-	Tags              pq.StringArray  `db:"tags" json:"tags"`
-	Headers           Headers         `db:"headers" json:"headers"`
-	Attribs           JSON            `db:"attribs" json:"attribs"`
-	TemplateID        null.Int        `db:"template_id" json:"template_id"`
-	Messenger         string          `db:"messenger" json:"messenger"`
-	Archive           bool            `db:"archive" json:"archive"`
-	ArchiveSlug       null.String     `db:"archive_slug" json:"archive_slug"`
-	ArchiveTemplateID null.Int        `db:"archive_template_id" json:"archive_template_id"`
-	ArchiveMeta       json.RawMessage `db:"archive_meta" json:"archive_meta"`
+	PauseReason       null.String      `db:"pause_reason" json:"pause_reason"`
+	ContentType       string           `db:"content_type" json:"content_type"`
+	Tags              pq.StringArray   `db:"tags" json:"tags"`
+	Headers           Headers          `db:"headers" json:"headers"`
+	Attribs           JSON             `db:"attribs" json:"attribs"`
+	TemplateID        null.Int         `db:"template_id" json:"template_id"`
+	Messenger         string           `db:"messenger" json:"messenger"`
+	Archive           bool             `db:"archive" json:"archive"`
+	ArchiveSlug       null.String      `db:"archive_slug" json:"archive_slug"`
+	ArchiveTemplateID null.Int         `db:"archive_template_id" json:"archive_template_id"`
+	ArchiveMeta       json.RawMessage  `db:"archive_meta" json:"archive_meta"`
+	Tracking          CampaignTracking `db:"tracking" json:"tracking"`
 
 	// TemplateBody is joined in from templates by the next-campaigns query.
 	TemplateBody        string             `db:"template_body" json:"-"`
@@ -185,6 +187,12 @@ func (c *Campaign) CompileTemplate(f template.FuncMap) error {
 		body = c.Body
 	}
 
+	// Switch-on tracking (links, pixels) is for HTML emails; a plain-text
+	// email would show the pixel tags as text.
+	if c.ContentType != CampaignContentTypePlain {
+		body = c.Tracking.Apply(body)
+	}
+
 	// Compile the campaign message.
 	for _, r := range regTplFuncs {
 		body = r.regExp.ReplaceAllString(body, r.replace)
@@ -273,4 +281,26 @@ func (c *Campaign) ConvertContent(from, to string) (string, error) {
 	}
 
 	return out, nil
+}
+
+// unsubLinkRe matches a template tag that renders a subscriber's
+// unsubscribe or preferences link, e.g. {{ UnsubscribeURL }}.
+var unsubLinkRe = regexp.MustCompile(`\{\{-?\s*(UnsubscribeURL|ManageURL)\b`)
+
+// HasUnsubscribeLink reports whether the campaign's email gives the
+// subscriber a visible way to unsubscribe: a {{ UnsubscribeURL }} or
+// {{ ManageURL }} in its body or in the template around it. Gmail and
+// Yahoo require one from bulk senders, on top of the List-Unsubscribe
+// header. A visual campaign ignores its template, so only its body counts.
+func (c *Campaign) HasUnsubscribeLink() bool {
+	if c.ContentType != CampaignContentTypeVisual && HasUnsubscribeTag(c.TemplateBody) {
+		return true
+	}
+	return HasUnsubscribeTag(c.Body)
+}
+
+// HasUnsubscribeTag reports whether src (a template or campaign body) has
+// a tag that renders an unsubscribe or preferences link.
+func HasUnsubscribeTag(src string) bool {
+	return unsubLinkRe.MatchString(src)
 }

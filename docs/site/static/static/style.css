@@ -38,7 +38,7 @@ section:not(:last-child) {
   margin-bottom: 100px;
 }
 a {
-  color: #0055d4;
+  color: #111;
   text-decoration: none;
 }
 a:hover {
@@ -93,7 +93,7 @@ figcaption {
 }
 
 .button {
-  background: #0055d4;
+  background: #111;
   display: inline-block;
   text-align: center;
   font-weight: 600;
@@ -104,6 +104,18 @@ figcaption {
   min-width: 150px;
 }
 .button:hover {
+  background: #444;
+  color: #fff;
+}
+.button + .button {
+  margin-left: 10px;
+}
+.button-outline {
+  background: transparent;
+  color: #111;
+  border: 1px solid #111;
+}
+.button-outline:hover {
   background: #111;
   color: #fff;
 }
@@ -125,8 +137,17 @@ figcaption {
   text-align: left;
 }
 
+.logo .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #111;
+  font-weight: 600;
+  font-size: 1.4em;
+  text-decoration: none;
+}
 .logo img {
-  width: 125px;
+  width: 36px;
   height: auto;
 }
 
@@ -163,6 +184,10 @@ nav {
   .splash .demo {
     margin-top: 30px;
   }
+  .splash .try {
+    color: #666;
+    font-size: 0.875em;
+  }
 
 .confetti {
   position: relative;
@@ -193,61 +218,34 @@ nav {
     z-index: 20;
   }
 
-#download {
-  background: #f9f9f9;
-  padding: 160px 0 90px 0;
-  margin-top: -90px;
+#hosted {
+  padding: 30px 0 90px 0;
 }
-  #download .install-steps li {
+  #hosted .lead {
+    color: #666;
+  }
+  #hosted .box {
+    min-height: 200px;
+    margin-bottom: 30px;
+  }
+.features-title {
+  margin-bottom: 1em;
+}
+.features .box {
+  min-height: 190px;
+  margin-bottom: 30px;
+}
+#self-host {
+  background: #f9f9f9;
+  padding: 90px 0;
+  margin: 60px 0;
+}
+  #self-host .install-steps li {
     margin-bottom: 15px;
   }
-  #download .download-links a {
-    display: inline-block;
-    font-size: 0.775rem;
-    color: #888;
-    text-align: center;
-    width: 75px;
-    height: 75px;
+  #self-host .box {
+    min-height: 420px;
   }
-  #download .download-links a:hover .icon {
-    transform: scale(1.2);
-  }
-  #download .download-links .icon {
-    transition: transform 100ms ease-in;
-    background-color: #fff;
-    box-shadow: 1px 1px 4px #eee;
-    border: 1px solid #e6e6e6;
-    border-radius: 100%;
-
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 100%;
-  }
-  #download .download-links img {
-    max-width: 24px;
-    display: block;
-    margin: 0 auto;
-  }
-
-  #download .box {
-    min-height: 475px;
-  }
-
-.hosting {
-  text-align: center;
-}
-.hosting a {
-  display: inline-block;
-  margin: 0 15px;
-}
-.hosting .disclaimer {
-  font-size: 0.775rem;
-  color: #888;
-}
 
   .feature h2 {
     margin-bottom: 1em;

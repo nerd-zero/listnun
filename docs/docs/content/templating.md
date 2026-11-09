@@ -8,10 +8,10 @@ listnun supports [Go template](https://pkg.go.dev/text/template) expressions tha
     Sprig template functions are powerful and Turing-complete, allowing programming of complex behaviour in templates. This means that it is also possible to program undesired behaviour, such as overloading memory on the host by concatenating large strings in a loop. Ensure that templating (campaigns, templates) permissions are given only to trusted users.
 
 ## Campaign templates
-Campaign templates are used in an e-mail campaigns. These template are created and managed on the UI under `Campaigns -> Templates`, and are selected when creating new campaigns.
+Campaign templates are used in an e-mail campaigns. They are managed under **Campaigns › Templates** and picked on the Content step of the campaign editor.
 
 ## Transactional templates
-Transactional templates are used for sending arbitrary transactional messages using the transactional API. These template are created and managed on the UI under `Campaigns -> Templates`.
+Transactional templates are used for sending transactional messages through the API. They are managed under **Developers › Email templates**. See [Transactional email](developers/transactional.md).
 
 ## Template expressions
 
@@ -55,6 +55,7 @@ There are several template functions and expressions that can be used in campaig
 | `https://link.com@TrackLink`         | Shorthand for `TrackLink`. Eg: `<a href="https://link.com@TrackLink">Link</a>`                                                                        |
 | `{{ TrackView }}`                    | Inserts a single tracking pixel. Should only be used once, ideally in the template footer.                                                            |
 | `{{ UnsubscribeURL }}`               | Unsubscription and Manage preferences URL. Ideal for use in the template footer.                                                                      |
+| `{{ UnsubscribeURL }}?manage=true`   | Direct URL to Manage Preferences page.                                                                                                                |
 | `{{ MessageURL }}`                   | URL to view the hosted version of an e-mail message.                                                                                                  |
 | `{{ OptinURL }}`                     | URL to the double opt-in confirmation page.                                                                                                           |
 | `{{ Safe "<!-- comment -->" }}`      | Add any HTML code as it is.                                                                                                                           |
@@ -145,12 +146,12 @@ Here is a link for you to click that will be tracked.
 The above example uses an `if` condition to show one of two messages depending on the value of a subscriber attribute. Many such dynamic expressions are possible with Go templating expressions.
 
 ## System templates
-System templates are used for rendering public user-facing pages such as the subscription management page, and in automatically generated system e-mails such as the opt-in confirmation e-mail. These are bundled into listnun but can be customized by copying the [static directory](https://github.com/knadh/listmonk/tree/master/static) locally, and passing its path to listnun with the `./listnun --static-dir=your/custom/path` flag.
+System templates are used for rendering public user-facing pages such as the subscription management page, and in automatically generated system e-mails such as the opt-in confirmation e-mail. These are bundled into listnun but can be customized by copying the [static directory](https://github.com/nerd-zero/listnun/tree/master/static) locally, and passing its path to listnun with the `./listnun --static-dir=your/custom/path` flag.
 
 You can fetch the static files with:<br>
-`mkdir -p /home/ubuntu/listnun/static ; wget -O - https://github.com/knadh/listmonk/archive/master.tar.gz | tar xz -C /home/ubuntu/listnun/static --strip=2 "listnun-master/static"`
+`mkdir -p /home/ubuntu/listnun/static ; wget -O - https://github.com/nerd-zero/listnun/archive/master.tar.gz | tar xz -C /home/ubuntu/listnun/static --strip=2 "listnun-master/static"`
 
-[Docker example](https://yasoob.me/posts/setting-up-listmonk-opensource-newsletter-mailing/#custom-static-files), [binary example](https://github.com/knadh/listmonk/blob/master/listmonk-simple.service).
+With Docker, mount your copy into the container and pass `--static-dir` in the `command:`. Copy the static files from the same version you run, since listnun's public pages differ from listmonk's.
 
 
 ### Public pages
@@ -181,7 +182,7 @@ To edit the appearance of the public pages using CSS and Javascript, head to Set
 | `subscriber-data.html`           | E-mail that is sent to subscribers when they request a full dump of their private data.                                            |
 | `subscriber-optin.html`          | Automatic opt-in confirmation e-mail that is sent to an unconfirmed subscriber when they are added.                                |
 | `subscriber-optin-campaign.html` | E-mail content that's inserted into a campaign body when starting an opt-in campaign from the lists page.                          |
-| `default.tpl`                    | Default campaign template that is created in Campaigns -> Templates when listnun is first installed. This is not used after that. |
+| `default.tpl`                    | Default campaign template that is created in **Campaigns › Templates** when listnun is first installed. This is not used after that. |
 
 !!! info
     To turn system e-mail templates to plaintext, remove `<!doctype html>` from base.html and remove all HTML tags from the templates while retaining the Go templating code.

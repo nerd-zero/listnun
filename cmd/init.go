@@ -52,6 +52,7 @@ import (
 	"github.com/nerd-zero/listnun/internal/messenger/postback"
 	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/internal/tenant"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	flag "github.com/spf13/pflag"
 	"gopkg.in/volatiletech/null.v6"
@@ -91,7 +92,11 @@ type Config struct {
 	DBBatchSize                   int      `koanf:"batch_size"`
 	MultiTenancyEnabled           bool     `koanf:"multi_tenancy_enabled"`
 	RootDomain                    string   `koanf:"root_domain"`
-	Operator                      struct {
+	ConsoleURL                    string   `koanf:"console_url"`
+	// WebhooksAllowPrivate lets webhook endpoints use plain HTTP and
+	// private or loopback addresses. For local development only.
+	WebhooksAllowPrivate bool `koanf:"webhooks_allow_private"`
+	Operator             struct {
 		Token      string `koanf:"token"`
 		DBUser     string `koanf:"db_user"`
 		DBPassword string `koanf:"db_password"`
@@ -132,6 +137,12 @@ type Config struct {
 				Key     string `koanf:"key"`
 				Secret  string `koanf:"secret"`
 			} `koanf:"hcaptcha"`
+			Turnstile struct {
+				Enabled bool   `koanf:"enabled"`
+				Key     string `koanf:"key"`
+				Secret  string `koanf:"secret"`
+			} `koanf:"turnstile"`
+			Login bool `koanf:"login"`
 		} `koanf:"captcha"`
 
 		TrustedURLs []string `koanf:"trusted_urls"`
@@ -608,7 +619,7 @@ func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), 
 // tenantMessengers resolver it wires in, so callers can invalidate a
 // tenant's cached SMTP messengers after a settings save (cmd/settings.go's
 // handleSettingsRestart) without needing a full process restart.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
@@ -635,7 +646,8 @@ func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlCon
 		SlidingWindowRate:     ko.Int("app.message_sliding_window_rate"),
 		ScanInterval:          time.Second * 5,
 		ScanCampaigns:         !ko.Bool("passive"),
-	}, newManagerStore(q, co, md), tm, i, lo)
+		ReplyAddress:          tr.ReplyAddress,
+	}, newManagerStore(q, co, md), tm, meter, i, lo)
 
 	// Attach all messengers to the campaign manager.
 	for _, m := range msgrs {
@@ -956,7 +968,7 @@ func initHTTPServer(cfg *Config, urlCfg *UrlConfig, i *i18n.I18n, fs stuffbin.Fi
 
 	// Resolve the tenant for every request (authenticated and public alike)
 	// ahead of auth. A no-op unless app.multi_tenancy_enabled is set.
-	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.MultiTenancyEnabled))
+	srv.Use(tenant.Middleware(app.core, cfg.RootDomain, cfg.ConsoleURL, cfg.MultiTenancyEnabled))
 
 	tpl, err := stuffbin.ParseTemplatesGlob(initTplFuncs(i, urlCfg), fs, "/public/templates/*.html")
 	if err != nil {
@@ -1154,6 +1166,14 @@ func initAuth(co *core.Core, db *sql.DB, ko *koanf.Koanf) *auth.Auth {
 		},
 		GetUser: func(id int) (auth.User, error) {
 			return co.GetUserUnscoped(id)
+		},
+
+		AuthenticateAPIKey: func(tenantID int, name, secret string) (auth.User, bool) {
+			k, ok := co.AuthenticateAPIKey(context.Background(), tenantID, name, secret)
+			if !ok {
+				return auth.User{}, false
+			}
+			return apiKeyUser(k), true
 		},
 
 		// GetOIDCConfig resolves the given tenant's own OIDC settings

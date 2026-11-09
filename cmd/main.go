@@ -31,11 +31,14 @@ import (
 	"github.com/nerd-zero/listnun/internal/bounce"
 	"github.com/nerd-zero/listnun/internal/buflog"
 	"github.com/nerd-zero/listnun/internal/captcha"
+	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/events"
 	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/importstage"
 	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -52,19 +55,31 @@ type App struct {
 	tenantMsgrs *tenantMessengers
 	emailMsgr   manager.Messenger
 	importers   *tenantImporters
+	importStage *importstage.Stage
 	auth        *auth.Auth
 	media       *tenantMedia
 	operator    *operatorStore
+	replies     *tenantReplies
 	bounce      *bounce.Manager
 	captcha     *captcha.Captcha
 	i18n        *i18n.I18n
-	pg          *paginator.Paginator
-	events      *events.Events
-	log         *log.Logger
-	bufLog      *buflog.BufLog
+	// langs serves the language a visitor picked on the sign-in pages;
+	// langList is what the picker offers.
+	langs    *i18n.Cache
+	langList []i18nLang
+	// twofa caches each workspace's "require two-step verification" flag.
+	twofa twofaPolicy
+	// managedCleanup are Listnun's inactive-cleanup rules for managed mode.
+	managedCleanup cleanup.Rules
+	pg             *paginator.Paginator
+	events         *events.Events
+	log            *log.Logger
+	bufLog         *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
+	// optinResends holds the tenants with a bulk opt-in resend running.
+	optinResends sync.Map
 
 	// Channel for passing reload signals.
 	chReload chan os.Signal
@@ -222,6 +237,9 @@ func main() {
 		// Initialize static URL config.
 		urlCfg = initUrlConfig(ko)
 
+		// Each tenant's campaign reply tracking setup (cmd/tenant_replies.go).
+		replyCfg = newTenantReplies(queries, lo)
+
 		// Initialize i18n language map.
 		i18n = initI18n(ko.MustString("app.lang"), fs)
 
@@ -237,8 +255,12 @@ func main() {
 		// Initialize all messengers, SMTP and postback.
 		msgrs = append(smtpMsgrs, initPostbackMessengers(ko)...)
 
+		// Billing usage ledger: counts tenant sends and Scrub submissions
+		// into usage_counters for listnun (see internal/usage).
+		usageMeter = usage.New(usageStore{q: queries}, lo)
+
 		// Campaign manager.
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
 		importers = newTenantImporters(queries, db, core, mgr, i18n)
@@ -290,6 +312,7 @@ func main() {
 	// Start the campaign manager workers. The campaign batches (fetch from DB, push out
 	// messages) get processed at the specified interval.
 	go mgr.Run()
+	go usageMeter.Run(usageFlushInterval)
 
 	// =========================================================================
 	// Initialize the App{} with all the global shared components, controllers and fields.
@@ -305,9 +328,11 @@ func main() {
 		tenantMsgrs: tenantMsgrs,
 		emailMsgr:   emailMsgr,
 		importers:   importers,
+		importStage: importstage.New(),
 		auth:        auth,
 		media:       mediaResolver,
 		operator:    opStore,
+		replies:     replyCfg,
 		bounce:      bounce,
 		captcha:     initCaptcha(),
 		i18n:        i18n,
@@ -328,6 +353,19 @@ func main() {
 		about:         initAbout(queries, db),
 		chReload:      chReload,
 	}
+	app.langList, app.langs = initLangCache(fs)
+	app.managedCleanup = initManagedCleanup()
+
+	// Prune the transactional message log.
+	go app.pruneTxLog()
+	go app.pruneActivity()
+	go app.runInactiveCleanups(context.Background())
+
+	// Deliver outgoing webhooks.
+	app.runWebhooks(context.Background())
+
+	// Measure media uploaded before sizes were recorded.
+	go app.backfillMediaSizes(context.Background())
 
 	// Star the update checker.
 	if ko.Bool("app.check_updates") {
@@ -352,6 +390,11 @@ func main() {
 
 		// Close the campaign manager.
 		mgr.Close()
+
+		// Flush the last buffered usage counts before the DB pool closes.
+		if err := usageMeter.Close(); err != nil {
+			lo.Printf("error flushing usage counters on shutdown: %v", err)
+		}
 
 		// Close the DB pool.
 		db.Close()

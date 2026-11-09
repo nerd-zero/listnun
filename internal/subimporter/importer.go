@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,7 +33,27 @@ import (
 const (
 	// commitBatchSize is the number of inserts to commit in a single SQL transaction.
 	commitBatchSize = 10000
+
+	// progressStep is how many rows go into the open transaction between
+	// updates to Status.Pending: often enough for a smooth progress bar,
+	// rarely enough that the status lock isn't taken for every row.
+	progressStep = 250
 )
+
+// firstBatchSizes are the sizes of an import's first transactions; every
+// batch after them is commitBatchSize. Small first batches commit (and
+// count as imported) within a second or two, so an import looks quick from
+// the start, while the large batches after keep big imports fast.
+var firstBatchSizes = []int{1000, 3000}
+
+// batchLimit returns how many rows the n-th transaction (from 0) of an
+// import commits.
+func batchLimit(n int) int {
+	if n < len(firstBatchSizes) {
+		return firstBatchSizes[n]
+	}
+	return commitBatchSize
+}
 
 // Various import statuses.
 const (
@@ -122,6 +141,14 @@ type SessionOpt struct {
 	Delim              string `json:"delim"`
 	ListIDs            []int  `json:"lists"`
 
+	// Columns says what each CSV column is saved as. Without it, columns
+	// named email, name and attributes are imported and the rest ignored.
+	Columns []Column `json:"columns,omitempty"`
+
+	// FileID names a file uploaded earlier to /api/import/subscribers/file
+	// (cmd/import_stage.go), imported instead of one sent with the request.
+	FileID string `json:"file_id,omitempty"`
+
 	// TenantID is set by the HTTP handler from the resolved request tenant
 	// (never from client-supplied JSON, hence no json tag) after Bind, same
 	// as models.Message.TenantID in cmd/tx.go - imported subscribers must
@@ -135,14 +162,31 @@ type Status struct {
 	Name     string `json:"name"`
 	Total    int    `json:"total"`
 	Imported int    `json:"imported"`
+	// Added is how many of Imported are new subscribers; the rest were
+	// already here. Blocklist imports don't count it.
+	Added int `json:"added"`
 	// Risky always reads 0 during the import itself: Scrub validation is
 	// asynchronous (see flushWindow/ScrubSubmitFunc), so results -- risky
 	// included -- aren't known until the /webhooks/scrub/batch callback
 	// resolves each submitted batch, well after this Status stops being
 	// polled. Kept for API/frontend type stability rather than removed.
-	Risky  int    `json:"risky"`
-	Status string `json:"status"`
-	logBuf *bytes.Buffer
+	Risky int `json:"risky"`
+	// Skipped is the number of CSV rows left out for being malformed or
+	// invalid (bad e-mail, wrong column count). Each one is in the log.
+	Skipped int `json:"skipped"`
+	// Failed is the number of valid rows the database rejected, i.e. the
+	// rows of a batch whose insert or commit failed.
+	Failed int `json:"failed"`
+	// Pending is the number of rows written in the open transaction but not
+	// yet committed (updated every progressStep rows). On commit they move
+	// to Imported, or to Failed if the commit fails. It lets progress move
+	// within a commitBatchSize batch, which a small file never leaves.
+	Pending int    `json:"pending"`
+	Status  string `json:"status"`
+	logBuf  *bytes.Buffer
+	// problems lists up to maxProblems of the Skipped rows.
+	problems []Problem
+	modeName string
 } // @name ImportStatus
 
 // SubReq is a wrapper over the Subscriber model.
@@ -153,10 +197,15 @@ type SubReq struct {
 	PreconfirmSubs bool     `json:"preconfirm_subscriptions"`
 } // @name CreateSubscriberReq
 
-type importStatusTpl struct {
+// ImportNotif is what the completion hook (Options.PostCB) receives.
+type ImportNotif struct {
 	Name     string
+	Mode     string
 	Status   string
 	Imported int
+	Added    int
+	Skipped  int
+	Failed   int
 	Total    int
 }
 
@@ -165,13 +214,21 @@ var (
 	// import is already running.
 	ErrIsImporting = errors.New("import is already running")
 
-	csvHeaders = map[string]bool{
-		"email":      true,
-		"name":       true,
-		"attributes": true}
-
 	regexCleanStr = regexp.MustCompile("[[:^ascii:]]")
+
+	// errBlockedDomain marks an address refused for its domain, so a
+	// problem row can say so. Its message is translated (reasonError).
+	errBlockedDomain = errors.New("blocked domain")
 )
+
+// reasonError is a translated message that errors.Is matches to a sentinel.
+type reasonError struct {
+	msg    string
+	reason error
+}
+
+func (e reasonError) Error() string        { return e.msg }
+func (e reasonError) Is(target error) bool { return target == e.reason }
 
 // New returns a new instance of Importer.
 func New(opt Options, db *sql.DB, i *i18n.I18n) *Importer {
@@ -217,8 +274,10 @@ func (im *Importer) NewSession(opt SessionOpt) (*Session, error) {
 
 	im.Lock()
 	im.status = Status{Status: StatusImporting,
-		Name:   opt.Filename,
-		logBuf: bytes.NewBuffer(nil)}
+		Name:     opt.Filename,
+		logBuf:   bytes.NewBuffer(nil),
+		problems: []Problem{},
+		modeName: opt.Mode}
 	im.Unlock()
 
 	s := &Session{
@@ -242,8 +301,33 @@ func (im *Importer) GetStats() Status {
 		Status:   im.status.Status,
 		Total:    im.status.Total,
 		Imported: im.status.Imported,
+		Added:    im.status.Added,
 		Risky:    im.status.Risky,
+		Skipped:  im.status.Skipped,
+		Failed:   im.status.Failed,
+		Pending:  im.status.Pending,
 	}
+}
+
+// GetProblems returns the rows the last import left out, up to
+// maxProblems of them.
+func (im *Importer) GetProblems() []Problem {
+	im.RLock()
+	defer im.RUnlock()
+
+	out := make([]Problem, len(im.status.problems))
+	copy(out, im.status.problems)
+	return out
+}
+
+// addProblem counts a row left out and keeps it for GetProblems.
+func (im *Importer) addProblem(p Problem) {
+	im.Lock()
+	im.status.Skipped++
+	if len(im.status.problems) < maxProblems {
+		im.status.problems = append(im.status.problems, p)
+	}
+	im.Unlock()
 }
 
 // GetLogs returns the log entries of the last import session.
@@ -282,9 +366,33 @@ func (im *Importer) isDone() bool {
 }
 
 // incrementImportCount sets the Importer's "imported" counter.
-func (im *Importer) incrementImportCount(n int) {
+// added of them are new subscribers.
+func (im *Importer) incrementImportCount(n, added int) {
 	im.Lock()
 	im.status.Imported += n
+	im.status.Added += added
+	im.Unlock()
+}
+
+// mode is the running (or last) import's mode.
+func (im *Importer) mode() string {
+	im.RLock()
+	defer im.RUnlock()
+	return im.status.modeName
+}
+
+// setPending sets the Importer's "pending" counter: rows written in the
+// open transaction.
+func (im *Importer) setPending(n int) {
+	im.Lock()
+	im.status.Pending = n
+	im.Unlock()
+}
+
+// incrementFailed adds n to the Importer's "failed" counter.
+func (im *Importer) incrementFailed(n int) {
+	im.Lock()
+	im.status.Failed += n
 	im.Unlock()
 }
 
@@ -292,10 +400,14 @@ func (im *Importer) incrementImportCount(n int) {
 func (im *Importer) sendNotif(status string) error {
 	var (
 		s   = im.GetStats()
-		out = importStatusTpl{
+		out = ImportNotif{
 			Name:     s.Name,
+			Mode:     im.mode(),
 			Status:   status,
 			Imported: s.Imported,
+			Added:    s.Added,
+			Skipped:  s.Skipped,
+			Failed:   s.Failed,
 			Total:    s.Total,
 		}
 		subject = fmt.Sprintf("%s: %s import", im.titler.String(status), s.Name)
@@ -313,6 +425,10 @@ func (s *Session) Start() {
 		err   error
 		total = 0
 		cur   = 0
+		// added counts the open transaction's new subscribers.
+		added = 0
+		// batch counts transactions, for batchLimit.
+		batch = 0
 	)
 
 	listIDs := make([]int, len(s.opt.ListIDs))
@@ -343,29 +459,48 @@ func (s *Session) Start() {
 		}
 
 		if s.opt.Mode == ModeSubscribe {
-			_, err = stmt.Exec(uu, sub.Email, sub.Name, sub.Attribs, listIDsArr, s.opt.SubStatus, s.opt.OverwriteUserInfo, s.opt.OverwriteSubStatus, s.opt.TenantID)
+			var (
+				outUUID  string
+				outID    int
+				inserted bool
+			)
+			err = stmt.QueryRow(uu, sub.Email, sub.Name, sub.Attribs, listIDsArr, s.opt.SubStatus, s.opt.OverwriteUserInfo, s.opt.OverwriteSubStatus, s.opt.TenantID).
+				Scan(&outUUID, &outID, &inserted)
+			if inserted {
+				added++
+			}
 		} else if s.opt.Mode == ModeBlocklist {
 			_, err = stmt.Exec(uu, sub.Email, sub.Name, sub.Attribs, s.opt.TenantID)
 		}
 		if err != nil {
 			s.log.Printf("error executing insert: %v", err)
 			tx.Rollback()
+			// This row. The rest of the rolled-back batch (cur) is counted
+			// when its commit fails below, which also marks the import failed.
+			s.im.incrementFailed(1)
 			break
 		}
 		cur++
 		total++
+		if cur%progressStep == 0 {
+			s.im.setPending(cur)
+		}
 
 		// Batch size is met. Commit.
-		if cur%commitBatchSize == 0 {
+		if cur == batchLimit(batch) {
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
 				s.log.Printf("error committing to DB: %v", err)
+				s.im.incrementFailed(cur)
 			} else {
-				s.im.incrementImportCount(cur)
+				s.im.incrementImportCount(cur, added)
 				s.log.Printf("imported %d", total)
 			}
+			s.im.setPending(0)
 
 			cur = 0
+			added = 0
+			batch++
 		}
 	}
 
@@ -383,13 +518,16 @@ func (s *Session) Start() {
 	// Queue's closed and there are records left to commit.
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
+		s.im.incrementFailed(cur)
+		s.im.setPending(0)
 		s.im.setStatus(StatusFailed)
 		s.log.Printf("error committing to DB: %v", err)
 		s.im.sendNotif(StatusFailed)
 		return
 	}
 
-	s.im.incrementImportCount(cur)
+	s.im.incrementImportCount(cur, added)
+	s.im.setPending(0)
 	s.im.setStatus(StatusFinished)
 	s.log.Printf("imported finished")
 	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr); err != nil {
@@ -508,6 +646,16 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		return err
 	}
 
+	// Count the rows first so progress has the real total from the start;
+	// the rows are only counted as they're read, which runs up to a batch
+	// ahead of the inserts, so the bar would otherwise sit near full and
+	// slip back as the total grew. Reading is cheap next to the inserts.
+	if n := countCSVRows(srcPath, delim); n >= 0 {
+		s.im.Lock()
+		s.im.status.Total = n
+		s.im.Unlock()
+	}
+
 	rd := csv.NewReader(f)
 	rd.Comma = delim
 	rd.ReuseRecord = true
@@ -519,16 +667,21 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		return err
 	}
 
-	hdrKeys := s.mapCSVHeaders(csvHdr, csvHeaders)
-	// email is a required header.
-	if _, ok := hdrKeys["email"]; !ok {
-		s.log.Printf("'email' column not found in '%s'", srcPath)
+	m, err := newColumnMap(s.opt.Columns)
+	if len(s.opt.Columns) == 0 {
+		m, err = legacyColumnMap(csvHdr), nil
+		if m.email < 0 {
+			err = ErrNoEmailColumn
+		}
+	}
+	// email is a required column.
+	if err != nil {
+		s.log.Printf("no email column in '%s'", srcPath)
 		return errors.New("'email' column not found")
 	}
 
 	var (
-		lnHdr = len(hdrKeys)
-		i     = 0
+		i = 0
 
 		// window buffers up to commitBatchSize syntactically-valid rows
 		// so Scrub can be called once per window (bulk) rather than once
@@ -560,6 +713,7 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 		} else if err != nil {
 			if err, ok := err.(*csv.ParseError); ok && err.Err == csv.ErrFieldCount {
 				s.log.Printf("skipping line %d. %v", i, err)
+				s.im.addProblem(Problem{Row: i + 1, Reason: ReasonColumns})
 				continue
 			} else {
 				s.log.Printf("error reading CSV '%s'", err)
@@ -567,36 +721,11 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			}
 		}
 
-		if len(cols) < lnHdr {
-			s.log.Printf("skipping line %d. column count (%d) does not match minimum header count (%d)", i, len(cols), lnHdr)
+		sub, p, ok := s.im.readRow(cols, m, i)
+		if !ok {
+			s.log.Printf("skipping line %d: %s: %q", i, p.Reason, p.Value)
+			s.im.addProblem(p)
 			continue
-		}
-
-		sub := SubReq{}
-		if idx, ok := hdrKeys["email"]; ok {
-			sub.Email = cols[idx]
-		}
-		if idx, ok := hdrKeys["name"]; ok {
-			sub.Name = cols[idx]
-		}
-
-		sub, err = s.im.ValidateFields(sub)
-		if err != nil {
-			s.log.Printf("skipping line %d: %v: %v", i, err, cols)
-			continue
-		}
-
-		// JSON attributes.
-		if idx, ok := hdrKeys["attributes"]; ok && len(cols[idx]) > 0 {
-			var (
-				attribs models.JSON
-				b       = []byte(cols[idx])
-			)
-			if err := json.Unmarshal(b, &attribs); err != nil {
-				s.log.Printf("skipping invalid attributes JSON on line %d for '%s': %v", i, sub.Email, err)
-			} else {
-				sub.Attribs = attribs
-			}
 		}
 
 		window = append(window, windowRow{sub: sub, line: i})
@@ -605,23 +734,51 @@ func (s *Session) LoadCSV(srcPath string, delim rune) error {
 			window = window[:0]
 		}
 
-		if i%commitBatchSize == 0 {
-			s.im.Lock()
-			s.im.status.Total = i
-			s.im.Unlock()
-		}
 	}
 
 	s.flushWindow(window)
 
+	// The last pass of the loop read EOF, not a row. This is exact, and
+	// matches the up-front count unless the file failed to parse.
 	s.im.Lock()
-	s.im.status.Total = i
+	s.im.status.Total = i - 1
 	s.im.Unlock()
 
 	close(s.subQueue)
 	failed = false
 
 	return nil
+}
+
+// countCSVRows returns the number of data rows (not counting the header)
+// in the CSV at path, including rows with the wrong number of columns,
+// which LoadCSV counts and skips. It returns -1 if the file can't be read;
+// a file that fails to parse partway returns the rows up to that point,
+// since LoadCSV stops there too.
+func countCSVRows(path string, delim rune) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return -1
+	}
+	defer f.Close()
+
+	rd := csv.NewReader(f)
+	rd.Comma = delim
+	rd.ReuseRecord = true
+	rd.FieldsPerRecord = -1
+
+	n := 0
+	for {
+		if _, err := rd.Read(); err != nil {
+			break
+		}
+		n++
+	}
+	// The first record is the header.
+	if n > 0 {
+		n--
+	}
+	return n
 }
 
 // windowRow pairs a syntactically-valid SubReq with its source line
@@ -705,11 +862,11 @@ func (im *Importer) SanitizeEmail(email string) (string, error) {
 		// If there's an allowlist, check if the domain is in it. Checking blocklist after that is moot.
 		if im.hasAllowlist {
 			if !im.checkInList(domain, im.hasAllowlistWildcards, im.domainAllowlist) {
-				return "", errors.New(im.i18n.T("subscribers.domainBlocklisted"))
+				return "", reasonError{msg: im.i18n.T("subscribers.domainBlocklisted"), reason: errBlockedDomain}
 			}
 		} else if im.hasBlocklist {
 			if im.checkInList(domain, im.hasBlocklistWildcards, im.domainBlocklist) {
-				return "", errors.New(im.i18n.T("subscribers.domainBlocklisted"))
+				return "", reasonError{msg: im.i18n.T("subscribers.domainBlocklisted"), reason: errBlockedDomain}
 			}
 		}
 	}
@@ -767,26 +924,6 @@ func (im *Importer) checkInList(domain string, hasWildcards bool, mp map[string]
 	}
 
 	return false
-}
-
-// mapCSVHeaders takes a list of headers obtained from a CSV file, a map of known headers,
-// and returns a new map with each of the headers in the known map mapped by the position (0-n)
-// in the given CSV list.
-func (s *Session) mapCSVHeaders(csvHdrs []string, knownHdrs map[string]bool) map[string]int {
-	// Map 0-n column index to the header keys, name: 0, email: 1 etc.
-	// This is to allow dynamic ordering of columns in th CSV.
-	hdrKeys := make(map[string]int)
-	for i, h := range csvHdrs {
-		// Clean the string of non-ASCII characters (BOM etc.).
-		h := regexCleanStr.ReplaceAllString(strings.TrimSpace(h), "")
-		if _, ok := knownHdrs[h]; !ok {
-			s.log.Printf("ignoring unknown header '%s'", h)
-			continue
-		}
-		hdrKeys[h] = i
-	}
-
-	return hdrKeys
 }
 
 func makeDomainMap(domains []string) (map[string]struct{}, bool) {

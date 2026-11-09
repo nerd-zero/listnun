@@ -5,10 +5,12 @@ import (
 	"html/template"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -100,7 +102,7 @@ func (a *App) PreviewTemplate(c echo.Context) error {
 	}
 
 	// Render the template.
-	out, err := a.previewTemplate(tpl)
+	out, err := a.previewTemplate(tenantID(c), tpl)
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,7 @@ func (a *App) PreviewTemplateBody(c echo.Context) error {
 	}
 
 	// Render the template.
-	out, err := a.previewTemplate(tpl)
+	out, err := a.previewTemplate(tenantID(c), tpl)
 	if err != nil {
 		return err
 	}
@@ -189,7 +191,9 @@ func (a *App) CreateTemplate(c echo.Context) error {
 	// If it's a transactional template, cache it in the manager
 	// to be used for arbitrary incoming tx message pushes.
 	if o.Type == models.TemplateTypeTx {
-		a.manager.CacheTpl(tenantID(c), out.ID, &o)
+		if _, err := a.recacheTxTemplate(c.Request().Context(), tenantID(c), out.ID); err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
@@ -241,7 +245,9 @@ func (a *App) UpdateTemplate(c echo.Context) error {
 
 	// If it's a transactional template, cache it.
 	if out.Type == models.TemplateTypeTx {
-		a.manager.CacheTpl(tenantID(c), out.ID, &o)
+		if _, err := a.recacheTxTemplate(c.Request().Context(), tenantID(c), out.ID); err != nil {
+			return err
+		}
 	}
 
 	return c.JSON(http.StatusOK, okResp{out})
@@ -312,11 +318,14 @@ func (a *App) validateTemplate(o models.Template) error {
 	return nil
 }
 
-// previewTemplate renders the HTML preview of a template.
-func (a *App) previewTemplate(tpl models.Template) ([]byte, error) {
+// previewTemplate renders the HTML preview of a template for a tenant.
+func (a *App) previewTemplate(tenantID int, tpl models.Template) ([]byte, error) {
 	var out []byte
 	if tpl.Type == models.TemplateTypeCampaign || tpl.Type == models.TemplateTypeCampaignVisual {
 		camp := models.Campaign{
+			// Tracked links in the template are registered under this
+			// tenant (links.tenant_id); without it the insert fails its FK.
+			TenantID:     tenantID,
 			UUID:         dummyUUID,
 			Name:         a.i18n.T("templates.dummyName"),
 			Subject:      a.i18n.T("templates.dummySubject"),
@@ -355,4 +364,93 @@ func (a *App) previewTemplate(tpl models.Template) ([]byte, error) {
 	}
 
 	return out, nil
+}
+
+// templateTestReq sends a campaign template, as it is in the editor, to a
+// few people.
+type templateTestReq struct {
+	// Type is campaign or campaign_visual.
+	Type string `json:"type"`
+	Body string `json:"body"`
+	// Emails must be existing subscribers the user can see.
+	Emails []string `json:"emails"`
+} // @name TemplateTestReq
+
+// maxTemplateTestEmails caps one test send; it's a check, not a campaign.
+const maxTemplateTestEmails = 10
+
+// TestTemplate sends the editor's campaign template, wrapped around the
+// same sample campaign the preview shows, to the given subscribers.
+//
+//	@ID			testTemplate
+//	@Summary		Send a test of a campaign template
+//	@Tags			templates
+//	@Accept			json
+//	@Produce		json
+//	@Param			test	body		templateTestReq	true	"Template body and who gets the test"
+//	@Success		200		{object}	bool
+//	@Failure		400		{object}	echo.HTTPError
+//	@Router			/api/templates/test [post]
+func (a *App) TestTemplate(c echo.Context) error {
+	var req templateTestReq
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if req.Type == "" {
+		req.Type = models.TemplateTypeCampaign
+	}
+	if req.Type != models.TemplateTypeCampaign && req.Type != models.TemplateTypeCampaignVisual {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("globals.messages.invalidFields", "name", "type"))
+	}
+	if !regexpTplTag.MatchString(req.Body) {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("templates.placeholderHelp", "placeholder", tplTag))
+	}
+
+	emails := make([]string, 0, len(req.Emails))
+	for _, e := range req.Emails {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" && !slices.Contains(emails, e) {
+			emails = append(emails, e)
+		}
+	}
+	if len(emails) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("campaigns.noSubsToTest"))
+	}
+	if len(emails) > maxTemplateTestEmails {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.Ts("templates.testTooMany", "num", strconv.Itoa(maxTemplateTestEmails)))
+	}
+
+	// Only to existing subscribers this user may see, like a campaign test.
+	ctx, tID := c.Request().Context(), tenantID(c)
+	subs, err := a.core.GetSubscribersByEmail(ctx, tID, emails)
+	if err != nil {
+		return err
+	}
+	ids := make([]int, len(subs))
+	for i, s := range subs {
+		ids[i] = s.ID
+	}
+	if err := a.hasSubPerm(ctx, tID, auth.GetUser(c), ids); err != nil {
+		return err
+	}
+
+	from := a.tenantFromEmail(ctx, tID)
+	camp := models.Campaign{
+		TenantID:     tID,
+		UUID:         dummyUUID,
+		Name:         a.i18n.T("templates.dummyName"),
+		Subject:      a.i18n.T("templates.testSubject"),
+		FromEmail:    from,
+		Messenger:    emailMsgr,
+		ContentType:  models.CampaignContentTypeRichtext,
+		TemplateBody: req.Body,
+		Body:         dummyTpl,
+	}
+	for _, s := range subs {
+		if err := a.sendTestMessage(s, &camp); err != nil {
+			a.log.Printf("error sending template test: %v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, a.i18n.Ts("campaigns.errorSendTest", "error", err.Error()))
+		}
+	}
+
+	return c.JSON(http.StatusOK, okResp{true})
 }

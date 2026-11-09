@@ -1,107 +1,90 @@
 <template>
-  <form class="lm-form" @submit.prevent="onSubmit">
-    <div class="lm-form-header">
-      <div class="lm-form-title-row">
-        <h3 class="lm-form-title">{{ isEditing ? data.name : $t('users.newUser') }}</h3>
+  <dialog-form
+    :visible="true"
+    :title="isEditing ? (data.name || data.username) : $t('users.newUser')"
+    :submit-label="$can('users:manage') ? (isEditing ? $t('globals.buttons.save') : $t('users.create')) : ''"
+    :busy="busy"
+    width="560px"
+    @update:visible="(v) => { if (!v) $emit('close'); }"
+    @submit="onSubmit"
+  >
+    <p v-if="isEditing" class="ln-small user-form-meta">
+      #{{ data.id }}
+      <span v-if="form.type === 'api'" class="ln-attr">{{ $t('users.type.api') }}</span>
+    </p>
+
+    <div class="ln-fields-2">
+      <div class="ln-field">
+        <label for="user-name">{{ $t('globals.fields.name') }}</label>
+        <PvInputText id="user-name" ref="focusEl" v-model="form.name" name="name" :maxlength="200" />
       </div>
-      <p v-if="isEditing" class="lm-form-meta">{{ $t('globals.fields.id') }}: <copy-text :text="`${data.id}`" /></p>
+      <div class="ln-field">
+        <label for="user-username">{{ $t('users.username') }}</label>
+        <PvInputText
+          id="user-username"
+          v-model="form.username"
+          name="username"
+          :maxlength="200"
+          required
+          autocomplete="off"
+          pattern="[a-zA-Z0-9_\-\.@]+$"
+        />
+      </div>
+    </div>
+    <p class="ln-help user-form-tight">{{ $t('users.usernameHelp') }}</p>
+
+    <div v-if="form.type !== 'api'" class="ln-field">
+      <label for="user-email">{{ $t('subscribers.email') }}</label>
+      <PvInputText id="user-email" v-model="form.email" name="email" type="email" :maxlength="200" required />
     </div>
 
-    <div class="lm-form-body">
-      <div class="type-status-row">
-        <div class="lm-field type-field">
-          <label class="lm-label">{{ $t('globals.fields.type') }}</label>
-          <div class="radio-group">
-            <div class="check-row">
-              <PvRadioButton v-model="form.type" name="type" value="user"
-                input-id="type-user" :disabled="isEditing" />
-              <label for="type-user" class="radio-label">
-                <i class="pi pi-user" /> {{ $t('users.type.user') }}
-              </label>
-            </div>
-            <div class="check-row">
-              <PvRadioButton v-model="form.type" name="type" value="api"
-                input-id="type-api" :disabled="isEditing" />
-              <label for="type-api" class="radio-label">
-                <i class="pi pi-code" /> {{ $t('users.type.api') }}
-              </label>
-            </div>
-          </div>
-        </div>
-        <div class="lm-field status-field">
-          <label class="lm-label">{{ $t('globals.fields.status') }}</label>
-          <PvSelect v-model="form.status" name="status" required
-            :options="[{ label: $t('users.status.enabled'), value: 'enabled' }, { label: $t('users.status.disabled'), value: 'disabled' }]"
-            option-label="label" option-value="value" class="w-full" />
-        </div>
+    <div class="ln-fields-2">
+      <div class="ln-field">
+        <label for="user-role">{{ $t('users.userRole') }}</label>
+        <PvSelect v-model="form.userRoleId" input-id="user-role" name="user_role" :options="userRoleOptions" option-label="name" option-value="id" />
       </div>
-
-      <div class="lm-field">
-        <label for="username" class="lm-label">{{ $t('users.username') }}</label>
-        <PvInputText id="username" :maxlength="200" v-model="form.username" name="username" ref="focusEl"
-          :placeholder="$t('users.username')" required autocomplete="off"
-          pattern="[a-zA-Z0-9_\-\.@]+$" class="w-full" />
-        <small class="lm-help">{{ $t('users.usernameHelp') }}</small>
-      </div>
-
-      <div class="lm-field">
-        <label class="lm-label">{{ $t('globals.fields.name') }}</label>
-        <PvInputText :maxlength="200" v-model="form.name" name="name"
-          :placeholder="$t('globals.fields.name')" class="w-full" />
-      </div>
-
-      <div v-if="form.type !== 'api'" class="lm-field">
-        <label class="lm-label">{{ $t('subscribers.email') }}</label>
-        <PvInputText :maxlength="200" v-model="form.email" name="email" type="email"
-          :placeholder="$t('subscribers.email')" required class="w-full" />
-      </div>
-
-      <div v-if="form.type !== 'api'" class="form-section">
-        <div class="check-row">
-          <PvCheckbox v-model="form.passwordLogin" :binary="true" input-id="passwordLogin" />
-          <label for="passwordLogin" class="check-label">{{ $t('users.passwordEnable') }}</label>
-        </div>
-        <div v-if="form.passwordLogin" class="lm-field-row">
-          <div class="lm-field">
-            <label class="lm-label">{{ $t('users.password') }}</label>
-            <PvPassword v-model="form.password" name="password"
-              :placeholder="$t('users.password')" :minlength="8" :maxlength="200"
-              :required="!isEditing" :feedback="false" class="w-full" />
-          </div>
-          <div class="lm-field">
-            <label class="lm-label">{{ $t('users.passwordRepeat') }}</label>
-            <PvPassword v-model="form.password2" name="password2"
-              :required="!isEditing && !!form.password" :feedback="false" class="w-full" />
-          </div>
-        </div>
-      </div>
-
-      <p class="form-section-label">{{ $t('users.roles') }}</p>
-      <div class="lm-field-row">
-        <div class="lm-field">
-          <label class="lm-label">{{ $t('users.userRole') }}</label>
-          <PvSelect v-model="form.userRoleId" name="user_role" required
-            :options="userRoles" option-label="name" option-value="id" class="w-full" />
-        </div>
-        <div class="lm-field">
-          <label class="lm-label">{{ $t('users.listRole', 0) }}</label>
-          <PvSelect v-model="form.listRoleId" name="list_role"
-            :options="listRoleOptions" option-label="name" option-value="id" class="w-full" />
-        </div>
-      </div>
-
-      <div v-if="apiToken" class="user-api-token">
-        <p class="api-token-label">{{ $t('users.apiOneTimeToken') }}</p>
-        <copy-text :text="apiToken" />
+      <div class="ln-field">
+        <label for="user-list-role">{{ $t('users.listRole', 0) }}</label>
+        <PvSelect v-model="form.listRoleId" input-id="user-list-role" name="list_role" :options="listRoleOptions" option-label="name" option-value="id" />
       </div>
     </div>
 
-    <div class="lm-form-footer">
-      <PvButton @click="$emit('close')" :label="$t('globals.buttons.close')" severity="secondary" />
-      <PvButton v-if="$can('users:manage') && !apiToken" type="submit" severity="primary"
-        :loading="loading.users" data-cy="btn-save" :label="$t('globals.buttons.save')" />
+    <div class="ln-field">
+      <label for="user-status">{{ $t('globals.fields.status') }}</label>
+      <PvSelect v-model="form.status" input-id="user-status" name="status" :options="statusOptions" option-label="label" option-value="value" />
     </div>
-  </form>
+
+    <template v-if="form.type !== 'api'">
+      <label class="user-form-toggle" for="user-pw-login">
+        <PvToggleSwitch v-model="form.passwordLogin" input-id="user-pw-login" />
+        <span>
+          <strong>{{ $t('users.passwordEnable') }}</strong>
+          <span class="ln-small">{{ $t('users.passwordHelp') }}</span>
+        </span>
+      </label>
+      <div v-if="form.passwordLogin" class="ln-fields-2">
+        <div class="ln-field">
+          <label for="user-password">{{ $t('users.password') }}</label>
+          <PvPassword
+            v-model="form.password"
+            input-id="user-password"
+            name="password"
+            :minlength="8"
+            :maxlength="200"
+            :required="!isEditing"
+            :feedback="false"
+            toggle-mask
+            :placeholder="isEditing ? $t('users.passwordKeep') : ''"
+          />
+        </div>
+        <div class="ln-field">
+          <label for="user-password2">{{ $t('users.passwordRepeat') }}</label>
+          <PvPassword v-model="form.password2" input-id="user-password2" name="password2" :required="!!form.password" :feedback="false" />
+        </div>
+      </div>
+      <p v-if="mismatch" class="ln-field-error" role="alert">{{ $t('users.passwordMismatch') }}</p>
+    </template>
+  </dialog-form>
 </template>
 
 <script setup lang="ts">
@@ -112,12 +95,16 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
-import CopyText from '../components/CopyText.vue';
+import DialogForm from '../components/ui/DialogForm.vue';
+import { userPayload } from './userPayload';
 import { getUsers as usersApi } from '../api/generated/endpoints/users/users';
 import { getRoles } from '../api/generated/endpoints/roles/roles';
 
+// A user as the API returns it, camelCased.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
 const props = withDefaults(defineProps<{
-  data?: any;
+  data?: Loose;
   isEditing?: boolean;
 }>(), { data: () => ({}), isEditing: false });
 
@@ -128,11 +115,12 @@ const { createUser, updateUser } = usersApi();
 const { listUserRoles, listListRoles } = getRoles();
 const { t } = useI18n();
 const store = useMainStore();
-const { loading, userRoles, listRoles } = storeToRefs(store);
+const { userRoles, listRoles } = storeToRefs(store);
 
-const focusEl = ref<any>(null);
-const apiToken = ref<string | null>(null);
-const form = reactive<any>({
+const focusEl = ref<Loose | null>(null);
+const busy = ref(false);
+const mismatch = ref(false);
+const form = reactive<Loose>({
   username: '',
   email: '',
   name: '',
@@ -141,100 +129,61 @@ const form = reactive<any>({
   passwordLogin: false,
   type: 'user',
   status: 'enabled',
+  userRoleId: null,
+  listRoleId: '',
 });
 
+const userRoleOptions = computed(() => (userRoles.value as Loose[]) || []);
 const listRoleOptions = computed(() => [
-  { name: `— ${t('globals.terms.none')} —`, id: '' },
-  ...(listRoles.value as any[]),
+  { name: t('globals.terms.none'), id: '' },
+  ...((listRoles.value as Loose[]) || []),
+]);
+const statusOptions = computed(() => [
+  { label: t('users.status.enabled'), value: 'enabled' },
+  { label: t('users.status.disabled'), value: 'disabled' },
 ]);
 
-function onCreateUser() {
-  const payload = {
-    ...form, password_login: form.passwordLogin, user_role_id: form.userRoleId, list_role_id: form.listRoleId || null,
-  };
-  createUser(payload).then((data: any) => {
-    emit('finished');
-    $utils.toast(t('globals.messages.created', { name: data.name }));
-    if (payload.type === 'api') { apiToken.value = data.password; return; }
-    emit('close');
-  });
-}
-
-function onUpdateUser() {
-  const payload = {
-    ...form, password_login: form.passwordLogin, user_role_id: form.userRoleId, list_role_id: form.listRoleId || null,
-  };
-  updateUser(props.data.id, payload).then((data: any) => {
-    emit('finished'); emit('close');
-    $utils.toast(t('globals.messages.updated', { name: data.name }));
-  });
-}
-
 function onSubmit() {
-  if (!form.passwordLogin) { form.password = null; form.password2 = null; }
+  mismatch.value = false;
   if (form.type !== 'api' && form.passwordLogin && form.password && form.password !== form.password2) {
-    $utils.toast(t('users.passwordMismatch'), 'is-danger');
+    mismatch.value = true;
     return;
   }
-  if (props.isEditing) { onUpdateUser(); } else { onCreateUser(); }
+
+  busy.value = true;
+  const payload = userPayload(form);
+  const req = props.isEditing ? updateUser(props.data.id, payload as never) : createUser(payload as never);
+  req.then((d) => {
+    const name = (d as unknown as Loose).name || form.username;
+    emit('finished');
+    emit('close');
+    $utils.toast(t(props.isEditing ? 'globals.messages.updated' : 'globals.messages.created', { name }));
+  }).finally(() => { busy.value = false; });
 }
 
 onMounted(() => {
-  Object.assign(form, props.data);
+  Object.assign(form, props.data, { password: '', password2: '' });
   if (props.data.userRole) form.userRoleId = props.data.userRole.id;
   form.listRoleId = props.data.listRole ? props.data.listRole.id : '';
-  listUserRoles().then((data: any) => { store.setModelResponse({ model: 'userRoles', data }); });
-  listListRoles().then((data: any) => { store.setModelResponse({ model: 'listRoles', data }); });
+  listUserRoles().then((data) => {
+    store.setModelResponse({ model: 'userRoles', data });
+    if (!form.userRoleId && userRoleOptions.value.length) form.userRoleId = userRoleOptions.value[0].id;
+  });
+  listListRoles().then((data) => { store.setModelResponse({ model: 'listRoles', data }); });
   nextTick(() => { focusEl.value?.$el?.focus(); });
 });
 </script>
 
 <style scoped lang="scss">
-.lm-field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0; }
-.lm-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.lm-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--lm-text); }
-.lm-help { display: block; font-size: 0.75rem; color: var(--lm-text-subtle); line-height: 1.4; }
-
-.check-row { display: flex; align-items: center; gap: 0.5rem; }
-.check-label { font-size: 0.875rem; color: var(--lm-text); cursor: pointer; font-weight: 500; }
-.radio-label { cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.875rem; color: var(--lm-text); }
-
-.type-status-row { display: flex; align-items: flex-end; gap: 1.5rem; }
-.type-field { flex: 1; }
-.status-field { flex: 0 0 180px; }
-.radio-group { display: flex; gap: 1.25rem; align-items: center; height: 2.375rem; }
-
-.form-section {
-  border: 1px solid var(--lm-border);
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
+.user-form-meta { margin: 0; display: flex; gap: 8px; align-items: center; }
+.user-form-tight { margin-top: -10px; }
+.user-form-toggle {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+  strong { font-weight: 500; }
 }
-
-.form-section-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--lm-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0.25rem 0 -0.25rem;
-}
-
-:deep(.p-password) { width: 100%; }
-:deep(.p-password-input) { width: 100%; }
-
-.user-api-token {
-  background: var(--lm-success-bg);
-  border: 1px solid var(--lm-success-border);
-  border-radius: 8px;
-  padding: 1rem;
-  font-size: 0.85rem;
-  color: var(--lm-success-text, #166534);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.api-token-label { font-weight: 600; margin: 0; }
+:deep(.p-password), :deep(.p-password-input) { width: 100%; }
 </style>

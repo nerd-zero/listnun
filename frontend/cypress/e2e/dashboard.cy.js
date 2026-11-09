@@ -1,27 +1,19 @@
 describe('Dashboard', () => {
   it('Opens dashboard', () => {
     cy.resetDB();
-    cy.loginAndVisit('/');
+    cy.loginAndVisit('/admin');
 
-    // List counts.
-    cy.get('[data-cy=lists] .title').contains('2');
-    cy.get('[data-cy=lists]')
-      .and('contain', '1 Public')
-      .and('contain', '1 Private')
-      .and('contain', '1 Single opt-in')
-      .and('contain', '1 Double opt-in');
+    // Subscriber count.
+    cy.get('[data-cy=subscribers] .ln-tile-value').should('have.text', '2');
 
-    // Campaign counts.
-    cy.get('[data-cy=campaigns] .title').contains('1');
-    cy.get('[data-cy=campaigns-draft]').contains('1');
+    // Message count; nothing has been sent on a fresh install.
+    cy.get('[data-cy=messages] .ln-tile-value').should('have.text', '0');
 
-    // Subscriber counts.
-    cy.get('[data-cy=subscribers] .title').contains('2');
-    cy.get('[data-cy=subscribers]')
-      .should('contain', '0 Blocklisted')
-      .and('contain', '0 Orphans');
-
-    // Message count.
-    cy.get('[data-cy=messages] .title').contains('0');
+    // Recent campaigns: the sample campaign, as a draft.
+    cy.get('[data-cy=recent-campaigns] .dash-rows li').should('have.length', 1);
+    cy.get('[data-cy=recent-campaigns] .dash-rows li').first()
+      .should('contain', 'Test campaign')
+      .find('.ln-status[data-status=draft]')
+      .should('exist');
   });
 });

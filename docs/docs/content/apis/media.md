@@ -6,6 +6,7 @@ GET    | [/api/media](#get-apimedia)                          | Get uploaded med
 GET    | [/api/media/{media_id}](#get-apimediamedia_id)       | Get specific uploaded media file
 POST   | [/api/media](#post-apimedia)                         | Upload media file
 DELETE | [/api/media/{media_id}](#delete-apimediamedia_id)    | Delete uploaded media file
+GET    | [/api/media/usage](#get-apimediausage)               | How much storage the workspace's media uses
 
 ______________________________________________________________________
 
@@ -131,4 +132,16 @@ curl -u "api_user:token" -X DELETE 'http://localhost:9000/api/media/1'
 {
     "data": true
 }
+```
+
+______________________________________________________________________
+
+#### GET /api/media/usage
+
+How many media files the workspace has and their total size in bytes. `unknown` counts files whose size isn't recorded, which are left out of `bytes`. Needs `media:get`.
+
+##### Example Response
+
+```json
+{"data": {"files": 128, "bytes": 52428800, "unknown": 2}}
 ```

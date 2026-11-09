@@ -261,7 +261,7 @@ function initRichtextEditor() {
     skin: false,
     content_css: false,
     content_style: `
-      body { font-family: 'DM Sans', 'Inter', sans-serif; font-size: 15px; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.55; color: #1b1e24; }
       img { max-width: 100%; }
       img.img-float-left { float: left; margin: 0 1em 1em 0; }
       img.img-float-right { float: right; margin: 0 0 1em 1em; }

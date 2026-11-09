@@ -1,197 +1,386 @@
 <template>
-  <div class="forms-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ $t('forms.title') }}</h1>
+  <div class="ln-page forms">
+    <page-header :title="$t('forms.title')" :subtitle="$t('forms.intro')">
+      <PvButton
+        v-if="$can('lists:manage_all') && publicLists.length"
+        icon="pi pi-plus"
+        :label="$t('forms.new')"
+        :loading="creating"
+        data-cy="btn-new-form"
+        @click="newForm"
+      />
+    </page-header>
+
+    <div v-if="loading" class="forms-skel">
+      <PvSkeleton height="84px" />
+      <PvSkeleton height="520px" />
     </div>
 
-    <div v-if="loading.lists" class="forms-loading">
-      <PvProgressSpinner style="width:2rem;height:2rem" />
-    </div>
+    <empty-state
+      v-else-if="!publicLists.length"
+      icon="pi-list"
+      :title="$t('forms.noPublicListsTitle')"
+      :text="$t('forms.noPublicLists')"
+      :action-label="$can('lists:manage_all') ? $t('forms.goToLists') : ''"
+      @action="$router.push({ name: 'lists' })"
+    />
 
-    <PvMessage v-else-if="publicLists.length === 0" severity="info" :closable="false">
-      {{ $t('forms.noPublicLists') }}
-    </PvMessage>
+    <empty-state
+      v-else-if="!forms.length"
+      icon="pi-file-edit"
+      :title="$t('forms.noneTitle')"
+      :text="$t('forms.noneText')"
+      :action-label="$can('lists:manage_all') ? $t('forms.new') : ''"
+      @action="newForm"
+    />
 
-    <div v-else class="forms-grid">
-      <!-- Left panel: controls -->
-      <div class="forms-panel" data-cy="lists">
-        <div class="forms-panel-title">{{ $t('forms.publicLists') }}</div>
-        <p class="forms-panel-subtitle">{{ $t('forms.selectHelp') }}</p>
-
-        <div class="checklist">
-          <div v-for="(l, i) in publicLists" :key="l.id" class="checklist-item">
-            <PvCheckbox v-model="checked" :value="i" :input-id="`list-${l.id}`" />
-            <label :for="`list-${l.id}`" class="checklist-label">{{ l.name }}</label>
-          </div>
-        </div>
-
-        <template v-if="serverConfig.public_subscription?.enabled">
-          <PvDivider />
-          <p class="forms-section-label">{{ $t('forms.publicSubPage') }}</p>
-          <a :href="`${serverConfig.root_url}/subscription/form`" target="_blank" rel="noopener noreferer"
-            class="forms-ext-link" data-cy="url">
-            <i class="pi pi-external-link" />
-            {{ serverConfig.root_url }}/subscription/form
-          </a>
-        </template>
-
-        <template v-if="redirectURLs.length > 0">
-          <PvDivider />
-          <p class="forms-section-label">{{ $t('forms.redirectURL') }}</p>
-          <p class="forms-panel-subtitle">{{ $t('forms.redirectURLHelp') }}</p>
-          <div class="checklist" data-cy="redirect-urls">
-            <div class="checklist-item">
-              <PvRadioButton v-model="selectedRedirectURL" value="" input-id="redirect-none" />
-              <label for="redirect-none" class="checklist-label">{{ $t('globals.terms.none') }}</label>
-            </div>
-            <div v-for="url in redirectURLs" :key="url" class="checklist-item">
-              <PvRadioButton v-model="selectedRedirectURL" :value="url" :input-id="`redirect-${url}`" />
-              <label :for="`redirect-${url}`" class="checklist-label checklist-label--url">{{ url }}</label>
-            </div>
-          </div>
-        </template>
+    <template v-else>
+      <!-- Every form; the chosen one is outlined. -->
+      <div class="forms-cards" role="list">
+        <button
+          v-for="f in forms"
+          :key="f.id"
+          type="button"
+          role="listitem"
+          class="ln-card forms-card"
+          :class="{ 'is-on': f.id === selectedId }"
+          :aria-current="f.id === selectedId ? 'true' : undefined"
+          data-cy="form-card"
+          @click="select(f.id)"
+        >
+          <span class="forms-card-top">
+            <strong>{{ f.name }}</strong>
+            <span class="forms-chip" :class="`is-${f.status}`">{{ f.status === 'live' ? $t('forms.live') : $t('forms.draft') }}</span>
+          </span>
+          <span v-if="f.status === 'live'" class="forms-card-num"><strong>{{ n(f.signups) }}</strong> {{ $t('forms.signups30', f.signups) }}</span>
+          <span v-else class="forms-card-num"><strong>{{ n(f.signups) }}</strong> {{ $t('forms.notPublished') }}</span>
+        </button>
       </div>
 
-      <!-- Right panel: generated HTML -->
-      <div class="forms-panel" data-cy="form">
-        <div class="forms-panel-title">{{ $t('forms.formHTML') }}</div>
-        <p class="forms-panel-subtitle">{{ $t('forms.formHTMLHelp') }}</p>
+      <div v-if="current && draft" class="forms-work">
+        <form-editor
+          :draft="draft"
+          :lists="publicLists"
+          :captcha-on="captchaOn"
+          class="forms-editor"
+          @patch="(p) => draft && (draft = { ...draft, ...p })"
+          @delete="confirmDelete = true"
+        >
+          <template #actions>
+            <PvButton :label="$t('forms.save')" :disabled="!dirty" :loading="saving" data-cy="btn-save-form" @click="save()" />
+          </template>
+        </form-editor>
 
-        <div v-if="checked.length === 0" class="forms-empty">
-          <i class="pi pi-code forms-empty-icon" />
-          <span>{{ $t('forms.selectHelp') }}</span>
+        <form-preview :draft="draft" :lists="chosenLists" :site-name="siteName" :captcha="draft.captcha && captchaOn" class="forms-preview" />
+
+        <div class="forms-side">
+          <form-share :form="current" :busy="saving" @publish="save('live')" @unpublish="save('draft')" />
+
+          <section v-if="current.status === 'live' && stats" class="ln-card forms-stats">
+            <h2>{{ $t('forms.last30') }}</h2>
+            <dl>
+              <template v-for="s in statRows" :key="s.label">
+                <dt>{{ s.label }}</dt>
+                <dd>{{ n(s.value) }}</dd>
+              </template>
+            </dl>
+          </section>
         </div>
-        <code-editor v-else lang="html" v-model="html" disabled />
       </div>
-    </div>
+    </template>
+
+    <confirm-action
+      v-model:visible="confirmDelete"
+      :title="$t('forms.deleteTitle', { name: current?.name })"
+      :text="$t('forms.deleteText')"
+      :confirm-label="$t('forms.delete')"
+      danger
+      :busy="saving"
+      @confirm="removeForm"
+    />
+    <confirm-action
+      v-model:visible="confirmDiscard"
+      :title="$t('forms.discardTitle')"
+      :text="$t('forms.discardText')"
+      :confirm-label="$t('forms.discard')"
+      @confirm="discardAndGo"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import {
+  computed, onMounted, ref, watch,
+} from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
-import CodeEditor from '../components/CodeEditor.vue';
+import { useGlobal } from '../composables/useGlobal';
+import PageHeader from '../components/ui/PageHeader.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
+import ConfirmAction from '../components/ui/ConfirmAction.vue';
+import FormEditor from '../components/forms/FormEditor.vue';
+import FormPreview from '../components/forms/FormPreview.vue';
+import FormShare from '../components/forms/FormShare.vue';
+import {
+  type FormDraft, type PublicList, type SignupForm, toDraft, toReq,
+} from '../components/forms/types';
+import { getForms } from '../api/generated/endpoints/forms/forms';
 
-const { t } = useI18n();
-const { loading, lists, serverConfig } = storeToRefs(useMainStore());
+// Lists and server config are the API's loosely typed objects.
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-const checked = ref<any[]>([]);
-const html = ref('');
-const selectedRedirectURL = ref('');
+interface FormStats { views: number; signups: number; confirmed: number; blocked: number }
 
-const publicLists = computed(() => {
-  if (!(lists.value as any).results) return [];
-  return (lists.value as any).results.filter((l: any) => l.type === 'public');
+const api = getForms();
+const { $utils } = useGlobal();
+const { t, n } = useI18n();
+const route = useRoute();
+const router = useRouter();
+const store = useMainStore();
+const { lists, serverConfig } = storeToRefs(store);
+
+const loading = ref(true);
+const creating = ref(false);
+const saving = ref(false);
+const confirmDelete = ref(false);
+const confirmDiscard = ref(false);
+const forms = ref<SignupForm[]>([]);
+const selectedId = ref(0);
+const draft = ref<FormDraft | null>(null);
+const stats = ref<FormStats | null>(null);
+let pendingId = 0;
+
+const sc = computed<Loose>(() => serverConfig.value as Loose);
+const siteName = computed(() => sc.value.organization_name || sc.value.site_name || 'listnun');
+const captchaOn = computed(() => !!sc.value.public_subscription?.captcha_enabled);
+const publicLists = computed<PublicList[]>(() => ((lists.value as Loose).results || [])
+  .filter((l: Loose) => l.type === 'public' && l.status !== 'archived'));
+
+const current = computed(() => forms.value.find((f) => f.id === selectedId.value) || null);
+const chosenLists = computed(() => publicLists.value.filter((l) => draft.value?.listIds.includes(l.id)));
+const dirty = computed(() => !!current.value && !!draft.value
+  && JSON.stringify(draft.value) !== JSON.stringify(toDraft(current.value)));
+
+const statRows = computed(() => {
+  const s = stats.value;
+  if (!s || !current.value) return [];
+  const out = [
+    { label: t('forms.views'), value: s.views },
+    { label: t('forms.signupsLabel'), value: s.signups },
+  ];
+  if (chosenLists.value.some((l) => l.optin === 'double')) out.push({ label: t('forms.confirmed'), value: s.confirmed });
+  if (current.value.captcha && captchaOn.value) out.push({ label: t('forms.blocked'), value: s.blocked });
+  return out;
 });
 
-const redirectURLs = computed(() => {
-  const urls = (serverConfig.value as any).public_subscription
-    ? (serverConfig.value as any).public_subscription.redirect_urls
-    : [];
-  return Array.isArray(urls) ? urls : [];
-});
-
-function escapeAttr(value: any) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function loadStats() {
+  stats.value = null;
+  const f = current.value;
+  if (!f || f.status !== 'live') return;
+  api.getFormStats(f.id).then((data) => {
+    if (selectedId.value === f.id) stats.value = data as unknown as FormStats;
+  }, () => {});
 }
 
-function renderHTML() {
-  const sc = serverConfig.value as any;
-  let h = `<form method="post" action="${sc.root_url}/subscription/form" class="listnun-form">\n`
-    + '  <div>\n'
-    + `    <h3>${t('public.sub')}</h3>\n`
-    + '    <input type="hidden" name="nonce" />\n';
+function show(id: number) {
+  selectedId.value = id;
+  draft.value = current.value ? toDraft(current.value) : null;
+  if (Number(route.query.form) !== id) router.replace({ query: { ...route.query, form: String(id) } });
+  loadStats();
+}
 
-  if (selectedRedirectURL.value) {
-    h += `    <input type="hidden" name="next" value="${escapeAttr(selectedRedirectURL.value)}" />\n`;
+function select(id: number) {
+  if (id === selectedId.value) return;
+  if (dirty.value) {
+    pendingId = id;
+    confirmDiscard.value = true;
+    return;
   }
+  show(id);
+}
 
-  h += '\n'
-    + `    <p><input type="email" name="email" required placeholder="${t('subscribers.email')}" /></p>\n`
-    + `    <p><input type="text" name="name" placeholder="${t('public.subName')}" /></p>\n\n`;
+function discardAndGo() {
+  confirmDiscard.value = false;
+  show(pendingId);
+}
 
-  checked.value.forEach((i) => {
-    const l = publicLists.value[parseInt(i, 10)];
-    h += '    <p>\n'
-      + `      <input id="${l.uuid.substr(0, 5)}" type="checkbox" name="l" checked value="${l.uuid}" />\n`
-      + `      <label for="${l.uuid.substr(0, 5)}">${l.name}</label>\n`;
-    if (l.description) {
-      h += `      <br />\n      <span>${l.description}</span>\n`;
+function load() {
+  return api.getForms().then((data) => {
+    forms.value = data as unknown as SignupForm[];
+  }).finally(() => { loading.value = false; });
+}
+
+function replace(f: SignupForm) {
+  // A saved form keeps its 30-day signup count, which saving doesn't return.
+  const old = forms.value.find((x) => x.id === f.id);
+  const merged = { ...f, signups: old?.signups ?? 0 };
+  forms.value = old ? forms.value.map((x) => (x.id === f.id ? merged : x)) : [...forms.value, merged];
+}
+
+function newForm() {
+  creating.value = true;
+  api.createForm(toReq({
+    name: t('forms.untitled'),
+    status: 'draft',
+    heading: '',
+    intro: '',
+    listIds: publicLists.value.length === 1 ? [publicLists.value[0].id] : [],
+    fields: [
+      { key: 'email', label: t('forms.emailLabel'), required: true },
+      { key: 'name', label: t('forms.nameLabel'), required: false },
+    ],
+    buttonLabel: '',
+    successMessage: '',
+    captcha: captchaOn.value,
+  })).then((data) => {
+    const f = data as unknown as SignupForm;
+    replace(f);
+    show(f.id);
+    window.setTimeout(() => (document.querySelector('[data-cy=form-name]') as HTMLInputElement | null)?.select(), 50);
+  }).finally(() => { creating.value = false; });
+}
+
+// Saves the draft; status publishes or unpublishes it at the same time.
+function save(status?: 'live' | 'draft') {
+  const f = current.value;
+  if (!f || !draft.value) return;
+  const body = { ...draft.value, status: status || draft.value.status };
+  saving.value = true;
+  api.updateForm(f.id, toReq(body)).then((data) => {
+    const saved = data as unknown as SignupForm;
+    replace(saved);
+    draft.value = toDraft(saved);
+    let msg = t('forms.saved');
+    if (status === 'live' && f.status !== 'live') msg = t('forms.published');
+    else if (status === 'draft' && f.status === 'live') msg = t('forms.unpublished');
+    $utils.toast(msg);
+    loadStats();
+  }).finally(() => { saving.value = false; });
+}
+
+function removeForm() {
+  const f = current.value;
+  if (!f) return;
+  saving.value = true;
+  api.deleteForm(f.id).then(() => {
+    confirmDelete.value = false;
+    forms.value = forms.value.filter((x) => x.id !== f.id);
+    $utils.toast(t('forms.deleted', { name: f.name }));
+    if (forms.value.length) show(forms.value[0].id);
+    else {
+      selectedId.value = 0;
+      draft.value = null;
     }
-    h += '    </p>\n';
+  }).finally(() => { saving.value = false; });
+}
+
+// Leaving with unsaved changes asks first.
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault();
+}
+watch(dirty, (d) => {
+  if (d) window.addEventListener('beforeunload', onBeforeUnload);
+  else window.removeEventListener('beforeunload', onBeforeUnload);
+});
+
+onMounted(() => {
+  load().then(() => {
+    if (!forms.value.length) return;
+    const want = Number(route.query.form);
+    show(forms.value.some((f) => f.id === want) ? want : forms.value[0].id);
   });
-
-  if (sc.public_subscription.captcha_enabled) {
-    if (sc.public_subscription.captcha_provider === 'altcha') {
-      h += '\n'
-        + `    <altcha-widget challengeurl="${sc.root_url}/api/public/captcha/altcha"></altcha-widget>\n`
-        + `    <${'script'} type="module" src="${sc.root_url}/public/static/altcha.umd.js" async defer></${'script'}>\n`;
-    } else if (sc.public_subscription.captcha_provider === 'hcaptcha') {
-      h += '\n'
-        + `    <div class="h-captcha" data-sitekey="${sc.public_subscription.captcha_key}"></div>\n`
-        + `    <${'script'} src="https://js.hcaptcha.com/1/api.js" async defer></${'script'}>\n`;
-    }
-  }
-
-  h += '\n'
-    + `    <input type="submit" value="${t('public.sub')} " />\n`
-    + '  </div>\n'
-    + '</form>';
-
-  html.value = h;
-}
-
-watch(() => checked.value, () => { renderHTML(); });
-watch(() => selectedRedirectURL.value, () => { renderHTML(); });
+});
 </script>
 
 <style scoped lang="scss">
-.forms-page { display: flex; flex-direction: column; gap: 1.5rem; }
-.forms-loading { display: flex; justify-content: center; padding: 3rem; }
+.forms-skel { display: flex; flex-direction: column; gap: 16px; }
 
-.forms-grid {
+.forms-cards {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 1.5rem;
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
 
-  @media (max-width: 768px) { grid-template-columns: 1fr; }
+  @media (max-width: 767px) {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -16px;
+    padding: 2px 16px 6px;
+
+    .forms-card { flex: 0 0 78%; scroll-snap-align: start; }
+  }
 }
-
-.forms-panel {
-  background: var(--lm-surface);
-  border: 1px solid var(--lm-border);
-  border-radius: 12px;
-  padding: 1.5rem;
+.forms-card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 10px;
+  padding: 14px 16px;
+  color: var(--ln-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { border-color: var(--ln-text-3); }
+  // A 2px ring drawn as border + inset shadow, so choosing doesn't shift.
+  &.is-on { border-color: var(--ln-ink); box-shadow: inset 0 0 0 1px var(--ln-ink); }
+}
+.forms-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+
+  strong { font-weight: 600; overflow-wrap: anywhere; }
+}
+.forms-chip {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.is-live { background: var(--ln-success-bg); color: var(--ln-success-fg); }
+  &.is-draft { background: var(--ln-muted); color: var(--ln-text-2); }
+}
+.forms-card-num {
+  color: var(--ln-text-3);
+  font-size: 13px;
+
+  strong { margin-right: 4px; color: var(--ln-text); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 }
 
-.forms-panel-title { font-size: 1rem; font-weight: 600; color: var(--lm-text); margin: 0; }
-.forms-panel-subtitle { font-size: 0.85rem; color: var(--lm-text-muted); margin: 0; }
-.forms-section-label { font-size: 0.8rem; font-weight: 600; color: var(--lm-text); margin: 0; }
+.forms-work {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
 
-.checklist { display: flex; flex-direction: column; gap: 0.6rem; }
-.checklist-item { display: flex; align-items: center; gap: 0.5rem; }
-.checklist-label { font-size: 0.9rem; color: var(--lm-text); cursor: pointer; &--url { font-size: 0.8rem; color: var(--lm-text-muted); } }
+  @media (max-width: 1279px) {
+    grid-template-columns: 300px minmax(0, 1fr);
 
-.forms-ext-link {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  font-size: 0.85rem; color: var(--lm-primary); text-decoration: none;
-  &:hover { text-decoration: underline; }
+    .forms-side { grid-column: 2; }
+  }
+  @media (max-width: 991px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .forms-side { grid-column: auto; }
+  }
 }
+.forms-side { display: flex; flex-direction: column; gap: 16px; }
 
-.forms-empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.75rem; padding: 3rem 1rem; color: var(--lm-text-subtle); font-size: 0.875rem;
+.forms-stats {
+  padding: 14px 16px;
+
+  h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+  dl {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    margin: 0;
+  }
+  dt { color: var(--ln-text-2); }
+  dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 }
-.forms-empty-icon { font-size: 2.5rem; opacity: 0.4; }
 </style>

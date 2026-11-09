@@ -74,5 +74,16 @@
             "settings:manage",
             "settings:maintain"
         ]
+    },
+    {
+        "group": "developers",
+        "permissions":
+        [
+            "apikeys:get",
+            "apikeys:manage",
+            "tx:logs",
+            "webhooks:get",
+            "webhooks:manage"
+        ]
     }
 ]

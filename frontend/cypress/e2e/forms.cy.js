@@ -4,29 +4,33 @@ describe('Forms', () => {
   it('Opens forms page', () => {
     cy.resetDB();
     cy.loginAndVisit('/admin/lists/forms');
+    cy.contains('No signup forms yet');
   });
 
-  it('Checks public lists', () => {
-    cy.get('ul[data-cy=lists] li')
-      .should('contain', 'Opt-in list')
-      .its('length')
-      .should('eq', 1);
+  it('Creates and publishes a form', () => {
+    cy.contains('button', 'New form').click();
+    cy.get('[data-cy=form-name]').clear().type('Newsletter signup');
 
-    cy.get('[data-cy=form] [role=textbox]').should('not.exist');
+    // A form can't go live without a list.
+    cy.get('[data-cy=form-list]').contains('Opt-in list').click();
+    cy.get('[data-cy=btn-publish]').click();
+
+    cy.get('[data-cy=form-card]').should('contain', 'Newsletter signup').and('contain', 'Live');
+    // The page address comes from the name the form was published with.
+    cy.get('[data-cy=form-url]').should('have.attr', 'href').and('contain', '/f/newsletter-signup');
   });
 
-  it('Selects public list', () => {
-    // Click the list checkbox.
-    cy.get('ul[data-cy=lists] .checkbox').click();
+  it('Signs up on the hosted page', () => {
+    cy.visit(`${apiUrl}/f/newsletter-signup`);
+    cy.get('input[name=email]').type('form-signup@test.com');
+    cy.get('[data-cy=btn-subscribe]').click();
+    cy.contains(/confirm|subscribed/i);
 
-    // Check that the ID of the list in the checkbox appears in the HTML.
-    cy.get('ul[data-cy=lists] input').then(($inp) => {
-      cy.get('[role=textbox]').contains($inp.val());
+    cy.request(`${apiUrl}/api/subscribers?per_page=all`).should((response) => {
+      const sub = response.body.data.results.find((s) => s.email === 'form-signup@test.com');
+      expect(sub, 'subscriber from the form').to.not.equal(undefined);
+      expect(sub.lists.map((l) => l.name)).to.include('Opt-in list');
     });
-
-    // Click the list checkbox.
-    cy.get('ul[data-cy=lists] .checkbox').click();
-    cy.get('[data-cy=form] pre').should('not.exist');
   });
 
   it('Subscribes from public form page', () => {
@@ -34,16 +38,17 @@ describe('Forms', () => {
     cy.request('POST', `${apiUrl}/api/lists`, { name: 'test-list', type: 'public', optin: 'single' });
 
     // Open the public page and subscribe to alternating lists multiple times.
+    // Every list starts checked; unchecking one subscribes to the other.
     // There should be no errors and two new subscribers should be subscribed to two lists.
-    for (let i = 0; i < 2; i++) {
-      for (let j = 0; j < 2; j++) {
+    for (let i = 0; i < 2; i += 1) {
+      for (let j = 0; j < 2; j += 1) {
         cy.loginAndVisit(`${apiUrl}/subscription/form`);
         cy.get('input[name=email]').clear().type(`test${i}@test.com`);
         cy.get('input[name=name]').clear().type(`test${i}`);
-        cy.get('input[type=checkbox]').eq(j).click();
-        cy.get('button').click();
+        cy.get('ul[data-cy=lists] input[type=checkbox]').eq(j).click();
+        cy.get('[data-cy=btn-subscribe]').click();
         cy.wait(250);
-        cy.get('.wrap').contains(/has been sent|successfully|retry/); // If SMTP is not configured, it shows retry message.
+        cy.get('main.wrap').contains(/has been sent|successfully|retry/); // If SMTP is not configured, it shows retry message.
       }
     }
 
@@ -55,7 +60,7 @@ describe('Forms', () => {
       expect(data.total).to.equal(4);
 
       // The two new subscribers should each have two list subscriptions.
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 2; i += 1) {
         expect(data.results.find((s) => s.email === `test${i}@test.com`).lists.length).to.equal(2);
       }
     });
@@ -68,16 +73,17 @@ describe('Forms', () => {
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const subUUID = response.body.data.results[0].uuid;
 
-      cy.request('GET', `${apiUrl}/api/campaigns`).then((response) => {
-        const campUUID = response.body.data.results[0].uuid;
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
         cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}`);
       });
     });
 
     cy.wait(500);
 
-    // Unsubscribe from one list.
-    cy.get('button').click();
+    // Unsubscribe from one list. The page also has export/wipe buttons, so
+    // target the unsubscribe button.
+    cy.get('#btn-unsub').click();
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;
       expect(data.results[0].lists.find((s) => s.id === 2).subscription_status).to.equal('unsubscribed');
@@ -91,7 +97,7 @@ describe('Forms', () => {
 
     // Unsubscribe from all.
     cy.get('#privacy-blocklist').click();
-    cy.get('button').click();
+    cy.get('#btn-unsub').click();
 
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;
@@ -105,23 +111,44 @@ describe('Forms', () => {
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const subUUID = response.body.data.results[1].uuid;
 
-      cy.request('GET', `${apiUrl}/api/campaigns`).then((response) => {
-        const campUUID = response.body.data.results[0].uuid;
-        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}?manage=1`);
-        cy.get('a').contains('Manage').click();
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
+        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}`);
+        cy.get('[data-cy=link-manage]').click();
       });
     });
 
     // Change name and unsubscribe from one list.
-    cy.get('input[name=name]').clear().type('new-name');
-    cy.get('ul.lists input:first').click();
-    cy.get('button:first').click();
+    cy.get('#sub-name').clear().type('new-name');
+    cy.get('ul[data-cy=lists] input[type=checkbox]').first().click();
+    cy.get('#btn-unsub').click();
 
     cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
       const { data } = response.body;
       expect(data.results[1].name).to.equal('new-name');
       expect(data.results[1].lists.find((s) => s.id === 2).subscription_status).to.equal('unsubscribed');
       expect(data.results[1].lists.find((s) => s.id === 3).subscription_status).to.equal('unconfirmed');
+    });
+  });
+
+  it('Unsubscribes from everything from the preferences page', () => {
+    cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
+      const subUUID = response.body.data.results[1].uuid;
+
+      cy.request('GET', `${apiUrl}/api/campaigns`).then((campResp) => {
+        const campUUID = campResp.body.data.results[0].uuid;
+        cy.loginAndVisit(`${apiUrl}/subscription/${campUUID}/${subUUID}?manage=true`);
+      });
+    });
+
+    // It asks first, then blocklists and leaves every list.
+    cy.on('window:confirm', () => true);
+    cy.get('[data-cy=btn-unsub-all]').click();
+
+    cy.request('GET', `${apiUrl}/api/subscribers`).then((response) => {
+      const { data } = response.body;
+      expect(data.results[1].status).to.equal('blocklisted');
+      data.results[1].lists.forEach((l) => expect(l.subscription_status).to.equal('unsubscribed'));
     });
   });
 });

@@ -1,59 +1,43 @@
 {{ define "admin-login-setup" }}
-{{ template "header" .}}
+{{ template "auth-header" .}}
+	<h1 class="auth-title">{{ .L.T "users.newUser" }}</h1>
+	<p class="auth-sub">{{ .L.T "users.firstTime" }}</p>
 
-<section class="login">
-	<h2>{{ .L.T "users.newUser"}}</h2>
-	<p class="login-subtitle">{{ .L.T "users.firstTime" }}</p>
+	<form method="post" action="" class="auth-form">
+		<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
+		<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
 
-	<form method="post" action="" class="form">
-		<div>
-			<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
-			<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
-			<div class="field">
-				<label for="email">{{ .L.T "subscribers.email" }}</label>
-				<input id="email" type="email" name="email" autofocus required minlength="3" />
-			</div>
-			<div class="field">
-				<label for="username">{{ .L.T "users.username" }}</label>
-				<input id="username" type="text" name="username" required minlength="3" />
-			</div>
-			<div class="field">
-				<label for="password">{{ .L.T "users.password" }}</label>
-				<div class="password-wrap">
-					<input id="password" type="password" name="password" required minlength="8" />
-					<button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePassword('password', this)">
-						<svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-						<svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-					</button>
-				</div>
-			</div>
-			<div class="field">
-				<label for="password2">{{ .L.T "users.passwordRepeat" }}</label>
-				<div class="password-wrap">
-					<input id="password2" type="password" name="password2" required minlength="8" />
-					<button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePassword('password2', this)">
-						<svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-						<svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-					</button>
-				</div>
-			</div>
-
-			{{ if .Data.Error }}<p class="form-error">{{ .Data.Error }}</p>{{ end }}
-
-			<div class="submit"><button class="button" type="submit">{{ .L.T "globals.buttons.continue" }}</button></div>
+		<div class="auth-field">
+			<label for="email">{{ .L.T "subscribers.email" }}</label>
+			<input id="email" type="email" name="email" autocomplete="email" autofocus required minlength="3" />
 		</div>
+		<div class="auth-field">
+			<label for="username">{{ .L.T "users.username" }}</label>
+			<input id="username" type="text" name="username" autocomplete="username" required minlength="3" />
+		</div>
+		<div class="auth-field">
+			<label for="password">{{ .L.T "users.password" }}</label>
+			<div class="auth-input-wrap">
+				<input id="password" type="password" name="password" autocomplete="new-password" required minlength="8" data-strength="password-meter" />
+				{{ template "auth-password-toggle" "password" }}
+			</div>
+			<div id="password-meter" class="auth-meter" data-score="0" aria-hidden="true"
+				data-words="{{ .L.T "auth.strength0" }}|{{ .L.T "auth.strength1" }}|{{ .L.T "auth.strength2" }}|{{ .L.T "auth.strength3" }}|{{ .L.T "auth.strength4" }}">
+				<span></span><span></span><span></span><span></span>
+			</div>
+			<span class="auth-meter-label" aria-live="polite">{{ .L.T "auth.strength0" }}</span>
+		</div>
+		<div class="auth-field">
+			<label for="password2">{{ .L.T "users.passwordRepeat" }}</label>
+			<div class="auth-input-wrap">
+				<input id="password2" type="password" name="password2" autocomplete="new-password" required minlength="8" />
+				{{ template "auth-password-toggle" "password2" }}
+			</div>
+		</div>
+
+		{{ if .Data.Error }}<p class="auth-error" role="alert">{{ .Data.Error }}</p>{{ end }}
+
+		<button class="auth-btn" type="submit">{{ .L.T "globals.buttons.continue" }}</button>
 	</form>
-</section>
-
-<script>
-function togglePassword(id, btn) {
-	var input = document.getElementById(id);
-	var isHidden = input.type === 'password';
-	input.type = isHidden ? 'text' : 'password';
-	btn.querySelector('.eye-show').style.display = isHidden ? 'none' : '';
-	btn.querySelector('.eye-hide').style.display = isHidden ? '' : 'none';
-}
-</script>
-
-{{ template "footer" .}}
+{{ template "auth-footer" .}}
 {{ end }}

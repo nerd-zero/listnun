@@ -6,7 +6,7 @@ const path = require('path');
 /**
  * @type {Cypress.PluginConfig}
  */
-module.exports = (on, config) => {
+module.exports = (on, config) => { // eslint-disable-line no-unused-vars
   const rootDir = path.resolve(__dirname, '..', '..', '..');
 
   on('task', {
@@ -26,6 +26,7 @@ module.exports = (on, config) => {
       execSync('./listnun --install --yes', { cwd: rootDir, env, stdio: 'ignore' });
 
       // Replace the first SMTP block with local MailHog.
+      // eslint-disable-next-line vue/max-len
       const smtpSQL = 'UPDATE settings SET value = \'[{"host":"localhost","name":"email-mailhog","port":1025,"uuid":"","enabled":true,"password":"","tls_type":"none","username":"","max_conns":10,"idle_timeout":"15s","wait_timeout":"5s","auth_protocol":"none","email_headers":[],"hello_hostname":"","max_msg_retries":2,"tls_skip_verify":true},{"host":"smtp.gmail.com","port":465,"enabled":false,"password":"password","tls_type":"TLS","username":"username@gmail.com","max_conns":10,"idle_timeout":"15s","wait_timeout":"5s","auth_protocol":"login","email_headers":[],"hello_hostname":"","max_msg_retries":2,"tls_skip_verify":false}]\' WHERE key = \'smtp\';';
       try {
         execSync('docker exec -i listnun_db psql -U listnun -d listnun_test', {

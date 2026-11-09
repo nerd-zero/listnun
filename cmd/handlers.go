@@ -102,7 +102,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 					return next(c)
 				}
-			})
+			}, a.requireTwofa)
 		)
 
 		// API endpoints.
@@ -111,8 +111,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/lang/:lang", a.GetI18nLang)
 		g.GET("/api/dashboard/charts", a.GetDashboardCharts)
 		g.GET("/api/dashboard/counts", a.GetDashboardCounts)
+		g.GET("/api/dashboard/overview", a.GetDashboardOverview)
 
 		g.GET("/api/settings", pm(a.GetSettings, "settings:get"))
+		g.GET("/api/settings/logs", pm(a.GetActivityLog, "settings:get"))
+		g.GET("/api/settings/inactive-cleanup", pm(a.GetCleanupStatus, "settings:get"))
+		g.POST("/api/settings/inactive-cleanup/preview", pm(a.PreviewCleanup, "settings:get"))
 		g.PUT("/api/settings", pm(a.UpdateSettings, "settings:manage"))
 		g.PUT("/api/settings/:key", pm(a.UpdateSettingsByKey, "settings:manage"))
 		g.POST("/api/settings/smtp/test", pm(a.TestSMTPSettings, "settings:manage"))
@@ -140,6 +144,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 
 		g.GET("/api/bounces", pm(a.GetBounces, "bounces:get"))
 		g.PUT("/api/bounces/blocklist", pm(a.BlocklistBouncedSubscribers, "bounces:manage"))
+		g.GET("/api/bounces/counts", pm(a.GetBounceCounts, "bounces:get"))
 		g.GET("/api/bounces/:id", pm(hasID(a.GetBounce), "bounces:get"))
 		g.DELETE("/api/bounces", pm(a.DeleteBounces, "bounces:manage"))
 		g.DELETE("/api/bounces/:id", pm(hasID(a.DeleteBounce), "bounces:manage"))
@@ -156,13 +161,35 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/import/subscribers/logs", pm(a.GetImportSubscriberStats, "subscribers:import"))
 		g.POST("/api/import/subscribers", pm(a.ImportSubscribers, "subscribers:import"))
 		g.DELETE("/api/import/subscribers", pm(a.StopImportSubscribers, "subscribers:import"))
+		g.POST("/api/import/subscribers/file", pm(a.UploadImportFile, "subscribers:import"))
+		g.POST("/api/import/subscribers/check", pm(a.CheckImport, "subscribers:import"))
+		g.GET("/api/import/subscribers/problems", pm(a.GetImportProblems, "subscribers:import"))
+		g.GET("/api/import/subscribers/history", pm(a.GetRecentImports, "subscribers:import"))
 
 		// Individual list permissions are applied directly within handleGetLists.
+		g.GET("/api/segments", pm(a.GetSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments", pm(a.CreateSegment, "subscribers:manage"))
+		g.POST("/api/segments/count", pm(a.CountSegments, "subscribers:get_all", "subscribers:get"))
+		g.POST("/api/segments/sql", pm(a.SegmentSQL, "subscribers:get_all", "subscribers:get"))
+		g.PUT("/api/segments/:id", pm(hasID(a.UpdateSegment), "subscribers:manage"))
+		g.DELETE("/api/segments/:id", pm(hasID(a.DeleteSegment), "subscribers:manage"))
+
 		g.GET("/api/lists", a.GetLists)
 		g.GET("/api/lists/scrub", pm(a.GetScrubListStatus, "settings:manage"))
 		g.GET("/api/lists/scrub/history", pm(a.GetScrubHistory, "settings:manage"))
 		g.POST("/api/lists/:id/scrub", hasID(pm(a.ScrubList, "settings:manage")))
 		g.GET("/api/lists/:id/scrub/progress/:request_id", hasID(pm(a.GetScrubListProgress, "settings:manage")))
+		g.GET("/api/lists/growth", a.GetListsGrowth)
+		g.GET("/api/lists/summary", a.GetListsSummary)
+		g.GET("/api/lists/optin/pending", pm(a.GetOptinPending, "subscribers:manage"))
+		g.POST("/api/lists/optin/resend", pm(a.ResendOptins, "subscribers:manage"))
+
+		g.GET("/api/forms", pm(a.GetForms, "lists:get_all"))
+		g.GET("/api/forms/:id/stats", pm(hasID(a.GetFormStats), "lists:get_all"))
+		g.POST("/api/forms", pm(a.CreateForm, "lists:manage_all"))
+		g.PUT("/api/forms/:id", pm(hasID(a.UpdateForm), "lists:manage_all"))
+		g.DELETE("/api/forms/:id", pm(hasID(a.DeleteForm), "lists:manage_all"))
+		g.GET("/api/lists/:id/activity", hasID(a.GetListActivity))
 		g.GET("/api/lists/:id", hasID(a.GetList))
 		g.POST("/api/lists", pm(a.CreateList, "lists:manage_all"))
 		g.PUT("/api/lists/:id", hasID(a.UpdateList))
@@ -170,11 +197,14 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/lists/:id", hasID(a.DeleteList))
 
 		g.GET("/api/campaigns", pm(a.GetCampaigns, "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/overview", pm(a.GetCampaignsOverview, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/running/stats", pm(a.GetRunningCampaignStats, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/auto-paused", pm(a.GetAutoPausedCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/analytics/:type", pm(a.GetCampaignViewAnalytics, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/:id/inbox-check", pm(hasID(a.GetCampaignInboxCheck), "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/:id/replies", pm(hasID(a.GetCampaignReplies), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview/archive", pm(hasID(a.PreviewCampaignArchive), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
 		g.POST("/api/campaigns/:id/content", pm(hasID(a.CampaignContent), "campaigns:manage_all", "campaigns:manage"))
@@ -188,6 +218,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/campaigns/:id", pm(hasID(a.DeleteCampaign), "campaigns:manage_all", "campaigns:manage"))
 
 		g.GET("/api/media", pm(a.GetAllMedia, "media:get"))
+		g.GET("/api/media/usage", pm(a.GetMediaUsage, "media:get"))
 		g.GET("/api/media/:id", pm(hasID(a.GetMedia), "media:get"))
 		g.POST("/api/media", pm(a.UploadMedia, "media:manage"))
 		g.DELETE("/api/media/:id", pm(hasID(a.DeleteMedia), "media:manage"))
@@ -196,6 +227,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/templates/:id", pm(hasID(a.GetTemplate), "templates:get"))
 		g.GET("/api/templates/:id/preview", pm(hasID(a.PreviewTemplate), "templates:get"))
 		g.POST("/api/templates/preview", pm(a.PreviewTemplateBody, "templates:get"))
+		g.POST("/api/templates/test", pm(a.TestTemplate, "templates:manage"))
 		g.POST("/api/templates", pm(a.CreateTemplate, "templates:manage"))
 		g.PUT("/api/templates/:id", pm(hasID(a.UpdateTemplate), "templates:manage"))
 		g.PUT("/api/templates/:id/default", pm(hasID(a.TemplateSetDefault), "templates:manage"))
@@ -207,6 +239,34 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.DELETE("/api/maintenance/subscriptions/unconfirmed", pm(a.GCSubscriptions, "settings:maintain"))
 
 		g.POST("/api/tx", pm(a.SendTxMessage, "tx:send"))
+
+		// Developers area.
+		g.GET("/api/developers/keys", pm(a.GetAPIKeys, "apikeys:get"))
+		g.POST("/api/developers/keys", pm(a.CreateAPIKey, "apikeys:manage"))
+		g.PUT("/api/developers/keys/:id", pm(hasID(a.UpdateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/rotate", pm(hasID(a.RotateAPIKey), "apikeys:manage"))
+		g.POST("/api/developers/keys/:id/revoke", pm(hasID(a.RevokeAPIKey), "apikeys:manage"))
+		g.DELETE("/api/developers/keys/:id", pm(hasID(a.DeleteAPIKey), "apikeys:manage"))
+		g.GET("/api/developers/messages", pm(a.QueryTxMessages, "tx:logs"))
+		g.GET("/api/developers/messages/:uuid", pm(a.GetTxMessage, "tx:logs"))
+		g.POST("/api/developers/messages/:uuid/resend", pm(a.ResendTxMessage, "tx:send"))
+		g.GET("/api/developers/stats", pm(a.GetTxStats, "tx:logs"))
+		g.GET("/api/developers/templates", pm(a.GetTxTemplates, "templates:get"))
+		g.POST("/api/developers/templates", pm(a.CreateTxTemplate, "templates:manage"))
+		g.POST("/api/developers/templates/preview", pm(a.PreviewTxTemplate, "templates:get"))
+		g.PUT("/api/developers/templates/:id", pm(hasID(a.UpdateTxTemplate), "templates:manage"))
+		g.GET("/api/developers/branding", pm(a.GetBranding, "templates:get"))
+		g.PUT("/api/developers/branding", pm(a.UpdateBranding, "templates:manage"))
+		g.GET("/api/developers/webhooks", pm(a.GetWebhookEndpoints, "webhooks:get"))
+		g.POST("/api/developers/webhooks", pm(a.CreateWebhookEndpoint, "webhooks:manage"))
+		g.GET("/api/developers/webhooks/deliveries", pm(a.QueryWebhookDeliveries, "webhooks:get"))
+		g.GET("/api/developers/webhooks/deliveries/:uuid", pm(a.GetWebhookDelivery, "webhooks:get"))
+		g.POST("/api/developers/webhooks/deliveries/:uuid/retry", pm(a.RetryWebhookDelivery, "webhooks:manage"))
+		g.PUT("/api/developers/webhooks/:id", pm(hasID(a.UpdateWebhookEndpoint), "webhooks:manage"))
+		g.DELETE("/api/developers/webhooks/:id", pm(hasID(a.DeleteWebhookEndpoint), "webhooks:manage"))
+		g.GET("/api/developers/webhooks/:id/secret", pm(hasID(a.GetWebhookEndpointSecret), "webhooks:manage"))
+		g.POST("/api/developers/webhooks/:id/secret", pm(hasID(a.RotateWebhookEndpointSecret), "webhooks:manage"))
+		g.POST("/api/developers/webhooks/:id/test", pm(hasID(a.SendWebhookTest), "webhooks:manage"))
 
 		g.GET("/api/profile", a.GetUserProfile)
 		g.PUT("/api/profile", a.UpdateUserProfile)
@@ -256,10 +316,18 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/status", hasID(a.UpdateOperatorTenantStatus))
 		g.DELETE("/tenants/:id", hasID(a.DeleteOperatorTenant))
 		g.POST("/tenants/:id/setup-link", hasID(a.CreateOperatorSetupLink))
+		g.GET("/tenants/:id/setup-link", hasID(a.GetOperatorSetupLinkStatus))
 		g.PUT("/tenants/:id/smtp", hasID(a.SetOperatorTenantSMTP))
+		g.PUT("/tenants/:id/from-email", hasID(a.SetOperatorTenantFromEmail))
 		g.PUT("/tenants/:id/scrub", hasID(a.SetOperatorTenantScrub))
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
+		g.PUT("/tenants/:id/replies", hasID(a.SetOperatorTenantReplies))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
+		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
+		g.GET("/tenants/:id/activity", hasID(a.GetOperatorTenantActivity))
+		g.GET("/tenants/:id/sending-health", hasID(a.GetOperatorTenantSendingHealth))
+		g.GET("/usage", a.GetOperatorPlatformUsage)
 		g.PUT("/tenants/:id/custom-domain", hasID(a.UpdateOperatorTenantCustomDomain))
 	}
 
@@ -282,6 +350,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// verifying Scrub's HMAC signature instead (see
 		// cmd/scrub_batch.go's ScrubBatchWebhook).
 		g.POST("/webhooks/scrub/batch", a.ScrubBatchWebhook)
+
+		// Replies to a tenant's reply-tracked campaigns, from its Postmark
+		// server's inbound webhook. Per tenant like the bounce webhook:
+		// basic auth with the tenant's own credentials; 404s when the
+		// tenant has no reply tracking setup. See cmd/replies.go.
+		g.POST("/webhooks/replies/postmark", a.RepliesWebhook)
 
 		// Landing page.
 		g.GET("/", func(c echo.Context) error {
@@ -329,8 +403,12 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		// Public subscriber facing views.
 		g.GET("/subscription/form", a.SubscriptionFormPage)
 		g.POST("/subscription/form", a.SubscriptionForm)
+		g.GET("/f/:slug", noIndex(a.FormPage))
+		g.POST("/f/:slug", a.FormSubmit)
+		g.GET("/f/:slug/popup.js", a.FormPopup)
 		g.GET("/subscription/:campUUID/:subUUID", noIndex(a.hasUUID(a.hasSub(a.SubscriptionPage), "campUUID", "subUUID")))
 		g.POST("/subscription/:campUUID/:subUUID", a.hasUUID(a.hasSub(a.SubscriptionPrefs), "campUUID", "subUUID"))
+		g.POST("/subscription/:campUUID/:subUUID/resubscribe", a.hasUUID(a.hasSub(a.Resubscribe), "campUUID", "subUUID"))
 		g.GET("/subscription/optin/:subUUID", noIndex(a.hasUUID(a.hasSub(a.OptinPage), "subUUID")))
 		g.POST("/subscription/optin/:subUUID", a.hasUUID(a.hasSub(a.OptinPage), "subUUID"))
 		g.POST("/subscription/export/:subUUID", a.hasUUID(a.hasSub(a.SelfExportSubscriberData), "subUUID"))

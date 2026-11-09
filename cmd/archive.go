@@ -80,13 +80,7 @@ func (a *App) GetCampaignArchivesFeed(c echo.Context) error {
 		})
 	}
 
-	rootURL := a.urlCfg.RootURL
-	if a.cfg.MultiTenancyEnabled {
-		// a.urlCfg.RootURL is a single boot-time value derived from
-		// tenant 1's settings - every other tenant's archive feed would
-		// otherwise self-identify as tenant 1's site.
-		rootURL = c.Scheme() + "://" + c.Request().Host
-	}
+	rootURL := a.requestRootURL(c)
 
 	// Generate the feed.
 	feed := &feeds.Feed{

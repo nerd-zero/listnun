@@ -2,14 +2,18 @@
 {{ template "header" .}}
 <section>
     <h2>{{ L.T "public.confirmSubTitle" }}</h2>
-    <p>
-        {{ L.T "public.confirmSubInfo" }}
-    </p>
+    {{ if .Data.Email }}
+        <p class="sub">{{ L.Ts "public.confirmSubFor" "email" .Data.Email }}</p>
+    {{ else }}
+        <p class="sub">{{ L.T "public.confirmSubInfo" }}</p>
+    {{ end }}
 
-    <form method="post" class="optin-form">
-        <ul>
+    <form method="post" class="optin-form stack">
+        {{ range $i, $l := .Data.Lists }}
+            <input type="hidden" name="l" value="{{ $l.UUID }}" />
+        {{ end }}
+        <ul class="join-lists">
             {{ range $i, $l := .Data.Lists }}
-                <input type="hidden" name="l" value="{{ $l.UUID }}" />
                 {{ if eq $l.Type "public" }}
                     <li>{{ $l.Name }}</li>
                 {{ else }}
@@ -17,12 +21,9 @@
                 {{ end }}
             {{ end }}
         </ul>
-        <p>
-            <input type="hidden" name="confirm" value="true" />
-            <button type="submit" class="button" id="btn-unsub">
-                {{ L.Ts "public.confirmSub" }}
-            </button>
-        </p>
+        <input type="hidden" name="confirm" value="true" />
+        <button type="submit" class="button" id="btn-unsub">{{ L.Ts "public.confirmSub" }}</button>
+        <p class="help">{{ L.T "public.confirmIgnore" }}</p>
     </form>
 </section>
 

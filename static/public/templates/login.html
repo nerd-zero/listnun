@@ -1,61 +1,47 @@
 {{ define "admin-login" }}
-{{ template "header" .}}
+{{ template "auth-header" .}}
+	<h1 class="auth-title">{{ .L.T "auth.signIn" }}</h1>
+	{{ if .OrgName }}<p class="auth-sub">{{ .L.Ts "auth.toWorkspace" "name" .OrgName }}</p>{{ end }}
 
-<section class="login">
-	<h2>{{ .L.T "users.login"}}</h2>
 	{{ if .Data.PasswordEnabled }}
-	<form method="post" action="/admin/login" class="form">
-		<div>
-			<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
-			<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
-			<div class="field">
-				<label for="username">{{ .L.T "users.username" }}</label>
-				<input id="username" type="text" name="username" autofocus required minlength="3" />
-			</div>
-			<div class="field">
-				<label for="password">{{ .L.T "users.password" }}</label>
-				<div class="password-wrap">
-					<input id="password" type="password" name="password" required minlength="8" />
-					<button type="button" class="password-toggle" aria-label="Toggle password visibility" onclick="togglePassword('password', this)">
-						<svg class="eye-icon eye-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-						<svg class="eye-icon eye-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-					</button>
-				</div>
-			</div>
+	<form method="post" action="/admin/login" class="auth-form">
+		<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
+		<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
 
-			{{ if .Data.Error }}<p class="form-error">{{ .Data.Error }}</p>{{ end }}
-
-			<div class="submit"><button class="button" type="submit">{{ .L.T "users.login" }}</button></div>
+		<div class="auth-field">
+			<label for="username">{{ .L.T "users.username" }}</label>
+			<input id="username" type="text" name="username" autocomplete="username" autofocus required minlength="3" />
 		</div>
+
+		<div class="auth-field">
+			<div class="auth-label-row">
+				<label for="password">{{ .L.T "users.password" }}</label>
+				<a href="{{ .RootURL }}/admin/forgot">{{ .L.T "users.forgotPassword" }}</a>
+			</div>
+			<div class="auth-input-wrap">
+				<input id="password" type="password" name="password" autocomplete="current-password" required minlength="8" />
+				{{ template "auth-password-toggle" "password" }}
+			</div>
+		</div>
+
+		{{ if .Data.Captcha.Enabled }}{{ template "captcha-widget" .Data.Captcha }}{{ end }}
+
+		{{ if .Data.Error }}<p class="auth-error" role="alert">{{ .Data.Error }}</p>{{ end }}
+
+		<button class="auth-btn" type="submit">{{ .L.T "auth.signIn" }}</button>
 	</form>
 	{{ end }}
 
 	{{ if .Data.OIDCProvider }}
-	<div class="divider"><span>{{ .L.T "users.or" }}</span></div>
-	<form method="post" action="/auth/oidc">
-		<div>
-			<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
-			<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
-			<div class="submit"><button class="button button-outline" type="submit">
-				<img src="{{ .RootURL }}/public/static/auth/{{ .Data.OIDCProviderLogo }}" alt="" />
-				{{ .L.Ts "users.loginOIDC" "name" .Data.OIDCProvider }}
-			</button></div>
-		</div>
+	{{ if .Data.PasswordEnabled }}<div class="auth-or">{{ .L.T "auth.or" }}</div>{{ end }}
+	<form method="post" action="/auth/oidc"{{ if not .Data.PasswordEnabled }} class="auth-form"{{ end }}>
+		<input type="hidden" name="nonce" value="{{ .Data.Nonce }}" />
+		<input type="hidden" name="next" value="{{ .Data.NextURI }}" />
+		<button class="auth-btn auth-btn-outline" type="submit">
+			<img src="{{ .RootURL }}/public/static/auth/{{ .Data.OIDCProviderLogo }}" alt="" />
+			{{ .L.Ts "users.loginOIDC" "name" .Data.OIDCProvider }}
+		</button>
 	</form>
 	{{ end }}
-
-	<p class="center small forgot-link"><a href="{{ .RootURL }}/admin/forgot">{{ .L.T "users.forgotPassword" }}</a></p>
-</section>
-
-<script>
-function togglePassword(id, btn) {
-	var input = document.getElementById(id);
-	var isHidden = input.type === 'password';
-	input.type = isHidden ? 'text' : 'password';
-	btn.querySelector('.eye-show').style.display = isHidden ? 'none' : '';
-	btn.querySelector('.eye-hide').style.display = isHidden ? '' : 'none';
-}
-</script>
-
-{{ template "footer" .}}
+{{ template "auth-footer" .}}
 {{ end }}

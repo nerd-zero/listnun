@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/lib/pq"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/manager"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -90,8 +93,21 @@ func (s *store) GetCampaign(campID int) (*models.Campaign, error) {
 
 // UpdateCampaignStatus updates a campaign's status.
 func (s *store) UpdateCampaignStatus(campID int, status string) error {
-	_, err := s.queries.UpdateCampaignStatus.Exec(campID, status)
-	return err
+	if _, err := s.queries.UpdateCampaignStatus.Exec(campID, status); err != nil {
+		return err
+	}
+
+	// The sending pipeline only changes status when a campaign finishes or
+	// has to stop, so record it in the workspace's activity log.
+	if c, err := s.GetCampaign(campID); err == nil {
+		level := models.ActivityInfo
+		if status != models.CampaignStatusFinished {
+			level = models.ActivityWarn
+		}
+		s.core.LogActivity(c.TenantID, level, "campaign",
+			fmt.Sprintf("“%s” %s (%d sent)", c.Name, campaignStatusVerb(status), c.Sent))
+	}
+	return nil
 }
 
 // SetCampaignPauseReason records why a campaign was auto-paused. Only
@@ -178,6 +194,41 @@ func (s *store) CreateLink(ctx context.Context, tenantID int, url string) (strin
 	return out, nil
 }
 
+// usageFlushInterval is how often the usage meter writes buffered counts
+// -- also the most a crash can lose, so kept short; one batched upsert
+// per interval is cheap.
+const usageFlushInterval = 5 * time.Second
+
+// usageStore implements usage.Store over the primary database.
+type usageStore struct {
+	q *models.Queries
+}
+
+// AddUsage implements usage.Store.
+func (s usageStore) AddUsage(rows []usage.Row) error {
+	return addUsage(s.q, rows)
+}
+
+// addUsage writes rows to usage_counters in one statement -- shared by
+// the meter's batched flushes and the direct, unbuffered writes for Scrub
+// batch submissions (cmd/scrub_batch.go).
+func addUsage(q *models.Queries, rows []usage.Row) error {
+	var (
+		tenantIDs = make(pq.Int64Array, len(rows))
+		kinds     = make(pq.StringArray, len(rows))
+		buckets   = make(pq.StringArray, len(rows))
+		counts    = make(pq.Int64Array, len(rows))
+	)
+	for i, r := range rows {
+		tenantIDs[i] = int64(r.TenantID)
+		kinds[i] = r.Kind
+		buckets[i] = r.Bucket.UTC().Format(time.RFC3339)
+		counts[i] = r.Count
+	}
+	_, err := q.AddUsageCounters.Exec(tenantIDs, kinds, buckets, counts)
+	return err
+}
+
 // GetTenantRootURL returns the tenant's own app.root_url setting, trimmed
 // of a trailing slash. Returns an empty string, no error, if the tenant
 // has no app.root_url row (the caller falls back to the process-global
@@ -191,6 +242,19 @@ func (s *store) GetTenantRootURL(tenantID int) (string, error) {
 		return "", err
 	}
 	return strings.TrimSuffix(out, "/"), nil
+}
+
+// RecordTxSendResult records a transactional message's send outcome.
+func (s *store) RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error) {
+	s.core.RecordTxSendResult(tenantID, txMessageID, messenger, err)
+}
+
+// RecordCampaignSendError records a campaign's send failure in its
+// workspace's activity log (Settings › Logs), which the operator API also
+// hands to listnun's console.
+func (s *store) RecordCampaignSendError(c *models.Campaign, err error) {
+	s.core.LogActivity(c.TenantID, models.ActivityError, "sending",
+		fmt.Sprintf("“%s” couldn't send: %s", c.Name, core.DescribeSendError(err)))
 }
 
 // RecordBounce records a bounce event and returns the bounce count.

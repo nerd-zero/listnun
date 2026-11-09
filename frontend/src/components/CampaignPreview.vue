@@ -116,7 +116,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--lm-surface);
+  background: var(--ln-card);
   z-index: 1;
 }
 

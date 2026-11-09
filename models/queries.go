@@ -9,8 +9,9 @@ import (
 
 // Queries contains all prepared SQL queries.
 type Queries struct {
-	GetDashboardCharts *sqlx.Stmt `query:"get-dashboard-charts"`
-	GetDashboardCounts *sqlx.Stmt `query:"get-dashboard-counts"`
+	GetDashboardCharts   *sqlx.Stmt `query:"get-dashboard-charts"`
+	GetDashboardCounts   *sqlx.Stmt `query:"get-dashboard-counts"`
+	GetDashboardOverview *sqlx.Stmt `query:"get-dashboard-overview"`
 
 	InsertSubscriber                *sqlx.Stmt `query:"insert-subscriber"`
 	UpsertSubscriber                *sqlx.Stmt `query:"upsert-subscriber"`
@@ -26,6 +27,7 @@ type Queries struct {
 	BlocklistSubscribers            *sqlx.Stmt `query:"blocklist-subscribers"`
 	AddSubscribersToLists           *sqlx.Stmt `query:"add-subscribers-to-lists"`
 	DeleteSubscriptions             *sqlx.Stmt `query:"delete-subscriptions"`
+	ConfirmSubscriptions            *sqlx.Stmt `query:"confirm-subscriptions"`
 	DeleteUnconfirmedSubscriptions  *sqlx.Stmt `query:"delete-unconfirmed-subscriptions"`
 	ConfirmSubscriptionOptin        *sqlx.Stmt `query:"confirm-subscription-optin"`
 	UnsubscribeSubscribersFromLists *sqlx.Stmt `query:"unsubscribe-subscribers-from-lists"`
@@ -33,12 +35,16 @@ type Queries struct {
 	DeleteBlocklistedSubscribers    *sqlx.Stmt `query:"delete-blocklisted-subscribers"`
 	DeleteOrphanSubscribers         *sqlx.Stmt `query:"delete-orphan-subscribers"`
 	UnsubscribeByCampaign           *sqlx.Stmt `query:"unsubscribe-by-campaign"`
+	ResubscribeByCampaign           *sqlx.Stmt `query:"resubscribe-by-campaign"`
 	ExportSubscriberData            *sqlx.Stmt `query:"export-subscriber-data"`
 	GetSubscriberActivity           *sqlx.Stmt `query:"get-subscriber-activity"`
+	GetSubscriberEngagement         *sqlx.Stmt `query:"get-subscriber-engagement"`
 
 	SetSubscriberScrubStatus         *sqlx.Stmt `query:"set-subscriber-scrub-status"`
 	SetSubscribersScrubStatusByEmail *sqlx.Stmt `query:"set-subscribers-scrub-status-by-email"`
 	GetRiskySubscriberIDs            *sqlx.Stmt `query:"get-risky-subscriber-ids"`
+
+	AddUsageCounters *sqlx.Stmt `query:"add-usage-counters"`
 
 	InsertScrubValidationBatch         *sqlx.Stmt `query:"insert-scrub-validation-batch"`
 	GetScrubValidationBatch            *sqlx.Stmt `query:"get-scrub-validation-batch"`
@@ -68,6 +74,7 @@ type Queries struct {
 	BlocklistSubscribersByQuery            string     `query:"blocklist-subscribers-by-query"`
 	DeleteSubscriptionsByQuery             string     `query:"delete-subscriptions-by-query"`
 	UnsubscribeSubscribersFromListsByQuery string     `query:"unsubscribe-subscribers-from-lists-by-query"`
+	ConfirmSubscriptionsByQuery            string     `query:"confirm-subscriptions-by-query"`
 
 	CreateList        *sqlx.Stmt `query:"create-list"`
 	QueryLists        string     `query:"query-lists"`
@@ -79,26 +86,59 @@ type Queries struct {
 	UpdateListsDate   *sqlx.Stmt `query:"update-lists-date"`
 	DeleteLists       *sqlx.Stmt `query:"delete-lists"`
 
+	GetListsGrowth         *sqlx.Stmt `query:"get-lists-growth"`
+	GetListActivity        *sqlx.Stmt `query:"get-list-activity"`
+	GetListRecentCampaigns *sqlx.Stmt `query:"get-list-recent-campaigns"`
+	GetOptinPending        *sqlx.Stmt `query:"get-optin-pending"`
+	CountOptinPending      *sqlx.Stmt `query:"count-optin-pending"`
+	MarkOptinSent          *sqlx.Stmt `query:"mark-optin-sent"`
+	GetListsSummary        *sqlx.Stmt `query:"get-lists-summary"`
+
 	CreateCampaign        *sqlx.Stmt `query:"create-campaign"`
 	QueryCampaigns        string     `query:"query-campaigns"`
 	GetCampaign           *sqlx.Stmt `query:"get-campaign"`
 	GetCampaignForPreview *sqlx.Stmt `query:"get-campaign-for-preview"`
 	GetCampaignStats      *sqlx.Stmt `query:"get-campaign-stats"`
 	GetCampaignStatus     *sqlx.Stmt `query:"get-campaign-status"`
-	GetArchivedCampaigns  *sqlx.Stmt `query:"get-archived-campaigns"`
-	CampaignHasLists      *sqlx.Stmt `query:"campaign-has-lists"`
+
+	SetCampaignEditor       *sqlx.Stmt `query:"set-campaign-editor"`
+	GetCampaignsOverview    *sqlx.Stmt `query:"get-campaigns-overview"`
+	GetCampaignStatusCounts *sqlx.Stmt `query:"get-campaign-status-counts"`
+
+	GetSegments   *sqlx.Stmt `query:"get-segments"`
+	GetSegment    *sqlx.Stmt `query:"get-segment"`
+	CreateSegment *sqlx.Stmt `query:"create-segment"`
+	UpdateSegment *sqlx.Stmt `query:"update-segment"`
+	DeleteSegment *sqlx.Stmt `query:"delete-segment"`
+
+	CountExistingEmails *sqlx.Stmt `query:"count-existing-emails"`
+	RecordImport        *sqlx.Stmt `query:"record-import"`
+	GetRecentImports    *sqlx.Stmt `query:"get-recent-imports"`
+
+	GetForms             *sqlx.Stmt `query:"get-forms"`
+	GetForm              *sqlx.Stmt `query:"get-form"`
+	GetFormBySlug        *sqlx.Stmt `query:"get-form-by-slug"`
+	FormSlugExists       *sqlx.Stmt `query:"form-slug-exists"`
+	CreateForm           *sqlx.Stmt `query:"create-form"`
+	UpdateForm           *sqlx.Stmt `query:"update-form"`
+	DeleteForm           *sqlx.Stmt `query:"delete-form"`
+	AddFormEvent         *sqlx.Stmt `query:"add-form-event"`
+	GetFormStats         *sqlx.Stmt `query:"get-form-stats"`
+	GetArchivedCampaigns *sqlx.Stmt `query:"get-archived-campaigns"`
+	CampaignHasLists     *sqlx.Stmt `query:"campaign-has-lists"`
 
 	// These two queries are read as strings and based on settings.individual_tracking=on/off,
 	// are interpolated and copied to view and click counts. Same query, different tables.
-	GetCampaignAnalyticsCounts string     `query:"get-campaign-analytics-counts"`
-	GetCampaignViewCounts      *sqlx.Stmt `query:"get-campaign-view-counts"`
-	GetCampaignClickCounts     *sqlx.Stmt `query:"get-campaign-click-counts"`
-	GetCampaignLinkCounts      *sqlx.Stmt `query:"get-campaign-link-counts"`
-	GetCampaignBounceCounts    *sqlx.Stmt `query:"get-campaign-bounce-counts"`
-	DeleteCampaignViews        *sqlx.Stmt `query:"delete-campaign-views"`
-	DeleteCampaignLinkClicks   *sqlx.Stmt `query:"delete-campaign-link-clicks"`
-	ExportCampaignViews        *sqlx.Stmt `query:"export-campaign-views"`
-	ExportCampaignLinkClicks   *sqlx.Stmt `query:"export-campaign-link-clicks"`
+	GetCampaignAnalyticsCounts  string     `query:"get-campaign-analytics-counts"`
+	GetCampaignViewCounts       *sqlx.Stmt `query:"get-campaign-view-counts"`
+	GetCampaignClickCounts      *sqlx.Stmt `query:"get-campaign-click-counts"`
+	GetCampaignLinkCounts       *sqlx.Stmt `query:"get-campaign-link-counts"`
+	GetCampaignBounceCounts     *sqlx.Stmt `query:"get-campaign-bounce-counts"`
+	GetCampaignBounceTypeCounts *sqlx.Stmt `query:"get-campaign-bounce-type-counts"`
+	DeleteCampaignViews         *sqlx.Stmt `query:"delete-campaign-views"`
+	DeleteCampaignLinkClicks    *sqlx.Stmt `query:"delete-campaign-link-clicks"`
+	ExportCampaignViews         *sqlx.Stmt `query:"export-campaign-views"`
+	ExportCampaignLinkClicks    *sqlx.Stmt `query:"export-campaign-link-clicks"`
 
 	NextCampaigns             *sqlx.Stmt `query:"next-campaigns"`
 	GetRunningCampaign        *sqlx.Stmt `query:"get-running-campaign"`
@@ -117,15 +157,88 @@ type Queries struct {
 	DeleteCampaigns           *sqlx.Stmt `query:"delete-campaigns"`
 
 	InsertMedia *sqlx.Stmt `query:"insert-media"`
-	GetMedia    *sqlx.Stmt `query:"get-media"`
-	QueryMedia  *sqlx.Stmt `query:"query-media"`
-	DeleteMedia *sqlx.Stmt `query:"delete-media"`
 
-	CreateTemplate     *sqlx.Stmt `query:"create-template"`
-	GetTemplates       *sqlx.Stmt `query:"get-templates"`
-	UpdateTemplate     *sqlx.Stmt `query:"update-template"`
-	SetDefaultTemplate *sqlx.Stmt `query:"set-default-template"`
-	DeleteTemplate     *sqlx.Stmt `query:"delete-template"`
+	InsertActivity *sqlx.Stmt `query:"insert-activity"`
+
+	CountInactiveSubscribers *sqlx.Stmt `query:"count-inactive-subscribers"`
+
+	GetInboxCheckStats      *sqlx.Stmt `query:"get-inbox-check-stats"`
+	GetSendingHealth        *sqlx.Stmt `query:"get-sending-health"`
+	GetUnsentCampaignBodies *sqlx.Stmt `query:"get-unsent-campaign-bodies"`
+
+	GetInactiveSubscriberIDs *sqlx.Stmt `query:"get-inactive-subscriber-ids"`
+
+	UnsubscribeInactive *sqlx.Stmt `query:"unsubscribe-inactive"`
+
+	InsertCleanupRun *sqlx.Stmt `query:"insert-cleanup-run"`
+
+	FinishCleanupRun *sqlx.Stmt `query:"finish-cleanup-run"`
+
+	GetLastCleanupRun *sqlx.Stmt `query:"get-last-cleanup-run"`
+
+	GetActivity *sqlx.Stmt `query:"get-activity"`
+
+	PruneActivity *sqlx.Stmt `query:"prune-activity"`
+
+	GetMediaUsage *sqlx.Stmt `query:"get-media-usage"`
+
+	GetUnsizedMedia *sqlx.Stmt `query:"get-unsized-media"`
+
+	SetMediaSize *sqlx.Stmt `query:"set-media-size"`
+	GetMedia     *sqlx.Stmt `query:"get-media"`
+	QueryMedia   *sqlx.Stmt `query:"query-media"`
+	DeleteMedia  *sqlx.Stmt `query:"delete-media"`
+
+	GetWebhookEndpoints         *sqlx.Stmt `query:"get-webhook-endpoints"`
+	GetWebhookEndpointSecret    *sqlx.Stmt `query:"get-webhook-endpoint-secret"`
+	CreateWebhookEndpoint       *sqlx.Stmt `query:"create-webhook-endpoint"`
+	UpdateWebhookEndpoint       *sqlx.Stmt `query:"update-webhook-endpoint"`
+	RotateWebhookEndpointSecret *sqlx.Stmt `query:"rotate-webhook-endpoint-secret"`
+	DeleteWebhookEndpoint       *sqlx.Stmt `query:"delete-webhook-endpoint"`
+	EnqueueWebhookDeliveries    *sqlx.Stmt `query:"enqueue-webhook-deliveries"`
+	EnqueueWebhookTest          *sqlx.Stmt `query:"enqueue-webhook-test"`
+	ClaimWebhookDeliveries      *sqlx.Stmt `query:"claim-webhook-deliveries"`
+	RecordWebhookAttempt        *sqlx.Stmt `query:"record-webhook-attempt"`
+	QueryWebhookDeliveries      *sqlx.Stmt `query:"query-webhook-deliveries"`
+	GetWebhookDelivery          *sqlx.Stmt `query:"get-webhook-delivery"`
+	GetWebhookAttempts          *sqlx.Stmt `query:"get-webhook-attempts"`
+	RetryWebhookDelivery        *sqlx.Stmt `query:"retry-webhook-delivery"`
+	PruneWebhookDeliveries      *sqlx.Stmt `query:"prune-webhook-deliveries"`
+
+	GetTenantReplies           *sqlx.Stmt `query:"get-tenant-replies"`
+	GetReplyCampaign           *sqlx.Stmt `query:"get-reply-campaign"`
+	InsertCampaignReply        *sqlx.Stmt `query:"insert-campaign-reply"`
+	MarkCampaignReplyForwarded *sqlx.Stmt `query:"mark-campaign-reply-forwarded"`
+	GetCampaignReplies         *sqlx.Stmt `query:"get-campaign-replies"`
+	GetCampaignReplyCounts     *sqlx.Stmt `query:"get-campaign-reply-counts"`
+
+	CreateTxMessage         *sqlx.Stmt `query:"create-tx-message"`
+	SetTxMessageStatus      *sqlx.Stmt `query:"set-tx-message-status"`
+	GetTxMessageForBounce   *sqlx.Stmt `query:"get-tx-message-for-bounce"`
+	QueryTxMessages         *sqlx.Stmt `query:"query-tx-messages"`
+	CountTxMessagesByStatus *sqlx.Stmt `query:"count-tx-messages-by-status"`
+	GetTxMessage            *sqlx.Stmt `query:"get-tx-message"`
+	GetTxMessageEvents      *sqlx.Stmt `query:"get-tx-message-events"`
+	GetTxStats              *sqlx.Stmt `query:"get-tx-stats"`
+	PruneTxMessages         *sqlx.Stmt `query:"prune-tx-messages"`
+
+	GetAPIKeys         *sqlx.Stmt `query:"get-api-keys"`
+	GetAPIKey          *sqlx.Stmt `query:"get-api-key"`
+	GetAPIKeyAuth      *sqlx.Stmt `query:"get-api-key-auth"`
+	CreateAPIKey       *sqlx.Stmt `query:"create-api-key"`
+	UpdateAPIKeyScopes *sqlx.Stmt `query:"update-api-key-scopes"`
+	RotateAPIKey       *sqlx.Stmt `query:"rotate-api-key"`
+	RevokeAPIKey       *sqlx.Stmt `query:"revoke-api-key"`
+	DeleteAPIKey       *sqlx.Stmt `query:"delete-api-key"`
+	TouchAPIKey        *sqlx.Stmt `query:"touch-api-key"`
+
+	CreateTemplate         *sqlx.Stmt `query:"create-template"`
+	UpdateTemplateTxExtras *sqlx.Stmt `query:"update-template-tx-extras"`
+	GetTxTemplateUsage     *sqlx.Stmt `query:"get-tx-template-usage"`
+	GetTemplates           *sqlx.Stmt `query:"get-templates"`
+	UpdateTemplate         *sqlx.Stmt `query:"update-template"`
+	SetDefaultTemplate     *sqlx.Stmt `query:"set-default-template"`
+	DeleteTemplate         *sqlx.Stmt `query:"delete-template"`
 
 	CreateLink        *sqlx.Stmt `query:"create-link"`
 	GetLinkURL        *sqlx.Stmt `query:"get-link-url"`
@@ -139,6 +252,7 @@ type Queries struct {
 	// GetStats *sqlx.Stmt `query:"get-stats"`
 	RecordBounce                *sqlx.Stmt `query:"record-bounce"`
 	QueryBounces                string     `query:"query-bounces"`
+	GetBounceTypeCounts         string     `query:"get-bounce-type-counts"`
 	BlocklistBouncedSubscribers *sqlx.Stmt `query:"blocklist-bounced-subscribers"`
 	DeleteBounces               *sqlx.Stmt `query:"delete-bounces"`
 	DeleteBouncesBySubscriber   *sqlx.Stmt `query:"delete-bounces-by-subscriber"`

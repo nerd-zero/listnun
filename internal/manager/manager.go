@@ -20,7 +20,9 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/nerd-zero/listnun/internal/i18n"
+	"github.com/nerd-zero/listnun/internal/messenger/email"
 	"github.com/nerd-zero/listnun/internal/notifs"
+	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -61,6 +63,14 @@ type Store interface {
 	BlocklistSubscriber(id int64) error
 	DeleteSubscriber(id int64) error
 	GetTenantRootURL(tenantID int) (string, error)
+
+	// RecordTxSendResult records a transactional message's send outcome
+	// in the message log.
+	RecordTxSendResult(tenantID int, txMessageID int64, messenger string, err error)
+
+	// RecordCampaignSendError records that a campaign couldn't send, with
+	// the messenger's error, where the workspace can see it.
+	RecordCampaignSendError(camp *models.Campaign, err error)
 }
 
 // Messenger is an interface for a generic messaging backend,
@@ -99,6 +109,7 @@ type Manager struct {
 	cfg        Config
 	store      Store
 	resolver   MessengerResolver
+	usage      *usage.Meter
 	i18n       *i18n.I18n
 	messengers map[string]Messenger
 	fnNotify   func(subject string, data any) error
@@ -111,6 +122,10 @@ type Manager struct {
 	tpls    map[int]*models.Template
 	tplsMut sync.RWMutex
 
+	// tplTenants maps a cached tx template to the tenant that owns it, so
+	// one tenant can't send with another's template ID.
+	tplTenants map[int]int
+
 	// Per-tenant resolution of tenantURLCfg, keyed by tenant ID. m.cfg's
 	// own URL fields are process-global and always derived from tenant
 	// 1's app.root_url (see cmd/init.go's initSettings) - this cache lets
@@ -122,7 +137,9 @@ type Manager struct {
 	// Links generated using Track() are cached here so as to not query
 	// the database for the link UUID for every message sent. This has to
 	// be locked as it may be used externally when previewing campaigns.
-	links    map[string]string
+	// Keyed by tenant too: each tenant's links rows are its own, so one
+	// tenant's UUID for a URL is meaningless (and invisible) to another.
+	links    map[linkKey]string
 	linksMut sync.RWMutex
 
 	nextPipes chan *pipe
@@ -187,10 +204,22 @@ type Config struct {
 	// (exposed to the internet, private etc.) where only one does campaign
 	// processing while the others handle other kinds of traffic.
 	ScanCampaigns bool
+
+	// ReplyAddress returns the per-message reply address for a campaign
+	// with reply tracking on (CampaignTracking.Replies), or "" when the
+	// tenant has no reply tracking setup -- such campaigns then send with
+	// their own Reply-To unchanged.
+	ReplyAddress func(tenantID, campaignID, subscriberID int) string
 }
 
 // tenantURLCfg mirrors Config's URL template fields, resolved against one
 // tenant's own app.root_url rather than the process-global default.
+// linkKey identifies a tracked link in the cache.
+type linkKey struct {
+	tenantID int
+	url      string
+}
+
 type tenantURLCfg struct {
 	RootURL      string
 	UnsubURL     string
@@ -244,7 +273,10 @@ func (m *Manager) urlsFor(tenantID int) tenantURLCfg {
 var pushTimeout = time.Second * 3
 
 // New returns a new instance of Mailer.
-func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *log.Logger) *Manager {
+// New returns a Manager. meter, if non-nil, counts every email
+// successfully pushed for a tenant -- listnun's billing ledger, see
+// internal/usage.
+func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter, i *i18n.I18n, l *log.Logger) *Manager {
 	if cfg.BatchSize < 1 {
 		cfg.BatchSize = 1000
 	}
@@ -259,6 +291,7 @@ func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *l
 		cfg:      cfg,
 		store:    store,
 		resolver: resolver,
+		usage:    meter,
 		i18n:     i,
 		fnNotify: func(subject string, data any) error {
 			return notifs.NotifySystem(subject, notifs.TplCampaignStatus, data, nil)
@@ -267,8 +300,9 @@ func New(cfg Config, store Store, resolver MessengerResolver, i *i18n.I18n, l *l
 		messengers:   make(map[string]Messenger),
 		pipes:        make(map[int]*pipe),
 		tpls:         make(map[int]*models.Template),
+		tplTenants:   make(map[int]int),
 		tenantURLs:   make(map[int]tenantURLCfg),
-		links:        make(map[string]string),
+		links:        make(map[linkKey]string),
 		nextPipes:    make(chan *pipe, 1000),
 		campMsgQ:     make(chan CampaignMessage, cfg.Concurrency*cfg.MessageRate*2),
 		msgQ:         make(chan models.Message, cfg.Concurrency*cfg.MessageRate*2),
@@ -300,27 +334,6 @@ func (m *Manager) PushMessage(msg models.Message) error {
 	case m.msgQ <- msg:
 	case <-t.C:
 		m.log.Printf("message push timed out: '%s'", msg.Subject)
-		return errors.New("message push timed out")
-	}
-
-	return nil
-}
-
-// PushCampaignMessage pushes a campaign messages into a queue to be sent out by the workers.
-// It times out if the queue is busy.
-func (m *Manager) PushCampaignMessage(msg CampaignMessage) error {
-	t := time.NewTicker(pushTimeout)
-	defer t.Stop()
-
-	// Load any media/attachments.
-	if err := m.attachMedia(msg.Campaign); err != nil {
-		return err
-	}
-
-	select {
-	case m.campMsgQ <- msg:
-	case <-t.C:
-		m.log.Printf("message push timed out: '%s'", msg.Subject())
 		return errors.New("message push timed out")
 	}
 
@@ -447,8 +460,15 @@ func (m *Manager) CacheTpl(tenantID int, id int, tpl *models.Template) {
 		}
 	}
 
+	// The template's own tenant wins over the caller's, in case a query
+	// returned rows across tenants.
+	if tpl.TenantID != 0 {
+		tenantID = tpl.TenantID
+	}
+
 	m.tplsMut.Lock()
 	m.tpls[id] = tpl
+	m.tplTenants[id] = tenantID
 	m.tplsMut.Unlock()
 }
 
@@ -456,16 +476,18 @@ func (m *Manager) CacheTpl(tenantID int, id int, tpl *models.Template) {
 func (m *Manager) DeleteTpl(id int) {
 	m.tplsMut.Lock()
 	delete(m.tpls, id)
+	delete(m.tplTenants, id)
 	m.tplsMut.Unlock()
 }
 
-// GetTpl returns a cached template.
-func (m *Manager) GetTpl(id int) (*models.Template, error) {
+// GetTpl returns a tenant's cached template.
+func (m *Manager) GetTpl(tenantID, id int) (*models.Template, error) {
 	m.tplsMut.RLock()
 	tpl, ok := m.tpls[id]
+	owner := m.tplTenants[id]
 	m.tplsMut.RUnlock()
 
-	if !ok {
+	if !ok || owner != tenantID {
 		return nil, fmt.Errorf("template %d not found", id)
 	}
 
@@ -653,47 +675,10 @@ func (m *Manager) worker() {
 			}
 			numMsg++
 
-			// Outgoing message.
-			out := models.Message{
-				TenantID:    msg.Campaign.TenantID,
-				From:        msg.from,
-				To:          []string{msg.to},
-				Subject:     msg.subject,
-				ContentType: msg.Campaign.ContentType,
-				Body:        msg.body,
-				AltBody:     msg.altBody,
-				Subscriber:  msg.Subscriber,
-				Campaign:    msg.Campaign,
-				Attachments: msg.Campaign.Attachments,
-			}
-
-			h := textproto.MIMEHeader{}
-			h.Set(models.EmailHeaderCampaignUUID, msg.Campaign.UUID)
-			h.Set(models.EmailHeaderSubscriberUUID, msg.Subscriber.UUID)
-
-			// Attach List-Unsubscribe headers?
-			if m.cfg.UnsubHeader {
-				h.Set("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
-				h.Set("List-Unsubscribe", `<`+msg.unsubURL+`>`)
-			}
-
-			// Attach any custom headers.
-			for _, set := range msg.headers {
-				for hdr, val := range set {
-					h.Add(hdr, val)
-				}
-			}
-
-			// Set the headers.
-			out.Headers = h
-
-			// Push the message to the messenger.
-			msgr, err := m.getMessenger(context.Background(), msg.Campaign.TenantID, msg.Campaign.Messenger)
-			if err == nil {
-				err = msgr.Push(out)
-			}
+			err := m.sendCampaignMessage(msg)
 			if err != nil {
 				m.log.Printf("error sending message in campaign %s: subscriber %d: %v", msg.Campaign.Name, msg.Subscriber.ID, err)
+				m.reportSendError(msg, err)
 			}
 
 			// Increment the send rate or the error counter if there was an error.
@@ -726,11 +711,108 @@ func (m *Manager) worker() {
 			if err == nil {
 				err = msgr.Push(msg)
 			}
+			if err == nil {
+				m.countSent(msgr, msg)
+			}
 			if err != nil {
 				m.log.Printf("error sending message '%s': %v", msg.Subject, err)
 			}
+			if msg.TxMessageID != 0 {
+				m.store.RecordTxSendResult(msg.TenantID, msg.TxMessageID, msg.Messenger, err)
+			}
 		}
 	}
+}
+
+// sendCampaignMessage renders msg into an outgoing message and pushes it
+// to the campaign's messenger, counting it as sent when that works.
+func (m *Manager) sendCampaignMessage(msg CampaignMessage) error {
+	// Outgoing message.
+	out := models.Message{
+		TenantID:    msg.Campaign.TenantID,
+		From:        msg.from,
+		To:          []string{msg.to},
+		Subject:     msg.subject,
+		ContentType: msg.Campaign.ContentType,
+		Body:        msg.body,
+		AltBody:     msg.altBody,
+		Subscriber:  msg.Subscriber,
+		Campaign:    msg.Campaign,
+		Attachments: msg.Campaign.Attachments,
+	}
+
+	out.Headers = m.campaignHeaders(msg)
+
+	msgr, err := m.getMessenger(context.Background(), msg.Campaign.TenantID, msg.Campaign.Messenger)
+	if err == nil {
+		err = msgr.Push(out)
+	}
+	if err == nil {
+		m.countSent(msgr, out)
+	}
+
+	return err
+}
+
+// SendTestMessage sends msg straight away, without the campaign queue, so
+// the caller gets the messenger's error (an SMTP login failure, say)
+// instead of a send that quietly fails later.
+func (m *Manager) SendTestMessage(msg CampaignMessage) error {
+	if err := m.attachMedia(msg.Campaign); err != nil {
+		return err
+	}
+	return m.sendCampaignMessage(msg)
+}
+
+// reportSendError records a campaign's send failure in the workspace's
+// activity log, once per campaign run: every message usually fails the
+// same way, and the run pauses itself after too many errors anyway.
+func (m *Manager) reportSendError(msg CampaignMessage, err error) {
+	if msg.pipe == nil || !msg.pipe.errReported.CompareAndSwap(false, true) {
+		return
+	}
+	m.store.RecordCampaignSendError(msg.Campaign, err)
+}
+
+// campaignHeaders returns the headers of one campaign message: the
+// campaign/subscriber identifiers, List-Unsubscribe, the campaign's custom
+// headers, and -- for a campaign with reply tracking on -- the
+// per-message reply address in place of any custom Reply-To (the reply
+// webhook forwards each reply on to that original address).
+func (m *Manager) campaignHeaders(msg CampaignMessage) textproto.MIMEHeader {
+	h := textproto.MIMEHeader{}
+	h.Set(models.EmailHeaderCampaignUUID, msg.Campaign.UUID)
+	h.Set(models.EmailHeaderSubscriberUUID, msg.Subscriber.UUID)
+
+	// Attach List-Unsubscribe headers?
+	if m.cfg.UnsubHeader {
+		h.Set("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+		h.Set("List-Unsubscribe", `<`+msg.unsubURL+`>`)
+	}
+
+	// Attach any custom headers.
+	for _, set := range msg.headers {
+		for hdr, val := range set {
+			h.Add(hdr, val)
+		}
+	}
+
+	if msg.Campaign.Tracking.Replies && m.cfg.ReplyAddress != nil {
+		if addr := m.cfg.ReplyAddress(msg.Campaign.TenantID, msg.Campaign.ID, msg.Subscriber.ID); addr != "" {
+			h.Set("Reply-To", addr)
+		}
+	}
+	return h
+}
+
+// countSent records a successfully pushed message as billable email
+// usage: one per recipient, the unit Postmark bills by. Only SMTP
+// messengers count -- postback (HTTP webhook) messengers send no email.
+func (m *Manager) countSent(msgr Messenger, msg models.Message) {
+	if _, ok := msgr.(*email.Emailer); !ok {
+		return
+	}
+	m.usage.Add(msg.TenantID, usage.KindEmailSent, int64(len(msg.To)))
 }
 
 // getCurrentCampaigns returns the IDs of campaigns currently being processed
@@ -781,8 +863,9 @@ func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string 
 
 	linkTrackURL := m.urlsFor(tenantID).LinkTrackURL
 
+	key := linkKey{tenantID: tenantID, url: url}
 	m.linksMut.RLock()
-	if uu, ok := m.links[url]; ok {
+	if uu, ok := m.links[key]; ok {
 		m.linksMut.RUnlock()
 		return fmt.Sprintf(linkTrackURL, uu, campUUID, subUUID)
 	}
@@ -798,7 +881,7 @@ func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string 
 	}
 
 	m.linksMut.Lock()
-	m.links[url] = uu
+	m.links[key] = uu
 	m.linksMut.Unlock()
 
 	return fmt.Sprintf(linkTrackURL, uu, campUUID, subUUID)

@@ -3,13 +3,13 @@
 | Method | Endpoint                                                                      | Description                    |
 |:-------|:------------------------------------------------------------------------------|:-------------------------------|
 | GET    | [/api/templates](#get-apitemplates)                                           | Retrieve all templates         |
-| GET    | [/api/templates/{template_id}](#get-apitemplates-template_id)                 | Retrieve a template            |
-| GET    | [/api/templates/{template_id}/preview](#get-apitemplates-template_id-preview) | Retrieve template HTML preview |
+| GET    | [/api/templates/{template_id}](#get-apitemplatestemplate_id)                 | Retrieve a template            |
+| GET    | [/api/templates/{template_id}/preview](#get-apitemplatestemplate_idpreview) | Retrieve template HTML preview |
 | POST   | [/api/templates](#post-apitemplates)                                          | Create a template              |
 | POST   | /api/templates/preview                                                        | Render and preview a template  |
 | PUT    | [/api/templates/{template_id}](#put-apitemplatestemplate_id)                  | Update a template              |
-| PUT    | [/api/templates/{template_id}/default](#put-apitemplates-template_id-default) | Set default template           |
-| DELETE | [/api/templates/{template_id}](#delete-apitemplates-template_id)              | Delete a template              |
+| PUT    | [/api/templates/{template_id}/default](#put-apitemplatestemplate_iddefault) | Set default template           |
+| DELETE | [/api/templates/{template_id}](#delete-apitemplatestemplate_id)              | Delete a template              |
 
 ______________________________________________________________________
 
@@ -109,7 +109,7 @@ curl -u "api_user:token" -X GET 'http://localhost:9000/api/templates/1/preview'
 <p>Nam luctus dui non placerat mattis. Morbi non accumsan orci, vel interdum urna. Duis faucibus id nunc ut euismod.
 	Curabitur et eros id erat feugiat fringilla in eget neque. Aliquam accumsan cursus eros sed faucibus.</p>
 
-<p>Here is a link to <a href="https://listmonk.app" target="_blank">listnun</a>.</p>
+<p>Here is a link to <a href="https://github.com/nerd-zero/listnun" target="_blank">listnun</a>.</p>
 ```
 
 ______________________________________________________________________

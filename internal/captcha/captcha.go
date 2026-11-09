@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	hCaptchaURL = "https://hcaptcha.com/siteverify"
+	hCaptchaURL  = "https://hcaptcha.com/siteverify"
+	turnstileURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 )
 
 type hCaptchaResp struct {
@@ -24,18 +25,27 @@ type hCaptchaResp struct {
 	ErrorCodes []string `json:"error_codes"`
 }
 
+// turnstileResp is Cloudflare Turnstile's siteverify response.
+type turnstileResp struct {
+	Success    bool     `json:"success"`
+	ErrorCodes []string `json:"error-codes"`
+}
+
 const (
-	ProviderNone     = ""
-	ProviderHCaptcha = "hcaptcha"
-	ProviderAltcha   = "altcha"
+	ProviderNone      = ""
+	ProviderHCaptcha  = "hcaptcha"
+	ProviderAltcha    = "altcha"
+	ProviderTurnstile = "turnstile"
 )
 
 // Captcha is a captcha client supporting multiple providers.
 type Captcha struct {
-	provider string
-	hCaptcha hCaptchaOpt
-	altcha   altchaOpt
-	client   *http.Client
+	provider  string
+	hCaptcha  hCaptchaOpt
+	altcha    altchaOpt
+	turnstile turnstileOpt
+	onLogin   bool
+	client    *http.Client
 }
 
 type Opt struct {
@@ -48,10 +58,23 @@ type Opt struct {
 		Enabled    bool `json:"enabled"`
 		Complexity int  `json:"complexity"`
 	} `json:"altcha"`
+	Turnstile struct {
+		Enabled bool   `json:"enabled"`
+		Key     string `json:"key"`
+		Secret  string `json:"secret"`
+	} `json:"turnstile"`
+	// Login also asks for the captcha on the admin sign-in page.
+	Login bool `json:"login"`
 }
 
 type hCaptchaOpt struct {
 	Secret string
+}
+
+type turnstileOpt struct {
+	Secret string
+	// URL is the siteverify endpoint; tests point it at a fake server.
+	URL string
 }
 
 type altchaOpt struct {
@@ -91,12 +114,16 @@ func New(o Opt) *Captcha {
 			Complexity: o.Altcha.Complexity,
 			HMACKey:    hmacKey,
 		}
+	} else if o.Turnstile.Enabled {
+		c.provider = ProviderTurnstile
+		c.turnstile = turnstileOpt{Secret: o.Turnstile.Secret, URL: turnstileURL}
 	} else if o.HCaptcha.Enabled {
 		c.provider = ProviderHCaptcha
 		c.hCaptcha = hCaptchaOpt{
 			Secret: o.HCaptcha.Secret,
 		}
 	}
+	c.onLogin = o.Login && c.provider != ProviderNone
 
 	return c
 }
@@ -104,6 +131,26 @@ func New(o Opt) *Captcha {
 // IsEnabled returns true if any captcha provider is enabled.
 func (c *Captcha) IsEnabled() bool {
 	return c.provider != ProviderNone
+}
+
+// OnLogin reports whether the admin sign-in page asks for the captcha too.
+func (c *Captcha) OnLogin() bool {
+	return c.onLogin
+}
+
+// FormField is the name of the form field the active provider's widget
+// puts its response in.
+func (c *Captcha) FormField() string {
+	switch c.provider {
+	case ProviderAltcha:
+		return "altcha"
+	case ProviderHCaptcha:
+		return "h-captcha-response"
+	case ProviderTurnstile:
+		return "cf-turnstile-response"
+	default:
+		return ""
+	}
 }
 
 // GetProvider returns the active captcha provider.
@@ -135,8 +182,8 @@ func (c *Captcha) GenerateChallenge() (string, error) {
 		}
 
 		return string(challengeJSON), nil
-	case ProviderHCaptcha:
-		// hCaptcha generates challenges client-side.
+	case ProviderHCaptcha, ProviderTurnstile:
+		// hCaptcha and Turnstile generate challenges client-side.
 		return "", nil
 	default:
 		return "", fmt.Errorf("no captcha provider enabled")
@@ -150,6 +197,8 @@ func (c *Captcha) Verify(token string) (error, bool) {
 		return c.verifyAltcha(token)
 	case ProviderHCaptcha:
 		return c.verifyHCaptcha(token)
+	case ProviderTurnstile:
+		return c.verifyTurnstile(token)
 	default:
 		return fmt.Errorf("no captcha provider enabled"), false
 	}
@@ -173,11 +222,35 @@ func (c *Captcha) verifyHCaptcha(token string) (error, bool) {
 
 	var r hCaptchaResp
 	if err := json.Unmarshal(body, &r); err != nil {
-		return err, true
+		// Fail closed: an unreadable answer is not a pass.
+		return err, false
 	}
 
 	if !r.Success {
 		return fmt.Errorf("hCaptcha failed: %s", strings.Join(r.ErrorCodes, ",")), false
+	}
+
+	return nil, true
+}
+
+// verifyTurnstile verifies a Cloudflare Turnstile response. Cloudflare
+// rejects a token that was already redeemed, so reuse needs no local check.
+func (c *Captcha) verifyTurnstile(token string) (error, bool) {
+	resp, err := c.client.PostForm(c.turnstile.URL, url.Values{
+		"secret":   {c.turnstile.Secret},
+		"response": {token},
+	})
+	if err != nil {
+		return err, false
+	}
+	defer resp.Body.Close()
+
+	var r turnstileResp
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return err, false
+	}
+	if !r.Success {
+		return fmt.Errorf("turnstile failed: %s", strings.Join(r.ErrorCodes, ",")), false
 	}
 
 	return nil, true

@@ -17,7 +17,7 @@
 
         <div v-else class="field">
           <PvButton v-if="!isVisualTplSelector" @click="onShowVisualTplSelector" severity="secondary"
-            icon="pi pi-file-find" data-cy="btn-select-visual-tpl"
+            icon="pi pi-search" data-cy="btn-select-visual-tpl"
             :label="$t('campaigns.importVisualTemplate')" />
           <template v-else>
             <label class="block mb-1 text-sm font-medium">{{ $t('globals.terms.template') }}</label>
@@ -48,7 +48,7 @@
 
     <!-- visual editor //-->
     <visual-editor v-if="self.contentType === 'visual'" :source="self.bodySource" @change="onVisualEditorChange"
-      height="65vh" ref="visualEditorRef" />
+      height="65vh" ref="visualEditorRef" :dark="isDark" />
 
     <!-- raw html editor //-->
     <code-editor lang="html" v-if="self.contentType === 'html'" v-model="self.body" key="editor-html" />
@@ -76,6 +76,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { useDarkMode } from '../composables/useDarkMode';
 import CampaignPreview from './CampaignPreview.vue';
 import VisualEditor from './VisualEditor.vue';
 import RichtextEditor from './RichtextEditor.vue';
@@ -106,6 +107,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['update:modelValue']);
 const { $utils, $events } = useGlobal();
+const { isDark } = useDarkMode();
 const { setCampaignContent } = campaignsApi();
 const { getTemplate } = templatesApi();
 const { t } = useI18n();

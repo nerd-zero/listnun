@@ -19,16 +19,21 @@ import {
 } from '@codemirror/commands';
 import { defaultHighlightStyle, syntaxHighlighting, bracketMatching } from '@codemirror/language';
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
-import { vsCodeLight } from './editor-theme';
+import { vsCodeLight, listnunInk } from './editor-theme';
 
 const props = withDefaults(defineProps<{
   modelValue?: string;
   lang?: string;
   disabled?: boolean;
+  // 'ink' is the dark code surface used in the Developers area.
+  theme?: 'light' | 'ink';
+  autofocus?: boolean;
 }>(), {
   modelValue: '',
   lang: 'html',
   disabled: false,
+  theme: 'light',
+  autofocus: true,
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -51,6 +56,7 @@ onMounted(() => {
     case 'css': langs = [css()]; break;
     case 'javascript': langs = [javascript()]; break;
     case 'markdown': langs = [markdown()]; break;
+    case 'json': langs = [javascript()]; break;
     default: langs = [html()];
   }
 
@@ -70,7 +76,7 @@ onMounted(() => {
       EditorView.editable.of(!props.disabled),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       EditorView.lineWrapping,
-      vsCodeLight,
+      props.theme === 'ink' ? listnunInk : vsCodeLight,
       search({ top: true }),
       onUpdate,
     ],
@@ -78,9 +84,11 @@ onMounted(() => {
 
   editor = new EditorView({ state: stateCfg, parent: editorEl.value! });
 
-  nextTick(() => {
-    window.setTimeout(() => { editor?.focus(); }, 100);
-  });
+  if (props.autofocus) {
+    nextTick(() => {
+      window.setTimeout(() => { editor?.focus(); }, 100);
+    });
+  }
 });
 
 onBeforeUnmount(() => {

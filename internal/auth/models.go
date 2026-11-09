@@ -121,6 +121,10 @@ type User struct {
 	GetListIDs         []int                       `db:"-" json:"-"`
 	ManageListIDs      []int                       `db:"-" json:"-"`
 	HasPassword        bool                        `db:"-" json:"-"`
+
+	// APIKeyID is set when the request authenticated with a Developers-area
+	// API key rather than a user or legacy API user.
+	APIKeyID int `db:"-" json:"-"`
 } // @name User
 
 type ListPermission struct {

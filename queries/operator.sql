@@ -50,13 +50,26 @@ INSERT INTO tenants (slug, name, status, organization_id) VALUES ($1, $2, 'activ
 -- app.root_url is deliberately excluded: it's tenant-1-specific, not a
 -- sensible default for anyone else, and operator-set-tenant-root-url
 -- sets the new tenant's own correct value right after this runs.
+-- branding is tenant 1's own logo, so a new tenant starts without one.
+--
+-- $1 is cast explicitly: inside a UNION, Postgres resolves an untyped
+-- parameter to TEXT before the INSERT's target type is applied, which
+-- fails preparation (and so startup) with "tenant_id is of type integer".
 INSERT INTO settings (tenant_id, key, value)
-SELECT $1, key, value FROM settings WHERE tenant_id = 1 AND key != 'app.root_url'
+SELECT $1::INT, key, value FROM settings WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'branding')
+UNION ALL
+SELECT $1::INT, 'branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB
 ON CONFLICT (tenant_id, key) DO NOTHING;
 
 -- name: operator-set-tenant-root-url
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'app.root_url', to_jsonb($2::TEXT))
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
+
+-- name: operator-set-tenant-from-email
+-- Sets the tenant's default From address (app.from_email) - see
+-- cmd/operator.go's SetTenantFromEmail.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'app.from_email', to_jsonb($2::TEXT))
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 
 -- name: operator-set-tenant-custom-domain
 -- $2 is nullable - clears the custom domain (reverting to <slug>.root_domain
@@ -72,6 +85,16 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 -- supplied by the caller - see cmd/operator.go's SetTenantSMTP.
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
+
+-- name: operator-set-tenant-replies
+-- Replaces the tenant's reply tracking setup (models.TenantReplies) - see
+-- cmd/operator.go's SetTenantReplies. Its own "replies" key, which the
+-- tenant's Settings UI never reads or writes.
+INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'replies', $2::JSONB)
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
+-- name: operator-delete-tenant-replies
+DELETE FROM settings WHERE tenant_id = $1 AND key = 'replies';
 
 -- name: operator-set-tenant-bounce-webhooks
 -- Sets the tenant's bounce.webhooks_enabled ($2) and bounce.postmark ($3)
@@ -146,3 +169,46 @@ UPDATE tenants SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *;
 --- (cmd/operator.go's DeleteOperatorTenant) refuses to run this against
 --- tenant 1, the default tenant every install seeds data against.
 DELETE FROM tenants WHERE id = $1;
+
+-- name: operator-get-tenant-usage
+-- A tenant's metered usage over [$2, $3), summed from usage_counters'
+-- hourly buckets by bucket start -- back-to-back windows therefore count
+-- each hour exactly once. Backs listnun's PAYG billing and console usage.
+SELECT
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE tenant_id = $1 AND bucket >= $2 AND bucket < $3;
+
+-- name: operator-get-tenant-usage-daily
+-- A tenant's usage over [$2, $3) per UTC day, for usage charts. Days with
+-- no usage are omitted; the caller fills gaps.
+SELECT
+    to_char(bucket AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE tenant_id = $1 AND bucket >= $2 AND bucket < $3
+GROUP BY 1 ORDER BY 1;
+
+-- name: operator-get-platform-usage-by-tenant
+-- Every tenant's usage over [$1, $2) in one query -- backs listnun's admin
+-- overview without a call per tenant. Includes deleted tenants, whose
+-- usage_counters rows deliberately outlive them.
+SELECT
+    tenant_id,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE bucket >= $1 AND bucket < $2
+GROUP BY tenant_id ORDER BY tenant_id;
+
+-- name: operator-get-platform-usage-daily
+-- All tenants' usage over [$1, $2) per UTC day.
+SELECT
+    to_char(bucket AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'email_sent'), 0) AS emails_sent,
+    COALESCE(SUM(count) FILTER (WHERE kind = 'validation'), 0) AS validations
+FROM usage_counters
+WHERE bucket >= $1 AND bucket < $2
+GROUP BY 1 ORDER BY 1;

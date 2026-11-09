@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"html/template"
@@ -61,8 +62,14 @@ type tplData struct {
 	EnablePublicSubPage bool
 	EnablePublicArchive bool
 	IndividualTracking  bool
-	Data                any
-	L                   *i18n.I18n
+	// OrgName is the workspace's organization name, set on the admin
+	// sign-in pages under multi-tenancy.
+	OrgName string
+	// Langs and Lang drive the language picker on the sign-in pages.
+	Langs []i18nLang
+	Lang  string
+	Data  any
+	L     *i18n.I18n
 }
 
 type publicTpl struct {
@@ -82,6 +89,18 @@ type unsubTpl struct {
 	ShowManage       bool
 }
 
+// unsubbedTpl is the page shown after unsubscribing from a campaign's lists.
+type unsubbedTpl struct {
+	publicTpl
+	Email            string
+	Left             []string
+	Still            []string
+	CampUUID         string
+	SubUUID          string
+	AllowBlocklist   bool
+	AllowPreferences bool
+}
+
 type optinReq struct {
 	SubUUID   string
 	ListUUIDs []string      `query:"l" form:"l"`
@@ -91,23 +110,65 @@ type optinReq struct {
 type optinTpl struct {
 	publicTpl
 	optinReq
+	// Email is who asked to join, shown so the person can tell the request
+	// is theirs. Empty if the subscriber couldn't be read.
+	Email string
 }
 
 type msgTpl struct {
 	publicTpl
 	MessageTitle string
 	Message      string
+	// Link is an optional next step under the message, such as going back
+	// to the preferences that were just saved.
+	Link *msgLink
+}
+
+type msgLink struct {
+	URL   string
+	Label string
+}
+
+// captchaWidget is what a page needs to render the active captcha widget.
+type captchaWidget struct {
+	Enabled    bool
+	Provider   string
+	Key        string
+	Complexity int
+}
+
+// captchaWidget describes the configured captcha widget, in the same
+// provider order captcha.New picks (ALTCHA, Turnstile, hCaptcha).
+func (a *App) captchaWidget() captchaWidget {
+	cc := a.cfg.Security.Captcha
+	switch {
+	case cc.Altcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderAltcha, Complexity: cc.Altcha.Complexity}
+	case cc.Turnstile.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderTurnstile, Key: cc.Turnstile.Key}
+	case cc.HCaptcha.Enabled:
+		return captchaWidget{Enabled: true, Provider: captcha.ProviderHCaptcha, Key: cc.HCaptcha.Key}
+	}
+	return captchaWidget{}
+}
+
+// verifyCaptcha checks the captcha response in a submitted form.
+func (a *App) verifyCaptcha(c echo.Context) bool {
+	val := c.FormValue(a.captcha.FormField())
+	if val == "" {
+		return false
+	}
+	err, ok := a.captcha.Verify(val)
+	if err != nil {
+		a.log.Printf("captcha request failed: %v", err)
+	}
+	return ok
 }
 
 type subFormTpl struct {
 	publicTpl
 	Lists   []models.List
-	Captcha struct {
-		Enabled    bool
-		Provider   string
-		Key        string
-		Complexity int
-	}
+	Captcha captchaWidget
 }
 
 var (
@@ -121,6 +182,26 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		rootURL = c.Scheme() + "://" + c.Request().Host
 	}
 
+	app := c.Get("app").(*App)
+
+	// The sign-in pages name the workspace being signed in to.
+	var orgName string
+	if t.MultiTenancyEnabled && strings.HasPrefix(name, "admin-") {
+		if tn, ok := c.Get(models.TenantCtxKey).(*models.Tenant); ok {
+			if n, err := app.core.GetTenantOrganizationName(tn.ID); err == nil {
+				orgName = n
+			}
+		}
+	}
+
+	// The sign-in pages honour the visitor's picked language.
+	lang := app.i18n
+	var langs []i18nLang
+	if strings.HasPrefix(name, "admin-") {
+		langs = app.langList
+		lang = app.visitorI18n(c)
+	}
+
 	return t.templates.ExecuteTemplate(w, name, tplData{
 		SiteName:            t.SiteName,
 		RootURL:             rootURL,
@@ -130,8 +211,11 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		EnablePublicSubPage: t.EnablePublicSubPage,
 		EnablePublicArchive: t.EnablePublicArchive,
 		IndividualTracking:  t.IndividualTracking,
+		OrgName:             orgName,
 		Data:                data,
-		L:                   c.Get("app").(*App).i18n,
+		L:                   lang,
+		Langs:               langs,
+		Lang:                lang.T("_.code"),
 	})
 }
 
@@ -243,6 +327,9 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	// Only show preference management if it's enabled in settings.
 	if a.cfg.Privacy.AllowPreferences {
 		out.ShowManage = showManage
+		if showManage {
+			out.Title = a.i18n.T("public.manageTitle")
+		}
 
 		// Get the subscriber's lists from the DB to render in the template.
 		subs, err := a.core.GetSubscriptions(c.Request().Context(), tenantID(c), 0, subUUID, false)
@@ -262,6 +349,57 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	}
 
 	return c.Render(http.StatusOK, "subscription", out)
+}
+
+// renderUnsubscribed shows which lists the subscriber just left and which
+// they are still on, with a way to undo it. If the details can't be loaded
+// it falls back to the plain confirmation, since the unsubscribe succeeded.
+func (a *App) renderUnsubscribed(c echo.Context, subUUID, campUUID string, listIDs []int) error {
+	ctx := c.Request().Context()
+	sub, err := a.core.GetSubscriber(ctx, tenantID(c), 0, subUUID, "")
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+	subs, err := a.core.GetSubscriptions(ctx, tenantID(c), 0, subUUID, false)
+	if err != nil {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.unsubbedTitle"), "", a.i18n.T("public.unsubbedInfo")))
+	}
+
+	left, still := models.SplitUnsubscribed(subs, listIDs)
+	return c.Render(http.StatusOK, "unsubscribed", unsubbedTpl{
+		publicTpl:        publicTpl{Title: a.i18n.T("public.unsubbedTitle")},
+		Email:            sub.Email,
+		Left:             left,
+		Still:            still,
+		CampUUID:         campUUID,
+		SubUUID:          subUUID,
+		AllowBlocklist:   a.cfg.Privacy.AllowBlocklist,
+		AllowPreferences: a.cfg.Privacy.AllowPreferences,
+	})
+}
+
+// Resubscribe undoes an unsubscribe from a campaign's lists, for the
+// "Unsubscribed by mistake?" link on the page shown after unsubscribing.
+func (a *App) Resubscribe(c echo.Context) error {
+	var (
+		campUUID = c.Param("campUUID")
+		subUUID  = c.Param("subUUID")
+	)
+
+	listIDs, err := a.core.ResubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID)
+	if err != nil {
+		return c.Render(http.StatusInternalServerError, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+	}
+	if len(listIDs) == 0 {
+		return c.Render(http.StatusOK, tplMessage,
+			makeMsgTpl(a.i18n.T("public.resubNothingTitle"), "", a.i18n.T("public.resubNothing")))
+	}
+
+	return c.Render(http.StatusOK, tplMessage,
+		makeMsgTpl(a.i18n.T("public.resubTitle"), "", a.i18n.T("public.resubInfo")))
 }
 
 // SubscriptionPrefs renders the subscription management page and
@@ -287,9 +425,14 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 		blocklist = a.cfg.Privacy.AllowBlocklist && req.Blocklist
 	)
 	if !req.Manage || blocklist {
-		if err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist); err != nil {
+		listIDs, err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist)
+		if err != nil {
 			return c.Render(http.StatusInternalServerError, tplMessage,
 				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.errorProcessingRequest")))
+		}
+
+		if !blocklist {
+			return a.renderUnsubscribed(c, subUUID, campUUID, listIDs)
 		}
 
 		return c.Render(http.StatusOK, tplMessage,
@@ -355,8 +498,9 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 
 	}
 
-	return c.Render(http.StatusOK, tplMessage,
-		makeMsgTpl(a.i18n.T("globals.messages.done"), "", a.i18n.T("public.prefsSaved")))
+	out := makeMsgTpl(a.i18n.T("globals.messages.done"), "", a.i18n.T("public.prefsSaved"))
+	out.Link = &msgLink{URL: "?manage=true", Label: a.i18n.T("public.backToPrefs")}
+	return c.Render(http.StatusOK, tplMessage, out)
 }
 
 // OptinPage renders the double opt-in confirmation page that subscribers
@@ -395,6 +539,13 @@ func (a *App) OptinPage(c echo.Context) error {
 			makeMsgTpl(a.i18n.T("public.noSubTitle"), "", a.i18n.Ts("public.noSubInfo")))
 	}
 
+	// A blocklisted subscriber can't rejoin from an old confirmation link,
+	// same as on the subscription page.
+	sub, err := a.core.GetSubscriber(c.Request().Context(), tenantID(c), 0, subUUID, "")
+	if err == nil && sub.Status == models.SubscriberStatusBlockListed {
+		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("public.noSubTitle"), "", a.i18n.Ts("public.blocklisted")))
+	}
+
 	if confirm || !a.cfg.ShowOptinPage {
 		return a.confirmOptinSubscription(c, subUUID, req.ListUUIDs, lists)
 	}
@@ -402,6 +553,9 @@ func (a *App) OptinPage(c echo.Context) error {
 	var out optinTpl
 	out.Lists = lists
 	out.SubUUID = subUUID
+	if err == nil {
+		out.Email = sub.Email
+	}
 	out.Title = a.i18n.T("public.confirmOptinSubTitle")
 
 	return c.Render(http.StatusOK, "optin", out)
@@ -457,18 +611,11 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 
 	out := subFormTpl{}
 	out.Title = a.i18n.T("public.sub")
-	out.Lists = lists
+	// ?l=<list UUID> is a link to one list's form (Lists › Signup form).
+	out.Lists = models.ListsByUUID(lists, c.QueryParams()["l"])
 
 	// Captcha configuration for template rendering.
-	if a.cfg.Security.Captcha.Altcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "altcha"
-		out.Captcha.Complexity = a.cfg.Security.Captcha.Altcha.Complexity
-	} else if a.cfg.Security.Captcha.HCaptcha.Enabled {
-		out.Captcha.Enabled = true
-		out.Captcha.Provider = "hcaptcha"
-		out.Captcha.Key = a.cfg.Security.Captcha.HCaptcha.Key
-	}
+	out.Captcha = a.captchaWidget()
 
 	return c.Render(http.StatusOK, "subscription-form", out)
 }
@@ -487,34 +634,9 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 	}
 
 	// Process CAPTCHA.
-	if a.captcha.IsEnabled() {
-		var val string
-
-		// Get the appropriate captcha response field based on provider.
-		switch a.captcha.GetProvider() {
-		case captcha.ProviderHCaptcha:
-			val = c.FormValue("h-captcha-response")
-		case captcha.ProviderAltcha:
-			val = c.FormValue("altcha")
-		default:
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		if val == "" {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
-
-		err, ok := a.captcha.Verify(val)
-		if err != nil {
-			a.log.Printf("captcha request failed: %v", err)
-		}
-
-		if !ok {
-			return c.Render(http.StatusBadRequest, tplMessage,
-				makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
-		}
+	if a.captcha.IsEnabled() && !a.verifyCaptcha(c) {
+		return c.Render(http.StatusBadRequest, tplMessage,
+			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
 	}
 
 	hasOptin, err := a.processSubForm(c)
@@ -753,51 +875,59 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.noListsSelected"))
 	}
 
-	// Validate fields.
-	if len(req.Email) > 1000 {
-		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+	_, hasOptin, err := a.subscribe(c.Request().Context(), tenantID(c), models.Subscriber{
+		Name:   req.Name,
+		Email:  req.Email,
+		Status: models.SubscriberStatusEnabled,
+	}, req.FormListUUIDs)
+	return hasOptin, err
+}
+
+// subscribe signs someone up to public lists from a form: a new subscriber,
+// or an existing one added to the lists. It returns the subscriber's ID and
+// whether a list needs them to confirm.
+func (a *App) subscribe(ctx context.Context, tID int, sub models.Subscriber, uuids []string) (int, bool, error) {
+	if len(sub.Email) > 1000 {
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
 	}
 
-	imp, err := a.importers.Get(c.Request().Context(), tenantID(c))
+	imp, err := a.importers.Get(ctx, tID)
 	if err != nil {
-		return false, err
+		return 0, false, err
 	}
 
-	em, err := imp.SanitizeEmail(req.Email)
+	em, err := imp.SanitizeEmail(sub.Email)
 	if err != nil {
-		return false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	req.Email = em
+	sub.Email = em
 
-	req.Name = strings.TrimSpace(req.Name)
-	if len(req.Name) == 0 {
+	sub.Name = strings.TrimSpace(sub.Name)
+	if len(sub.Name) == 0 {
 		// If there's no name, use the name bit from the e-mail.
-		req.Name = strings.Split(req.Email, "@")[0]
-	} else if len(req.Name) > stdInputMaxLen {
-		return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
+		sub.Name = strings.Split(sub.Email, "@")[0]
+	} else if len(sub.Name) > stdInputMaxLen {
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidName"))
 	}
 
-	listUUIDs := pq.StringArray(req.FormListUUIDs)
+	listUUIDs := pq.StringArray(uuids)
 
 	// Fetch the list types and ensure that they are not private.
-	listTypes, err := a.core.GetListTypes(c.Request().Context(), tenantID(c), nil, req.FormListUUIDs)
+	listTypes, err := a.core.GetListTypes(ctx, tID, nil, uuids)
 	if err != nil {
-		return false, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%s", err.(*echo.HTTPError).Message))
+		return 0, false, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("%s", err.(*echo.HTTPError).Message))
 	}
 
 	for _, t := range listTypes {
 		if t == models.ListTypePrivate {
-			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
+			return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidUUID"))
 		}
 	}
-
-	ctx := c.Request().Context()
-	tID := tenantID(c)
 
 	// listIDs (as opposed to listUUIDs above) is only needed for the Scrub
 	// auto-pause check below -- resolved once, used on both the fresh-insert
 	// and resubscribe-existing branches.
-	listIDs, err := a.core.GetListIDsByUUIDs(ctx, tID, req.FormListUUIDs)
+	listIDs, err := a.core.GetListIDsByUUIDs(ctx, tID, uuids)
 	if err != nil {
 		listIDs = nil
 	}
@@ -809,40 +939,37 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 	// status instead.
 	scrubStatus := ""
 	if s, err := a.core.GetSettings(ctx, tID); err == nil {
-		status, reject := validateEmailForAdd(ctx, s, req.Email)
+		status, reject := validateEmailForAdd(ctx, s, sub.Email)
 		if reject {
-			return false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
+			return 0, false, echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("subscribers.invalidEmail"))
 		}
 		scrubStatus = status
 	}
 
 	// Insert the subscriber into the DB.
-	sub, hasOptin, err := a.core.InsertSubscriber(ctx, tID, models.Subscriber{
-		Name:   req.Name,
-		Email:  req.Email,
-		Status: models.SubscriberStatusEnabled,
-	}, nil, listUUIDs, false, true)
+	out, hasOptin, err := a.core.InsertSubscriber(ctx, tID, sub, nil, listUUIDs, false, true)
 	if err == nil {
 		if scrubStatus != "" {
-			if err := a.core.SetSubscriberScrubStatus(ctx, tID, sub.ID, scrubStatus); err != nil {
-				a.log.Printf("error setting scrub status on subscriber %d: %v", sub.ID, err)
+			if err := a.core.SetSubscriberScrubStatus(ctx, tID, out.ID, scrubStatus); err != nil {
+				a.log.Printf("error setting scrub status on subscriber %d: %v", out.ID, err)
 			}
 			if scrubStatus == scrub.StatusRisky {
 				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
 			}
 		}
-		return hasOptin, nil
+		return out.ID, hasOptin, nil
 	}
 
 	// Insert returned an error. Examine it.
 	var lastErr = err
 
-	// Subscriber already exists. Update subscriptions in the DB.
+	// Subscriber already exists. Update subscriptions in the DB. Their name
+	// and attributes stay as they are.
 	if e, ok := err.(*echo.HTTPError); ok && e.Code == http.StatusConflict {
 		// Get the subscriber from the DB by their email.
-		existing, err := a.core.GetSubscriber(ctx, tID, 0, "", req.Email)
+		existing, err := a.core.GetSubscriber(ctx, tID, 0, "", sub.Email)
 		if err != nil {
-			return false, err
+			return 0, false, err
 		}
 
 		// Update the subscriber's subscriptions in the DB.
@@ -853,14 +980,14 @@ func (a *App) processSubForm(c echo.Context) (bool, error) {
 			if existing.ScrubStatus.String == scrub.StatusRisky {
 				a.pauseCampaignsForRiskySubscriber(ctx, tID, listIDs)
 			}
-			return hasOptin, nil
+			return existing.ID, hasOptin, nil
 		}
 		lastErr = err
 	}
 
 	// Something else went wrong.
 	if e, ok := lastErr.(*echo.HTTPError); ok {
-		return false, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s", e.Message))
+		return 0, false, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("%s", e.Message))
 	}
-	return false, echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("public.errorProcessingRequest"))
+	return 0, false, echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("public.errorProcessingRequest"))
 }

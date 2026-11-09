@@ -40,6 +40,10 @@ type Subscriber struct {
 	// or unset (Scrub not configured for this tenant / a legacy row).
 	ScrubStatus    null.String `db:"scrub_status" json:"scrub_status"`
 	ScrubCheckedAt null.Time   `db:"scrub_checked_at" json:"scrub_checked_at"`
+
+	// LastOpenedAt is when they last opened a campaign, set only by
+	// subscriber searches (Subscribers' "Last opened" column).
+	LastOpenedAt null.Time `db:"last_opened_at" json:"last_opened_at"`
 } // @name Subscriber
 
 type subLists struct {
@@ -139,4 +143,41 @@ type SubscriberExportProfile struct {
 type SubscriberActivity struct {
 	CampaignViews json.RawMessage `db:"campaign_views" json:"campaign_views"`
 	LinkClicks    json.RawMessage `db:"link_clicks" json:"link_clicks"`
+
+	Engagement SubscriberEngagement `db:"-" json:"engagement"`
 } // @name SubscriberActivity
+
+// SubscriberEngagement is how many campaigns went to a subscriber's lists
+// while they were on them, and how many of those they opened and clicked.
+type SubscriberEngagement struct {
+	Campaigns    int       `db:"campaigns" json:"campaigns"`
+	Opened       int       `db:"opened" json:"opened"`
+	Clicked      int       `db:"clicked" json:"clicked"`
+	LastOpenedAt null.Time `db:"last_opened_at" json:"last_opened_at" swaggertype:"string"`
+} // @name SubscriberEngagement
+
+// SplitUnsubscribed names the public lists a subscriber just left
+// (unsubbedIDs) and the public lists they are still on, for the page shown
+// after unsubscribing. Private list names are never shown to subscribers.
+func SplitUnsubscribed(subs []Subscription, unsubbedIDs []int) (left, still []string) {
+	gone := make(map[int]struct{}, len(unsubbedIDs))
+	for _, id := range unsubbedIDs {
+		gone[id] = struct{}{}
+	}
+
+	left, still = []string{}, []string{}
+	for _, s := range subs {
+		if s.Type == ListTypePrivate {
+			continue
+		}
+		if _, ok := gone[s.ID]; ok {
+			left = append(left, s.Name)
+			continue
+		}
+		if s.SubscriptionStatus.String != SubscriptionStatusUnsubscribed {
+			still = append(still, s.Name)
+		}
+	}
+
+	return left, still
+}

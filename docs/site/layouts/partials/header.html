@@ -3,7 +3,7 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <title>{{ .Title }}</title>
-  <meta name="description" content="{{with .Description }}{{ . }}{{else}}Send e-mail campaigns and transactional e-mails. High performance and features packed into one app.{{end}}" />
+  <meta name="description" content="{{with .Description }}{{ . }}{{else}}Newsletters, signup forms and transactional email. Hosted at listnun.app, or self-hosted and open source.{{end}}" />
   <meta name="keywords" content="{{ if .Keywords }}{{ range .Keywords }}{{ . }}, {{ end }}{{else if isset .Params "tags" }}{{ range .Params.tags }}{{ . }}, {{ end }}{{end}}">
   <link rel="canonical" href="{{ .Permalink }}">
   <link href="https://fonts.googleapis.com/css?family=Inter:400,600" rel="stylesheet">
@@ -11,15 +11,15 @@
   <link href="{{ .Site.BaseURL }}static/style.css" rel="stylesheet" type="text/css" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-  <link rel="icon" href="{{ .Site.BaseURL }}static/images/favicon.webp" type="image/webp" />
+  <link rel="icon" href="{{ .Site.BaseURL }}static/images/listnun-mark.png" type="image/png" />
 
   <meta property="og:title" content="{{ .Title }}" />
   {{ if .Params.thumbnail }}
     <link rel="image_src" href="{{ .Site.BaseURL }}static/images/{{ .Params.thumbnail }}" />
     <meta property="og:image" content="{{ .Site.BaseURL }}static/images/{{ .Params.thumbnail }}" />
   {{ else }}
-    <link rel="image_src" href="{{ .Site.BaseURL }}static/images/thumbnail.webp" />
-    <meta property="og:image" content="{{ .Site.BaseURL }}static/images/thumbnail.webp" />
+    <link rel="image_src" href="{{ .Site.BaseURL }}static/images/listnun-mark.png" />
+    <meta property="og:image" content="{{ .Site.BaseURL }}static/images/listnun-mark.png" />
   {{ end }}
 </head>
 <body>
@@ -28,13 +28,14 @@
   <header class="header">
     <div class="row">
       <div class="col-2 logo">
-        <a href="{{ .Site.BaseURL }}"><img src="{{ .Site.BaseURL }}static/images/logo.svg" alt="Listnun logo" /></a>
+        <a href="{{ .Site.BaseURL }}" class="brand"><img src="{{ .Site.BaseURL }}static/images/listnun-mark.png" alt="" /><span>listnun</span></a>
       </div>
       <nav class="col-10">
-        <a class="item" href="/#download">Download</a>
-        <a class="item" href="/docs">Docs</a>
+        <a class="item" href="https://listnun.app">listnun.app</a>
+        <a class="item" href="{{ .Site.BaseURL }}#self-host">Self-host</a>
+        <a class="item" href="{{ .Site.BaseURL }}docs/">Docs</a>
         <div class="github-btn">
-          <a class="github-button" href="https://github.com/knadh/listmonk" data-size="large" data-show-count="true" aria-label="knadh/listnun on GitHub">GitHub</a>
+          <a class="github-button" href="https://github.com/nerd-zero/listnun" data-size="large" data-show-count="true" aria-label="nerd-zero/listnun on GitHub">GitHub</a>
         </div>
       </nav>
     </div>

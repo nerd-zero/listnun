@@ -9,18 +9,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import {
+  ref, onMounted, onUnmounted, watch,
+} from 'vue';
 import MediaPickerDialog from './MediaPickerDialog.vue';
 
 const props = withDefaults(defineProps<{
   source?: string;
   height?: string;
-}>(), { source: '', height: 'auto' });
+  dark?: boolean;
+}>(), { source: '', height: 'auto', dark: false });
 
 const emit = defineEmits(['change']);
 
 const visualEditorEl = ref<HTMLIFrameElement | null>(null);
 const isMediaVisible = ref(false);
+
+// The builder's chrome follows the app's light/dark mode. The first mode is
+// set directly before the first render, so there's no light flash (the
+// srcdoc frame has no URL to carry ?theme=). Toggles are posted as the
+// handover's listnun:theme message, which the builder checks the origin of.
+const THEME_MESSAGE = 'listnun:theme';
+
+function themeMode(): 'light' | 'dark' {
+  return props.dark ? 'dark' : 'light';
+}
+
+function applyTheme() {
+  const em = (visualEditorEl.value?.contentWindow as any)?.EmailBuilder;
+  em?.setThemeMode?.(themeMode());
+}
+
+function postTheme() {
+  visualEditorEl.value?.contentWindow?.postMessage({ type: THEME_MESSAGE, mode: themeMode() }, window.location.origin);
+}
 
 function loadScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -83,6 +105,7 @@ onMounted(() => {
     <!DOCTYPE html>
     <html>
       <head>
+        <link rel="stylesheet" href="/public/static/fonts/fonts.css">
         <style>
           body { margin: 0; padding: 0; }
           #visual-editor-container { width: 100%; height: 100%; }
@@ -96,6 +119,7 @@ onMounted(() => {
   iframe.onload = () => {
     loadScript().then(() => {
       const source = props.source ? JSON.parse(props.source) : null;
+      applyTheme();
       render(source);
     }).catch((error) => {
       console.error('Failed to load email-builder script:', error);
@@ -103,6 +127,9 @@ onMounted(() => {
   };
   window.addEventListener('message', onSidebarMount, false);
 });
+
+// The app's theme can be toggled while the editor is open.
+watch(() => props.dark, postTheme);
 
 onUnmounted(() => {
   window.removeEventListener('message', onSidebarMount, false);
@@ -114,7 +141,9 @@ defineExpose({ render });
 <style lang="css">
 .visual-editor-wrapper {
   width: 100%;
-  border: 1px solid #eaeaea;
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-card);
+  overflow: hidden;
   max-width: 100vw;
 }
 
