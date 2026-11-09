@@ -11,7 +11,7 @@ That's why this feature is behind a special permission `subscribers:sql_query` a
 ### Stored XSS via SVG
 In addition to images, listnun allows uploading of arbitrary file types, .html, .js, .svg, .* and does not transform or modify the files. That means, it is possible to have `<script>`s and other arbitrary content inside HTML and SVG files. It is not possible for listnun to have special checks or transformations for various file types, and many environments legitimately want SVGs and other filetypes to be uploaded.
 
-In a multi-user scenario, it is possible for an admin to decide what file types to allow (**Settings › Media uploads**). In an environment where SVG (or any other type) is considered risky, they can simply be disallowed from being uploaded.
+In a multi-user scenario, it is possible for an admin to decide what file types to allow (**Settings › File storage**). In an environment where SVG (or any other type) is considered risky, they can simply be disallowed from being uploaded.
 
 ### Stored XSS in campaign HTML
 listnun is a full-fledged HTML content management system (similar to WordPress). It allows campaign messages to have arbitrary HTML, including `<script>`s, which is a legitimate use case in many environments. While campaign previews within the admin are iframe-sandboxed, when a campaign is published as a webpage (archive view), it will obviously execute whatever `<script>` it has. This is expected of a content management and publishing system. In a multi-user scenario, it is up to the admin to give appropriate permissions to trusted users if they deem this undesirable.

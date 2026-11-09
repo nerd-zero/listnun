@@ -5,6 +5,7 @@
 | GET    | [/api/subscribers](#get-apisubscribers)                                                 | Query and retrieve subscribers.                |
 | GET    | [/api/subscribers/{subscriber_id}](#get-apisubscriberssubscriber_id)                    | Retrieve a specific subscriber.                |
 | GET    | [/api/subscribers/{subscriber_id}/export](#get-apisubscriberssubscriber_idexport)       | Export a specific subscriber.                  |
+| GET    | [/api/subscribers/{subscriber_id}/activity](#get-apisubscriberssubscriber_idactivity)   | A subscriber's opens, clicks and engagement.   |
 | GET    | [/api/subscribers/{subscriber_id}/bounces](#get-apisubscriberssubscriber_idbounces)     | Retrieve a  subscriber bounce records.         |
 | POST   | [/api/subscribers](#post-apisubscribers)                                                | Create a new subscriber.                       |
 | POST   | [/api/subscribers/{subscriber_id}/optin](#post-apisubscriberssubscribers_idoptin)        | Sends optin confirmation email to subscribers. |
@@ -728,3 +729,28 @@ curl -u 'api_username:access_token' -X POST 'http://localhost:9000/api/subscribe
     "data": true
 }
 ```
+
+______________________________________________________________________
+
+#### GET /api/subscribers/{subscriber_id}/activity
+
+A subscriber's campaign opens (`campaign_views`) and link clicks (`link_clicks`), and a summary of their engagement.
+
+##### Example Response
+
+```json
+{
+  "data": {
+    "campaign_views": [],
+    "link_clicks": [],
+    "engagement": {
+      "campaigns": 24,
+      "opened": 11,
+      "clicked": 3,
+      "last_opened_at": "2026-10-18T07:42:00Z"
+    }
+  }
+}
+```
+
+`engagement.campaigns` is how many campaigns reached them. listnun doesn't record sends per person, so this counts campaigns that started on one of their lists while they were on it, plus any they opened or clicked. `opened` and `clicked` are how many of those campaigns they opened and clicked, so `opened` is never more than `campaigns`.

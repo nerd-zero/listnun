@@ -31,8 +31,8 @@ See the [Templating reference](../templating.md) for everything you can use. **P
 
 **Campaigns › Media** is your workspace's library of images and files, used for images in campaigns, campaign attachments and your email logo.
 
-- Drop files on the upload area, or click to choose them. Uploads over your workspace's size limit (set in **Settings › Media uploads**) are refused.
+- Drop files on the upload area, or click to choose them. Uploads over your workspace's size limit (set in **Settings › File storage**) are refused.
 - Click a file to open it. Tick files to delete several at once.
 - The storage panel shows how much space your files use.
 
-Files are stored wherever your workspace is set up to keep them: on the server, or in S3-compatible storage. See [Settings](settings.md#media-uploads).
+Files are stored wherever your workspace is set up to keep them: on the server, or in S3-compatible storage. See [Settings](settings.md#file-storage).

@@ -1,9 +1,11 @@
 # Bounce processing
 
-Enable bounce processing in **Settings › Bounces**. POP3 bounce scanning and APIs only become available once the setting is enabled.
+Enable bounce processing in **Settings › Bounces and complaints**. POP3 bounce scanning and APIs only become available once the setting is enabled.
+
+Bounces are recorded against subscribers. A bounce for an address with no subscriber, such as a transactional email to a non-subscriber or a deleted subscriber, is skipped. To review and act on bounces in the app, see [Subscribers › Bounces](guides/subscribers.md#bounces).
 
 ## POP3 bounce mailbox
-Configure the bounce mailbox in **Settings › Bounces**. Either the "From" e-mail that is set on a campaign (or in settings) should have a POP3 mailbox behind it to receive bounce e-mails, or you should configure a dedicated POP3 mailbox and add that address as the `Return-Path` (envelope sender) header in **Settings › SMTP › Custom** headers box. For example:
+Configure the bounce mailbox in **Settings › Bounces and complaints**. Either the "From" e-mail that is set on a campaign (or in settings) should have a POP3 mailbox behind it to receive bounce e-mails, or you should configure a dedicated POP3 mailbox and add that address as the `Return-Path` (envelope sender) header in **Settings › Mail servers › Custom** headers box. For example:
 
 ```
 [

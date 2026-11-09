@@ -1,6 +1,8 @@
 # Querying and segmenting subscribers
 
-listnun allows the writing of partial Postgres SQL expressions to query, filter, and segment subscribers.
+For most groups of subscribers you don't need SQL: build a [segment](guides/subscribers.md#segments) from conditions on the **Subscribers** page instead, and save it for your team.
+
+For anything a segment can't express, listnun accepts partial Postgres SQL expressions to query, filter and segment subscribers. Writing them needs the `subscribers:sql_query` permission. **Edit as SQL** on the Subscribers page turns the current segment into its SQL, which is a good place to start.
 
 ## Database fields
 

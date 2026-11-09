@@ -4,7 +4,7 @@ listnun users have granular permissions to its features, including per-list perm
 
 ## User roles
 
-A user role is a collection of user related permissions. User roles are attached to user accounts. User roles are managed in **Workspace › Users › User roles**. The permissions are described below.
+A user role is a collection of user related permissions. User roles are attached to user accounts. User roles are managed in **Workspace › Team › Roles**. The permissions are described below.
 
 | Group       | Permission              | Description                                                                                                                                                                                                                          |
 | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -50,7 +50,7 @@ A list role is a collection of permissions assigned per list. Each list can be a
 
 Code that calls the API uses an [API key](developers/api-keys.md), not a user account. A key has its own **scopes** instead of a role, and can only do what its scopes allow.
 
-API users, user accounts of the "API" type, were how older versions did this. They've been turned into API keys. Existing ones keep working and are listed under **Workspace › Users › API users**, but new ones can't be created.
+API users, user accounts of the "API" type, were how older versions did this. They've been turned into API keys. Existing ones keep working and are listed, and can be migrated, under **Developers › API keys**, but new ones can't be created.
 
 ## `subscribers:sql_query`
 

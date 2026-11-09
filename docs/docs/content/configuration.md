@@ -71,7 +71,7 @@ When configuring auth proxies and web application firewalls, use this table.
 | `GET`       | `/public/*`           | Static files for HTML subscription pages      |
 | `GET`       | `/archive*`           | The public campaign archive and its RSS feed (`/archive.xml`) |
 | `POST`      | `/webhooks/service/*` | Bounce webhook endpoints for SES, Azure ACS, Sendgrid, Postmark and other supported providers |
-| `POST`      | `/webhooks/scrub/batch` | Mail Validation (Scrub) results |
+| `POST`      | `/webhooks/scrub/batch` | Email validation (Scrub) results |
 | `GET`       | `/uploads/*`          | The file upload path configured in media settings |
 | `GET`       | `/health`             | Health check for load balancers |
 
@@ -147,7 +147,7 @@ Docker logs to `/dev/stdout` and `/dev/stderr`. The logs are collected by the do
 
 listnun logs to `stdout`, which is usually not saved to any file. To save listnun logs to a file use `./listnun > listnun.log`.
 
-**Settings › Logs** in the admin app is each workspace's own activity log (settings changes, campaign and import events, webhook failures), kept in the database for 30 days. It isn't the server log.
+**Settings › Activity log** in the admin app is each workspace's own activity log (settings changes, campaign and import events, webhook failures), kept in the database for 30 days. It isn't the server log.
 
 For a systemd service, you can use `ExecStart=/bin/bash -ce "exec /usr/bin/listnun --config /etc/listnun/config.toml --static-dir /etc/listnun/static >>/etc/listnun/listnun.log 2>&1"` to create a log file that persists after restarts. [More info](https://github.com/knadh/listmonk/issues/1462#issuecomment-1868501606).
 
@@ -164,7 +164,7 @@ with any Timezone listed [here](https://en.wikipedia.org/wiki/List_of_tz_databas
 ## SMTP
 
 ### Retries
-**Settings › SMTP › Retries** denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.
+**Settings › Mail servers › Retries** denotes the number of times a message that fails at the moment of sending is retried silently using different connections from the SMTP pool. The messages that fail even after retries are the ones that are logged as errors and ignored.
 
 ## SMTP ports
 Some server hosts block outgoing SMTP ports (25, 465). You may have to contact your host to unblock them before being able to send e-mails. Eg: [Hetzner](https://docs.hetzner.com/cloud/servers/faq/#why-can-i-not-send-any-mails-from-my-server).

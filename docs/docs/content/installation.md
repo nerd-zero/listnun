@@ -80,8 +80,8 @@ The compose file configures listnun through `LISTNUN_*` environment variables. T
 
 ## After installing
 
-- Set up email sending under **Settings › SMTP**.
-- Put listnun behind a reverse proxy with HTTPS, and set **Settings › General › Root URL** to its public address. Links in emails use it.
+- Set up email sending under **Settings › Mail servers**.
+- Put listnun behind a reverse proxy with HTTPS, and set **Settings › Workspace › Root URL** to its public address. Links in emails use it.
 - Keep only the public routes reachable from the internet. See [Configuration](configuration.md#http-routes).
 - To host several workspaces on one instance, see [Workspaces and the operator API](operators/workspaces.md).
 - For media, see [Media storage](operators/media-storage.md).

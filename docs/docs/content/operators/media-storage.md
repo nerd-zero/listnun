@@ -1,6 +1,6 @@
 # Media storage
 
-Uploaded media (campaign images, attachments, logos) is stored either on the listnun server's disk or in S3-compatible object storage. Each workspace chooses in **Settings › Media uploads**.
+Uploaded media (campaign images, attachments, logos) is stored either on the listnun server's disk or in S3-compatible object storage. Each workspace chooses in **Settings › File storage**.
 
 ## Local filesystem
 
@@ -55,7 +55,7 @@ docker run -d --name listnun-s3 --restart unless-stopped \
   rustfs/rustfs:1.0.1
 ```
 
-Create a bucket in the console at `http://127.0.0.1:9201` (or with any S3 client) and give it the policy above. Then in **Settings › Media uploads**, choose **S3-compatible** with endpoint `http://127.0.0.1:9200`, region `us-east-1`, your bucket, and the keys. Links will be local, so images won't load in emails opened on other devices.
+Create a bucket in the console at `http://127.0.0.1:9201` (or with any S3 client) and give it the policy above. Then in **Settings › File storage**, choose **S3-compatible** with endpoint `http://127.0.0.1:9200`, region `us-east-1`, your bucket, and the keys. Links will be local, so images won't load in emails opened on other devices.
 
 ## Storage use
 

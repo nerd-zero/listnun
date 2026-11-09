@@ -42,7 +42,7 @@ The redesign adds 14 migrations, which `--upgrade` applies in order. Nothing nee
 | v6.28 | Media file sizes, for storage reporting. Existing files are measured in the background after the upgrade. |
 | v6.29 | Each API user becomes an API key. Old `username:token` pairs keep working until you disable them. See [API keys](developers/api-keys.md#keys-migrated-from-api-users). |
 | v6.30 | The "require two-step verification" and maximum upload size settings. |
-| v6.31 | The per-workspace activity log (**Settings › Logs**). |
+| v6.31 | The per-workspace activity log (**Settings › Activity log**). |
 | v6.32 | Inactive cleanup. It starts **off** in every workspace. |
 | v6.33 | Campaign tracking settings. Existing campaigns start with click tracking off, so they send as before. New campaigns have it on. |
 
