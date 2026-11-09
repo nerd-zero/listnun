@@ -184,6 +184,10 @@ nav {
   .splash .demo {
     margin-top: 30px;
   }
+  .splash .try {
+    color: #666;
+    font-size: 0.875em;
+  }
 
 .confetti {
   position: relative;

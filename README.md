@@ -8,6 +8,10 @@ listnun is a fork of [listmonk](https://github.com/knadh/listmonk) that adds mul
 
 Read the [documentation](https://nerd-zero.github.io/listnun/docs/) for more info.
 
+## Try it
+
+There's no public demo. To try listnun, sign up at [listnun.app](https://listnun.app) and create a workspace from the console. New organizations start with a 14-day free trial, and your workspace is ready in seconds with nothing to install.
+
 ## What listnun adds
 
 On top of everything listmonk does, listnun has:
