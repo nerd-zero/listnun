@@ -1,12 +1,18 @@
-[![listnun-logo](https://user-images.githubusercontent.com/547147/231084896-835dba66-2dfe-497c-ba0f-787564c0819e.png)](https://github.com/nerd-zero/listnun)
+<p align="center"><img src="frontend/src/assets/listnun-mark.png" alt="listnun" width="96" /></p>
+
+<h1 align="center">listnun</h1>
 
 listnun is a standalone, self-hosted, newsletter and mailing list manager. It is fast, feature-rich, and packed into a single binary. It uses a PostgreSQL database as its data store.
 
 listnun is a fork of [listmonk](https://github.com/knadh/listmonk) that adds multi-tenancy and other changes for running it as a hosted service.
 
-[![listnun-dashboard](https://github.com/user-attachments/assets/689b5fbb-dd25-4956-a36f-e3226a65f9c4)](https://github.com/nerd-zero/listnun)
+![The listnun campaigns overview](docs/docs/content/images/listnun-campaigns.png)
 
 Read the [documentation](https://nerd-zero.github.io/listnun/docs/) for more info.
+
+## Try it
+
+There's no public demo. To try listnun, sign up at [listnun.app](https://listnun.app) and create a workspace from the console. New organizations start with a 14-day free trial, and your workspace is ready in seconds with nothing to install.
 
 ## What listnun adds
 

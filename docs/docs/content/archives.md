@@ -28,5 +28,3 @@ As an example:
 }
 ```
 
-![Archive campaign](images/archived-campaign-metadata.png)
-
