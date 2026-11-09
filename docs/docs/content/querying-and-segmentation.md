@@ -36,11 +36,9 @@ Here's a sample JSON map of attributes assigned to an imaginary subscriber.
 }
 ```
 
-![listnun screenshot](images/edit-subscriber.png)
-
 ## Sample SQL query expressions
 
-![listnun](images/query-subscribers.png)
+On **Subscribers**, open the advanced search and enter an expression like the ones below.
 
 #### Find a subscriber by e-mail
 
