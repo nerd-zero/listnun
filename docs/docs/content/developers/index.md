@@ -14,22 +14,95 @@ The **Developers** area of the sidebar is for connecting your own systems to lis
 
 ## Quickstart
 
-1. **Create an API key** with the `tx:send` scope under **Developers › API keys**. Copy the secret. It's shown once.
-2. **Pick a transactional template** under **Developers › Email templates**, or create one. Note its ID.
-3. **Send a test** from your code:
+**Developers › Overview** walks you through four steps and ticks each one off as you go:
 
-    ```shell
-    curl -X POST https://yourcompany.listnun.app/api/tx \
-      -H "Authorization: token my-service:lnk_live_…" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "subscriber_email": "ada@example.com",
-        "template_id": 3,
-        "data": {"order_id": "1042", "total": "$25.00"}
-      }'
-    ```
+1. **Create an API key** with the `tx:send` scope under **Developers › API keys**, one per service. Copy the secret: it's shown once, so keep it in your secrets manager.
+2. **Pick a transactional template** under **Developers › Email templates**, or create one. Note its ID.
+3. **Send a test** from your code. The Overview shows the call in **curl**, **Node**, **Python** and **Go**, already filled in with your workspace's address, your key's name, your template's ID and its sample data. The examples read the secret from a `LISTNUN_API_KEY` environment variable and use HTTP Basic auth (key name as the username, secret as the password):
+
+    === "curl"
+
+        ```shell
+        curl -X POST https://yourcompany.listnun.app/api/tx \
+          -u "my-service:$LISTNUN_API_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "subscriber_email": "ada@example.com",
+            "template_id": 3,
+            "data": {"order_id": "1042", "total": "$25.00"}
+          }'
+        ```
+
+    === "Node"
+
+        ```js
+        const auth = Buffer.from(
+          `my-service:${process.env.LISTNUN_API_KEY}`,
+        ).toString("base64");
+
+        await fetch("https://yourcompany.listnun.app/api/tx", {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            subscriber_email: "ada@example.com",
+            template_id: 3,
+            data: { order_id: "1042", total: "$25.00" },
+          }),
+        });
+        ```
+
+    === "Python"
+
+        ```python
+        import os, requests
+
+        requests.post(
+            "https://yourcompany.listnun.app/api/tx",
+            auth=("my-service", os.environ["LISTNUN_API_KEY"]),
+            json={
+                "subscriber_email": "ada@example.com",
+                "template_id": 3,
+                "data": {"order_id": "1042", "total": "$25.00"},
+            },
+            timeout=10,
+        ).raise_for_status()
+        ```
+
+    === "Go"
+
+        ```go
+        body := strings.NewReader(`{
+          "subscriber_email": "ada@example.com",
+          "template_id": 3,
+          "data": {"order_id": "1042", "total": "$25.00"}
+        }`)
+        req, _ := http.NewRequest("POST", "https://yourcompany.listnun.app/api/tx", body)
+        req.SetBasicAuth("my-service", os.Getenv("LISTNUN_API_KEY"))
+        req.Header.Set("Content-Type", "application/json")
+        resp, err := http.DefaultClient.Do(req)
+        ```
+
+    The `Authorization: token my-service:<secret>` header works too. See [Auth](../apis/apis.md#auth).
 
 4. **Check the log** under **Developers › Message log**. The message appears within seconds, with a timeline from accepted to delivered or bounced.
+
+By default the recipient must already be a subscriber in your workspace, or the call fails with HTTP 400. To email anyone, for example receipts to guest customers, add `"subscriber_mode": "external"`. See the [Transactional API reference](../apis/transactional.md).
+
+### Let an AI assistant write it
+
+The **AI prompt** tab, next to the code tabs, gives you a prompt instead of code. Paste it into Claude, ChatGPT, Cursor or Copilot inside your project and it writes the integration in your own language and framework.
+
+The prompt is filled in with your workspace's address, key name, template ID and the template's variables. It also tells the assistant to:
+
+- keep the key on the server, read from `LISTNUN_API_KEY`, never in browser code,
+- use `subscriber_mode` when the recipients aren't subscribers,
+- retry only on HTTP 429 and 5xx, with backoff, and log 400s instead of retrying,
+- use a 10-second timeout and wrap the call in one reusable function.
+
+Review what the assistant writes like any other code before you ship it.
 
 ## The rest of the API
 

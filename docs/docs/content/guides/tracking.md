@@ -1,6 +1,6 @@
 # Tracking opens and clicks
 
-listnun can tell you who opened a campaign and which links they clicked. You set it up per campaign in the **Tracking** card on the **Content** step. Nothing needs adding to the email by hand.
+listnun can tell you who opened a campaign and which links they clicked, and, where it's set up, who replied ([Replies](campaigns.md#replies)). You set it up per campaign in the **Tracking** card on the **Content** step. Nothing needs adding to the email by hand.
 
 <div class="ui">
 <div class="ui-card" style="max-width: 560px; margin: 0 auto;">
@@ -56,5 +56,5 @@ listnun counts opens with its own tracking image, which the default templates in
 ## Why the numbers aren't exact
 
 - Many email apps block images until the reader allows them, and some load every image automatically to protect privacy. Open counts (yours and any pixel's) are therefore approximate. Clicks are reliable.
-- If **Settings › Privacy › Individual subscriber tracking** is off, listnun counts opens and clicks in total but not per subscriber.
-- If **Disable tracking** is on in **Settings › Privacy**, nothing is tracked at all, whatever the campaign says.
+- If **Settings › Privacy and consent › Individual subscriber tracking** is off, listnun counts opens and clicks in total but not per subscriber.
+- If **Disable tracking** is on in **Settings › Privacy and consent**, nothing is tracked at all, whatever the campaign says.

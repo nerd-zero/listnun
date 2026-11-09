@@ -7,10 +7,13 @@
 | GET    | [/api/campaigns/{campaign_id}/preview](#get-apicampaignscampaign_idpreview) | Retrieve preview of a campaign.           |
 | GET    | [/api/campaigns/running/stats](#get-apicampaignsrunningstats)               | Retrieve stats of specified campaigns.    |
 | GET    | [/api/campaigns/analytics/{type}](#get-apicampaignsanalyticstype)           | Retrieve view counts for a  campaign.     |
+| GET    | [/api/campaigns/overview](#get-apicampaignsoverview)                        | What's sending, scheduled, drafted and recently sent. |
+| GET    | [/api/campaigns/{campaign_id}/inbox-check](#get-apicampaignscampaign_idinbox-check) | Run the inbox check on a campaign.  |
+| GET    | [/api/campaigns/{campaign_id}/replies](#get-apicampaignscampaign_idreplies) | Retrieve a campaign's tracked replies.    |
 | POST   | [/api/campaigns](#post-apicampaigns)                                        | Create a new campaign.                    |
 | POST   | [/api/campaigns/{campaign_id}/test](#post-apicampaignscampaign_idtest)      | Test campaign with arbitrary subscribers. |
 | PUT    | [/api/campaigns/{campaign_id}](#put-apicampaignscampaign_id)                | Update a campaign.                        |
-| PUT    | [/api/campaigns/{campaign_id}/status](#put-apicampaignscampaign_idstatus)   | Change status of a campaign.              |
+| PUT    | [/api/campaigns/{campaign_id}/status](#put-apicampaignscampaign_idstatus)   | Change status of a campaign. Starting or scheduling one without an unsubscribe link fails with HTTP 400. |
 | PUT    | [/api/campaigns/{campaign_id}/archive](#put-apicampaignscampaign_idarchive) | Publish campaign to public archive.       |
 | DELETE | [/api/campaigns/{campaign_id}](#delete-apicampaignscampaign_id)             | Delete a campaign.                        |
 | DELETE | [/api/campaigns](#delete-apicampaigns)                                      | Delete multiple campaigns.                |
@@ -544,3 +547,98 @@ curl -u "api_user:token" -X DELETE 'http://localhost:9000/api/campaigns?query=te
     "data": true
 }
 ```
+
+______________________________________________________________________
+
+#### GET /api/campaigns/{campaign_id}/inbox-check
+
+Run the [inbox check](../guides/campaigns.md#inbox-check) on the campaign as saved. Returns every check in display order, passing or not. `id` names the check, `group` is `content`, `subject`, `sender` or `audience`, and `params` holds the figures the check's message uses, such as the email's size or the share of inactive subscribers. The checks never block sending.
+
+##### Example Response
+
+```json
+{
+  "data": [
+    {"id": "plainText", "group": "content", "pass": true},
+    {"id": "size", "group": "content", "pass": false, "params": {"kb": "131"}},
+    {"id": "subjectLength", "group": "subject", "pass": true},
+    {"id": "fromFreeMail", "group": "sender", "pass": true},
+    {"id": "inactive", "group": "audience", "pass": true}
+  ]
+}
+```
+
+______________________________________________________________________
+
+#### GET /api/campaigns/{campaign_id}/replies
+
+Retrieve the replies to a campaign that has [reply tracking](../guides/campaigns.md#replies) on, newest first.
+
+##### Parameters
+
+| Name     | Type   | Required | Description                 |
+| :------- | :----- | :------- | :-------------------------- |
+| page     | number |          | Page number for pagination. |
+| per_page | number |          | Results per page.           |
+
+##### Example Response
+
+```json
+{
+  "data": {
+    "results": [
+      {
+        "id": 12,
+        "uuid": "3f0e…",
+        "campaign_id": 7,
+        "subscriber_id": 1042,
+        "subscriber_email": "ada@example.com",
+        "subscriber_name": "Ada",
+        "from_email": "ada@example.com",
+        "from_name": "Ada",
+        "subject": "Re: Spring sale",
+        "text_body": "Do you ship to Bulawayo?\n\nOn Tue, … wrote: …",
+        "html_body": "",
+        "stripped_text": "Do you ship to Bulawayo?",
+        "is_auto": false,
+        "forwarded_to": "support@acme.com",
+        "forwarded_at": "2026-10-20T09:15:03Z",
+        "received_at": "2026-10-20T09:15:02Z"
+      }
+    ],
+    "counts": {"replies": 31, "repliers": 28, "auto": 4},
+    "total": 35,
+    "page": 1,
+    "per_page": 20
+  }
+}
+```
+
+`counts.replies` and `counts.repliers` leave out automatic replies (`is_auto`), which are counted in `counts.auto`. `stripped_text` is the reply without the quoted original, when the mail provider could separate it.
+
+______________________________________________________________________
+
+#### GET /api/campaigns/overview
+
+The data behind the Campaigns page: every running and paused campaign, the next 10 scheduled with their audience, the 3 latest drafts and the 4 latest sent with bounces, openers and clickers, plus how many campaigns are in each status. Limited to the lists you can see.
+
+##### Example Response
+
+```json
+{
+  "data": {
+    "campaigns": [
+      {
+        "id": 7, "uuid": "…", "name": "Spring sale", "status": "running",
+        "lists": [{"id": 3, "name": "Newsletter"}],
+        "audience": 5210, "to_send": 5210, "sent": 1800, "opened": 412, "clicked": 37, "bounced": 4,
+        "send_at": null, "started_at": "2026-10-20T09:00:00Z", "pause_reason": "",
+        "updated_at": "2026-10-20T08:55:00Z", "updated_by_name": "Ada"
+      }
+    ],
+    "counts": [{"status": "draft", "count": 5}, {"status": "finished", "count": 41}]
+  }
+}
+```
+
+`updated_by_name` is who last created or saved the campaign.

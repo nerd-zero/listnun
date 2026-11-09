@@ -1,10 +1,17 @@
 # SDKs and client libraries
 
-A list of 3rd party client libraries and SDKs that have been written for the listmonk APIs.
+listnun doesn't have official SDKs yet. For transactional email, the [Developers quickstart](../developers/index.md#quickstart) gives ready-to-paste code for curl, Node, Python and Go, filled in with your workspace's details, or a prompt for an AI assistant to write the integration in your own stack.
 
-!!! note
-	These are community projects built for upstream [listmonk](https://github.com/knadh/listmonk), which listnun is forked from. They target the listmonk API and have not been tested against listnun.
-	The list is community sourced. They have not been verified and are not officially supported.
+## Community listmonk libraries
+
+listnun is forked from [listmonk](https://github.com/knadh/listmonk), and the community libraries below were written for listmonk's API. Much of it is the same, so they may work for subscribers, lists and campaigns, but they haven't been tested against listnun and aren't supported. Before using one, check that:
+
+- it lets you set the base URL to your workspace's own address (`https://yourcompany.listnun.app`); each workspace has its own, and a key only works on its own workspace's address,
+- it authenticates with HTTP Basic auth or the `Authorization: token name:secret` header, so it can use an [API key](../developers/api-keys.md),
+- the endpoints you need are covered by your key's scopes (see [Permissions](apis.md#permissions)).
+
+Features that only exist in listnun, such as API keys, webhooks, the message log, segments and signup forms, aren't in these libraries.
+
 
 - [listmonk-ruby](https://github.com/polydice/listmonk-ruby) — Ruby API client
 - [WordPress - WooCommerce plugin](https://github.com/post-duif/integration-listmonk-wordpress-plugin) integration for listmonk

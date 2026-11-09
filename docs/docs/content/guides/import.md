@@ -1,65 +1,67 @@
 # Importing subscribers
 
-**Subscribers › Import** adds many subscribers at once from a CSV file. It takes three steps.
+**Subscribers › Import** adds many subscribers at once from a spreadsheet. It walks you through four steps, **Upload**, **Match columns**, **Choose options** and **Review**, and nothing is written until you click **Start import** on the last one.
 
-## 1. Upload file
+## 1. Upload
 
-Drop a `.csv` file on the upload area, or click to choose one. You can also upload a `.zip` containing a CSV.
+Drop a `.csv` file on the upload area, or choose one from your computer. A `.zip` with one CSV inside also works. Files can be up to 50 MB, and they need a column of email addresses. **Download a sample CSV** shows the layout.
 
-The first row must be the column names:
-
-| Column | Required | Notes |
-| :----- | :------- | :---- |
-| `email` | Yes | One address per row. |
-| `name` | No | The subscriber's name. |
-| `attributes` | No | Extra data as a JSON object, e.g. `{"city": "Harare", "plan": "pro"}`. |
+Column names can be anything: you match them up on the next step. Commas, semicolons, tabs and other separators are detected automatically.
 
 ```csv
-email,name,attributes
-ada@example.com,Ada Lovelace,"{""city"": ""London""}"
-alan@example.com,Alan Turing,
+Email,First name,City
+ada@example.com,Ada,London
+alan@example.com,Alan,
 ```
 
-Commas are the default separator. If your file uses another one, such as `;`, set it on the next step.
+The uploaded file is kept for two hours while you finish the steps. If it expires, upload it again.
 
-## 2. Options
+## 2. Match columns
 
-| Option | What it does |
-| :----- | :----------- |
-| **Mode** | **Subscribe** adds the people to lists. **Blocklist** blocklists every address in the file instead, so they never get email. |
-| **Lists** | The lists to add subscribers to (subscribe mode). |
-| **Subscription status** | **Unconfirmed** (they'll need to confirm, on double opt-in lists) or **Confirmed** (you already have their consent). |
-| **Overwrite user info** | When an email already exists, replace their name and attributes with the file's. Off keeps what you already have. |
-| **Overwrite subscription status** | When someone is already on a chosen list, set their subscription to the status above. This can resubscribe people who unsubscribed, so listnun asks you to confirm. |
-| **CSV delimiter** | The column separator, if it isn't a comma. |
+Each column of your file is listed with its first few values and a guess at what it holds. For each, choose what to **Save as**:
 
-## 3. Import
+| Save as | What happens |
+| :------ | :----------- |
+| **Email** | The subscriber's address. One column must be this. |
+| **Name** | The subscriber's name. |
+| **Attribute** | Saved to the subscriber's [attributes](../concepts.md#attributes) under the column's name, e.g. `city`. Any column you keep that isn't email or name is saved as an attribute. |
+| **Attributes (JSON)** | A column that already holds a JSON object, such as `{"city": "Harare", "plan": "pro"}`. |
+| **Don't import** | The column is ignored. |
 
-<div class="ui">
-<div class="ui-card">
-<div class="ui-card-head">Importing 4,250 of 10,000<span class="ui-tag is-warn">Importing</span></div>
-<div class="ui-card-pad ui-col">
-<div class="ui-bar"><span style="width: 36%"></span></div>
-<span class="ui-small"><span class="ui-mono">customers.csv</span>&emsp;4,250 / 10,000 records</span>
-<div class="ui-tiles"><div class="ui-tile"><span class="ui-small">Imported</span><b>4,250</b></div><div class="ui-tile"><span class="ui-small">Skipped</span><b>3</b><span class="ui-small">Malformed or invalid rows. The log lists each line.</span></div><div class="ui-tile"><span class="ui-small">Errors</span><b>0</b></div></div>
-<div class="ui-code"><span class="t">2026/10/22 18:06:41</span>  processing 'customers.csv'<br><span class="t">2026/10/22 18:06:41</span>  skipping line 18: invalid email: ada@@example<br><span class="t">2026/10/22 18:06:42</span>  imported 1000</div>
-</div>
-</div>
-<p class="ui-caption">An import part-way through.</p>
-</div>
+## 3. Choose options
 
-The import runs on the server, so you can leave the page and come back. While it runs you see a progress bar, the number written so far, and a live log. When it finishes you see:
+| Question | Choices |
+| :------- | :------ |
+| **What should happen to these people?** | **Add them as subscribers**, or **Block these addresses**: they never get email from this workspace and are unsubscribed from every list. |
+| **Add them to** | The lists to add them to. |
+| **Did they agree to hear from you?** | Only asked when a chosen list uses double opt-in. **Not sure, ask them**: they join once they click a confirmation email, which you send when the import is done. **Yes, they opted in**: they join straight away. Only pick this if you have their consent. |
+| **People already here** | Shown when some addresses in the file are already subscribers. **Leave them as they are** only adds new people. **Update their details** replaces their names and attributes with the file's. |
 
-- **Imported**: subscribers added or updated.
-- **Skipped**: rows left out because they were malformed, such as a bad email address or the wrong number of columns. Each one is in the log with the reason.
-- **Errors**: valid rows the database refused.
+## 4. Review and import
 
-Click **Download log** to keep a copy. **Done** clears the import so you can start another.
+Before anything is written, the Review step checks the whole file and tells you how many new subscribers there will be, how many people are already here (and whether they'll be updated or left alone), how many will need confirming, and which rows will be skipped and why. Click **Start import** to go ahead.
+
+The import runs on the server, so you can leave the page and come back. While it runs you see its progress and how long is left. When it finishes you see exactly how many people were added and how many were already here.
+
+Rows that weren't imported are listed with their row number in your spreadsheet, the value and the problem:
+
+- No email address
+- Not a valid email address
+- This email domain isn't allowed (see the domain lists in [Privacy and consent](settings.md#privacy-and-consent))
+- Wrong number of columns
+
+**Download these rows** saves them as a CSV, so you can fix them and import just those rows again.
+
+If new people need to confirm a double opt-in list, nothing is sent automatically. The finished import offers **Send confirmation emails**, which sends them the confirmation email. People who were sent one, or added to a list, in the last 24 hours are skipped, so nobody gets two in a row.
 
 Only one import runs at a time per workspace.
+
+## Recent imports
+
+Finished imports are listed under **Recent imports**, with how many people each added or blocked and how many rows it skipped.
 
 ## Tips
 
 - Large files are fine. Rows are written in batches, and the first ones show up in your subscriber list within a second or two.
 - Importing someone who's already on a list doesn't create a duplicate. An email address is one subscriber.
-- If your workspace uses [Mail Validation](settings.md#mail-validation), imported addresses are checked in the background after the import.
+- If your workspace uses [email validation](settings.md#email-validation), imported addresses are checked in the background after the import.

@@ -9,6 +9,10 @@
 | PUT    | [/api/lists/{list_id}](#put-apilistslist_id)    | Update a list.            |
 | DELETE | [/api/lists/{list_id}](#delete-apilistslist_id) | Delete a list.            |
 | DELETE | [/api/lists](#delete-apilists)                  | Delete multiple lists.    |
+| GET    | [/api/lists/growth](#get-apilistsgrowth)        | Joins and leaves per list over 30 days. |
+| GET    | [/api/lists/{list_id}/activity](#get-apilistslist_idactivity) | A list's daily joins and leaves and its latest campaigns. |
+| GET    | [/api/lists/optin/pending](#get-apilistsoptinpending) | Count people waiting to confirm a double opt-in subscription. |
+| POST   | [/api/lists/optin/resend](#post-apilistsoptinresend) | Resend confirmation emails to people waiting to confirm. |
 
 ______________________________________________________________________
 
@@ -293,4 +297,71 @@ curl -u "api_user:token" -X DELETE 'http://localhost:9000/api/lists?query=test%2
 {
     "data": true
 }
+```
+
+______________________________________________________________________
+
+#### GET /api/lists/growth
+
+How many people joined and left each list you can see over the last 30 days.
+
+##### Example Response
+
+```json
+{"data": [{"list_id": 3, "joined": 140, "left": 12}]}
+```
+
+
+______________________________________________________________________
+
+#### GET /api/lists/{list_id}/activity
+
+A list's joins and leaves per day over the last 30 days, their totals, and its 4 latest campaigns with how many people opened and clicked.
+
+##### Example Response
+
+```json
+{
+  "data": {
+    "joined": 140,
+    "left": 12,
+    "days": [{"day": "2026-10-21", "joined": 6, "left": 0}],
+    "campaigns": [
+      {"id": 7, "uuid": "…", "name": "Spring sale", "status": "finished", "send_at": null, "started_at": "2026-10-20T09:00:00Z", "sent": 5210, "opened": 2105, "clicked": 388}
+    ]
+  }
+}
+```
+
+
+______________________________________________________________________
+
+#### GET /api/lists/optin/pending
+
+How many people have a double opt-in subscription waiting for confirmation (`total`), and how many of them a resend would email now (`due`). People sent a confirmation, or added to a list, in the last 24 hours aren't due. Needs `subscribers:manage`.
+
+##### Example Response
+
+```json
+{"data": {"total": 84, "due": 61}}
+```
+
+
+______________________________________________________________________
+
+#### POST /api/lists/optin/resend
+
+Email a confirmation to everyone who's due one (see above), optionally only for some lists. It runs in the background; only one resend runs per workspace at a time. Returns how many emails were queued. Needs `subscribers:manage`.
+
+##### Example Request
+
+```shell
+curl -u "api_user:token" -X POST 'http://localhost:9000/api/lists/optin/resend' \
+  -H 'Content-Type: application/json' -d '{"list_ids": [3]}'
+```
+
+##### Example Response
+
+```json
+{"data": {"queued": 61}}
 ```

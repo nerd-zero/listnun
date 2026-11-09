@@ -93,6 +93,6 @@ export function verify(secret, header, rawBody, tolerance = 300) {
 
 Reply with any `2xx` status within **10 seconds** to accept a delivery. Do slow work after replying, not before.
 
-Anything else, including a timeout or an error, counts as a failure, and listnun tries again after 4 minutes, 15 minutes, 1 hour, 4 hours, then every 6 hours. A delivery gets **8 attempts**, about 23 hours in all, before it's marked failed and recorded in **Settings › Logs**.
+Anything else, including a timeout or an error, counts as a failure, and listnun tries again after 4 minutes, 15 minutes, 1 hour, 4 hours, then every 6 hours. A delivery gets **8 attempts**, about 23 hours in all, before it's marked failed and recorded in **Settings › Activity log**.
 
 The endpoint's page shows recent deliveries with their status, response code and timing. Open one to see the payload and your endpoint's reply, or **Retry** it by hand.

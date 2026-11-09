@@ -8,6 +8,19 @@ listnun is a fork of [listmonk](https://github.com/knadh/listmonk) that adds mul
 
 Read the [documentation](https://nerd-zero.github.io/listnun/docs/) for more info.
 
+## What listnun adds
+
+On top of everything listmonk does, listnun has:
+
+- **Workspaces**: many isolated workspaces on one instance, each on its own address, with an operator API to create, configure and bill them. [Docs](https://nerd-zero.github.io/listnun/docs/operators/workspaces/)
+- **Transactional email for developers**: scoped API keys, transactional templates with live preview, a message log, webhooks and email branding, plus a quickstart with curl, Node, Python and Go code or a prompt for your AI assistant. [Docs](https://nerd-zero.github.io/listnun/docs/developers/)
+- **Segments**: find and save groups of subscribers from conditions, with no SQL. [Docs](https://nerd-zero.github.io/listnun/docs/guides/subscribers/#segments)
+- **Signup forms**: saved forms shared as a hosted page, an embed or a popup, with per-form figures and Cloudflare Turnstile. [Docs](https://nerd-zero.github.io/listnun/docs/guides/lists-and-forms/#signup-forms)
+- **Safer sending**: campaigns can't go out without an unsubscribe link, and an inbox check flags what tends to land in spam before you send. [Docs](https://nerd-zero.github.io/listnun/docs/guides/campaigns/#review)
+- **Reply tracking**: see who replied to a campaign, with replies forwarded to your own inbox. [Docs](https://nerd-zero.github.io/listnun/docs/guides/campaigns/#replies)
+- **Guided import**: match columns, dry-run the import, and download the rows that didn't make it. [Docs](https://nerd-zero.github.io/listnun/docs/guides/import/)
+- **Inactive cleanup and email validation**: deal with subscribers who never open, and check addresses before they bounce. [Docs](https://nerd-zero.github.io/listnun/docs/guides/settings/#deliverability)
+
 ## Installation
 
 ### Docker

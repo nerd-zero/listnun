@@ -1,10 +1,24 @@
 # Writing and sending campaigns
 
-A campaign is an email you send to one or more lists. **Campaigns › All campaigns** lists them with their status and results; **Create new** starts one.
+A campaign is an email you send to one or more lists. **Campaigns › All campaigns** opens an overview of what's sending, what's next and what's done; **New campaign** starts one.
 
-The editor has four steps along the top. Once the campaign is created you can move between them freely. **Continue** saves the step you're on and moves to the next.
+## The campaigns overview
 
-## Settings
+| Section | What it shows |
+| :------ | :------------ |
+| **Paused** banner | One per paused campaign: how far it got and how many people are still waiting, with **Review** and **Resume sending**. |
+| **Sending now** | Each running campaign's progress (sent of total), speed, time left and opens so far, refreshed every couple of seconds, with **Pause** and **Live results**. |
+| **Up next** | Scheduled campaigns by day, with their lists and audience. |
+| **Drafts** | The latest three, with who edited them and when. **All drafts** shows the rest. |
+| **Sent** | The latest four, with delivered, open rate and click rate. **Show all sent** and **Compare in analytics** go further. |
+
+To find any campaign, use **Search campaigns**. Search, **All drafts** and **Show all sent** open the full table of campaigns, with filters and bulk actions.
+
+## The campaign editor
+
+The editor has four steps along the top: Settings, Content, Schedule and Review. Once the campaign is created you can move between them freely. **Continue** saves the step you're on and moves to the next.
+
+### Settings
 
 | Field | Notes |
 | :---- | :---- |
@@ -16,7 +30,7 @@ The editor has four steps along the top. Once the campaign is created you can mo
 
 **Advanced** holds the messenger (normally email), custom email headers, and campaign attributes: a JSON object you can use in the content as `{{ .Campaign.Attribs.* }}`.
 
-## Content
+### Content
 
 At the top, pick the **Format** and, for every format except Visual, the **Template** the content sits in (see [Templates and media](templates-and-media.md)).
 
@@ -33,20 +47,20 @@ Switching format converts what you've written, and some formatting may be lost, 
 Under the editor:
 
 - **Attachments**: click **Add attachments** to pick files from your [media library](templates-and-media.md#media). Each attached file is sent with every email, so keep them small.
-- **Tracking**: track link clicks and add tracking pixels. See [Tracking opens and clicks](tracking.md).
+- **Tracking**: track link clicks, add tracking pixels and, if your workspace has it, track replies. See [Tracking opens and clicks](tracking.md).
 - **Plain-text version**: for HTML formats, add a plain-text alternative for email apps that can't show HTML. Without one, those apps show nothing.
 
 **Preview** (or <kbd>F9</kbd>) shows the email as a subscriber will see it, with sample data.
 
 To personalise content, such as a subscriber's name, use template expressions like `{{ .Subscriber.Name }}`. See the [Templating reference](../templating.md).
 
-## Schedule
+### Schedule
 
 Choose **Send now** to start as soon as you confirm on the Review step, or **Schedule for later** and pick a date and time. Times are in your browser's time zone.
 
 **Archive** publishes the campaign on your public archive page, a web page listing past campaigns people can browse. Set the URL slug and the sample subscriber data shown in place of real names. See [Archives](../archives.md).
 
-## Review
+### Review
 
 <div class="ui">
 <div class="ui-col">
@@ -68,28 +82,60 @@ A checklist of everything worth checking before sending:
 - **Subject and sender** are set.
 - **Audience**: how many subscribers, on which lists.
 - **Content** isn't empty.
+- **Unsubscribe link**: the email must have one. See [The unsubscribe link](#the-unsubscribe-link).
 - **Test email**: amber until you've sent a test of exactly what's in the editor now. If you change the subject, content, attachments or tracking after testing, it turns amber again.
-- **Tracking**: whether link clicks are tracked, and how many pixels.
-- **Plain-text version** and **Schedule**.
+- **Tracking**: whether link clicks are tracked, how many pixels, and whether replies are tracked.
+- **Schedule**.
 
 Anything that needs attention has a button to fix it.
 
-### Send a test
+#### The unsubscribe link
+
+Gmail and Yahoo filter bulk email that has no visible unsubscribe link, so listnun won't start or schedule a campaign without one. The link counts if the campaign's content or its template has `{{ UnsubscribeURL }}` or `{{ ManageURL }}`. A **Visual** campaign doesn't use a template, so for those only the content counts.
+
+If it's missing, the Review step shows a blocking **Unsubscribe link** check and **Start campaign** is disabled. **Add unsubscribe link** adds a small footer with the link to the end of the content, in its own format. For a Visual campaign, it opens the email builder so you can add one to a footer block.
+
+You also can't remove the link from a campaign that's already scheduled. The template editor warns you when a campaign template has no unsubscribe link.
+
+#### Inbox check
+
+The **Inbox check** on the Review step looks at the campaign as last saved for what commonly sends email to spam. It lists only what fails, each with what to do about it. Passing checks are folded away under **Passing checks**. None of them stop you sending, but the send confirmation tells you how many warnings there are.
+
+| Group | Checks |
+| :---- | :----- |
+| **Content** | There's a plain-text version. The email is under Gmail's 102 KB limit, past which Gmail cuts it off and hides the rest, unsubscribe link included. It isn't mostly images. No links are empty, `#` or missing `https://`. No link shorteners. |
+| **Subject** | It isn't empty or long enough to be cut off on phones (about 60 characters). It isn't mostly capitals. No repeated `!!` or `$$`. No phrases spam filters score. |
+| **Sender** | The From address isn't on a free-mail domain such as gmail.com, which other servers can't send for. It's on the domain the workspace is set up to send from. |
+| **Audience** | At most half the audience has gone 90 days without opening or clicking, the same rule as [inactive cleanup](settings.md#inactive-subscribers). Over the last 30 days, the workspace's spam complaints stayed under 0.1% and hard bounces under 2% of its campaign email. |
+
+The complaint and bounce rates are only rated once the workspace has sent enough campaign email to measure them.
+
+#### Send a test
 
 Click **Send test** (on the Review step or at the top of the editor) and enter one or more email addresses. They must be subscribers in your workspace. The test uses what's in the editor, even if you haven't saved it, so you see exactly what will go out.
 
-### Start
+#### Start
 
 **Start campaign** (or **Schedule**) asks you to confirm, with the number of subscribers it goes to. If you haven't sent a test of this version, the confirmation says so.
 
 ## While it sends
 
-In **All campaigns**, a running campaign shows its progress. From its **⋯** menu you can **Pause** it and resume it later, **Cancel** it, **Unschedule** a scheduled one, or open its **Analytics**. The copy button on any campaign **clones** it, a quick way to start a new campaign from an old one.
+A running campaign shows on the overview under **Sending now**, where you can **Pause** it. A paused campaign gets a banner at the top; **Resume sending** picks up where it stopped, with the people still waiting.
 
-If your workspace uses [Mail Validation](settings.md#mail-validation), starting is held back while a list is still being validated.
+In the full table of campaigns, each campaign's **⋯** menu can also **Start**, **Schedule** or **Unschedule** it, **Cancel** it, or open its **Analytics**. The copy button on any campaign **clones** it, a quick way to start a new campaign from an old one.
+
+If your workspace uses [email validation](settings.md#email-validation), starting is held back while a list is still being validated.
 
 ## Results
 
 **Campaigns › Analytics** compares campaigns over time: views (opens), clicks, bounces split into hard and soft, and which links were clicked most. Pick the campaigns and the date range at the top.
 
 Opens are counted with a tracking image, which many email apps block until the reader allows images, so open counts are always a little low. Clicks are reliable. See [Tracking opens and clicks](tracking.md).
+
+## Replies
+
+If your workspace has reply tracking, the **Tracking** card on the Content step has a **Track replies** switch. It's off by default. If you don't see it, reply tracking isn't set up for your workspace.
+
+With it on, each email's Reply-To is a listnun reply address unique to that subscriber, so subscribers see that address when they reply. listnun records each reply and forwards it to the campaign's Reply-To address, or its From address if it has none, with the subscriber as the Reply-To. You can answer them straight from your own inbox.
+
+Once the campaign starts sending, a **Replies** card on the campaign shows how many replies came in, who replied, and each reply. Out-of-office and other automatic replies are kept and marked **Auto-reply**, but aren't counted as replies.
