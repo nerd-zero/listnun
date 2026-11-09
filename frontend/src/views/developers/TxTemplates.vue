@@ -48,7 +48,12 @@
           <span class="tpl-list-name">{{ tpl.name }}</span>
           <span class="ln-row-sub">{{ $t('developers.templates.usedWeek', { n: tpl.usedThisWeek.toLocaleString() }) }}</span>
         </router-link>
-        <router-link v-if="canManage" :to="{ name: 'devTemplate', params: { id: 'new' } }" class="tpl-list-new">
+        <router-link
+          v-if="canManage"
+          :to="{ name: 'devTemplate', params: { id: 'new' } }"
+          class="tpl-list-new"
+          @click.prevent="newTemplate"
+        >
           {{ $t('developers.templates.new') }}
         </router-link>
       </aside>
@@ -169,7 +174,7 @@
           :title="$t('developers.templates.emptyTitle')"
           :text="$t('developers.templates.emptyText')"
           :action-label="canManage ? $t('developers.templates.new') : ''"
-          @action="$router.push({ name: 'devTemplate', params: { id: 'new' } })"
+          @action="newTemplate"
         />
       </section>
     </div>
@@ -390,6 +395,17 @@ function guard(next: () => void) {
     next();
   };
   leave.open = true;
+}
+
+// Already on /new, the link resolves to the current route and the router
+// does nothing, so reset the draft to the starter here (behind the same
+// unsaved-changes prompt) instead of leaving the old draft in place.
+function newTemplate() {
+  if (route.params.id === 'new') {
+    guard(() => load('new'));
+    return;
+  }
+  router.push({ name: 'devTemplate', params: { id: 'new' } });
 }
 
 onBeforeRouteUpdate((to) => new Promise<boolean>((resolve) => {
