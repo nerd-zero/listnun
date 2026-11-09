@@ -1,6 +1,6 @@
-baseurl = "https://listnun.app/"
+baseurl = "https://nerd-zero.github.io/listnun/"
 languageCode = "en-us"
-title = "listnun - Free and open source self-hosted newsletter, mailing list manager, and transactional mails"
+title = "listnun - Newsletters, signup forms and transactional email, hosted or self-hosted"
 
 [taxonomies]
   tag = "tags"
