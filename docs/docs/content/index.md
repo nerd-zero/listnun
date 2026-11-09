@@ -2,6 +2,9 @@
 
 listnun is a newsletter and mailing list platform. You keep your subscribers in lists, write campaigns, send them, and see who opened and clicked. Developers can also send one-off transactional emails, such as receipts and password resets, through an API.
 
+!!! tip "Try it"
+    There's no public demo. To try listnun, sign up at [listnun.app](https://listnun.app) and create a workspace from the console. New organizations get a 14-day free trial.
+
 These docs are in three parts. Start with the one that fits you.
 
 <div class="grid cards" markdown>
