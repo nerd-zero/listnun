@@ -6,6 +6,8 @@ listnun is a standalone, self-hosted, newsletter and mailing list manager. It is
 
 listnun is a fork of [listmonk](https://github.com/knadh/listmonk) that adds multi-tenancy and other changes for running it as a hosted service.
 
+![The listnun campaigns overview](docs/docs/content/images/listnun-campaigns.png)
+
 Read the [documentation](https://nerd-zero.github.io/listnun/docs/) for more info.
 
 ## Try it
