@@ -2471,6 +2471,11 @@ definitions:
       delivery_id:
         type: string
     type: object
+  cmd.campaignAudience:
+    properties:
+      count:
+        type: integer
+    type: object
   cmd.cleanupStatus:
     properties:
       last_run:
@@ -2601,8 +2606,8 @@ definitions:
       campaigns_without_unsubscribe:
         description: |-
           CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe
-          link in their content or template, so they can't start or be
-          scheduled (see models.Campaign.HasUnsubscribeLink).
+          link in their content or template, likely to land in spam (see
+          models.Campaign.HasUnsubscribeLink).
         items:
           $ref: '#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef'
         type: array
@@ -3574,6 +3579,35 @@ paths:
           schema:
             $ref: '#/definitions/echo.HTTPError'
       summary: Get campaign analytics
+      tags:
+      - campaigns
+  /api/campaigns/audience:
+    get:
+      operationId: getCampaignAudience
+      parameters:
+      - collectionFormat: multi
+        description: List IDs
+        in: query
+        items:
+          type: integer
+        name: list_id
+        type: array
+      - description: 'Campaign type: regular (default) or optin'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.campaignAudience'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Count a campaign's audience
       tags:
       - campaigns
   /api/campaigns/auto-paused:
