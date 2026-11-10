@@ -3434,7 +3434,7 @@
 <tr>
 <td style="text-align: left;">PUT</td>
 <td style="text-align: left;"><a href="#put-apicampaignscampaign_idstatus">/api/campaigns/{campaign_id}/status</a></td>
-<td style="text-align: left;">Change status of a campaign. Starting or scheduling one without an unsubscribe link fails with HTTP 400.</td>
+<td style="text-align: left;">Change status of a campaign.</td>
 </tr>
 <tr>
 <td style="text-align: left;">PUT</td>
@@ -3453,6 +3453,7 @@
 </tr>
 </tbody>
 </table>
+<p>With an <a href="../../developers/api-keys/">API key</a>, reading campaigns, previews, stats and analytics needs the <code>campaigns:read</code> scope. Creating, changing, testing and deleting campaigns, and starting, scheduling, pausing or cancelling them, needs <code>campaigns:manage</code>. A key with <code>campaigns:manage</code> sends real email through the workspace's sending server, just like starting it in the app.</p>
 <hr />
 <h4 id="get-apicampaigns">GET /api/campaigns<a class="headerlink" href="#get-apicampaigns" title="Permanent link">&para;</a></h4>
 <p>Retrieve all campaigns.</p>

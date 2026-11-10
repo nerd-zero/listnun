@@ -2427,18 +2427,18 @@
 <p>A checklist of everything worth checking before sending:</p>
 <ul>
 <li><strong>Subject and sender</strong> are set.</li>
-<li><strong>Audience</strong>: how many subscribers, on which lists.</li>
+<li><strong>Audience</strong>: how many people the campaign will go to, on which lists. Each person counts once, however many of the lists they're on, and only people it will actually be sent to count: not unsubscribed or blocklisted people, nor, for a regular campaign, people who haven't confirmed a double opt-in list.</li>
 <li><strong>Content</strong> isn't empty.</li>
-<li><strong>Unsubscribe link</strong>: the email must have one. See <a href="#the-unsubscribe-link">The unsubscribe link</a>.</li>
+<li><strong>Unsubscribe link</strong>: whether the email has one. See <a href="#the-unsubscribe-link">The unsubscribe link</a>.</li>
 <li><strong>Test email</strong>: amber until you've sent a test of exactly what's in the editor now. If you change the subject, content, attachments or tracking after testing, it turns amber again.</li>
 <li><strong>Tracking</strong>: whether link clicks are tracked, how many pixels, and whether replies are tracked.</li>
 <li><strong>Schedule</strong>.</li>
 </ul>
 <p>Anything that needs attention has a button to fix it.</p>
 <h4 id="the-unsubscribe-link">The unsubscribe link<a class="headerlink" href="#the-unsubscribe-link" title="Permanent link">&para;</a></h4>
-<p>Gmail and Yahoo filter bulk email that has no visible unsubscribe link, so listnun won't start or schedule a campaign without one. The link counts if the campaign's content or its template has <code>{{ UnsubscribeURL }}</code> or <code>{{ ManageURL }}</code>. A <strong>Visual</strong> campaign doesn't use a template, so for those only the content counts.</p>
-<p>If it's missing, the Review step shows a blocking <strong>Unsubscribe link</strong> check and <strong>Start campaign</strong> is disabled. <strong>Add unsubscribe link</strong> adds a small footer with the link to the end of the content, in its own format. For a Visual campaign, it opens the email builder so you can add one to a footer block.</p>
-<p>You also can't remove the link from a campaign that's already scheduled. The template editor warns you when a campaign template has no unsubscribe link.</p>
+<p>Gmail and Yahoo filter bulk email that has no visible unsubscribe link, so listnun warns you when a campaign doesn't have one. The link counts if the campaign's content or its template has <code>{{ UnsubscribeURL }}</code> or <code>{{ ManageURL }}</code>. A <strong>Visual</strong> campaign doesn't use a template, so for those only the content counts.</p>
+<p>If it's missing, the Review step shows an amber <strong>Unsubscribe link</strong> check and the confirmation before sending says so. You can still send it. <strong>Add unsubscribe link</strong> adds a small footer with the link to the end of the content, in its own format. For a Visual campaign, it opens the email builder so you can add one to a footer block.</p>
+<p>The template editor warns you when a campaign template has no unsubscribe link.</p>
 <h4 id="inbox-check">Inbox check<a class="headerlink" href="#inbox-check" title="Permanent link">&para;</a></h4>
 <p>The <strong>Inbox check</strong> on the Review step looks at the campaign as last saved for what commonly sends email to spam. It lists only what fails, each with what to do about it. Passing checks are folded away under <strong>Passing checks</strong>. None of them stop you sending, but the send confirmation tells you how many warnings there are.</p>
 <table>

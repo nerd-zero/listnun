@@ -2234,7 +2234,55 @@
 </tr>
 <tr>
 <td style="text-align: left;"><code>subscribers:read</code></td>
-<td style="text-align: left;">Reading subscribers (<code>GET /api/subscribers…</code>)</td>
+<td style="text-align: left;">Reading subscribers and segments (<code>GET /api/subscribers…</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribers:manage</code></td>
+<td style="text-align: left;">Adding, changing, blocklisting and deleting subscribers, and their list memberships (<code>POST</code>/<code>PUT</code>/<code>PATCH</code>/<code>DELETE /api/subscribers…</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subscribers:import</code></td>
+<td style="text-align: left;"><code>/api/import/subscribers…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>lists:read</code></td>
+<td style="text-align: left;"><code>GET /api/lists…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>lists:manage</code></td>
+<td style="text-align: left;"><code>POST</code>/<code>PUT</code>/<code>DELETE /api/lists…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>campaigns:read</code></td>
+<td style="text-align: left;"><code>GET /api/campaigns…</code>, campaign analytics</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>campaigns:manage</code></td>
+<td style="text-align: left;">Creating, changing and deleting campaigns, and starting, pausing and cancelling them (<code>PUT /api/campaigns/{id}/status</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>templates:read</code></td>
+<td style="text-align: left;"><code>GET /api/templates…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>templates:manage</code></td>
+<td style="text-align: left;"><code>POST</code>/<code>PUT</code>/<code>DELETE /api/templates…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>media:read</code></td>
+<td style="text-align: left;"><code>GET /api/media…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>media:manage</code></td>
+<td style="text-align: left;"><code>POST</code>/<code>DELETE /api/media…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bounces:read</code></td>
+<td style="text-align: left;"><code>GET /api/bounces…</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>bounces:manage</code></td>
+<td style="text-align: left;"><code>DELETE /api/bounces…</code>, blocklisting bounced subscribers</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>keys:manage</code></td>
@@ -2246,7 +2294,8 @@
 </tr>
 </tbody>
 </table>
-<p>The other endpoints on these pages (lists, writing subscribers, imports, campaigns, templates, media, bounces) need a user's permissions, set by their <a href="../../roles-and-permissions/">user role and list role</a>. Today they're available to people signed in to the app, and to API users created before API keys existed, which keep working with their <code>username:token</code> pair. New API users can't be created, so new integrations are limited to the key scopes above.</p>
+<p>Some scopes need others and bring them along: <code>subscribers:manage</code> and <code>subscribers:import</code> add <code>lists:manage</code> (putting someone on a list needs it), <code>lists:manage</code> adds <code>lists:read</code>, <code>campaigns:read</code> adds <code>lists:read</code>, and <code>campaigns:manage</code> adds <code>campaigns:read</code>.</p>
+<p>Settings, users and roles aren't available to keys; they need someone signed in to the app. API users created before API keys existed keep working with their <code>username:token</code> pair and their role's permissions.</p>
 <hr />
 <h2 id="response-structure">Response structure<a class="headerlink" href="#response-structure" title="Permanent link">&para;</a></h2>
 <h3 id="successful-request">Successful request<a class="headerlink" href="#successful-request" title="Permanent link">&para;</a></h3>

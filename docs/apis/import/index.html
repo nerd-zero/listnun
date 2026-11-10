@@ -2620,7 +2620,7 @@
 </tr>
 </tbody>
 </table>
-<p>The app imports in two stages: it uploads the file first (<code>/file</code>), matches its columns and dry-runs the import (<code>/check</code>), then starts it with <code>POST /api/import/subscribers</code>, passing <code>file_id</code> and <code>columns</code> instead of a file. Sending a file straight to <code>POST /api/import/subscribers</code> still works as before. All of these need the <code>subscribers:import</code> permission.</p>
+<p>The app imports in two stages: it uploads the file first (<code>/file</code>), matches its columns and dry-runs the import (<code>/check</code>), then starts it with <code>POST /api/import/subscribers</code>, passing <code>file_id</code> and <code>columns</code> instead of a file. Sending a file straight to <code>POST /api/import/subscribers</code> still works as before. All of these need the <code>subscribers:import</code> permission; an <a href="../../developers/api-keys/">API key</a> needs the <code>subscribers:import</code> scope, which brings <code>lists:manage</code> with it so the import can add people to lists.</p>
 <hr />
 <h4 id="get-apiimportsubscribers">GET /api/import/subscribers<a class="headerlink" href="#get-apiimportsubscribers" title="Permanent link">&para;</a></h4>
 <p>Retrieve the status of an ongoing import.</p>
