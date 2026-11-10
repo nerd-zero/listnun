@@ -80,9 +80,9 @@ Choose **Send now** to start as soon as you confirm on the Review step, or **Sch
 A checklist of everything worth checking before sending:
 
 - **Subject and sender** are set.
-- **Audience**: how many subscribers, on which lists.
+- **Audience**: how many people the campaign will go to, on which lists. Each person counts once, however many of the lists they're on, and only people it will actually be sent to count: not unsubscribed or blocklisted people, nor, for a regular campaign, people who haven't confirmed a double opt-in list.
 - **Content** isn't empty.
-- **Unsubscribe link**: the email must have one. See [The unsubscribe link](#the-unsubscribe-link).
+- **Unsubscribe link**: whether the email has one. See [The unsubscribe link](#the-unsubscribe-link).
 - **Test email**: amber until you've sent a test of exactly what's in the editor now. If you change the subject, content, attachments or tracking after testing, it turns amber again.
 - **Tracking**: whether link clicks are tracked, how many pixels, and whether replies are tracked.
 - **Schedule**.
@@ -91,11 +91,11 @@ Anything that needs attention has a button to fix it.
 
 #### The unsubscribe link
 
-Gmail and Yahoo filter bulk email that has no visible unsubscribe link, so listnun won't start or schedule a campaign without one. The link counts if the campaign's content or its template has `{{ UnsubscribeURL }}` or `{{ ManageURL }}`. A **Visual** campaign doesn't use a template, so for those only the content counts.
+Gmail and Yahoo filter bulk email that has no visible unsubscribe link, so listnun warns you when a campaign doesn't have one. The link counts if the campaign's content or its template has `{{ UnsubscribeURL }}` or `{{ ManageURL }}`. A **Visual** campaign doesn't use a template, so for those only the content counts.
 
-If it's missing, the Review step shows a blocking **Unsubscribe link** check and **Start campaign** is disabled. **Add unsubscribe link** adds a small footer with the link to the end of the content, in its own format. For a Visual campaign, it opens the email builder so you can add one to a footer block.
+If it's missing, the Review step shows an amber **Unsubscribe link** check and the confirmation before sending says so. You can still send it. **Add unsubscribe link** adds a small footer with the link to the end of the content, in its own format. For a Visual campaign, it opens the email builder so you can add one to a footer block.
 
-You also can't remove the link from a campaign that's already scheduled. The template editor warns you when a campaign template has no unsubscribe link.
+The template editor warns you when a campaign template has no unsubscribe link.
 
 #### Inbox check
 

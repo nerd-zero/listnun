@@ -11,7 +11,7 @@ POST     | [/api/import/subscribers/check](#post-apiimportsubscriberscheck) | Dr
 GET      | [/api/import/subscribers/problems](#get-apiimportsubscribersproblems) | Rows the current or last import left out.
 GET      | [/api/import/subscribers/history](#get-apiimportsubscribershistory) | Recent finished imports.
 
-The app imports in two stages: it uploads the file first (`/file`), matches its columns and dry-runs the import (`/check`), then starts it with `POST /api/import/subscribers`, passing `file_id` and `columns` instead of a file. Sending a file straight to `POST /api/import/subscribers` still works as before. All of these need the `subscribers:import` permission.
+The app imports in two stages: it uploads the file first (`/file`), matches its columns and dry-runs the import (`/check`), then starts it with `POST /api/import/subscribers`, passing `file_id` and `columns` instead of a file. Sending a file straight to `POST /api/import/subscribers` still works as before. All of these need the `subscribers:import` permission; an [API key](../developers/api-keys.md) needs the `subscribers:import` scope, which brings `lists:manage` with it so the import can add people to lists.
 
 ______________________________________________________________________
 

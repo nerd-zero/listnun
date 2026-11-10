@@ -8,6 +8,8 @@ POST   | [/api/media](#post-apimedia)                         | Upload media fil
 DELETE | [/api/media/{media_id}](#delete-apimediamedia_id)    | Delete uploaded media file
 GET    | [/api/media/usage](#get-apimediausage)               | How much storage the workspace's media uses
 
+With an [API key](../developers/api-keys.md), reading media needs the `media:read` scope; uploading and deleting needs `media:manage`.
+
 ______________________________________________________________________
 
 #### GET /api/media

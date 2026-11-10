@@ -11,7 +11,7 @@ A segment is a group of subscribers described by conditions instead of SQL. See 
 | POST   | [/api/segments/count](#post-apisegmentscount)   | Count the people in one or more segments.  |
 | POST   | [/api/segments/sql](#post-apisegmentssql)       | Get the SQL condition a segment compiles to. |
 
-Reading and counting segments needs `subscribers:get_all` or `subscribers:get`. An [API key](../developers/api-keys.md) with the `subscribers:read` scope has this. Saving, changing and deleting them needs `subscribers:manage`.
+Reading and counting segments needs `subscribers:get_all` or `subscribers:get`. An [API key](../developers/api-keys.md) with the `subscribers:read` scope has this. Saving, changing and deleting them needs `subscribers:manage`, which a key gets from the `subscribers:manage` scope.
 
 ______________________________________________________________________
 
