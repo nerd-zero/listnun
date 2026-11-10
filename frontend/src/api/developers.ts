@@ -11,10 +11,42 @@ import {
   getWebhookDelivery as legacyGetWebhookDelivery,
 } from './index';
 
-export type APIKeyScope = 'tx:send' | 'tx:logs' | 'subscribers:read' | 'keys:manage' | 'webhooks:manage';
+// Every scope a key can be given, in the order the UI lists them;
+// mirrors models.APIKeyScopeOrder.
+export const API_KEY_SCOPES = [
+  'tx:send', 'tx:logs',
+  'subscribers:read', 'subscribers:manage', 'subscribers:import',
+  'lists:read', 'lists:manage',
+  'campaigns:read', 'campaigns:manage',
+  'templates:read', 'templates:manage',
+  'media:read', 'media:manage',
+  'bounces:read', 'bounces:manage',
+  'keys:manage', 'webhooks:manage',
+] as const;
 
-// Every scope a key can be given, in the order the UI lists them.
-export const API_KEY_SCOPES: APIKeyScope[] = ['tx:send', 'tx:logs', 'subscribers:read', 'keys:manage', 'webhooks:manage'];
+export type APIKeyScope = typeof API_KEY_SCOPES[number];
+
+// The scopes a scope can't work without; the server adds them to a key
+// too. Mirrors models.APIKeyScopeRequires.
+export const API_KEY_SCOPE_REQUIRES: Partial<Record<APIKeyScope, APIKeyScope[]>> = {
+  'subscribers:manage': ['lists:manage'],
+  'subscribers:import': ['lists:manage'],
+  'lists:manage': ['lists:read'],
+  'campaigns:read': ['lists:read'],
+  'campaigns:manage': ['campaigns:read'],
+};
+
+// withRequiredScopes adds what the given scopes need, in catalogue order.
+export function withRequiredScopes(scopes: readonly APIKeyScope[]): APIKeyScope[] {
+  const want = new Set<APIKeyScope>();
+  const add = (s: APIKeyScope) => {
+    if (want.has(s)) return;
+    want.add(s);
+    (API_KEY_SCOPE_REQUIRES[s] || []).forEach(add);
+  };
+  scopes.forEach(add);
+  return API_KEY_SCOPES.filter((s) => want.has(s));
+}
 
 export interface APIKey {
   id: number;

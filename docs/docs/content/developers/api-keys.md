@@ -33,6 +33,15 @@ A key can only do what its scopes allow. It has no other permissions, whatever i
 | `tx:send` | Sending transactional email (`POST /api/tx`) and resending logged messages. |
 | `tx:logs` | Reading the message log and sending stats. |
 | `subscribers:read` | Reading subscribers. |
+| `subscribers:manage` | Adding, updating, unsubscribing and deleting subscribers, and changing their lists. Adds `lists:manage`. |
+| `subscribers:import` | Importing subscribers in bulk. Adds `lists:manage`. |
+| `lists:read` | Reading lists. |
+| `lists:manage` | Creating, editing and deleting lists. Adds `lists:read`. |
+| `campaigns:read` | Reading campaigns and their analytics. Adds `lists:read`. |
+| `campaigns:manage` | Creating, editing, scheduling, sending, pausing and deleting campaigns. Adds `campaigns:read`. |
+| `templates:read` / `templates:manage` | Reading templates / creating, editing and deleting them. |
+| `media:read` / `media:manage` | Reading uploaded media / uploading and deleting it. |
+| `bounces:read` / `bounces:manage` | Reading bounces / deleting them and blocklisting bounced subscribers. |
 | `keys:manage` | Listing, creating, rotating and revoking API keys. |
 | `webhooks:manage` | Managing webhook endpoints and deliveries. |
 

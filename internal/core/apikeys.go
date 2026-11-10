@@ -45,6 +45,33 @@ func ValidAPIKeyScopes(scopes []string) bool {
 	return true
 }
 
+// WithRequiredAPIKeyScopes adds the scopes the given ones need
+// (models.APIKeyScopeRequires), keeping the catalogue's order.
+func WithRequiredAPIKeyScopes(scopes []string) []string {
+	want := make(map[string]bool, len(scopes))
+	var add func(s string)
+	add = func(s string) {
+		if want[s] {
+			return
+		}
+		want[s] = true
+		for _, r := range models.APIKeyScopeRequires[s] {
+			add(r)
+		}
+	}
+	for _, s := range scopes {
+		add(s)
+	}
+
+	out := make([]string, 0, len(want))
+	for _, s := range models.APIKeyScopeOrder {
+		if want[s] {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // APIKeyPermissions expands scopes into the permissions they grant.
 func APIKeyPermissions(scopes []string) []string {
 	var out []string
