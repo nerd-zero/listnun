@@ -107,7 +107,7 @@ type HistoryResult struct {
 	Email     string    `json:"email"`
 	Status    string    `json:"status"`
 	ErrorCode string    `json:"error_code"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt Timestamp `json:"created_at"`
 }
 
 // WebhookEnvelope is the outer shape of every event_callback delivery
@@ -118,7 +118,7 @@ type HistoryResult struct {
 type WebhookEnvelope struct {
 	EventID       string          `json:"event_id"`
 	EventType     string          `json:"event_type"`
-	CreatedAt     time.Time       `json:"created_at"`
+	CreatedAt     Timestamp       `json:"created_at"`
 	IntegrationID string          `json:"integration_id"`
 	Data          json.RawMessage `json:"data"`
 }
