@@ -162,6 +162,7 @@ type Queries struct {
 
 	CountInactiveSubscribers *sqlx.Stmt `query:"count-inactive-subscribers"`
 
+	CountCampaignAudience   *sqlx.Stmt `query:"count-campaign-audience"`
 	GetInboxCheckStats      *sqlx.Stmt `query:"get-inbox-check-stats"`
 	GetSendingHealth        *sqlx.Stmt `query:"get-sending-health"`
 	GetUnsentCampaignBodies *sqlx.Stmt `query:"get-unsent-campaign-bodies"`

@@ -35,6 +35,7 @@ func testCoreForInboxCheck(t *testing.T, pool *sqlx.DB) *Core {
 		db: pool,
 		q: &models.Queries{
 			GetInboxCheckStats:       prep("inboxcheck.sql", "get-inbox-check-stats"),
+			CountCampaignAudience:    prep("inboxcheck.sql", "count-campaign-audience"),
 			CountInactiveSubscribers: prep("cleanup.sql", "count-inactive-subscribers"),
 			GetSendingHealth:         prep("inboxcheck.sql", "get-sending-health"),
 			GetUnsentCampaignBodies:  prep("inboxcheck.sql", "get-unsent-campaign-bodies"),
@@ -87,7 +88,7 @@ func TestGetInboxCheckStats(t *testing.T) {
 	bounce(f.tenant, ana, camp, "complaint")
 	bounce(other.tenant, other.subscriber("zed@example.com", "enabled"), nil, "complaint")
 
-	got, err := c.GetInboxCheckStats(ctx, f.tenant, []int{double, single})
+	got, err := c.GetInboxCheckStats(ctx, f.tenant, models.CampaignTypeRegular, []int{double, single})
 	if err != nil {
 		t.Fatalf("GetInboxCheckStats: %v", err)
 	}
@@ -124,5 +125,53 @@ func TestGetInboxCheckStats(t *testing.T) {
 	}
 	if want := (CampaignRef{ID: blocked, Name: "No link", Status: "draft"}); len(h.CampaignsWithoutUnsubscribe) != 1 || h.CampaignsWithoutUnsubscribe[0] != want {
 		t.Errorf("campaigns without unsubscribe = %+v, want only %+v", h.CampaignsWithoutUnsubscribe, want)
+	}
+}
+
+// The audience counts each person once however many of the campaign's
+// lists they're on, and only who that kind of campaign goes to.
+func TestCountCampaignAudience(t *testing.T) {
+	pool := testPool(t)
+	c := testCoreForInboxCheck(t, rlsPool(t, pool))
+	ctx := context.Background()
+	day := 24 * time.Hour
+
+	f := newListFixture(t, pool)
+	double := f.list("Double", models.ListOptinDouble)
+	single := f.list("Single", models.ListOptinSingle)
+	other := f.list("Other", models.ListOptinSingle)
+
+	// Ana is on all three lists, so she counts once.
+	ana := f.subscriber("ana@example.com", "enabled")
+	f.subscribe(ana, double, "confirmed", day, day)
+	f.subscribe(ana, single, "confirmed", day, day)
+	f.subscribe(ana, other, "unconfirmed", day, day)
+	ben := f.subscriber("ben@example.com", "enabled")
+	f.subscribe(ben, single, "unconfirmed", day, day)
+	// Cara hasn't confirmed the double opt-in list: only an opt-in
+	// campaign goes to her.
+	cara := f.subscriber("cara@example.com", "enabled")
+	f.subscribe(cara, double, "unconfirmed", day, day)
+	f.subscribe(f.subscriber("dan@example.com", "enabled"), single, "unsubscribed", day, day)
+	f.subscribe(f.subscriber("eve@example.com", "blocklisted"), single, "confirmed", day, day)
+
+	for _, tc := range []struct {
+		name     string
+		campType string
+		lists    []int
+		want     int
+	}{
+		{"regular, overlapping lists", models.CampaignTypeRegular, []int{double, single, other}, 2},
+		{"regular, double opt-in only", models.CampaignTypeRegular, []int{double}, 1},
+		{"opt-in", models.CampaignTypeOptin, []int{double, single}, 1},
+		{"no lists", models.CampaignTypeRegular, nil, 0},
+	} {
+		got, err := c.CountCampaignAudience(ctx, f.tenant, tc.campType, tc.lists)
+		if err != nil {
+			t.Fatalf("%s: CountCampaignAudience: %v", tc.name, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: audience = %d, want %d", tc.name, got, tc.want)
+		}
 	}
 }
