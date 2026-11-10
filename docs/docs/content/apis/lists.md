@@ -14,6 +14,8 @@
 | GET    | [/api/lists/optin/pending](#get-apilistsoptinpending) | Count people waiting to confirm a double opt-in subscription. |
 | POST   | [/api/lists/optin/resend](#post-apilistsoptinresend) | Resend confirmation emails to people waiting to confirm. |
 
+With an [API key](../developers/api-keys.md), reading lists needs the `lists:read` scope and creating, changing or deleting them needs `lists:manage`. Counting and resending pending opt-in confirmations needs `subscribers:manage`.
+
 ______________________________________________________________________
 
 #### GET /api/lists

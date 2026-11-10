@@ -89,7 +89,8 @@ func (a *App) CreateAPIKey(c echo.Context) error {
 		createdBy = user.Username
 	}
 
-	out, err := a.core.CreateAPIKey(c.Request().Context(), tenantID(c), req.Name, req.Scopes, user.ID, createdBy)
+	scopes := core.WithRequiredAPIKeyScopes(req.Scopes)
+	out, err := a.core.CreateAPIKey(c.Request().Context(), tenantID(c), req.Name, scopes, user.ID, createdBy)
 	if err != nil {
 		return err
 	}
@@ -118,7 +119,8 @@ func (a *App) UpdateAPIKey(c echo.Context) error {
 		return err
 	}
 
-	out, err := a.core.UpdateAPIKeyScopes(c.Request().Context(), tenantID(c), getID(c), req.Scopes)
+	scopes := core.WithRequiredAPIKeyScopes(req.Scopes)
+	out, err := a.core.UpdateAPIKeyScopes(c.Request().Context(), tenantID(c), getID(c), scopes)
 	if err != nil {
 		return err
 	}
