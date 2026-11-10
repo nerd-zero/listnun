@@ -22,6 +22,8 @@
 | DELETE | [/api/subscribers](#delete-apisubscribers)                                              | Delete one or more subscribers.                |
 | POST   | [/api/subscribers/query/delete](#post-apisubscribersquerydelete)                        | Delete subscribers based on SQL expression.    |
 
+With an [API key](../developers/api-keys.md), reading subscribers needs the `subscribers:read` scope and creating, changing, blocklisting or deleting them, or changing their lists, needs `subscribers:manage`. Subscriber bounces need `bounces:read` / `bounces:manage`. The SQL `query` parameter needs the `subscribers:sql_query` user permission, which keys don't have: filter with a `segment` (see [Segments](segments.md)) or `list_id` instead.
+
 ______________________________________________________________________
 
 #### GET /api/subscribers

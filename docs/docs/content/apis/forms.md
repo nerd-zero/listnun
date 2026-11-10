@@ -10,7 +10,7 @@ Saved signup forms, as described in [Signup forms](../guides/lists-and-forms.md#
 | PUT    | [/api/forms/{id}](#put-apiformsid)              | Update, publish or unpublish a form.         |
 | DELETE | [/api/forms/{id}](#delete-apiformsid)           | Delete a form.                               |
 
-Reading forms needs the `lists:get_all` permission; creating, changing and deleting them needs `lists:manage_all`. These are user permissions: no [API key](../developers/api-keys.md) scope covers forms yet.
+Reading forms needs the `lists:get_all` permission; creating, changing and deleting them needs `lists:manage_all`. An [API key](../developers/api-keys.md) with the `lists:read` scope can read forms; `lists:manage` can also create, change and delete them.
 
 ______________________________________________________________________
 

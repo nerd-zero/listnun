@@ -6,6 +6,7 @@ GET      | [/api/bounces](#get-apibounces)                         | Retrieve bo
 DELETE   | [/api/bounces](#delete-apibounces)                      | Delete all/multiple bounce records.
 DELETE   | [/api/bounces/{bounce_id}](#delete-apibouncesbounce_id) | Delete specific bounce record.
 
+With an [API key](../developers/api-keys.md), reading bounces needs the `bounces:read` scope; deleting them and blocklisting bounced subscribers needs `bounces:manage`.
 
 ______________________________________________________________________
 

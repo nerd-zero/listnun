@@ -34,11 +34,25 @@ A key can only call the endpoints its scopes allow:
 | :---- | :-------- |
 | `tx:send` | `POST /api/tx`, resending logged messages |
 | `tx:logs` | `GET /api/developers/messages…`, `GET /api/developers/stats` |
-| `subscribers:read` | Reading subscribers (`GET /api/subscribers…`) |
+| `subscribers:read` | Reading subscribers and segments (`GET /api/subscribers…`) |
+| `subscribers:manage` | Adding, changing, blocklisting and deleting subscribers, and their list memberships (`POST`/`PUT`/`PATCH`/`DELETE /api/subscribers…`) |
+| `subscribers:import` | `/api/import/subscribers…` |
+| `lists:read` | `GET /api/lists…` |
+| `lists:manage` | `POST`/`PUT`/`DELETE /api/lists…` |
+| `campaigns:read` | `GET /api/campaigns…`, campaign analytics |
+| `campaigns:manage` | Creating, changing and deleting campaigns, and starting, pausing and cancelling them (`PUT /api/campaigns/{id}/status`) |
+| `templates:read` | `GET /api/templates…` |
+| `templates:manage` | `POST`/`PUT`/`DELETE /api/templates…` |
+| `media:read` | `GET /api/media…` |
+| `media:manage` | `POST`/`DELETE /api/media…` |
+| `bounces:read` | `GET /api/bounces…` |
+| `bounces:manage` | `DELETE /api/bounces…`, blocklisting bounced subscribers |
 | `keys:manage` | `/api/developers/keys…` |
 | `webhooks:manage` | `/api/developers/webhooks…` |
 
-The other endpoints on these pages (lists, writing subscribers, imports, campaigns, templates, media, bounces) need a user's permissions, set by their [user role and list role](../roles-and-permissions.md). Today they're available to people signed in to the app, and to API users created before API keys existed, which keep working with their `username:token` pair. New API users can't be created, so new integrations are limited to the key scopes above.
+Some scopes need others and bring them along: `subscribers:manage` and `subscribers:import` add `lists:manage` (putting someone on a list needs it), `lists:manage` adds `lists:read`, `campaigns:read` adds `lists:read`, and `campaigns:manage` adds `campaigns:read`.
+
+Settings, users and roles aren't available to keys; they need someone signed in to the app. API users created before API keys existed keep working with their `username:token` pair and their role's permissions.
 
 ______________________________________________________________________
 

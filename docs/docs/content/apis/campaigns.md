@@ -13,10 +13,12 @@
 | POST   | [/api/campaigns](#post-apicampaigns)                                        | Create a new campaign.                    |
 | POST   | [/api/campaigns/{campaign_id}/test](#post-apicampaignscampaign_idtest)      | Test campaign with arbitrary subscribers. |
 | PUT    | [/api/campaigns/{campaign_id}](#put-apicampaignscampaign_id)                | Update a campaign.                        |
-| PUT    | [/api/campaigns/{campaign_id}/status](#put-apicampaignscampaign_idstatus)   | Change status of a campaign. Starting or scheduling one without an unsubscribe link fails with HTTP 400. |
+| PUT    | [/api/campaigns/{campaign_id}/status](#put-apicampaignscampaign_idstatus)   | Change status of a campaign.              |
 | PUT    | [/api/campaigns/{campaign_id}/archive](#put-apicampaignscampaign_idarchive) | Publish campaign to public archive.       |
 | DELETE | [/api/campaigns/{campaign_id}](#delete-apicampaignscampaign_id)             | Delete a campaign.                        |
 | DELETE | [/api/campaigns](#delete-apicampaigns)                                      | Delete multiple campaigns.                |
+
+With an [API key](../developers/api-keys.md), reading campaigns, previews, stats and analytics needs the `campaigns:read` scope. Creating, changing, testing and deleting campaigns, and starting, scheduling, pausing or cancelling them, needs `campaigns:manage`. A key with `campaigns:manage` sends real email through the workspace's sending server, just like starting it in the app.
 
 ____________________________________________________________________________________________________________________________________
 

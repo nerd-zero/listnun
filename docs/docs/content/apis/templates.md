@@ -11,6 +11,8 @@
 | PUT    | [/api/templates/{template_id}/default](#put-apitemplatestemplate_iddefault) | Set default template           |
 | DELETE | [/api/templates/{template_id}](#delete-apitemplatestemplate_id)              | Delete a template              |
 
+With an [API key](../developers/api-keys.md), reading and previewing templates needs the `templates:read` scope; creating, changing, testing, deleting them and setting the default needs `templates:manage`.
+
 ______________________________________________________________________
 
 #### GET /api/templates

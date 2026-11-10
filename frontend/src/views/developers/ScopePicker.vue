@@ -3,7 +3,13 @@
     <legend class="ln-field-label">{{ $t('developers.keys.scopes') }}</legend>
     <p class="ln-help">{{ $t('developers.keys.scopesHelp') }}</p>
     <label v-for="s in API_KEY_SCOPES" :key="s" class="scope-option" :for="`scope-${s}`">
-      <PvCheckbox v-model="model" :value="s" :input-id="`scope-${s}`" />
+      <PvCheckbox
+        :model-value="model"
+        :value="s"
+        :input-id="`scope-${s}`"
+        :disabled="requiredByOthers.has(s)"
+        @update:model-value="(v: APIKeyScope[]) => (model = withRequiredScopes(v))"
+      />
       <span>
         <span class="ln-mono">{{ s }}</span>
         <span class="ln-row-sub">{{ $t(`developers.keys.scope.${s.replace(':', '_')}`) }}</span>
@@ -13,10 +19,19 @@
 </template>
 
 <script setup lang="ts">
-import { API_KEY_SCOPES, type APIKeyScope } from '../../api/developers';
+import { computed } from 'vue';
+import {
+  API_KEY_SCOPES, API_KEY_SCOPE_REQUIRES, withRequiredScopes, type APIKeyScope,
+} from '../../api/developers';
 
 // ScopePicker: a checkbox card per key scope. None are on by default.
+// Ticking a scope ticks the ones it needs, which stay ticked (and locked)
+// while something picked needs them.
 const model = defineModel<APIKeyScope[]>({ required: true });
+
+const requiredByOthers = computed(() => new Set(
+  model.value.flatMap((s) => API_KEY_SCOPE_REQUIRES[s] || []),
+));
 </script>
 
 <style scoped lang="scss">
