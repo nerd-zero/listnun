@@ -15,23 +15,27 @@ import (
 // InboxCheckStats is what the inbox check's audience checks read for a
 // campaign's lists (see internal/inboxcheck.Input).
 type InboxCheckStats struct {
-	Audience    int `db:"audience"`
+	Audience    int `db:"-"`
 	Inactive    int `db:"-"`
 	Sent        int `db:"sent"`
 	HardBounces int `db:"hard_bounces"`
 	Complaints  int `db:"complaints"`
 }
 
-// GetInboxCheckStats counts a campaign's audience on listIDs, how much of
+// GetInboxCheckStats counts the audience of a campaign of campType on
+// listIDs (see CountCampaignAudience), how much of
 // it hasn't engaged in inboxcheck.InactiveDays (the inactive cleanup's
 // rule), and the workspace's recent sends, hard bounces and complaints.
-func (c *Core) GetInboxCheckStats(ctx context.Context, tenantID int, listIDs []int) (InboxCheckStats, error) {
+func (c *Core) GetInboxCheckStats(ctx context.Context, tenantID int, campType string, listIDs []int) (InboxCheckStats, error) {
 	var out InboxCheckStats
 	if len(listIDs) == 0 {
 		return out, nil
 	}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		if err := stmtx(tx, c.q.GetInboxCheckStats).Get(&out, pq.Array(listIDs), inboxcheck.RecentDays); err != nil {
+		if err := stmtx(tx, c.q.GetInboxCheckStats).Get(&out, inboxcheck.RecentDays); err != nil {
+			return err
+		}
+		if err := stmtx(tx, c.q.CountCampaignAudience).Get(&out.Audience, pq.Array(listIDs), campType); err != nil {
 			return err
 		}
 		return stmtx(tx, c.q.CountInactiveSubscribers).Get(&out.Inactive,
@@ -43,6 +47,24 @@ func (c *Core) GetInboxCheckStats(ctx context.Context, tenantID int, listIDs []i
 			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
 	}
 	return out, nil
+}
+
+// CountCampaignAudience counts the subscribers a campaign of campType on
+// listIDs goes to: each once, by the rules sending uses.
+func (c *Core) CountCampaignAudience(ctx context.Context, tenantID int, campType string, listIDs []int) (int, error) {
+	var n int
+	if len(listIDs) == 0 {
+		return n, nil
+	}
+	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.CountCampaignAudience).Get(&n, pq.Array(listIDs), campType)
+	})
+	if err != nil {
+		c.log.Printf("error counting campaign audience: %v", err)
+		return 0, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
+	}
+	return n, nil
 }
 
 // unsentCampaignsChecked is how many of a workspace's latest unsent
@@ -59,8 +81,8 @@ type SendingHealth struct {
 	Complaints  int `db:"complaints" json:"complaints"`
 	inboxcheck.Rates
 	// CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe
-	// link in their content or template, so they can't start or be
-	// scheduled (see models.Campaign.HasUnsubscribeLink).
+	// link in their content or template, likely to land in spam (see
+	// models.Campaign.HasUnsubscribeLink).
 	CampaignsWithoutUnsubscribe []CampaignRef `db:"-" json:"campaigns_without_unsubscribe"`
 }
 

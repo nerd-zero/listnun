@@ -1,7 +1,6 @@
 // A tag that renders an unsubscribe or preferences link. Mirrors
-// models.Campaign.HasUnsubscribeLink, which refuses to start or schedule a
-// campaign without one: Gmail and Yahoo require a visible link from bulk
-// senders.
+// models.Campaign.HasUnsubscribeLink. The editor warns about a campaign
+// without one: Gmail and Yahoo require a visible link from bulk senders.
 const UNSUB_LINK_RE = /\{\{-?\s*(UnsubscribeURL|ManageURL)\b/;
 
 export function hasUnsubLink(src: string | null | undefined): boolean {

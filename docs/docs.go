@@ -599,6 +599,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/audience": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Count a campaign's audience",
+                "operationId": "getCampaignAudience",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "List IDs",
+                        "name": "list_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Campaign type: regular (default) or optin",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.campaignAudience"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/auto-paused": {
             "get": {
                 "produces": [
@@ -11147,6 +11191,14 @@ const docTemplate = `{
                 }
             }
         },
+        "cmd.campaignAudience": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
         "cmd.cleanupStatus": {
             "type": "object",
             "properties": {
@@ -11328,7 +11380,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "campaigns_without_unsubscribe": {
-                    "description": "CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe\nlink in their content or template, so they can't start or be\nscheduled (see models.Campaign.HasUnsubscribeLink).",
+                    "description": "CampaignsWithoutUnsubscribe are unsent campaigns with no unsubscribe\nlink in their content or template, likely to land in spam (see\nmodels.Campaign.HasUnsubscribeLink).",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_nerd-zero_listnun_internal_core.CampaignRef"

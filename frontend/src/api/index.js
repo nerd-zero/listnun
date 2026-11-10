@@ -333,6 +333,13 @@ export const updateCampaign = async (id, data) => http.put(
   { loading: models.campaigns },
 );
 
+// How many subscribers a campaign of type on listIDs goes to, counted the
+// way sending counts them.
+export const getCampaignAudience = async (listIDs, type) => http.get(
+  '/api/campaigns/audience',
+  { params: { list_id: listIDs, type } },
+);
+
 // The campaign's inbox check (internal/inboxcheck), as saved. Params keep
 // their case: they're the i18n placeholders.
 export const getCampaignInboxCheck = async (id) => http.get(

@@ -501,7 +501,6 @@ import TableSkeleton from '../components/ui/TableSkeleton.vue';
 import DialogForm from '../components/ui/DialogForm.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
 import { getSettings as settingsApi } from '../api/generated/endpoints/settings/settings';
-import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
 import { campaignHasUnsubLink, withUnsubFooter } from '../composables/unsubLink';
 
 // Campaigns, lists and templates are the API's loose camelCased objects.
@@ -650,19 +649,24 @@ const canSchedule = computed(() => ['draft', 'paused'].includes(data.value.statu
 const canUnSchedule = computed(() => data.value.status === 'scheduled');
 const canStart = computed(() => ['draft', 'paused'].includes(data.value.status) && !form.sendLater && !hasActiveScrubJob.value);
 
-// The app-wide lists are loaded without subscriber counts (minimal, see
-// App.vue), so fetch the count of each list the campaign goes to.
-const listCounts = ref<Record<number, number>>({});
-watch(() => (form.lists as Loose[]).map((l) => l.id).join(','), () => {
-  (form.lists as Loose[]).forEach((l) => {
-    if (l.id in listCounts.value) return;
-    listsApi().getList(l.id).then((d) => {
-      listCounts.value = { ...listCounts.value, [l.id]: (d as Loose).subscriberCount || 0 };
-    }).catch(() => {});
-  });
+// Who the campaign goes to, counted by the server the way sending counts
+// them: each person once however many of the lists they're on, without
+// unsubscriptions, blocklisted or (double opt-in) unconfirmed subscribers.
+// Adding up the lists' subscriber counts overcounts all of those.
+const audience = ref(0);
+let audienceSeq = 0;
+watch(() => [(form.lists as Loose[]).map((l) => l.id).join(','), data.value.type], () => {
+  const ids = (form.lists as Loose[]).map((l) => l.id);
+  audienceSeq += 1;
+  const seq = audienceSeq;
+  if (!ids.length) {
+    audience.value = 0;
+    return;
+  }
+  $api.getCampaignAudience(ids, data.value.type || 'regular').then((d: unknown) => {
+    if (seq === audienceSeq) audience.value = (d as { count: number }).count || 0;
+  }).catch(() => {});
 }, { immediate: true });
-
-const audience = computed(() => (form.lists as Loose[]).reduce((n, l) => n + (listCounts.value[l.id] || 0), 0));
 
 const selectedLists = computed(() => {
   if (selListIDs.value.length === 0 || !lists.value.results) return [];
@@ -676,8 +680,8 @@ const allMessengers = computed(() => {
 });
 const campaignTemplates = computed(() => ((templates.value as Loose[]) || []).filter((tpl) => tpl.type === 'campaign'));
 
-// Gmail and Yahoo filter bulk email without a visible unsubscribe link,
-// and the server refuses to start or schedule a campaign without one.
+// Gmail and Yahoo filter bulk email without a visible unsubscribe link.
+// A warning only: the sender decides whether to send without one.
 const hasUnsub = computed(() => {
   const tpl = campaignTemplates.value.find((x: Loose) => x.id === form.content.templateId);
   return campaignHasUnsubLink(form.content.contentType, String(form.content.body || ''), tpl?.body);
@@ -720,7 +724,6 @@ const primaryCy = computed(() => {
 const primaryDisabled = computed(() => {
   if (isNew.value) return !form.name || !form.subject || !canManage.value;
   if (step.value === 'review' && !canEdit.value && !canUnSchedule.value) return true;
-  if (step.value === 'review' && canSend.value && (canStart.value || canSchedule.value) && !hasUnsub.value) return true;
   return false;
 });
 
@@ -845,7 +848,7 @@ const checks = computed<Check[]>(() => {
     }
     : {
       key: 'unsub',
-      tone: 'bad',
+      tone: 'warn',
       title: t('campaigns.checkUnsub'),
       text: t(form.content.contentType === 'visual' ? 'campaigns.checkUnsubMissingVisual' : 'campaigns.checkUnsubMissing'),
       fix: canEdit.value ? {
@@ -1151,6 +1154,7 @@ function askSend() {
     text: [
       t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.text`, { n: audience.value.toLocaleString() }),
       testCurrent.value ? '' : t('campaigns.confirm.noTest'),
+      hasUnsub.value ? '' : t('campaigns.confirm.noUnsub'),
       inboxFailing.value.length ? t('campaigns.confirm.inboxWarnings', { n: inboxFailing.value.length }, inboxFailing.value.length) : '',
     ].filter(Boolean).join(' '),
     label: t(`campaigns.confirm.${scheduling ? 'scheduled' : 'running'}.action`),

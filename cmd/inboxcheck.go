@@ -78,7 +78,7 @@ func (a *App) GetCampaignInboxCheck(c echo.Context) error {
 			listIDs = append(listIDs, l.ID)
 		}
 	}
-	stats, err := a.core.GetInboxCheckStats(ctx, tenantID(c), listIDs)
+	stats, err := a.core.GetInboxCheckStats(ctx, tenantID(c), camp.Type, listIDs)
 	if err != nil {
 		return err
 	}
@@ -86,4 +86,46 @@ func (a *App) GetCampaignInboxCheck(c echo.Context) error {
 	in.Sent, in.HardBounces, in.Complaints = stats.Sent, stats.HardBounces, stats.Complaints
 
 	return c.JSON(http.StatusOK, okResp{inboxcheck.Run(in)})
+}
+
+// campaignAudience is how many subscribers a campaign goes to.
+type campaignAudience struct {
+	Count int `json:"count"`
+}
+
+// GetCampaignAudience counts the subscribers a campaign on the given lists
+// would go to: each person once however many of the lists they're on,
+// without unsubscriptions, blocklisted subscribers or (on double opt-in
+// lists) unconfirmed ones, the same as sending counts them. Lists'
+// subscriber counts can't be added up for this: they overlap and count
+// every subscription status.
+//
+//	@ID			getCampaignAudience
+//	@Summary		Count a campaign's audience
+//	@Tags			campaigns
+//	@Produce		json
+//	@Param			list_id	query		[]int	false	"List IDs"	collectionFormat(multi)
+//	@Param			type	query		string	false	"Campaign type: regular (default) or optin"
+//	@Success		200		{object}	campaignAudience
+//	@Failure		400		{object}	echo.HTTPError
+//	@Router			/api/campaigns/audience [get]
+func (a *App) GetCampaignAudience(c echo.Context) error {
+	listIDs, err := getQueryInts("list_id", c.QueryParams())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidID"))
+	}
+	campType := c.QueryParam("type")
+	if campType != models.CampaignTypeOptin {
+		campType = models.CampaignTypeRegular
+	}
+
+	// Only lists the user can see count.
+	user := auth.GetUser(c)
+	listIDs = user.FilterListsByPerm(auth.PermTypeGet|auth.PermTypeManage, listIDs)
+
+	n, err := a.core.CountCampaignAudience(c.Request().Context(), tenantID(c), campType, listIDs)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{campaignAudience{Count: n}})
 }
