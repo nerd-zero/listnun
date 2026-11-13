@@ -81,11 +81,10 @@ jobs:
           LISTNUN_db__database: listnun
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Frontend build + lint + unit tests
+  # Frontend build + lint + type check + unit tests
   # ──────────────────────────────────────────────────────────────────────────
-  # NOTE: vue-tsc type checking is not yet enforced here — there are ~120
-  # pre-existing type errors from the JS→TS migration that need to be resolved
-  # first. Add `yarn vue-tsc --noEmit` once those are fixed.
+  # The types step runs vue-tsc against the generated API client, so type
+  # errors fail the build like lint errors do.
   frontend:
     name: Frontend (${{ matrix.step }})
     runs-on: ubuntu-latest
@@ -93,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        step: [build, lint, unit]
+        step: [build, lint, types, unit]
 
     steps:
       - uses: actions/checkout@v4
@@ -122,6 +121,11 @@ jobs:
         if: matrix.step == 'lint'
         working-directory: frontend
         run: yarn lint
+
+      - name: Type check
+        if: matrix.step == 'types'
+        working-directory: frontend
+        run: npx vue-tsc --noEmit -p .
 
       - name: Unit tests
         if: matrix.step == 'unit'
