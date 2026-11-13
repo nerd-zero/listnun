@@ -47,13 +47,8 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		e.DefaultHTTPErrorHandler(err, c)
 	}
 
-	// Configure CORS middleware if domains are configured.
-	if corsOrigins := trustedURLsToCORSOrigins(a.cfg.Security.TrustedURLs); len(corsOrigins) > 0 {
-		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins: corsOrigins,
-			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-		}))
-	}
+	// CORS for the request workspace's own trusted URLs.
+	e.Use(a.tenantCORS)
 
 	// =================================================================
 	// Authenticated non /api handlers.
@@ -398,9 +393,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/public/lists", a.GetPublicLists)
 		g.POST("/api/public/subscription", a.PublicSubscription)
 		g.GET("/api/public/captcha/altcha", a.AltchaChallenge)
-		if a.cfg.EnablePublicArchive {
-			g.GET("/api/public/archive", a.GetCampaignArchives)
-		}
+		g.GET("/api/public/archive", a.archiveOn(a.GetCampaignArchives))
 
 		// /public/static/* file server is registered in initHTTPServer().
 		// Public subscriber facing views.
@@ -420,12 +413,11 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/campaign/:campUUID/:subUUID", noIndex(a.hasUUID(a.ViewCampaignMessage, "campUUID", "subUUID")))
 		g.GET("/campaign/:campUUID/:subUUID/px.png", noIndex(a.hasUUID(a.RegisterCampaignView, "campUUID", "subUUID")))
 
-		if a.cfg.EnablePublicArchive {
-			g.GET("/archive", a.CampaignArchivesPage)
-			g.GET("/archive.xml", a.GetCampaignArchivesFeed)
-			g.GET("/archive/:id", a.CampaignArchivePage)
-			g.GET("/archive/latest", a.CampaignArchivePageLatest)
-		}
+		// Always registered; each workspace's own setting turns them on.
+		g.GET("/archive", a.archiveOn(a.CampaignArchivesPage))
+		g.GET("/archive.xml", a.archiveOn(a.GetCampaignArchivesFeed))
+		g.GET("/archive/:id", a.archiveOn(a.CampaignArchivePage))
+		g.GET("/archive/latest", a.archiveOn(a.CampaignArchivePageLatest))
 
 		g.GET("/public/custom.css", serveCustomAppearance("public.custom_css"))
 		g.GET("/public/custom.js", serveCustomAppearance("public.custom_js"))
@@ -513,6 +505,34 @@ func serveCustomAppearance(name string) echo.HandlerFunc {
 		}
 
 		return c.Blob(http.StatusOK, hdr, []byte(out))
+	}
+}
+
+// archiveOn serves next only when the request workspace has its public
+// archive turned on (Settings › General), else 404. The routes used to be
+// registered from tenant 1's setting at boot, for every workspace.
+func (a *App) archiveOn(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if !a.ws(c).EnablePublicArchive {
+			return echo.ErrNotFound
+		}
+		return next(c)
+	}
+}
+
+// tenantCORS allows cross-origin requests from the request workspace's own
+// trusted URLs (Settings › Security). It used to be tenant 1's, for every
+// workspace.
+func (a *App) tenantCORS(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		origins := trustedURLsToCORSOrigins(a.ws(c).SecurityTrustedURLs)
+		if len(origins) == 0 {
+			return next(c)
+		}
+		return middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins: origins,
+			AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		})(next)(c)
 	}
 }
 

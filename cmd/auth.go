@@ -377,8 +377,8 @@ func (a *App) renderLoginPage(c echo.Context, loginErr error) error {
 		OIDCProviderLogo: oidcLogo,
 		NextURI:          next,
 	}
-	if a.captcha.OnLogin() {
-		out.Captcha = a.captchaWidget()
+	if a.captchaFor(c).OnLogin() {
+		out.Captcha = a.captchaWidget(c)
 	}
 
 	// If there was an error in the previous state (POST reqest), set it to render in the template.
@@ -490,7 +490,7 @@ func (a *App) doLogin(c echo.Context) error {
 
 	// The captcha is checked before the password so it also slows down
 	// password guessing.
-	if a.captcha.OnLogin() && !a.verifyCaptcha(c) {
+	if a.captchaFor(c).OnLogin() && !a.verifyCaptcha(c) {
 		return echo.NewHTTPError(http.StatusBadRequest, a.visitorI18n(c).T("public.invalidCaptcha"))
 	}
 
@@ -816,7 +816,7 @@ func (a *App) GenerateTOTPQR(c echo.Context) error {
 
 	// Generate a new TOTP key.
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      a.cfg.SiteName,
+		Issuer:      a.ws(c).AppSiteName,
 		AccountName: u.Email.String,
 	})
 	if err != nil {

@@ -54,7 +54,7 @@ func (a *App) GetCampaignArchives(c echo.Context) error {
 func (a *App) GetCampaignArchivesFeed(c echo.Context) error {
 	var (
 		pg              = a.pg.NewFromURL(c.Request().URL.Query())
-		showFullContent = a.cfg.EnablePublicArchiveRSSContent
+		showFullContent = a.ws(c).EnablePublicArchiveRSSContent
 	)
 
 	// Get archives from the DB.
@@ -84,7 +84,7 @@ func (a *App) GetCampaignArchivesFeed(c echo.Context) error {
 
 	// Generate the feed.
 	feed := &feeds.Feed{
-		Title:       a.cfg.SiteName,
+		Title:       a.ws(c).AppSiteName,
 		Link:        &feeds.Link{Href: rootURL},
 		Description: a.i18n.T("public.archiveTitle"),
 		Items:       out,

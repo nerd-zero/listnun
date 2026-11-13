@@ -29,7 +29,6 @@ import (
 	"github.com/jmoiron/sqlx/types"
 	"github.com/knadh/goyesql/v2"
 	goyesqlx "github.com/knadh/goyesql/v2/sqlx"
-	koanfmaps "github.com/knadh/koanf/maps"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
@@ -41,7 +40,6 @@ import (
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/bounce"
 	"github.com/nerd-zero/listnun/internal/bounce/mailbox"
-	"github.com/nerd-zero/listnun/internal/captcha"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/manager"
@@ -81,18 +79,13 @@ type UrlConfig struct {
 
 // Config contains static, constant config values required by arbitrary handlers and functions.
 type Config struct {
-	SiteName                      string   `koanf:"site_name"`
-	FromEmail                     string   `koanf:"from_email"`
-	NotifyEmails                  []string `koanf:"notify_emails"`
-	EnablePublicSubPage           bool     `koanf:"enable_public_subscription_page"`
-	EnablePublicArchive           bool     `koanf:"enable_public_archive"`
-	EnablePublicArchiveRSSContent bool     `koanf:"enable_public_archive_rss_content"`
-	ShowOptinPage                 bool     `koanf:"show_optin_page"`
-	Lang                          string   `koanf:"lang"`
-	DBBatchSize                   int      `koanf:"batch_size"`
-	MultiTenancyEnabled           bool     `koanf:"multi_tenancy_enabled"`
-	RootDomain                    string   `koanf:"root_domain"`
-	ConsoleURL                    string   `koanf:"console_url"`
+	FromEmail           string   `koanf:"from_email"`
+	NotifyEmails        []string `koanf:"notify_emails"`
+	Lang                string   `koanf:"lang"`
+	DBBatchSize         int      `koanf:"batch_size"`
+	MultiTenancyEnabled bool     `koanf:"multi_tenancy_enabled"`
+	RootDomain          string   `koanf:"root_domain"`
+	ConsoleURL          string   `koanf:"console_url"`
 	// WebhooksAllowPrivate lets webhook endpoints use plain HTTP and
 	// private or loopback addresses. For local development only.
 	WebhooksAllowPrivate bool `koanf:"webhooks_allow_private"`
@@ -102,19 +95,6 @@ type Config struct {
 		DBPassword string `koanf:"db_password"`
 		Env        string `koanf:"env"`
 	} `koanf:"operator"`
-	Privacy struct {
-		IndividualTracking bool            `koanf:"individual_tracking"`
-		DisableTracking    bool            `koanf:"disable_tracking"`
-		AllowPreferences   bool            `koanf:"allow_preferences"`
-		AllowBlocklist     bool            `koanf:"allow_blocklist"`
-		AllowExport        bool            `koanf:"allow_export"`
-		AllowWipe          bool            `koanf:"allow_wipe"`
-		RecordOptinIP      bool            `koanf:"record_optin_ip"`
-		UnsubHeader        bool            `koanf:"unsubscribe_header"`
-		Exportable         map[string]bool `koanf:"-"`
-		DomainBlocklist    []string        `koanf:"-"`
-		DomainAllowlist    []string        `koanf:"-"`
-	} `koanf:"privacy"`
 	Security struct {
 		OIDC struct {
 			Enabled           bool   `koanf:"enabled"`
@@ -126,26 +106,6 @@ type Config struct {
 			DefaultUserRoleID int    `koanf:"default_user_role_id"`
 			DefaultListRoleID int    `koanf:"default_list_role_id"`
 		} `koanf:"oidc"`
-
-		Captcha struct {
-			Altcha struct {
-				Enabled    bool `koanf:"enabled"`
-				Complexity int  `koanf:"complexity"`
-			} `koanf:"altcha"`
-			HCaptcha struct {
-				Enabled bool   `koanf:"enabled"`
-				Key     string `koanf:"key"`
-				Secret  string `koanf:"secret"`
-			} `koanf:"hcaptcha"`
-			Turnstile struct {
-				Enabled bool   `koanf:"enabled"`
-				Key     string `koanf:"key"`
-				Secret  string `koanf:"secret"`
-			} `koanf:"turnstile"`
-			Login bool `koanf:"login"`
-		} `koanf:"captcha"`
-
-		TrustedURLs []string `koanf:"trusted_urls"`
 	} `koanf:"security"`
 
 	HasLegacyUser bool
@@ -502,9 +462,6 @@ func initConstConfig(ko *koanf.Koanf) *Config {
 	if err := ko.Unmarshal("app", &c); err != nil {
 		lo.Fatalf("error loading app config: %v", err)
 	}
-	if err := ko.Unmarshal("privacy", &c.Privacy); err != nil {
-		lo.Fatalf("error loading app.privacy config: %v", err)
-	}
 	if err := ko.Unmarshal("security", &c.Security); err != nil {
 		lo.Fatalf("error loading app.security config: %v", err)
 	}
@@ -513,11 +470,8 @@ func initConstConfig(ko *koanf.Koanf) *Config {
 	}
 
 	c.Lang = ko.String("app.lang")
-	c.Privacy.Exportable = koanfmaps.StringSliceToLookupMap(ko.Strings("privacy.exportable"))
 	c.MediaUpload.Provider = ko.String("upload.provider")
 	c.MediaUpload.Extensions = ko.Strings("upload.extensions")
-	c.Privacy.DomainBlocklist = ko.Strings("privacy.domain_blocklist")
-	c.Privacy.DomainAllowlist = ko.Strings("privacy.domain_allowlist")
 
 	c.BounceWebhooksEnabled = ko.Bool("bounce.webhooks_enabled")
 	c.BounceSESEnabled = ko.Bool("bounce.ses_enabled")
@@ -957,15 +911,9 @@ func initHTTPServer(cfg *Config, urlCfg *UrlConfig, i *i18n.I18n, fs stuffbin.Fi
 	}
 	srv.Renderer = &tplRenderer{
 		templates:           tpl,
-		SiteName:            cfg.SiteName,
 		RootURL:             urlCfg.RootURL,
 		MultiTenancyEnabled: cfg.MultiTenancyEnabled,
-		LogoURL:             urlCfg.LogoURL,
-		FaviconURL:          urlCfg.FaviconURL,
 		AssetVersion:        cfg.AssetVersion,
-		EnablePublicSubPage: cfg.EnablePublicSubPage,
-		EnablePublicArchive: cfg.EnablePublicArchive,
-		IndividualTracking:  cfg.Privacy.IndividualTracking,
 	}
 
 	// Initialize the static file server.
@@ -1008,14 +956,6 @@ func initHTTPServer(cfg *Config, urlCfg *UrlConfig, i *i18n.I18n, fs stuffbin.Fi
 }
 
 // initCaptcha initializes the captcha service.
-func initCaptcha() *captcha.Captcha {
-	var opt captcha.Opt
-	if err := ko.Unmarshal("security.captcha", &opt); err != nil {
-		lo.Fatalf("error loading captcha config: %v", err)
-	}
-
-	return captcha.New(opt)
-}
 
 // initCron initializes cron jobs for slow query cache refresh and database vacuum.
 func initCron(co *core.Core, db *sqlx.DB) {

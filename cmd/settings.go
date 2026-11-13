@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -368,6 +369,8 @@ func (a *App) UpdateSettings(c echo.Context) error {
 
 	// The two-step verification requirement may have changed.
 	a.twofa.forget(tenantID(c))
+	a.settings.invalidate(tenantID(c))
+	a.importers.invalidate(tenantID(c))
 	a.core.LogActivity(tenantID(c), models.ActivityInfo, "settings", fmt.Sprintf("settings saved by %s", auth.GetUser(c).Username))
 
 	// SMTP/upload/OIDC settings can be applied by invalidating that
@@ -379,7 +382,7 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	// restart is put off, and these groups shouldn't wait for it.
 	changes := diffSettingsGroups(cur, set)
 	a.invalidateTenantCaches(tenantID(c), changes)
-	if changes.other {
+	if changes.other && a.restartsProcess(tenantID(c)) {
 		return a.handleSettingsRestart(c)
 	}
 
@@ -448,6 +451,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	// diffSettingsGroups. Anything outside those still needs the full
 	// restart.
 	a.twofa.forget(tenantID(c))
+	a.settings.invalidate(tenantID(c))
+	a.importers.invalidate(tenantID(c))
 	a.core.LogActivity(tenantID(c), models.ActivityInfo, "settings", fmt.Sprintf("%s changed by %s", key, auth.GetUser(c).Username))
 	switch {
 	case key == "smtp":
@@ -458,8 +463,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		a.auth.InvalidateOIDC(tenantID(c))
 	case key == "privacy.disable_tracking" || key == "privacy.individual_tracking":
 		a.tracking.invalidate(tenantID(c))
-	case key == "inactive_cleanup":
-		// Read fresh by the scheduler on every tick.
+	case isLiveSetting(key), !a.restartsProcess(tenantID(c)):
+		// Applies without a restart (see liveSettings).
 	default:
 		return a.handleSettingsRestart(c)
 	}
@@ -479,39 +484,75 @@ type tenantCacheChanges struct {
 	other    bool
 }
 
-// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC/tracking fields so the
-// remainder can be compared to detect changes outside those groups.
-func withoutTenantCachedGroups(s models.Settings) models.Settings {
-	var zero models.Settings
-	s.SMTP = nil
-	s.OIDC = zero.OIDC
-	s.UploadProvider = ""
-	s.UploadExtensions = nil
-	s.UploadFilesystemUploadPath = ""
-	s.UploadFilesystemUploadURI = ""
-	s.UploadS3URL = ""
-	s.UploadS3PublicURL = ""
-	s.UploadS3AwsAccessKeyID = ""
-	s.UploadS3AwsDefaultRegion = ""
-	s.UploadS3AwsSecretAccessKey = ""
-	s.UploadS3Bucket = ""
-	s.UploadS3BucketDomain = ""
-	s.UploadS3BucketPath = ""
-	s.UploadS3BucketType = ""
-	s.UploadS3Expiry = ""
-	s.PrivacyDisableTracking = false
-	s.PrivacyIndividualTracking = false
-	// The cleanup scheduler reads settings on every tick, so no restart.
-	s.InactiveCleanup = zero.InactiveCleanup
-	return s
+// liveSettings take effect without a restart: they're read per workspace
+// where they're used, or through a per-workspace cache a save clears
+// (tenantSettings, tenantMessengers, tenantMedia, tenantTracking, the OIDC
+// cache, tenantImporters, twofa). Anything else is read once at boot from
+// tenant 1's settings and process-wide - the sending rate and
+// concurrency, crons, language, postback messengers, bounce mailboxes, the
+// root URL - and needs a restart. A setting added to models.Settings later
+// falls on the restart side until it's listed here.
+var liveSettings = map[string]bool{
+	"smtp": true, "security.oidc": true, "inactive_cleanup": true, "scrub": true, "branding": true,
+	"app.site_name": true, "app.logo_url": true, "app.favicon_url": true,
+	"app.from_email": true, "app.notify_emails": true, "app.send_optin_confirmation": true,
+	"app.enable_public_subscription_page": true, "app.enable_public_archive": true,
+	"app.enable_public_archive_rss_content": true, "app.show_optin_page": true,
+	"privacy.individual_tracking": true, "privacy.disable_tracking": true,
+	"privacy.allow_blocklist": true, "privacy.allow_preferences": true, "privacy.allow_export": true,
+	"privacy.allow_wipe": true, "privacy.exportable": true, "privacy.record_optin_ip": true,
+	"privacy.domain_blocklist": true, "privacy.domain_allowlist": true,
+	"security.captcha": true, "security.trusted_urls": true, "security.require_2fa": true,
+	"appearance.admin.custom_css": true, "appearance.admin.custom_js": true,
+	"appearance.public.custom_css": true, "appearance.public.custom_js": true,
+}
+
+// isLiveSetting says whether the settings key takes effect without a restart.
+func isLiveSetting(key string) bool {
+	return liveSettings[key] || strings.HasPrefix(key, "upload.")
+}
+
+// processWideChanged says whether a save changed any setting that isn't
+// live (see liveSettings).
+func processWideChanged(cur, set models.Settings) bool {
+	// Compared key by key in the settings table's own shape (one row per
+	// top-level JSON key), so the live list above is the only list.
+	a, b := settingsByKey(cur), settingsByKey(set)
+	for k := range a {
+		if !isLiveSetting(k) && !bytes.Equal(a[k], b[k]) {
+			return true
+		}
+	}
+	for k := range b {
+		if _, ok := a[k]; !ok && !isLiveSetting(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// settingsByKey is s as the settings table stores it: its top-level JSON
+// keys and their values. A map because it mirrors the table's open set of
+// keys for comparison, not a request or response payload.
+func settingsByKey(s models.Settings) map[string]json.RawMessage {
+	out := map[string]json.RawMessage{}
+	if b, err := json.Marshal(s); err == nil {
+		_ = json.Unmarshal(b, &out)
+	}
+	return out
+}
+
+// restartsProcess says whether a settings change by tenantID can need a
+// restart: process-wide settings come from tenant 1 (cmd/init.go's
+// initSettings), so another workspace's changes to them have nothing to
+// reload, and restarting for them interrupted every workspace.
+func (a *App) restartsProcess(tenantID int) bool {
+	return !a.cfg.MultiTenancyEnabled || tenantID == 1
 }
 
 // diffSettingsGroups compares settings before and after a save to work out
-// which per-tenant caches need invalidating. "other" is deliberately a
-// diff of everything *except* the three known groups (rather than a list
-// of every other field) so that any field added to models.Settings in the
-// future safely falls into "other" (triggering the existing full-restart
-// fallback) instead of silently being ignored by this optimization.
+// which per-tenant caches need invalidating, and whether a process-wide
+// setting changed ("other", see processWideChanged).
 func diffSettingsGroups(cur, set models.Settings) tenantCacheChanges {
 	return tenantCacheChanges{
 		smtp: !reflect.DeepEqual(cur.SMTP, set.SMTP),
@@ -532,7 +573,7 @@ func diffSettingsGroups(cur, set models.Settings) tenantCacheChanges {
 		oidc: !reflect.DeepEqual(cur.OIDC, set.OIDC),
 		tracking: cur.PrivacyDisableTracking != set.PrivacyDisableTracking ||
 			cur.PrivacyIndividualTracking != set.PrivacyIndividualTracking,
-		other: !reflect.DeepEqual(withoutTenantCachedGroups(cur), withoutTenantCachedGroups(set)),
+		other: processWideChanged(cur, set),
 	}
 }
 

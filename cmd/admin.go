@@ -90,8 +90,8 @@ func (a *App) GetServerConfig(c echo.Context) error {
 			IndividualTracking: tr.Individual,
 		},
 	}
-	out.PublicSubscription.Enabled = a.cfg.EnablePublicSubPage
-	for _, d := range a.cfg.Security.TrustedURLs {
+	out.PublicSubscription.Enabled = a.ws(c).EnablePublicSubPage
+	for _, d := range a.ws(c).SecurityTrustedURLs {
 		if d == "*" {
 			continue
 		}
@@ -99,7 +99,7 @@ func (a *App) GetServerConfig(c echo.Context) error {
 	}
 
 	// CAPTCHA.
-	if w := a.captchaWidget(); w.Enabled {
+	if w := a.captchaWidget(c); w.Enabled {
 		out.PublicSubscription.CaptchaEnabled = true
 		out.PublicSubscription.CaptchaProvider = null.StringFrom(w.Provider)
 		out.PublicSubscription.AltchaComplexity = w.Complexity

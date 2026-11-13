@@ -30,7 +30,6 @@ const (
 // tplRenderer wraps a template.tplRenderer for echo.
 type tplRenderer struct {
 	templates *template.Template
-	SiteName  string
 	// RootURL is a single, boot-time value derived from tenant 1's
 	// settings - correct for single-tenant installs (where it may
 	// deliberately differ from the request Host, e.g. behind a reverse
@@ -43,12 +42,7 @@ type tplRenderer struct {
 	// root URL from its Host header instead of using this field.
 	RootURL             string
 	MultiTenancyEnabled bool
-	LogoURL             string
-	FaviconURL          string
 	AssetVersion        string
-	EnablePublicSubPage bool
-	EnablePublicArchive bool
-	IndividualTracking  bool
 }
 
 // tplData is the data container that is injected
@@ -139,8 +133,8 @@ type captchaWidget struct {
 
 // captchaWidget describes the configured captcha widget, in the same
 // provider order captcha.New picks (ALTCHA, Turnstile, hCaptcha).
-func (a *App) captchaWidget() captchaWidget {
-	cc := a.cfg.Security.Captcha
+func (a *App) captchaWidget(c echo.Context) captchaWidget {
+	cc := captchaOpt(a.ws(c))
 	switch {
 	case cc.Altcha.Enabled:
 		return captchaWidget{Enabled: true, Provider: captcha.ProviderAltcha, Complexity: cc.Altcha.Complexity}
@@ -154,11 +148,11 @@ func (a *App) captchaWidget() captchaWidget {
 
 // verifyCaptcha checks the captcha response in a submitted form.
 func (a *App) verifyCaptcha(c echo.Context) bool {
-	val := c.FormValue(a.captcha.FormField())
+	val := c.FormValue(a.captchaFor(c).FormField())
 	if val == "" {
 		return false
 	}
-	err, ok := a.captcha.Verify(val)
+	err, ok := a.captchaFor(c).Verify(val)
 	if err != nil {
 		a.log.Printf("captcha request failed: %v", err)
 	}
@@ -202,15 +196,18 @@ func (t *tplRenderer) Render(w io.Writer, name string, data any, c echo.Context)
 		lang = app.visitorI18n(c)
 	}
 
+	// The workspace's own name, logo and public-page switches; the
+	// renderer's own fields are the boot-time (tenant 1) values.
+	ws := app.ws(c)
 	return t.templates.ExecuteTemplate(w, name, tplData{
-		SiteName:            t.SiteName,
+		SiteName:            ws.AppSiteName,
 		RootURL:             rootURL,
-		LogoURL:             t.LogoURL,
-		FaviconURL:          t.FaviconURL,
+		LogoURL:             ws.AppLogoURL,
+		FaviconURL:          ws.AppFaviconURL,
 		AssetVersion:        t.AssetVersion,
-		EnablePublicSubPage: t.EnablePublicSubPage,
-		EnablePublicArchive: t.EnablePublicArchive,
-		IndividualTracking:  t.IndividualTracking,
+		EnablePublicSubPage: ws.EnablePublicSubPage,
+		EnablePublicArchive: ws.EnablePublicArchive,
+		IndividualTracking:  ws.PrivacyIndividualTracking,
 		OrgName:             orgName,
 		Data:                data,
 		L:                   lang,
@@ -313,10 +310,10 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 		Subscriber:       s,
 		SubUUID:          subUUID,
 		publicTpl:        publicTpl{Title: a.i18n.T("public.unsubscribeTitle")},
-		AllowBlocklist:   a.cfg.Privacy.AllowBlocklist,
-		AllowExport:      a.cfg.Privacy.AllowExport,
-		AllowWipe:        a.cfg.Privacy.AllowWipe,
-		AllowPreferences: a.cfg.Privacy.AllowPreferences,
+		AllowBlocklist:   a.ws(c).PrivacyAllowBlocklist,
+		AllowExport:      a.ws(c).PrivacyAllowExport,
+		AllowWipe:        a.ws(c).PrivacyAllowWipe,
+		AllowPreferences: a.ws(c).PrivacyAllowPreferences,
 	}
 
 	// If the subscriber is blocklisted, throw an error.
@@ -325,7 +322,7 @@ func (a *App) SubscriptionPage(c echo.Context) error {
 	}
 
 	// Only show preference management if it's enabled in settings.
-	if a.cfg.Privacy.AllowPreferences {
+	if a.ws(c).PrivacyAllowPreferences {
 		out.ShowManage = showManage
 		if showManage {
 			out.Title = a.i18n.T("public.manageTitle")
@@ -375,8 +372,8 @@ func (a *App) renderUnsubscribed(c echo.Context, subUUID, campUUID string, listI
 		Still:            still,
 		CampUUID:         campUUID,
 		SubUUID:          subUUID,
-		AllowBlocklist:   a.cfg.Privacy.AllowBlocklist,
-		AllowPreferences: a.cfg.Privacy.AllowPreferences,
+		AllowBlocklist:   a.ws(c).PrivacyAllowBlocklist,
+		AllowPreferences: a.ws(c).PrivacyAllowPreferences,
 	})
 }
 
@@ -422,7 +419,7 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 	var (
 		campUUID  = c.Param("campUUID")
 		subUUID   = c.Param("subUUID")
-		blocklist = a.cfg.Privacy.AllowBlocklist && req.Blocklist
+		blocklist = a.ws(c).PrivacyAllowBlocklist && req.Blocklist
 	)
 	if !req.Manage || blocklist {
 		listIDs, err := a.core.UnsubscribeByCampaign(c.Request().Context(), tenantID(c), subUUID, campUUID, blocklist)
@@ -440,7 +437,7 @@ func (a *App) SubscriptionPrefs(c echo.Context) error {
 	}
 
 	// Is preference management enabled?
-	if !a.cfg.Privacy.AllowPreferences {
+	if !a.ws(c).PrivacyAllowPreferences {
 		return c.Render(http.StatusBadRequest, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidFeature")))
 	}
@@ -546,7 +543,7 @@ func (a *App) OptinPage(c echo.Context) error {
 		return c.Render(http.StatusOK, tplMessage, makeMsgTpl(a.i18n.T("public.noSubTitle"), "", a.i18n.Ts("public.blocklisted")))
 	}
 
-	if confirm || !a.cfg.ShowOptinPage {
+	if confirm || !a.ws(c).ShowOptinPage {
 		return a.confirmOptinSubscription(c, subUUID, req.ListUUIDs, lists)
 	}
 
@@ -570,7 +567,7 @@ func (a *App) confirmOptinSubscription(c echo.Context, subUUID string, listUUIDs
 	}
 
 	meta := models.JSON{}
-	if a.cfg.Privacy.RecordOptinIP {
+	if a.ws(c).PrivacyRecordOptinIP {
 		if h := c.Request().Header.Get("X-Forwarded-For"); h != "" {
 			meta["optin_ip"] = h
 		} else if h := c.Request().RemoteAddr; h != "" {
@@ -591,7 +588,7 @@ func (a *App) confirmOptinSubscription(c echo.Context, subUUID string, listUUIDs
 // SubscriptionFormPage handles subscription requests coming from public
 // HTML subscription forms.
 func (a *App) SubscriptionFormPage(c echo.Context) error {
-	if !a.cfg.EnablePublicSubPage {
+	if !a.ws(c).EnablePublicSubPage {
 		return c.Render(http.StatusNotFound, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.invalidFeature")))
 	}
@@ -615,7 +612,7 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 	out.Lists = models.ListsByUUID(lists, c.QueryParams()["l"])
 
 	// Captcha configuration for template rendering.
-	out.Captcha = a.captchaWidget()
+	out.Captcha = a.captchaWidget(c)
 
 	return c.Render(http.StatusOK, "subscription-form", out)
 }
@@ -623,7 +620,7 @@ func (a *App) SubscriptionFormPage(c echo.Context) error {
 // SubscriptionForm handles subscription requests coming from public
 // HTML subscription forms.
 func (a *App) SubscriptionForm(c echo.Context) error {
-	if !a.cfg.EnablePublicSubPage {
+	if !a.ws(c).EnablePublicSubPage {
 		return echo.NewHTTPError(http.StatusNotFound, a.i18n.T("public.invalidFeature"))
 
 	}
@@ -634,7 +631,7 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 	}
 
 	// Process CAPTCHA.
-	if a.captcha.IsEnabled() && !a.verifyCaptcha(c) {
+	if a.captchaFor(c).IsEnabled() && !a.verifyCaptcha(c) {
 		return c.Render(http.StatusBadRequest, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.T("public.invalidCaptcha")))
 	}
@@ -651,7 +648,7 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 
 	// Redirect to a custom page if a trusted '?next' is set.
 	if nextURL := strings.TrimSpace(c.FormValue("next")); nextURL != "" {
-		for _, d := range a.cfg.Security.TrustedURLs {
+		for _, d := range a.ws(c).SecurityTrustedURLs {
 			if d != "*" && nextURL == d {
 				return c.Redirect(http.StatusSeeOther, nextURL)
 			}
@@ -671,7 +668,7 @@ func (a *App) SubscriptionForm(c echo.Context) error {
 // PublicSubscription handles subscription requests coming from public
 // API calls.
 func (a *App) PublicSubscription(c echo.Context) error {
-	if !a.cfg.EnablePublicSubPage {
+	if !a.ws(c).EnablePublicSubPage {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("public.invalidFeature"))
 	}
 
@@ -756,7 +753,7 @@ func (a *App) RegisterCampaignView(c echo.Context) error {
 // is dependent on the configuration.
 func (a *App) SelfExportSubscriberData(c echo.Context) error {
 	// Is export allowed?
-	if !a.cfg.Privacy.AllowExport {
+	if !a.ws(c).PrivacyAllowExport {
 		return c.Render(http.StatusBadRequest, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.invalidFeature")))
 	}
@@ -765,7 +762,7 @@ func (a *App) SelfExportSubscriberData(c echo.Context) error {
 	// list subscriptions, campaign views, and link clicks. Names of
 	// private lists are replaced with "Private list".
 	subUUID := c.Param("subUUID")
-	data, b, err := a.exportSubscriberData(c.Request().Context(), tenantID(c), 0, subUUID, a.cfg.Privacy.Exportable)
+	data, b, err := a.exportSubscriberData(c.Request().Context(), tenantID(c), 0, subUUID, lookupMap(a.ws(c).PrivacyExportable))
 	if err != nil {
 		a.log.Printf("error exporting subscriber data: %s", err)
 		return c.Render(http.StatusInternalServerError, tplMessage,
@@ -802,7 +799,7 @@ func (a *App) SelfExportSubscriberData(c echo.Context) error {
 // clicks remain as orphan data unconnected to any subscriber.
 func (a *App) WipeSubscriberData(c echo.Context) error {
 	// Is wiping allowed?
-	if !a.cfg.Privacy.AllowWipe {
+	if !a.ws(c).PrivacyAllowWipe {
 		return c.Render(http.StatusBadRequest, tplMessage,
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.invalidFeature")))
 	}
@@ -821,12 +818,12 @@ func (a *App) WipeSubscriberData(c echo.Context) error {
 // AltchaChallenge generates a challenge for Altcha captcha.
 func (a *App) AltchaChallenge(c echo.Context) error {
 	// Check if Altcha is enabled.
-	if !a.captcha.IsEnabled() || a.captcha.GetProvider() != captcha.ProviderAltcha {
+	if !a.captchaFor(c).IsEnabled() || a.captchaFor(c).GetProvider() != captcha.ProviderAltcha {
 		return echo.NewHTTPError(http.StatusNotFound, "captcha not enabled")
 	}
 
 	// Generate challenge.
-	out, err := a.captcha.GenerateChallenge()
+	out, err := a.captchaFor(c).GenerateChallenge()
 	if err != nil {
 		a.log.Printf("error generating altcha challenge: %v", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "Error generating challenge")

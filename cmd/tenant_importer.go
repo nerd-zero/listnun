@@ -30,9 +30,9 @@ import (
 // subscriber creation) validated every tenant's e-mails against tenant
 // 1's rules.
 //
-// The cache is never invalidated within a process's lifetime - matches
-// every other per-tenant resolver added this session (settings updates
-// already require a full process restart to take effect).
+// A settings save marks the tenant's importer stale (invalidate); it's
+// rebuilt from the new settings on next use once it isn't importing, so a
+// running import keeps its state.
 type tenantImporters struct {
 	q       *models.Queries
 	db      *sqlx.DB
@@ -43,6 +43,7 @@ type tenantImporters struct {
 
 	mu    sync.Mutex
 	cache map[int]*subimporter.Importer
+	stale map[int]bool
 }
 
 func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, sm *systemMail, i *i18n.I18n) *tenantImporters {
@@ -54,7 +55,22 @@ func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *mana
 		sysMail: sm,
 		i18n:    i,
 		cache:   make(map[int]*subimporter.Importer),
+		stale:   make(map[int]bool),
 	}
+}
+
+// invalidate marks tenantID's importer to be rebuilt from its settings
+// (domain block/allow lists, Scrub) once it's idle.
+func (t *tenantImporters) invalidate(tenantID int) {
+	t.mu.Lock()
+	t.stale[tenantID] = true
+	t.mu.Unlock()
+}
+
+// idle says whether imp has no import running.
+func idle(imp *subimporter.Importer) bool {
+	s := imp.GetStats().Status
+	return s != subimporter.StatusImporting && s != subimporter.StatusStopping
 }
 
 // Get returns the given tenant's importer, building and caching it from
@@ -63,9 +79,10 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if imp, ok := t.cache[tenantID]; ok {
+	if imp, ok := t.cache[tenantID]; ok && !(t.stale[tenantID] && idle(imp)) {
 		return imp, nil
 	}
+	delete(t.stale, tenantID)
 
 	settings, err := t.core.GetSettings(ctx, tenantID)
 	if err != nil {
