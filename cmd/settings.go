@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -385,6 +386,11 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
+// smtpEnabled is the part of an SMTP server setting UpdateSettingsByKey checks.
+type smtpEnabled struct {
+	Enabled bool `json:"enabled"`
+}
+
 // UpdateSettingsByKey updates a single setting key-value in the DB.
 //
 //	@ID				updateSettingByKey
@@ -407,6 +413,18 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	var b json.RawMessage
 	if err := c.Bind(&b); err != nil {
 		return err
+	}
+
+	// The full settings save requires an enabled SMTP server; without one
+	// nothing can send, so saving the key on its own does too.
+	if key == "smtp" {
+		var servers []smtpEnabled
+		if err := json.Unmarshal(b, &servers); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
+		}
+		if !slices.ContainsFunc(servers, func(s smtpEnabled) bool { return s.Enabled }) {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.errorNoSMTP"))
+		}
 	}
 
 	if key == "inactive_cleanup" {

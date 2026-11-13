@@ -120,7 +120,7 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 		// from the subscriber) and subscriber_id, and tenant_id's NOT NULL
 		// check fails first.
 		if pqErr, ok := err.(*pq.Error); ok && (pqErr.Column == "subscriber_id" || pqErr.Column == "tenant_id") {
-			c.log.Printf("bounced subscriber (%s / %s) not found", b.SubscriberUUID, b.Email)
+			c.log.Printf("bounced subscriber (%s / %s) not found, or a subscriber in more than one workspace", b.SubscriberUUID, b.Email)
 			return nil
 		}
 

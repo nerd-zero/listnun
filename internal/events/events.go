@@ -64,15 +64,18 @@ func (ev *Events) Publish(e Event) error {
 	ev.Lock()
 	defer ev.Unlock()
 
+	// One slow subscriber with a full queue mustn't stop the others getting
+	// the event: skip it and carry on.
+	var full error
 	for _, ch := range ev.subs {
 		select {
 		case ch <- e:
 		default:
-			return fmt.Errorf("event queue full for type: %s", e.Type)
+			full = fmt.Errorf("event queue full for type: %s", e.Type)
 		}
 	}
 
-	return nil
+	return full
 }
 
 // This implements an io.Writer specifically for receiving error messages
