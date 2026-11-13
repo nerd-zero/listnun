@@ -669,6 +669,19 @@ func (m *Manager) scanCampaigns(tick time.Duration) {
 
 // worker is a blocking function that perpetually listents to events (message) on different
 // queues and processes them.
+// sendSafely runs send, turning a panic into an error. A panic in a worker
+// goroutine takes the whole process down, and with its campaign still
+// running, it does again on every restart; as an error it counts towards
+// the campaign's send errors like any other failure.
+func sendSafely(send func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic sending message: %v", r)
+		}
+	}()
+	return send()
+}
+
 func (m *Manager) worker() {
 	// Counter to keep track of the message / sec rate limit.
 	numMsg := 0
@@ -694,7 +707,7 @@ func (m *Manager) worker() {
 			}
 			numMsg++
 
-			err := m.sendCampaignMessage(msg)
+			err := sendSafely(func() error { return m.sendCampaignMessage(msg) })
 			if err != nil {
 				m.log.Printf("error sending message in campaign %s: subscriber %d: %v", msg.Campaign.Name, msg.Subscriber.ID, err)
 				m.reportSendError(msg, err)
@@ -728,7 +741,7 @@ func (m *Manager) worker() {
 			// Push the message to the messenger.
 			msgr, err := m.getMessenger(context.Background(), msg.TenantID, msg.Messenger)
 			if err == nil {
-				err = msgr.Push(msg)
+				err = sendSafely(func() error { return msgr.Push(msg) })
 			}
 			if err == nil {
 				m.countSent(msgr, msg)
