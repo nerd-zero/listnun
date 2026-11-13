@@ -829,6 +829,36 @@ func (a *App) TestCampaign(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{true})
 }
 
+// GetCampaignEngagement returns campaigns' results, all time: people
+// delivered to, bounced, opened and clicked, counted the same way as on the
+// Campaigns overview.
+//
+//	@ID			getCampaignEngagement
+//	@Summary		Get campaign results
+//	@Tags			campaigns
+//	@Produce		json
+//	@Param			id	query		[]int	true	"Campaign IDs"
+//	@Success		200	{object}	[]models.CampaignEngagementCount
+//	@Failure		400	{object}	echo.HTTPError
+//	@Router			/api/campaigns/analytics/engagement [get]
+func (a *App) GetCampaignEngagement(c echo.Context) error {
+	ids, err := parseStringIDs(c.Request().URL.Query()["id"])
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.errorInvalidIDs", "error", err.Error()))
+	}
+	if len(ids) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest,
+			a.i18n.Ts("globals.messages.missingFields", "name", "`id`"))
+	}
+
+	out, err := a.core.GetCampaignEngagement(c.Request().Context(), tenantID(c), ids)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, okResp{out})
+}
+
 // GetCampaignViewAnalytics retrieves view/click analytics for a campaign.
 //
 //	@ID			getCampaignAnalytics
@@ -837,8 +867,8 @@ func (a *App) TestCampaign(c echo.Context) error {
 //	@Produce		json
 //	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links, bounce_types)"
 //	@Param			id		query		[]int		true	"Campaign IDs"
-//	@Param			from	query		string		true	"Start date (YYYY-MM-DD)"
-//	@Param			to		query		string		true	"End date (YYYY-MM-DD)"
+//	@Param			from	query		string		true	"Start (YYYY-MM-DD, or an ISO 8601 timestamp)"
+//	@Param			to		query		string		true	"End, inclusive (YYYY-MM-DD, or an ISO 8601 timestamp)"
 //	@Success		200	{object}	[]models.CampaignAnalyticsCount
 //	@Failure		400	{object}	echo.HTTPError
 //	@Router			/api/campaigns/analytics/{type} [get]

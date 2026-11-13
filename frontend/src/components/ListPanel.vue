@@ -100,7 +100,7 @@
                 <strong>{{ c.name }}</strong>
                 <span class="ln-small">{{ when(c) }}</span>
               </span>
-              <span v-if="c.sent" class="list-panel-camp-num">{{ $t('lists.recent.openedRate', { n: rate(c.opened, c.sent) }) }}</span>
+              <span v-if="c.sent" class="list-panel-camp-num">{{ $t('lists.recent.openedRate', { n: result(c.opened, c.delivered) }) }}</span>
             </router-link>
             <router-link :to="{ name: 'campaigns' }" class="list-panel-more">{{ $t('lists.recent.all') }}</router-link>
           </div>
@@ -135,7 +135,7 @@ import { getLists as listsApi } from '../api/generated/endpoints/lists/lists';
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 interface Day { day: string; joined: number; left: number }
-interface Camp { id: number; name: string; status: string; startedAt?: string; sendAt?: string; sent: number; opened: number; clicked: number }
+interface Camp { id: number; name: string; status: string; startedAt?: string; sendAt?: string; sent: number; delivered: number; opened: number; clicked: number }
 interface Activity { days: Day[]; joined: number; left: number; campaigns: Camp[] }
 
 // How long "Copied" shows on the copy button.
@@ -185,9 +185,13 @@ function signed(n: number): string {
   return n > 0 ? `+${$utils.niceNumber(n)}` : String($utils.niceNumber(n));
 }
 
-function rate(n: number, sent: number): string {
-  if (!sent) return '–';
-  return `${((n / sent) * 100).toFixed(1)}%`;
+// result is n as a share of delivered, counted as on the Campaigns
+// overview; without per-subscriber tracking opens count every view, so
+// it's the count instead of a rate that would overstate.
+function result(n: number, delivered: number): string {
+  if (!(serverConfig.value as Loose).privacy?.individual_tracking) return String($utils.niceNumber(n));
+  if (!delivered) return '–';
+  return `${((n / delivered) * 100).toFixed(1)}%`;
 }
 
 function when(c: Camp): string {

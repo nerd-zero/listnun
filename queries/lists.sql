@@ -148,14 +148,8 @@ SELECT days.day, COALESCE(joined.n, 0) AS joined, COALESCE(left_.n, 0) AS left
 
 -- name: get-list-recent-campaigns
 -- The $2 latest campaigns sent, sending or scheduled to list $1, newest
--- (or soonest scheduled) first. Opens and clicks count people, falling
--- back to raw counts when individual tracking is off and no subscriber
--- is recorded.
-SELECT c.id, c.uuid, c.name, c.status, c.started_at, c.send_at, c.sent,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM campaign_views WHERE campaign_id = c.id) AS opened,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM link_clicks WHERE campaign_id = c.id) AS clicked
+-- (or soonest scheduled) first. Results come from get-campaign-engagement.
+SELECT c.id, c.uuid, c.name, c.status, c.started_at, c.send_at, c.sent
     FROM campaigns c
     JOIN campaign_lists cl ON cl.campaign_id = c.id AND cl.list_id = $1
     WHERE c.status IN ('scheduled', 'running', 'paused', 'finished')
