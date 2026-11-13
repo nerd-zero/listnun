@@ -86,7 +86,7 @@ c AS (
 SELECT COUNT(*) FROM l, c;
 
 -- name: update-lists-date
-UPDATE lists SET updated_at=NOW() WHERE id = ANY($1);
+UPDATE lists SET updated_at=NOW() WHERE id = ANY($1) AND tenant_id = $2;
 
 -- name: get-list-scrub-status
 -- Lightweight per-list Scrub summary for GetScrubListStatus -- deliberately
