@@ -666,8 +666,7 @@ func (a *App) doForgotPassword(c echo.Context) error {
 	// and the user was looked up in that workspace.
 	resetURL := fmt.Sprintf("%s/admin/reset?token=%s&email=%s", a.requestRootURL(c), token, url.QueryEscape(email))
 
-	// Prepare the email.
-	var msg bytes.Buffer
+	// Send the email, as the workspace (its SMTP and From address).
 	data := struct {
 		ResetURL string
 		L        *i18n.I18n
@@ -675,21 +674,11 @@ func (a *App) doForgotPassword(c echo.Context) error {
 		ResetURL: resetURL,
 		L:        a.i18n,
 	}
-
-	// Render the email template.
-	if err := notifs.Tpls.ExecuteTemplate(&msg, notifs.TplForgotPassword, data); err != nil {
-		a.log.Printf("error compiling notification template '%s': %v", notifs.TplForgotPassword, err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
-	}
-
-	subject, body := notifs.GetTplSubject(a.visitorI18n(c).T("email.forgotPassword.subject"), msg.Bytes())
-
-	// Send the email.
-	if err := a.emailMsgr.Push(models.Message{
-		From:    a.cfg.FromEmail,
-		To:      []string{email},
-		Subject: subject,
-		Body:    body,
+	if err := a.sysMail.send(c.Request().Context(), tenantID(c), systemMessage{
+		To:       []string{email},
+		Subject:  a.visitorI18n(c).T("email.forgotPassword.subject"),
+		Template: notifs.TplForgotPassword,
+		Data:     data,
 	}); err != nil {
 		a.log.Printf("error sending reset email: %s", err)
 	}

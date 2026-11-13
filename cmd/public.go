@@ -770,24 +770,14 @@ func (a *App) SelfExportSubscriberData(c echo.Context) error {
 			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.errorProcessingRequest")))
 	}
 
-	// Prepare the attachment e-mail.
-	var msg bytes.Buffer
-	if err := notifs.Tpls.ExecuteTemplate(&msg, notifs.TplSubscriberData, data); err != nil {
-		a.log.Printf("error compiling notification template '%s': %v", notifs.TplSubscriberData, err)
-		return c.Render(http.StatusInternalServerError, tplMessage,
-			makeMsgTpl(a.i18n.T("public.errorTitle"), "", a.i18n.Ts("public.errorProcessingRequest")))
-	}
-
-	// TODO: GetTplSubject should be moved to a utils package.
-	subject, body := notifs.GetTplSubject(a.i18n.Ts("email.data.title"), msg.Bytes())
-
-	// E-mail the data as a JSON attachment to the subscriber.
+	// E-mail the data as a JSON attachment to the subscriber, as the
+	// workspace (its SMTP and From address).
 	const fname = "data.json"
-	if err := a.emailMsgr.Push(models.Message{
-		From:    a.cfg.FromEmail,
-		To:      []string{data.Email},
-		Subject: subject,
-		Body:    body,
+	if err := a.sysMail.send(c.Request().Context(), tenantID(c), systemMessage{
+		To:       []string{data.Email},
+		Subject:  a.i18n.Ts("email.data.title"),
+		Template: notifs.TplSubscriberData,
+		Data:     data,
 		Attachments: []models.Attachment{
 			{
 				Name:    fname,

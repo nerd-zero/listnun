@@ -193,6 +193,18 @@ func (c *Core) QuerySubscribers(ctx context.Context, tenantID int, searchStr, qu
 	return out, total, nil
 }
 
+// sendsOptinConfirmation says whether tenantID sends opt-in confirmations
+// to new subscribers (Settings › General), falling back to the boot-time
+// setting when its own can't be read.
+func (c *Core) sendsOptinConfirmation(ctx context.Context, tenantID int) bool {
+	s, err := c.GetSettings(ctx, tenantID)
+	if err != nil {
+		c.log.Printf("error reading tenant %d's opt-in setting: %v", tenantID, err)
+		return c.consts.SendOptinConfirmation
+	}
+	return s.SendOptinConfirmation
+}
+
 // GetSubscriberLists returns a subscriber's lists based on the given conditions.
 func (c *Core) GetSubscriberLists(ctx context.Context, tenantID int, subID int, uuid string, listIDs []int, listUUIDs []string, subStatus string, listType string) ([]models.List, error) {
 	if listIDs == nil {
@@ -390,9 +402,9 @@ func (c *Core) InsertSubscriber(ctx context.Context, tenantID int, sub models.Su
 	}
 
 	hasOptin := false
-	if !preconfirm && c.consts.SendOptinConfirmation {
+	if !preconfirm && c.sendsOptinConfirmation(ctx, tenantID) {
 		// Send a confirmation e-mail (if there are any double opt-in lists).
-		num, err := c.h.SendOptinConfirmation(out, listIDs)
+		num, err := c.h.SendOptinConfirmation(tenantID, out, listIDs)
 		if assertOptin && err != nil {
 			return out, hasOptin, err
 		}
@@ -519,9 +531,9 @@ func (c *Core) UpdateSubscriberWithLists(ctx context.Context, tenantID int, id i
 	}
 
 	hasOptin := false
-	if !preconfirm && c.consts.SendOptinConfirmation {
+	if !preconfirm && c.sendsOptinConfirmation(ctx, tenantID) {
 		// Send a confirmation e-mail (if there are any double opt-in lists).
-		num, err := c.h.SendOptinConfirmation(out, listIDs)
+		num, err := c.h.SendOptinConfirmation(tenantID, out, listIDs)
 		if assertOptin && err != nil {
 			return out, hasOptin, err
 		}
