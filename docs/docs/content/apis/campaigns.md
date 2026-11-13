@@ -210,6 +210,7 @@ Retrieve campaigns' results, all time, counted the same way as on the Campaigns 
 - `opened` is people who viewed or clicked. A click counts as an open, because the email was opened even when images were blocked and the view pixel never loaded.
 - `clicked` is people who clicked.
 - `anonymous` is views and clicks recorded without a subscriber: with **Individual subscriber tracking** off, or for subscribers since deleted. Each of those counts once in `opened` and `clicked`, so with it above zero they may count a person more than once.
+- `replied` is people who replied (the subscriber, or the sending address), leaving out auto-replies.
 
 ##### Parameters
 
@@ -234,7 +235,8 @@ curl -u "api_user:token" -X GET 'http://localhost:9000/api/campaigns/analytics/e
       "delivered": 29968,
       "opened": 6120,
       "clicked": 1544,
-      "anonymous": 0
+      "anonymous": 0,
+      "replied": 87
     }
   ]
 }
@@ -244,14 +246,14 @@ ______________________________________________________________________
 
 #### GET /api/campaigns/analytics/{type}
 
-Retrieve stats of specified campaigns. `views` and `clicks` count people: each subscriber once per campaign, on the day of their first view or click in the range. `links` counts the people who clicked each link.
+Retrieve stats of specified campaigns. `views` and `clicks` count people: each subscriber once per campaign, on the day of their first view or click in the range. `replies` counts people who replied, at their first reply, leaving out auto-replies. `links` counts the people who clicked each link.
 
 ##### Parameters
 
 | Name | Type       | Required | Description                                   |
 | :--- | :--------- | :------- | :-------------------------------------------- |
 | id   | number\[\] | Yes      | Campaign IDs to get stats for.                |
-| type | string     | Yes      | Analytics type: views, links, clicks, bounces |
+| type | string     | Yes      | Analytics type: views, clicks, bounces, replies, links, bounce_types |
 | from | string     | Yes      | Start of the date range: a date (`2024-08-04`) or an ISO 8601 timestamp. |
 | to   | string     | Yes      | End of the date range. A date includes that whole day. |
 

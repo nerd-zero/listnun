@@ -274,6 +274,8 @@ SELECT campaign_id, COUNT(*) AS "count", "timestamp"
 --              never below clicked.
 --   anonymous: views and clicks recorded without a subscriber, which may
 --              count one person more than once.
+--   replied:   people who replied (the subscriber, else the sending
+--              address), leaving out auto-replies, as get-campaign-reply-counts.
 WITH known AS (
     SELECT campaign_id, subscriber_id, BOOL_OR(clicked) AS clicked FROM (
         SELECT campaign_id, subscriber_id, FALSE AS clicked FROM campaign_views
@@ -298,18 +300,24 @@ anon_clicks AS (
 bounced AS (
     SELECT campaign_id, COUNT(DISTINCT subscriber_id) AS n FROM bounces
     WHERE campaign_id = ANY($1) GROUP BY campaign_id
+),
+replied AS (
+    SELECT campaign_id, COUNT(DISTINCT COALESCE(subscriber_id::TEXT, LOWER(from_email))) AS n FROM campaign_replies
+    WHERE campaign_id = ANY($1) AND NOT is_auto GROUP BY campaign_id
 )
 SELECT c.id AS campaign_id,
     COALESCE(b.n, 0) AS bounced,
     GREATEST(c.sent - COALESCE(b.n, 0), 0) AS delivered,
     COALESCE(p.opened, 0) + GREATEST(COALESCE(av.n, 0), COALESCE(ac.n, 0)) AS opened,
     COALESCE(p.clicked, 0) + COALESCE(ac.n, 0) AS clicked,
-    COALESCE(av.n, 0) + COALESCE(ac.n, 0) AS anonymous
+    COALESCE(av.n, 0) + COALESCE(ac.n, 0) AS anonymous,
+    COALESCE(r.n, 0) AS replied
     FROM campaigns c
     LEFT JOIN people p ON p.campaign_id = c.id
     LEFT JOIN anon_views av ON av.campaign_id = c.id
     LEFT JOIN anon_clicks ac ON ac.campaign_id = c.id
     LEFT JOIN bounced b ON b.campaign_id = c.id
+    LEFT JOIN replied r ON r.campaign_id = c.id
     WHERE c.id = ANY($1);
 
 -- name: get-campaign-bounce-counts
@@ -321,6 +329,24 @@ SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), crea
     FROM bounces
     WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
     GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+
+-- name: get-campaign-reply-analytics-counts
+-- People who replied to each campaign over time, in the bucket of their
+-- first reply in the range: the subscriber, else the sending address, as
+-- get-campaign-reply-counts. Auto-replies are left out.
+WITH intval AS (
+    -- For intervals < a week, aggregate counts hourly, otherwise daily.
+    SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
+),
+firsts AS (
+    SELECT DISTINCT ON (campaign_id, COALESCE(subscriber_id::TEXT, LOWER(from_email)))
+        campaign_id, DATE_TRUNC((SELECT * FROM intval), received_at) AS "timestamp"
+    FROM campaign_replies
+    WHERE campaign_id = ANY($1) AND NOT is_auto AND received_at >= $2 AND received_at <= $3
+    ORDER BY campaign_id, COALESCE(subscriber_id::TEXT, LOWER(from_email)), received_at
+)
+SELECT campaign_id, COUNT(*) AS "count", "timestamp"
+    FROM firsts GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
 -- name: get-campaign-bounce-type-counts
 -- Bounces per campaign and type (soft, hard, complaint) in a date range.
