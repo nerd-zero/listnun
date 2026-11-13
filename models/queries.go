@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -300,6 +301,10 @@ type Queries struct {
 // nested transaction (which wouldn't be valid inside an already-open one
 // anyway - *sqlx.Tx has no BeginTxx of its own).
 func (q *Queries) compileSubscriberQueryTpl(searchStr, queryExp string, db sqlx.Execer, subStatus string) (string, error) {
+	if err := CheckQueryExpr(queryExp); err != nil {
+		return "", err
+	}
+
 	// There's an arbitrary query condition.
 	cond := "TRUE"
 	if queryExp != "" {
@@ -341,6 +346,24 @@ func (q *Queries) ExecSubQueryTpl(searchStr, queryExp, baseQueryTpl string, list
 	// Execute the query on the DB.
 	if _, err := db.Exec(stmt, a...); err != nil {
 		return err
+	}
+	return nil
+}
+
+// ErrQueryExprNotAllowed is a subscriber query expression that tries to
+// change session settings.
+var ErrQueryExprNotAllowed = errors.New("the query can't call set_config or use unicode-escaped names")
+
+// CheckQueryExpr rejects a user-written subscriber query expression that
+// could change session settings: set_config, by any spelling Postgres
+// accepts (quoted, schema-qualified, any case), or U& escapes that could
+// spell it. Changing app.current_tenant mid-query would sidestep tenant
+// isolation. EXECUTE on set_config is also revoked from the app's roles
+// (v6.41.0); this is the first, clearer line.
+func CheckQueryExpr(exp string) error {
+	e := strings.ToLower(strings.ReplaceAll(exp, `"`, ""))
+	if strings.Contains(e, "set_config") || strings.Contains(e, "u&") {
+		return ErrQueryExprNotAllowed
 	}
 	return nil
 }

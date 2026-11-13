@@ -445,7 +445,7 @@ func (s *Session) Start() {
 			}
 			// Scope the batch to the importing tenant, so RLS applies to
 			// it as to every other tenant request.
-			if _, err := tx.Exec(`SELECT set_config('app.current_tenant', $1::TEXT, true)`, s.opt.TenantID); err != nil {
+			if _, err := tx.Exec(setTenant(s.opt.TenantID)); err != nil {
 				s.log.Printf("error scoping import to tenant %d: %v", s.opt.TenantID, err)
 				_ = tx.Rollback()
 				continue
@@ -515,7 +515,7 @@ func (s *Session) Start() {
 	if cur == 0 {
 		s.im.setStatus(StatusFinished)
 		s.log.Printf("imported finished")
-		if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr, s.opt.TenantID); err != nil {
+		if err := s.updateListDates(listIDsArr); err != nil {
 			s.log.Printf("error updating lists date: %v", err)
 		}
 		s.im.sendNotif(StatusFinished)
@@ -537,7 +537,7 @@ func (s *Session) Start() {
 	s.im.setPending(0)
 	s.im.setStatus(StatusFinished)
 	s.log.Printf("imported finished")
-	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr, s.opt.TenantID); err != nil {
+	if err := s.updateListDates(listIDsArr); err != nil {
 		s.log.Printf("error updating lists date: %v", err)
 	}
 
@@ -951,4 +951,28 @@ func makeDomainMap(domains []string) (map[string]struct{}, bool) {
 	}
 
 	return out, hasWildCards
+}
+
+// setTenant is the statement that scopes a transaction to tenantID
+// (core.WithTenant's SET LOCAL; tenantID is an int, so it's formatted in).
+func setTenant(tenantID int) string {
+	return fmt.Sprintf(`SET LOCAL app.current_tenant = '%d'`, tenantID)
+}
+
+// updateListDates bumps the imported lists' updated_at in a transaction
+// scoped to the importing tenant: outside one, row-level security sees no
+// rows and the update would silently do nothing.
+func (s *Session) updateListDates(listIDs any) error {
+	tx, err := s.im.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(setTenant(s.opt.TenantID)); err != nil {
+		return err
+	}
+	if _, err := tx.Stmt(s.im.opt.UpdateListDateStmt).Exec(listIDs, s.opt.TenantID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

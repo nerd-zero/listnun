@@ -284,7 +284,16 @@ func initFS(appDir, frontendDir, staticDir, i18nDir string) stuffbin.FileSystem 
 
 // initDB initializes the main DB connection pool and parse and loads the app's
 // SQL queries into a prepared query map.
-func initDB() *sqlx.DB {
+// systemPoolOption puts the system pool's connections in app.all_tenants
+// mode, which the row-level policies let see every tenant's rows (v6.41.0).
+const systemPoolOption = `options='-c app.all_tenants=on'`
+
+// initDB opens the database's two pools: the tenant pool, where row-level
+// security sees only the tenant a transaction sets (core.WithTenant) and
+// nothing otherwise, and the system pool (core.System), for boot,
+// migrations and cross-tenant background work. The system pool is half the
+// tenant pool's size (at least 5): it's used far less.
+func initDB() (*sqlx.DB, *sqlx.DB) {
 	var c struct {
 		Host        string        `koanf:"host"`
 		Port        int           `koanf:"port"`
@@ -329,16 +338,29 @@ func initDB() *sqlx.DB {
 		parts = append(parts, c.Params)
 	}
 
-	db, err := sqlx.Connect("postgres", strings.Join(parts, " "))
+	dsn := strings.Join(parts, " ")
+	if strings.Contains(c.Params, "options=") {
+		lo.Fatalf("db.params can't set options: the system pool sets its own (%s)", systemPoolOption)
+	}
+
+	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
 		lo.Fatalf("error connecting to DB: %v", err)
 	}
-
 	db.SetMaxOpenConns(c.MaxOpen)
 	db.SetMaxIdleConns(c.MaxIdle)
 	db.SetConnMaxLifetime(c.MaxLifetime)
 
-	return db.Unsafe()
+	sys, err := sqlx.Connect("postgres", dsn+" "+systemPoolOption)
+	if err != nil {
+		lo.Fatalf("error connecting to DB (system pool): %v", err)
+	}
+	sysMax := max(5, c.MaxOpen/2)
+	sys.SetMaxOpenConns(sysMax)
+	sys.SetMaxIdleConns(min(c.MaxIdle, sysMax))
+	sys.SetConnMaxLifetime(c.MaxLifetime)
+
+	return db.Unsafe(), sys.Unsafe()
 }
 
 func readQueries(dir string, fs stuffbin.FileSystem) goyesql.Queries {
@@ -527,16 +549,18 @@ func initI18n(lang string, fs stuffbin.FileSystem) *i18n.I18n {
 }
 
 // initCore initializes the CRUD DB core .
-func initCore(fnNotify func(tenantID int, sub models.Subscriber, listIDs []int) (int, error), queries *models.Queries, db *sqlx.DB, i *i18n.I18n, ko *koanf.Koanf) *core.Core {
+func initCore(fnNotify func(tenantID int, sub models.Subscriber, listIDs []int) (int, error), queries, sysQueries *models.Queries, db, sys *sqlx.DB, i *i18n.I18n, ko *koanf.Koanf) *core.Core {
 	opt := &core.Opt{
 		Constants: core.Constants{
 			SendOptinConfirmation: ko.Bool("app.send_optin_confirmation"),
 			CacheSlowQueries:      ko.Bool("app.cache_slow_queries"),
 		},
-		Queries: queries,
-		DB:      db,
-		I18n:    i,
-		Log:     lo,
+		Queries:       queries,
+		DB:            db,
+		SystemDB:      sys,
+		SystemQueries: sysQueries,
+		I18n:          i,
+		Log:           lo,
 	}
 
 	// Load bounce config.

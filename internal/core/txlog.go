@@ -248,11 +248,16 @@ func (c *Core) GetTxStats(ctx context.Context, tenantID int) (models.TxStats, er
 // PruneTxMessages deletes log entries older than TxLogRetention across
 // all tenants and returns how many went.
 func (c *Core) PruneTxMessages() (int64, error) {
-	res, err := c.q.PruneTxMessages.Exec(fmt.Sprintf("%d seconds", int(TxLogRetention.Seconds())))
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+	var n int64
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		res, err := stmtx(tx, c.sysq().PruneTxMessages).Exec(fmt.Sprintf("%d seconds", int(TxLogRetention.Seconds())))
+		if err != nil {
+			return err
+		}
+		n, err = res.RowsAffected()
+		return err
+	})
+	return n, err
 }
 
 // TxLogSubject is the subject the message log shows: the rendered one, or

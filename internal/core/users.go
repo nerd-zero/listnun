@@ -56,7 +56,10 @@ func (c *Core) GetUsers(ctx context.Context, tenantID int) ([]auth.User, error) 
 // cross-tenant check unreachable. Same reasoning as GetUserUnscoped below.
 func (c *Core) GetAllUsersUnscoped() ([]auth.User, error) {
 	out := []auth.User{}
-	if err := c.q.GetUsers.Select(&out); err != nil {
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.sysq().GetUsers).Select(&out)
+	})
+	if err != nil {
 		return nil, echo.NewHTTPError(http.StatusInternalServerError,
 			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.users}", "error", pqErrMsg(err)))
 	}
@@ -94,7 +97,10 @@ func (c *Core) GetUser(ctx context.Context, tenantID int, id int, username, emai
 // identical to "user not found", losing that distinct signal.
 func (c *Core) GetUserUnscoped(id int) (auth.User, error) {
 	var out auth.User
-	if err := c.q.GetUser.Get(&out, id, "", ""); err != nil {
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.sysq().GetUser).Get(&out, id, "", "")
+	})
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return out, echo.NewHTTPError(http.StatusNotFound,
 				c.i18n.Ts("globals.messages.notFound", "name", "{globals.terms.user}"))

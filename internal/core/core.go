@@ -36,7 +36,9 @@ type Core struct {
 	consts Constants
 	i18n   *i18n.I18n
 	db     *sqlx.DB
+	sys    *sqlx.DB
 	q      *models.Queries
+	sq     *models.Queries
 	log    *log.Logger
 }
 
@@ -62,8 +64,14 @@ type Opt struct {
 	Constants Constants
 	I18n      *i18n.I18n
 	DB        *sqlx.DB
-	Queries   *models.Queries
-	Log       *log.Logger
+	// SystemDB is the system pool (app.all_tenants on) for System, and
+	// SystemQueries the statements prepared on it: a statement can only be
+	// rebound to a transaction on the pool it was prepared on. Nil uses
+	// DB and Queries.
+	SystemDB      *sqlx.DB
+	SystemQueries *models.Queries
+	Queries       *models.Queries
+	Log           *log.Logger
 }
 
 var (
@@ -78,6 +86,22 @@ var (
 	listQuerySortFields = []string{"name", "status", "created_at", "updated_at", "subscriber_count"}
 )
 
+func sysOr(sys, db *sqlx.DB) *sqlx.DB {
+	if sys != nil {
+		return sys
+	}
+	return db
+}
+
+// sysq returns the statements for System transactions: those prepared on
+// the system pool, or the tenant pool's when there's one pool (tests).
+func (c *Core) sysq() *models.Queries {
+	if c.sq != nil {
+		return c.sq
+	}
+	return c.q
+}
+
 // New returns a new instance of the core.
 func New(o *Opt, h *Hooks) *Core {
 	return &Core{
@@ -85,6 +109,8 @@ func New(o *Opt, h *Hooks) *Core {
 		consts: o.Constants,
 		i18n:   o.I18n,
 		db:     o.DB,
+		sys:    sysOr(o.SystemDB, o.DB),
+		sq:     o.SystemQueries,
 		q:      o.Queries,
 		log:    o.Log,
 	}
@@ -107,7 +133,10 @@ func (c *Core) RefreshMatView(name string, concurrent bool) error {
 		q = fmt.Sprintf(q, "", name)
 	}
 
-	if _, err := c.db.Exec(q); err != nil {
+	// The views aggregate every tenant's rows, and the tables' policies
+	// apply to the views' owner too (FORCE ROW LEVEL SECURITY), so they're
+	// refreshed on the system pool.
+	if _, err := sysOr(c.sys, c.db).Exec(q); err != nil {
 		c.log.Printf("error refreshing materialized view: %s: %v", name, err)
 		return err
 	}

@@ -292,7 +292,9 @@ func (c *Core) RetryWebhookDelivery(ctx context.Context, tenantID int, uuid stri
 // webhook worker (webhooks.Store).
 func (c *Core) ClaimWebhookDeliveries(limit int, lease time.Duration) ([]models.WebhookJob, error) {
 	var out []models.WebhookJob
-	err := c.q.ClaimWebhookDeliveries.Select(&out, limit, fmt.Sprintf("%d", int(lease.Seconds())))
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.sysq().ClaimWebhookDeliveries).Select(&out, limit, fmt.Sprintf("%d", int(lease.Seconds())))
+	})
 	return out, err
 }
 
@@ -342,11 +344,16 @@ func webhookOutcome(res webhooks.Result) string {
 
 // PruneWebhookDeliveries deletes finished deliveries past their retention.
 func (c *Core) PruneWebhookDeliveries() (int64, error) {
-	res, err := c.q.PruneWebhookDeliveries.Exec(fmt.Sprintf("%d seconds", int(WebhookRetention.Seconds())))
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+	var n int64
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		res, err := stmtx(tx, c.sysq().PruneWebhookDeliveries).Exec(fmt.Sprintf("%d seconds", int(WebhookRetention.Seconds())))
+		if err != nil {
+			return err
+		}
+		n, err = res.RowsAffected()
+		return err
+	})
+	return n, err
 }
 
 // roughDuration reads a wait the way people say it: "4 min", "6 h".

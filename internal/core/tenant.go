@@ -3,14 +3,21 @@ package core
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
 
 // WithTenant runs fn inside a transaction with `app.current_tenant` set for
-// that transaction's duration (via set_config's third "is_local" argument,
-// Postgres's equivalent of `SET LOCAL`), so the override doesn't leak onto
+// that transaction's duration (SET LOCAL), so the override doesn't leak onto
 // a subsequently reused connection once the transaction ends.
+//
+// Isolation is fail-closed (v6.41.0): a query on the tenant pool sees no
+// tenant's rows unless it runs inside WithTenant, or inside System on the
+// system pool. SET LOCAL, a statement, is used rather than set_config, a
+// function: EXECUTE on set_config is revoked from the app's roles so a
+// user-written query expression (the subscriber SQL filter) can't change
+// the tenant mid-query.
 //
 // This is safe under Go's own connection pooling: database/sql binds a
 // transaction to a single physical connection for its entire lifetime and
@@ -59,9 +66,30 @@ func (c *Core) WithTenant(ctx context.Context, tenantID int, opts *sql.TxOptions
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `SELECT set_config('app.current_tenant', $1::TEXT, true)`, tenantID); err != nil {
+	// SET doesn't take bind parameters; tenantID is an int, so it's safe
+	// to format in.
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`SET LOCAL app.current_tenant = '%d'`, tenantID)); err != nil {
 		return err
 	}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// System runs fn in a transaction on the system pool, whose connections
+// have app.all_tenants on, for work that's across tenants by design: boot,
+// the campaign manager, background jobs (pruning, webhooks delivery,
+// bounces, Scrub), and lookups that find the tenant itself (a user by
+// session, a tenant's settings by ID). Anything acting for one tenant
+// uses WithTenant instead.
+func (c *Core) System(ctx context.Context, opts *sql.TxOptions, fn func(tx *sqlx.Tx) error) error {
+	tx, err := sysOr(c.sys, c.db).BeginTxx(ctx, opts)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	if err := fn(tx); err != nil {
 		return err
 	}
