@@ -338,7 +338,7 @@ func installUser(username, password, apiUsername string, q *models.Queries) {
 
 	// Create the Super Admin role in the DB. tenant_id=1: install always seeds tenant 1.
 	var role auth.Role
-	if err := q.CreateRole.Get(&role, "Super Admin", auth.RoleTypeUser, pq.Array(perms), 1); err != nil {
+	if err := q.CreateRole.Get(&role, "Super Admin", auth.RoleTypeUser, pq.Array(perms), 1, true); err != nil {
 		lo.Fatalf("error creating super admin role: %v", err)
 	}
 

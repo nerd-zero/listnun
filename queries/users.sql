@@ -14,18 +14,11 @@ INSERT INTO users (username, password_login, password, email, name, type, user_r
 
 -- name: update-user
 WITH sa AS (
-    -- The current tenant's own Super Admin role, identified by name/type
-    -- rather than a hardcoded id - role ids come from one sequence shared
-    -- across every tenant, so only tenant 1's Super Admin role happens to
-    -- have id 1. A literal `user_role_id = 1` here used to make this guard
-    -- misfire for every other tenant: since no user in a tenant's own
-    -- (RLS-scoped) `users` ever has user_role_id=1, the "other active
-    -- super admins" count was always 0, and $8 (a real per-tenant role id)
-    -- is never literally 1 either, so every edit that touches role/status
-    -- was rejected outright - found live via the operator-setup flow
-    -- failing with "needSuper" on a tenant that had exactly one, fully
-    -- active admin.
-    SELECT id FROM roles WHERE type = 'user' AND name = 'Super Admin' AND parent_id IS NULL LIMIT 1
+    -- The workspace's own Super Admin role (roles.super), not a hardcoded
+    -- id: role ids come from one sequence across tenants, so only tenant
+    -- 1's has id 1, and checking for 1 rejected every other workspace's
+    -- role and status edits.
+    SELECT id FROM roles WHERE super AND tenant_id = (SELECT tenant_id FROM users WHERE id = $1)
 ),
 u AS (
     -- Edit is only allowed if there are more than 1 active super users or
@@ -57,9 +50,8 @@ UPDATE users SET
 
 -- name: delete-users
 WITH sa AS (
-    -- See update-user's identical comment: the tenant's own Super Admin
-    -- role, not a hardcoded id.
-    SELECT id FROM roles WHERE type = 'user' AND name = 'Super Admin' AND parent_id IS NULL LIMIT 1
+    -- The workspace's own Super Admin role; see update-user.
+    SELECT id FROM roles WHERE super AND tenant_id = (SELECT tenant_id FROM users WHERE id = ANY($1) LIMIT 1)
 ),
 u AS (
     SELECT COUNT(*) AS num FROM users WHERE NOT(id = ANY($1)) AND user_role_id=(SELECT id FROM sa) AND type='user' AND status='enabled'
@@ -74,7 +66,7 @@ SELECT EXISTS(SELECT 1 FROM users WHERE type = 'user');
 
 -- name: get-users
 WITH ur AS (
-    SELECT id, name, permissions FROM roles WHERE type = 'user' AND parent_id IS NULL
+    SELECT id, name, permissions, super FROM roles WHERE type = 'user' AND parent_id IS NULL
 ),
 lr AS (
     SELECT r.id, r.name, r.permissions, r.list_id, l.name AS list_name
@@ -101,6 +93,7 @@ SELECT
     ur.id AS user_role_id,
     ur.name AS user_role_name,
     ur.permissions AS user_role_permissions,
+    COALESCE(ur.super, false) AS user_role_super,
     lp.list_role_id,
     lr.name AS list_role_name,
     lp.list_role_perms
@@ -127,6 +120,7 @@ SELECT
     ur.id AS user_role_id,
     ur.name AS user_role_name,
     ur.permissions AS user_role_permissions,
+    COALESCE(ur.super, false) AS user_role_super,
     lr.id AS list_role_id,
     lr.name AS list_role_name,
     lp.list_role_perms

@@ -547,11 +547,9 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 	// Create the default "Super Admin" with all permissions if it doesn't
 	// already exist for this tenant.
 	//
-	// Looked up by name (not auth.SuperAdminRoleID, a global constant)
-	// since role IDs are a single sequence shared across all tenants - a
-	// different tenant's role id=1 is invisible under RLS, so checking by
-	// ID alone can never find a non-first tenant's existing role. That
-	// previously meant every tenant after the first unconditionally
+	// Looked up by its super flag, not an ID, since role IDs are a single
+	// sequence shared across all tenants. Looking it up by ID used to mean
+	// every tenant after the first unconditionally
 	// created a brand new role on every first-time-setup attempt,
 	// including retries: if a prior attempt got as far as creating the
 	// role but failed before creating the user (e.g. a duplicate
@@ -565,7 +563,7 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 		return err
 	}
 	for _, r := range roles {
-		if r.Type == auth.RoleTypeUser && r.Name.String == "Super Admin" {
+		if r.Super {
 			roleID = r.ID
 			break
 		}
@@ -573,8 +571,9 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 
 	if roleID == 0 {
 		r := auth.Role{
-			Type: auth.RoleTypeUser,
-			Name: null.NewString("Super Admin", true),
+			Type:  auth.RoleTypeUser,
+			Name:  null.NewString("Super Admin", true),
+			Super: true,
 		}
 		for p := range a.cfg.Permissions {
 			r.Permissions = append(r.Permissions, p)

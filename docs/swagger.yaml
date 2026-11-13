@@ -1365,6 +1365,9 @@ definitions:
             items:
               type: string
             type: array
+          super:
+            description: 'Super is the workspace''s Super Admin role: every permission.'
+            type: boolean
         type: object
       user_role_id:
         type: integer
@@ -1387,6 +1390,11 @@ definitions:
         items:
           type: string
         type: array
+      super:
+        description: |-
+          Super marks the workspace's Super Admin role, which has every
+          permission and can't be edited or deleted. Set only by the server.
+        type: boolean
       type:
         type: string
       updated_at:
@@ -2365,6 +2373,9 @@ definitions:
             items:
               type: string
             type: array
+          super:
+            description: 'Super is the workspace''s Super Admin role: every permission.'
+            type: boolean
         type: object
       user_role_id:
         type: integer
