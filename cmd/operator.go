@@ -48,6 +48,7 @@ type operatorQueries struct {
 	SetTenantFromEmail      *sqlx.Stmt `query:"operator-set-tenant-from-email"`
 	SetTenantCustomDomain   *sqlx.Stmt `query:"operator-set-tenant-custom-domain"`
 	SetTenantSMTP           *sqlx.Stmt `query:"operator-set-tenant-smtp"`
+	SetTenantSettings       *sqlx.Stmt `query:"operator-set-tenant-settings"`
 	SetTenantScrub          *sqlx.Stmt `query:"operator-set-tenant-scrub"`
 	SetTenantBounceWebhooks *sqlx.Stmt `query:"operator-set-tenant-bounce-webhooks"`
 	SetTenantReplies        *sqlx.Stmt `query:"operator-set-tenant-replies"`
