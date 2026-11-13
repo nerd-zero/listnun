@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 
-import { RoundedCornerOutlined } from '@mui/icons-material';
+import { RoundedCornerOutlined, WidthNormalOutlined } from '@mui/icons-material';
 
 import EmailLayoutPropsSchema, {
+  DEFAULT_LAYOUT_WIDTH,
   EmailLayoutProps,
+  MAX_LAYOUT_WIDTH,
+  MIN_LAYOUT_WIDTH,
 } from '../../../../documents/blocks/EmailLayout/EmailLayoutPropsSchema';
 
 import BaseSidebarPanel from './helpers/BaseSidebarPanel';
@@ -31,6 +34,17 @@ export default function EmailLayoutSidebarFields({ data, setData }: EmailLayoutS
 
   return (
     <BaseSidebarPanel title="Global">
+      <SliderInput
+        iconLabel={<WidthNormalOutlined />}
+        units="px"
+        step={20}
+        marks
+        min={MIN_LAYOUT_WIDTH}
+        max={MAX_LAYOUT_WIDTH}
+        label="Content width"
+        defaultValue={data.width ?? DEFAULT_LAYOUT_WIDTH}
+        onChange={(width) => updateData({ ...data, width })}
+      />
       <ColorInput
         label="Backdrop color"
         defaultValue={data.backdropColor ?? '#F5F5F5'}
