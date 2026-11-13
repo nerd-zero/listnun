@@ -365,6 +365,7 @@ SELECT COUNT(DISTINCT COALESCE(link_clicks.subscriber_id, -link_clicks.id)) AS "
     GROUP BY links.url ORDER BY "count" DESC LIMIT 50;
 
 -- name: export-campaign-views
+-- $4 tenant: exports run outside a tenant transaction.
 SELECT campaign_views.campaign_id,
        COALESCE(campaigns.uuid::TEXT, '') AS campaign_uuid,
        COALESCE(campaigns.name, '') AS campaign_name,
@@ -376,10 +377,11 @@ SELECT campaign_views.campaign_id,
     FROM campaign_views
     LEFT JOIN campaigns ON (campaigns.id = campaign_views.campaign_id)
     LEFT JOIN subscribers ON (subscribers.id = campaign_views.subscriber_id)
-    WHERE campaign_views.created_at >= $1
+    WHERE campaign_views.tenant_id = $4 AND campaign_views.created_at >= $1
     ORDER BY campaign_views.id ASC LIMIT $2 OFFSET $3;
 
 -- name: export-campaign-link-clicks
+-- $4 tenant: exports run outside a tenant transaction.
 SELECT link_clicks.campaign_id,
        COALESCE(campaigns.uuid::TEXT, '') AS campaign_uuid,
        COALESCE(campaigns.name, '') AS campaign_name,
@@ -392,7 +394,7 @@ SELECT link_clicks.campaign_id,
     LEFT JOIN campaigns ON (campaigns.id = link_clicks.campaign_id)
     LEFT JOIN links ON (links.id = link_clicks.link_id)
     LEFT JOIN subscribers ON (subscribers.id = link_clicks.subscriber_id)
-    WHERE link_clicks.created_at >= $1
+    WHERE link_clicks.tenant_id = $4 AND link_clicks.created_at >= $1
     ORDER BY link_clicks.id ASC LIMIT $2 OFFSET $3;
 
 -- name: get-running-campaign
@@ -416,10 +418,16 @@ SELECT campaigns.id AS campaign_id, campaigns.type as campaign_type, last_subscr
 -- the query planner works as expected. The difference is staggering. ~15 seconds on a subscribers table with 15m
 -- rows and a subscriber_lists table with 70 million rows when fetching subscribers for a campaign with a single list,
 -- vs. a few million seconds using this current approach.
-WITH campLists AS (
+-- Runs outside a tenant transaction (the campaign manager serves every
+-- tenant), so subscribers and lists are filtered to the campaign's tenant
+-- explicitly: a list or subscription from another tenant must never mail.
+WITH camp AS (
+    SELECT tenant_id FROM campaigns WHERE id = $1
+),
+campLists AS (
     SELECT lists.id AS list_id, optin FROM lists
     LEFT JOIN campaign_lists ON campaign_lists.list_id = lists.id
-    WHERE campaign_lists.campaign_id = $1
+    WHERE campaign_lists.campaign_id = $1 AND lists.tenant_id = (SELECT tenant_id FROM camp)
 ),
 subs AS (
     SELECT s.*
@@ -430,6 +438,8 @@ subs AS (
         JOIN subscribers s ON s.id = sl.subscriber_id
         WHERE
             sl.list_id = ANY($5::INT[])
+            AND s.tenant_id = (SELECT tenant_id FROM camp)
+            AND sl.tenant_id = (SELECT tenant_id FROM camp)
             -- last_subscriber_id
             AND s.id > $3
              -- max_subscriber_id

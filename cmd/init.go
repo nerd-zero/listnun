@@ -148,13 +148,6 @@ type Config struct {
 		TrustedURLs []string `koanf:"trusted_urls"`
 	} `koanf:"security"`
 
-	Appearance struct {
-		AdminCSS  []byte `koanf:"admin.custom_css"`
-		AdminJS   []byte `koanf:"admin.custom_js"`
-		PublicCSS []byte `koanf:"public.custom_css"`
-		PublicJS  []byte `koanf:"public.custom_js"`
-	}
-
 	HasLegacyUser bool
 	AssetVersion  string
 
@@ -517,10 +510,6 @@ func initConstConfig(ko *koanf.Koanf) *Config {
 	}
 	if err := ko.Unmarshal("operator", &c.Operator); err != nil {
 		lo.Fatalf("error loading operator config: %v", err)
-	}
-
-	if err := ko.UnmarshalWithConf("appearance", &c.Appearance, koanf.UnmarshalConf{FlatPaths: true}); err != nil {
-		lo.Fatalf("error loading app.appearance config: %v", err)
 	}
 
 	c.Lang = ko.String("app.lang")

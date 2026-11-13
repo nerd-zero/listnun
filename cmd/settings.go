@@ -627,7 +627,9 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, okResp{a.bufLog.Lines()})
+	// The log is the whole process's, every tenant's lines included, so
+	// none of it goes back to a tenant. The response keeps its shape.
+	return c.JSON(http.StatusOK, okResp{[]string{}})
 }
 
 // TestScrubSettings verifies that the Scrub URL and API key are reachable.
