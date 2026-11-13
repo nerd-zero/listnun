@@ -65,7 +65,7 @@ func install(lastVer string, db *sqlx.DB, fs stuffbin.FileSystem, prompt, idempo
 	applyOperatorGrants(db)
 
 	// Load the queries.
-	q := prepareQueries(qMap, db, ko)
+	q := prepareQueries(qMap, db)
 
 	// Sample list.
 	defList, optinList := installLists(q)

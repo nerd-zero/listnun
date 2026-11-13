@@ -184,8 +184,6 @@ type Config struct {
 	SlidingWindowRate     int
 	RequeueOnError        bool
 	FromEmail             string
-	IndividualTracking    bool
-	DisableTracking       bool
 	LinkTrackURL          string
 	UnsubURL              string
 	OptinURL              string
@@ -210,6 +208,22 @@ type Config struct {
 	// tenant has no reply tracking setup -- such campaigns then send with
 	// their own Reply-To unchanged.
 	ReplyAddress func(tenantID, campaignID, subscriberID int) string
+
+	// Tracking returns a tenant's own link/view tracking settings. Each
+	// tenant sets these in its own Settings, so they can't come from the
+	// boot-time config, which is tenant 1's.
+	Tracking func(tenantID int) Tracking
+}
+
+// Tracking is one tenant's link and view tracking settings.
+type Tracking struct {
+	// Disabled turns off tracked links and the view pixel altogether.
+	Disabled bool `db:"disable_tracking"`
+
+	// Individual puts the subscriber in tracked links and the view
+	// pixel, so views and clicks can be counted per person. Off, every
+	// message carries a placeholder subscriber instead.
+	Individual bool `db:"individual_tracking"`
 }
 
 // tenantURLCfg mirrors Config's URL template fields, resolved against one
@@ -285,6 +299,9 @@ func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter
 	}
 	if cfg.MessageRate < 1 {
 		cfg.MessageRate = 1
+	}
+	if cfg.Tracking == nil {
+		cfg.Tracking = func(int) Tracking { return Tracking{} }
 	}
 
 	m := &Manager{
@@ -508,24 +525,26 @@ func (m *Manager) TemplateFuncs(c *models.Campaign) template.FuncMap {
 
 	f := template.FuncMap{
 		"TrackLink": func(url string, msg *CampaignMessage) string {
-			if m.cfg.DisableTracking {
+			tr := m.cfg.Tracking(msg.Campaign.TenantID)
+			if tr.Disabled {
 				return url
 			}
 
 			subUUID := msg.Subscriber.UUID
-			if !m.cfg.IndividualTracking {
+			if !tr.Individual {
 				subUUID = dummyUUID
 			}
 
 			return m.trackLink(msg.Campaign.TenantID, url, msg.Campaign.UUID, subUUID)
 		},
 		"TrackView": func(msg *CampaignMessage) template.HTML {
-			if m.cfg.DisableTracking {
+			tr := m.cfg.Tracking(msg.Campaign.TenantID)
+			if tr.Disabled {
 				return template.HTML("")
 			}
 
 			subUUID := msg.Subscriber.UUID
-			if !m.cfg.IndividualTracking {
+			if !tr.Individual {
 				subUUID = dummyUUID
 			}
 
@@ -855,7 +874,7 @@ func (m *Manager) getCurrentCampaigns() map[int]currentCampaignIDs {
 // trackLink register a URL and return its UUID to be used in message templates
 // for tracking links.
 func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string {
-	if m.cfg.DisableTracking {
+	if m.cfg.Tracking(tenantID).Disabled {
 		return url
 	}
 
