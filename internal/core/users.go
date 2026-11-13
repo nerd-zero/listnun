@@ -308,6 +308,7 @@ func (c *Core) setupUserFields(users []auth.User) []auth.User {
 		u.UserRole.ID = u.UserRoleID
 		u.UserRole.Name = u.UserRoleName
 		u.UserRole.Permissions = u.UserRolePerms
+		u.UserRole.Super = u.UserRoleSuper
 		u.UserRoleID = 0
 
 		// Prepare lookup maps.

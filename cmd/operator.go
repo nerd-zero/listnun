@@ -403,8 +403,9 @@ func (s *operatorStore) CreateTenant(ctx context.Context, slug, name, adminUsern
 	}
 
 	r := auth.Role{
-		Type: auth.RoleTypeUser,
-		Name: null.NewString("Super Admin", true),
+		Type:  auth.RoleTypeUser,
+		Name:  null.NewString("Super Admin", true),
+		Super: true,
 	}
 	for p := range s.permissions {
 		r.Permissions = append(r.Permissions, p)

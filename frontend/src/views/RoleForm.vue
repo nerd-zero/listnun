@@ -113,9 +113,6 @@ import { translateOr } from '../composables/translateOr';
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 interface PermGroup { group: string; permissions: string[] }
 
-// The built-in admin role. It always has every permission and can't change.
-const ADMIN_ROLE_ID = 1;
-
 // Permissions a new user role leaves off: anything that reaches every list,
 // settings, users or raw SQL is opted into deliberately.
 function isDefaultOff(group: string, p: string): boolean {
@@ -143,7 +140,8 @@ const busy = ref(false);
 const curList = ref<number | null>(null);
 const form = reactive<Loose>({ name: '', permissions: [] as string[], lists: [] as Loose[] });
 
-const disabled = computed(() => props.data.id === ADMIN_ROLE_ID || !$can('roles:manage'));
+// The workspace's Super Admin role has every permission and isn't edited.
+const disabled = computed(() => (props.type === 'user' && !!props.data.super) || !$can('roles:manage'));
 const groups = computed<PermGroup[]>(() => (serverConfig.value as Loose).permissions || []);
 const allPerms = computed(() => groups.value.flatMap((g) => g.permissions));
 const allOn = computed(() => allPerms.value.every((p) => form.permissions.includes(p)));

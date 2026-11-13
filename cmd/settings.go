@@ -303,7 +303,7 @@ func (a *App) UpdateSettings(c echo.Context) error {
 
 	// OIDC user auto-creation is enabled. Validate.
 	if set.OIDC.AutoCreateUsers {
-		if set.OIDC.DefaultUserRoleID.Int < auth.SuperAdminRoleID {
+		if set.OIDC.DefaultUserRoleID.Int < 1 {
 			return echo.NewHTTPError(http.StatusBadRequest,
 				a.i18n.Ts("globals.messages.invalidFields", "name", a.i18n.T("settings.security.OIDCDefaultRole")))
 		}
