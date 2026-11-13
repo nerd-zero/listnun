@@ -171,6 +171,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
+import { readItem, writeItem } from '../safeStorage';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
@@ -245,9 +246,9 @@ function rates(rows: Loose[]): { id: number; rate: string }[] {
 
 // The tracking-off banner, once dismissed, stays hidden in this browser.
 const TRACKING_NOTICE_KEY = 'ln-analytics-tracking-dismissed';
-const trackingNoticeHidden = ref(localStorage.getItem(TRACKING_NOTICE_KEY) === '1');
+const trackingNoticeHidden = ref(readItem(TRACKING_NOTICE_KEY) === '1');
 function hideTrackingNotice() {
-  localStorage.setItem(TRACKING_NOTICE_KEY, '1');
+  writeItem(TRACKING_NOTICE_KEY, '1');
   trackingNoticeHidden.value = true;
 }
 
