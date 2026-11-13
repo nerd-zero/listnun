@@ -526,6 +526,8 @@ func (c *Core) GetCampaignAnalyticsCounts(ctx context.Context, tenantID int, cam
 		q = c.q.GetCampaignClickCounts
 	case "bounces":
 		q = c.q.GetCampaignBounceCounts
+	case "replies":
+		q = c.q.GetCampaignReplyAnalytics
 	default:
 		return nil, echo.NewHTTPError(http.StatusBadRequest, c.i18n.T("globals.messages.invalidData"))
 	}

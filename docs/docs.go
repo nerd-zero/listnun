@@ -591,7 +591,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Analytics type (views, clicks, bounces, links, bounce_types)",
+                        "description": "Analytics type (views, clicks, bounces, replies, links, bounce_types)",
                         "name": "type",
                         "in": "path",
                         "required": true
@@ -8175,6 +8175,10 @@ const docTemplate = `{
                 "opened": {
                     "description": "Opened is people who viewed or clicked.",
                     "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
                 }
             }
         },
@@ -8229,6 +8233,10 @@ const docTemplate = `{
                 },
                 "pause_reason": {
                     "type": "string"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
                 },
                 "send_at": {
                     "type": "string"
@@ -9081,6 +9089,10 @@ const docTemplate = `{
                 },
                 "opened": {
                     "description": "Opened is people who viewed or clicked.",
+                    "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
                     "type": "integer"
                 },
                 "send_at": {

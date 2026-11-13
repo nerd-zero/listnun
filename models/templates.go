@@ -103,6 +103,8 @@ type CampaignEngagement struct {
 	// Anonymous is views and clicks recorded without a subscriber, which
 	// Opened and Clicked may count more than once for one person.
 	Anonymous int `db:"anonymous" json:"anonymous"`
+	// Replied is people who replied, leaving out auto-replies.
+	Replied int `db:"replied" json:"replied"`
 } // @name CampaignEngagement
 
 // CampaignEngagementCount is one campaign's CampaignEngagement.
