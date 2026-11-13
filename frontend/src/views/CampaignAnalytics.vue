@@ -105,6 +105,7 @@
       </div>
       <p v-if="!privacy.disable_tracking && !privacy.individual_tracking" class="ln-small ana-note">{{ $t('analytics.nonUnique') }}</p>
       <p v-else-if="hasAnonymous" class="ln-small ana-note">{{ $t('analytics.someAnonymous') }}</p>
+      <p v-if="sending" class="ln-small ana-note ana-live" role="status"><span class="ana-live-dot" aria-hidden="true" />{{ $t('analytics.live') }}</p>
 
       <section class="ln-card ana-chart">
         <div class="ana-chart-head">
@@ -163,7 +164,7 @@
 
 <script setup lang="ts">
 import {
-  computed, onMounted, reactive, ref,
+  computed, onBeforeUnmount, onMounted, reactive, ref, watch,
 } from 'vue';
 import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
@@ -188,6 +189,9 @@ interface Point { campaignId: number; count: number; timestamp: string }
 interface Engagement {
   campaignId: number; bounced: number; delivered: number; opened: number; clicked: number; anonymous: number;
 }
+
+// While a picked campaign is sending, how often its results refresh.
+const LIVE_REFRESH_MS = 30_000;
 
 // Comparing more than this many campaigns makes the chart unreadable.
 const MAX_CAMPAIGNS = 5;
@@ -362,20 +366,22 @@ function shortUrl(u: string): string {
 // server's days are the viewer's days.
 const ISO_OFFSET = 'YYYY-MM-DDTHH:mm:ssZ';
 
-function fetchEngagement() {
+// quiet refreshes skip the loading placeholders, so live numbers update in
+// place instead of flashing.
+function fetchEngagement(quiet = false) {
   if (!form.campaigns.length) return;
-  engagement.loading = true;
+  engagement.loading = !quiet;
   getCampaignEngagement({ id: form.campaigns.map((c) => c.id) }).then((rows) => {
     const list = (rows as unknown as Engagement[]) || [];
     engagement.byId = Object.fromEntries(list.map((r) => [r.campaignId, r]));
   }).finally(() => { engagement.loading = false; });
 }
 
-function fetchAll() {
+function fetchAll(quiet = false) {
   const [from, to] = range.value || [];
   if (!form.campaigns.length || !from || !to) return;
   (['views', 'clicks', 'bounces', 'links', 'bounce_types'] as const).forEach((typ) => {
-    data[typ].loading = true;
+    data[typ].loading = !quiet;
     getCampaignAnalytics(typ, {
       id: form.campaigns.map((c) => c.id),
       from: dayjs(from).startOf('day').format(ISO_OFFSET),
@@ -458,6 +464,33 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+// Live results: while a picked campaign is sending, refresh its status
+// and results, so "Live results" on the Campaigns overview stays live.
+let liveTimer: ReturnType<typeof setInterval> | null = null;
+const sending = computed(() => form.campaigns.some((c) => c.status === 'running'));
+
+function refreshLive() {
+  Promise.allSettled(form.campaigns.map((c) => getCampaign(c.id))).then((res) => {
+    res.forEach((r, i) => {
+      if (r.status === 'fulfilled' && form.campaigns[i]) Object.assign(form.campaigns[i], r.value as unknown as Loose);
+    });
+  });
+  // Ranges that ended today run on to now.
+  const [from, to] = range.value || [];
+  if (from && to && dayjs(to).isSame(dayjs(), 'day')) range.value = [from, dayjs().endOf('day').toDate()];
+  fetchEngagement(true);
+  fetchAll(true);
+}
+
+watch(sending, (on) => {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = on ? setInterval(refreshLive, LIVE_REFRESH_MS) : null;
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (liveTimer) clearInterval(liveTimer);
+});
+
 onMounted(() => {
   const now = dayjs().endOf('day');
   const from = route.query.from ? dayjs.unix(Number(route.query.from)) : now.subtract(10, 'day').startOf('day');
@@ -522,6 +555,8 @@ onMounted(() => {
 // Each campaign's rate next to its colour, then "of sends" once.
 .ana-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 1.4em; }
 .ana-rate { display: inline-flex; align-items: center; gap: 5px; }
+.ana-live { display: flex; align-items: center; gap: 6px; }
+.ana-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ln-success); }
 .ana-of { margin-left: -6px; }
 .ana-note { margin: -4px 0 0; }
 .ana-fix { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-left: 4px; }
