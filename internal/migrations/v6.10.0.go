@@ -13,20 +13,20 @@ import (
 // does not revert to "unset"/NULL - it reverts to that GUC's session-level
 // value, and the very first time any backend touches a never-before-set
 // custom parameter name (via SET LOCAL, current_setting, anything),
-// Postgres materializes it as a placeholder defaulting to '' (empty
+// Postgres materializes it as a placeholder defaulting to ” (empty
 // string), not NULL. So after the first internal/core.WithTenant call on
 // a given pooled connection, current_setting('app.current_tenant', true)
-// returns '' - not NULL - for every later query on that same connection
+// returns ” - not NULL - for every later query on that same connection
 // that runs outside WithTenant (e.g. queries/campaigns.sql's
 // next-campaigns, or Core.GetUserUnscoped used by every session/token
-// lookup). The old policy's `::INTEGER` cast then fails on '' with
+// lookup). The old policy's `::INTEGER` cast then fails on ” with
 // "invalid input syntax for type integer", breaking campaign scanning and
 // login session validation for the lifetime of that connection - found
 // live via a real login failure after switching the dev DB role from a
 // superuser (which bypasses RLS entirely, masking this) to a real
 // non-superuser role.
 //
-// Fix: wrap the setting in NULLIF(..., '') before the cast, so an empty
+// Fix: wrap the setting in NULLIF(..., ”) before the cast, so an empty
 // string is treated identically to NULL/unset (permissive) and never
 // reaches ::INTEGER.
 func V6_10_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger) error {

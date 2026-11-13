@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make run           # Run backend dev server (serves frontend/dist at :9000)
 make build         # Build the Go binary
-make test          # Run Go tests (go test ./...)
+make test          # Run Go tests (go test ./...); CI runs go test -race ./... plus gofmt and go vet
 ```
 
 ### Frontend (Vue 3)
@@ -73,26 +73,26 @@ Static assets (frontend dist, schema, i18n files) are embedded into the binary a
 
 **Key files**:
 - `frontend/src/main.ts` — app bootstrap: creates Vue app, registers PrimeVue components globally with `Pv*` prefix (e.g. `PvButton`, `PvDataTable`), loads server config and user profile before mount.
-- `frontend/src/store/index.js` — single Pinia store (`useMainStore`). Holds all model data (lists, campaigns, subscribers, etc.), per-model `loading` flags, and a `refreshTick` counter used to trigger view re-fetches without a full page reload.
+- `frontend/src/store/index.ts` — single, thin Pinia store (`useMainStore`): a slot per model in `constants.ts` (including `serverConfig` and `profile`), per-model `loading` flags, and a `refreshTick` counter used to trigger view re-fetches without a full page reload.
 - `frontend/src/api/index.js` — hand-written Axios API calls (legacy). Interceptors auto-convert snake_case responses to camelCase. New code should use `src/api/generated/` (orval-generated typed client).
 - `frontend/src/api/generated/` — auto-generated typed Axios functions and TypeScript model interfaces (gitignored, run `yarn gen:api` to regenerate). Split by tag: `endpoints/subscribers`, `endpoints/campaigns`, etc. Model interfaces in `model/`.
 - `frontend/src/api/mutator.ts` — custom Axios instance used by the orval-generated client: handles response envelope unwrapping, camelCase conversion, and error toasts.
-- `frontend/src/router/index.js` — 35 lazily-loaded routes.
+- `frontend/src/router/index.ts` — about 35 lazily loaded routes; `meta.perms` is checked in `App.vue`.
 - `frontend/src/assets/tokens.css` — design tokens as `--ln-*` CSS custom properties (`--ln-bg`, `--ln-card`, `--ln-muted`, `--ln-border`, `--ln-text`, `--ln-text-2`/`-3`/`-4`, `--ln-ink`, status colours); dark mode overrides them under `.app-dark`. `frontend/src/theme.ts` maps them onto the PrimeVue Aura preset.
 - `frontend/src/assets/patterns.scss` — shared `.ln-*` page patterns (page header, cards, tiles, tables, fields, dialogs) used with the components in `components/ui/`. `shell.scss` styles the app shell; `style.scss` holds the remaining legacy globals.
-- `frontend/src/constants.js` — model names, URI prefixes, regex helpers (e.g. `regDuration`).
+- `frontend/src/constants.ts` — model names, URI prefixes, regex helpers (e.g. `regDuration`).
 
 **PrimeVue component API reference**: `Primevue.md` in the repo root documents the props, variants, design tokens, and PassThrough (PT) options for PrimeVue components used in this project. Check it before guessing at component APIs — it covers the exact prop names, severity values, variant strings, and CSS class names.
 
 **Component conventions (PrimeVue migration)**:
 - All PrimeVue components are registered globally and used with the `Pv` prefix.
 - Dialogs use `components/ui/DialogForm.vue` (header, scrolling form body, sticky footer) and `ConfirmAction.vue` for destructive confirms. The legacy `.lm-form` / `.lm-form-header` / `.lm-form-body` / `.lm-form-footer` classes remain only in `SubscriberForm.vue` and `SubscriberBulkList.vue`. `.lm-form-body` uses `flex-direction: column; gap: 1.1rem` — set `.field { margin-bottom: 0 }` inside it to avoid double spacing.
-- Settings sub-views use `.settings-card` (bordered content sections), `.settings-section-label` (uppercase muted headers), `.items` (flex-column wrapper), and `.quick-links` (inline link row).
+- Settings sub-views are built from `components/ui/SetCard.vue` (a bordered section) and `SetRow.vue` (a labelled setting row).
 - `PvPassword` requires `:deep(.p-password) { width: 100% }` and `:deep(.p-password-input) { width: 100% }` for full-width layout.
-- State is read from the store via `mapState(useMainStore, [...])` in the Options API `computed` block.
+- Every SFC uses `<script setup lang="ts">`; read store state with `storeToRefs(useMainStore())`.
 - `refreshTick` from the store replaces the old `$root` event bus for triggering data reloads.
 
-**Vite dev proxy** (`frontend/vite.config.js`): Paths `/`, `/api/*`, `/webhooks/*`, `/subscription/*`, `/public/*`, `/health`, `/admin/login` all proxy to `http://127.0.0.1:9000`.
+**Vite dev proxy** (`frontend/vite.config.ts`): Paths `/`, `/api/*`, `/webhooks/*`, `/subscription/*`, `/public/*`, `/health`, `/admin/login` all proxy to `http://127.0.0.1:9000`.
 
 ### Email Builder
 
