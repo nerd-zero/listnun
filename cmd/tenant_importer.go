@@ -38,18 +38,20 @@ type tenantImporters struct {
 	db      *sqlx.DB
 	core    *core.Core
 	manager *manager.Manager
+	sysMail *systemMail
 	i18n    *i18n.I18n
 
 	mu    sync.Mutex
 	cache map[int]*subimporter.Importer
 }
 
-func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, i *i18n.I18n) *tenantImporters {
+func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, sm *systemMail, i *i18n.I18n) *tenantImporters {
 	return &tenantImporters{
 		q:       q,
 		db:      db,
 		core:    co,
 		manager: mgr,
+		sysMail: sm,
 		i18n:    i,
 		cache:   make(map[int]*subimporter.Importer),
 	}
@@ -111,7 +113,8 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 				}
 			}
 			t.core.RefreshMatViews(true)
-			notifs.NotifySystem(subject, notifs.TplImport, data, nil)
+			// To this workspace's own notify addresses.
+			_ = t.sysMail.notifyAdmins(context.Background(), tenantID, subject, notifs.TplImport, data)
 			return nil
 		},
 	}, t.db.DB, t.i18n)

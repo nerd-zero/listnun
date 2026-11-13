@@ -183,7 +183,7 @@ func (a *App) resendOptins(ctx context.Context, tID int, listIDs []int, dueBefor
 				a.log.Printf("optin resend: error marking subscriber %d: %v", sub.ID, err)
 				return
 			}
-			if _, err := a.fnOptinNotify(sub, listIDs); err != nil {
+			if _, err := a.sysMail.optinNotify(tID, sub, listIDs); err != nil {
 				a.log.Printf("optin resend: error sending to subscriber %d: %v", sub.ID, err)
 				continue
 			}
