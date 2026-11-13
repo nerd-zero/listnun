@@ -554,33 +554,38 @@ func initCore(fnNotify func(tenantID int, sub models.Subscriber, listIDs []int) 
 // tenantMessengers resolver it wires in, so callers can invalidate a
 // tenant's cached SMTP messengers after a settings save (cmd/settings.go's
 // handleSettingsRestart) without needing a full process restart.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, tt *tenantTracking, sm *systemMail, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, tt *tenantTracking, sm *systemMail, ts *tenantSettings, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
 
 	tm := newTenantMessengers(co)
 	mgr := manager.New(manager.Config{
-		BatchSize:             ko.Int("app.batch_size"),
-		Concurrency:           ko.Int("app.concurrency"),
-		MessageRate:           ko.Int("app.message_rate"),
-		MaxSendErrors:         ko.Int("app.max_send_errors"),
-		FromEmail:             ko.String("app.from_email"),
-		UnsubURL:              u.UnsubURL,
-		OptinURL:              u.OptinURL,
-		LinkTrackURL:          u.LinkTrackURL,
-		ViewTrackURL:          u.ViewTrackURL,
-		MessageURL:            u.MessageURL,
-		ArchiveURL:            u.ArchiveURL,
-		RootURL:               u.RootURL,
-		UnsubHeader:           ko.Bool("privacy.unsubscribe_header"),
-		SlidingWindow:         ko.Bool("app.message_sliding_window"),
-		SlidingWindowDuration: ko.Duration("app.message_sliding_window_duration"),
-		SlidingWindowRate:     ko.Int("app.message_sliding_window_rate"),
-		ScanInterval:          time.Second * 5,
-		ScanCampaigns:         !ko.Bool("passive"),
-		ReplyAddress:          tr.ReplyAddress,
-		Tracking:              tt.For,
+		BatchSize:     ko.Int("app.batch_size"),
+		Concurrency:   ko.Int("app.concurrency"),
+		MessageRate:   ko.Int("app.message_rate"),
+		MaxSendErrors: ko.Int("app.max_send_errors"),
+		FromEmail:     ko.String("app.from_email"),
+		UnsubURL:      u.UnsubURL,
+		OptinURL:      u.OptinURL,
+		LinkTrackURL:  u.LinkTrackURL,
+		ViewTrackURL:  u.ViewTrackURL,
+		MessageURL:    u.MessageURL,
+		ArchiveURL:    u.ArchiveURL,
+		RootURL:       u.RootURL,
+		UnsubHeader:   ko.Bool("privacy.unsubscribe_header"),
+		Limits: func(tenantID int) manager.SendLimits {
+			s, err := ts.Get(context.Background(), tenantID)
+			if err != nil {
+				lo.Printf("error reading tenant %d's sending limits: %v", tenantID, err)
+				return manager.SendLimits{}
+			}
+			return sendLimits(s)
+		},
+		ScanInterval:  time.Second * 5,
+		ScanCampaigns: !ko.Bool("passive"),
+		ReplyAddress:  tr.ReplyAddress,
+		Tracking:      tt.For,
 		NotifyAdmins: func(tenantID int, subject string, data any) error {
 			return sm.notifyAdmins(context.Background(), tenantID, subject, notifs.TplCampaignStatus, data)
 		},

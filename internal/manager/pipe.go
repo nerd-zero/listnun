@@ -83,9 +83,12 @@ func (m *Manager) newPipe(c *models.Campaign) (*pipe, error) {
 // It returns a bool indicating whether any subscribers were processed
 // in the current batch or not. A false indicates that all subscribers
 // have been processed, or that a campaign has been paused or cancelled.
-func (p *pipe) NextSubscribers() (bool, error) {
+//
+// It fetches at most limit subscribers: the batch size, or what's left of
+// the tenant's sending window.
+func (p *pipe) NextSubscribers(limit int) (bool, error) {
 	// Fetch the next batch of subscribers from a 'running' campaign.
-	subs, err := p.m.store.NextSubscribers(p.camp.ID, p.m.cfg.BatchSize)
+	subs, err := p.m.store.NextSubscribers(p.camp.ID, limit)
 	if err != nil {
 		return false, fmt.Errorf("error fetching campaign subscribers (%s): %v", p.camp.Name, err)
 	}
@@ -95,11 +98,6 @@ func (p *pipe) NextSubscribers() (bool, error) {
 	if len(subs) == 0 {
 		return false, nil
 	}
-
-	// Is there a sliding window limit configured?
-	hasSliding := p.m.cfg.SlidingWindow &&
-		p.m.cfg.SlidingWindowRate > 0 &&
-		p.m.cfg.SlidingWindowDuration.Seconds() > 1
 
 	// Push messages.
 	for _, s := range subs {
@@ -112,33 +110,10 @@ func (p *pipe) NextSubscribers() (bool, error) {
 		// Push the message to the queue while blocking and waiting until
 		// the queue is drained.
 		p.m.campMsgQ <- msg
-
-		// Check if the sliding window is active.
-		if hasSliding {
-			diff := time.Since(p.m.slidingStart)
-
-			// Window has expired. Reset the clock.
-			if diff >= p.m.cfg.SlidingWindowDuration {
-				p.m.slidingStart = time.Now()
-				p.m.slidingCount = 0
-			}
-
-			// Have the messages exceeded the limit?
-			p.m.slidingCount++
-			if p.m.slidingCount >= p.m.cfg.SlidingWindowRate {
-				wait := p.m.cfg.SlidingWindowDuration - diff
-
-				p.m.log.Printf("messages exceeded (%d) for the window (%v since %s). Sleeping for %s.",
-					p.m.slidingCount,
-					p.m.cfg.SlidingWindowDuration,
-					p.m.slidingStart.Format(time.RFC822Z),
-					wait.Round(time.Second)*1)
-
-				p.m.slidingCount = 0
-				time.Sleep(wait)
-			}
-		}
 	}
+
+	// Count the batch against the tenant's sending window.
+	p.m.limits.sent(p.camp.TenantID, len(subs))
 
 	return true, nil
 }

@@ -145,11 +145,12 @@ type Manager struct {
 	campMsgQ  chan CampaignMessage
 	msgQ      chan models.Message
 
-	// Sliding window keeps track of the total number of messages sent in a period
-	// and on reaching the specified limit, waits until the window is over before
-	// sending further messages.
-	slidingCount int
-	slidingStart time.Time
+	// limits holds each tenant's sending limits (limits.go).
+	limits *limiters
+
+	// closed is set by Close, under pipesMut, so a delayed requeue
+	// (requeueAfter) doesn't send on the closed nextPipes.
+	closed bool
 
 	tplFuncs template.FuncMap
 }
@@ -174,23 +175,20 @@ type CampaignMessage struct {
 // Config has parameters for configuring the manager.
 type Config struct {
 	// Number of subscribers to pull from the DB in a single iteration.
-	BatchSize             int
-	Concurrency           int
-	MessageRate           int
-	MaxSendErrors         int
-	SlidingWindow         bool
-	SlidingWindowDuration time.Duration
-	SlidingWindowRate     int
-	RequeueOnError        bool
-	FromEmail             string
-	LinkTrackURL          string
-	UnsubURL              string
-	OptinURL              string
-	MessageURL            string
-	ViewTrackURL          string
-	ArchiveURL            string
-	RootURL               string
-	UnsubHeader           bool
+	BatchSize      int
+	Concurrency    int
+	MessageRate    int
+	MaxSendErrors  int
+	RequeueOnError bool
+	FromEmail      string
+	LinkTrackURL   string
+	UnsubURL       string
+	OptinURL       string
+	MessageURL     string
+	ViewTrackURL   string
+	ArchiveURL     string
+	RootURL        string
+	UnsubHeader    bool
 
 	// Interval to scan the DB for active campaign checkpoints.
 	ScanInterval time.Duration
@@ -212,6 +210,11 @@ type Config struct {
 	// tenant sets these in its own Settings, so they can't come from the
 	// boot-time config, which is tenant 1's.
 	Tracking func(tenantID int) Tracking
+
+	// Limits returns a tenant's own sending limits (per second, and per
+	// sliding window), applied to its campaigns only. Nil is no limits
+	// beyond the process-wide per-worker MessageRate.
+	Limits func(tenantID int) SendLimits
 
 	// NotifyAdmins e-mails a campaign status notification to the tenant's
 	// own notify addresses. Nil sends none.
@@ -308,23 +311,23 @@ func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter
 	}
 
 	m := &Manager{
-		cfg:          cfg,
-		store:        store,
-		resolver:     resolver,
-		usage:        meter,
-		i18n:         i,
-		fnNotify:     cfg.NotifyAdmins,
-		log:          l,
-		messengers:   make(map[string]Messenger),
-		pipes:        make(map[int]*pipe),
-		tpls:         make(map[int]*models.Template),
-		tplTenants:   make(map[int]int),
-		tenantURLs:   make(map[int]tenantURLCfg),
-		links:        make(map[linkKey]string),
-		nextPipes:    make(chan *pipe, 1000),
-		campMsgQ:     make(chan CampaignMessage, cfg.Concurrency*cfg.MessageRate*2),
-		msgQ:         make(chan models.Message, cfg.Concurrency*cfg.MessageRate*2),
-		slidingStart: time.Now(),
+		cfg:        cfg,
+		store:      store,
+		resolver:   resolver,
+		usage:      meter,
+		i18n:       i,
+		fnNotify:   cfg.NotifyAdmins,
+		log:        l,
+		messengers: make(map[string]Messenger),
+		pipes:      make(map[int]*pipe),
+		tpls:       make(map[int]*models.Template),
+		tplTenants: make(map[int]int),
+		tenantURLs: make(map[int]tenantURLCfg),
+		links:      make(map[linkKey]string),
+		nextPipes:  make(chan *pipe, 1000),
+		campMsgQ:   make(chan CampaignMessage, cfg.Concurrency*cfg.MessageRate*2),
+		msgQ:       make(chan models.Message, cfg.Concurrency*cfg.MessageRate*2),
+		limits:     newLimiters(cfg.Limits),
 	}
 	m.tplFuncs = m.makeGnericFuncMap()
 
@@ -430,7 +433,15 @@ func (m *Manager) Run() {
 	// Indefinitely wait on the pipe queue to fetch the next set of subscribers
 	// for any active campaigns.
 	for p := range m.nextPipes {
-		has, err := p.NextSubscribers()
+		// A tenant that has used up its sliding window waits for it to
+		// reset without holding up other tenants' campaigns.
+		allow, wait := m.limits.allowance(p.camp.TenantID, m.cfg.BatchSize)
+		if allow == 0 {
+			m.requeueAfter(p, wait)
+			continue
+		}
+
+		has, err := p.NextSubscribers(allow)
 		if err != nil {
 			m.log.Printf("error processing campaign batch (%s): %v", p.camp.Name, err)
 
@@ -594,8 +605,32 @@ func (m *Manager) StopCampaign(id int) {
 
 // Close closes and exits the campaign manager.
 func (m *Manager) Close() {
+	m.pipesMut.Lock()
+	m.closed = true
 	close(m.nextPipes)
+	m.pipesMut.Unlock()
 	close(m.msgQ)
+}
+
+// requeueAfter puts p back on the queue after d, for a tenant waiting on
+// its sliding window. If the queue is full or closed by then, the pipe is
+// stopped and released, as when Run can't requeue it; scanCampaigns picks
+// the campaign up again later.
+func (m *Manager) requeueAfter(p *pipe, d time.Duration) {
+	m.log.Printf("campaign %s: tenant %d reached its sending window, continuing in %s", p.camp.Name, p.camp.TenantID, d.Round(time.Second))
+	time.AfterFunc(d, func() {
+		m.pipesMut.RLock()
+		defer m.pipesMut.RUnlock()
+		if !m.closed {
+			select {
+			case m.nextPipes <- p:
+				return
+			default:
+			}
+		}
+		p.Stop(false)
+		p.wg.Done()
+	})
 }
 
 // scanCampaigns is a blocking function that periodically scans the data source
@@ -707,6 +742,9 @@ func (m *Manager) worker() {
 				numMsg = 0
 			}
 			numMsg++
+
+			// The tenant's own per-second cap.
+			m.limits.wait(msg.Campaign.TenantID)
 
 			err := sendSafely(func() error { return m.sendCampaignMessage(msg) })
 			if err != nil {
