@@ -71,7 +71,7 @@
             </div>
             <div>
               <dt>{{ $t('campaigns.overview.openedSoFar') }}</dt>
-              <dd>{{ rate(c.opened, sentOf(c)) }}</dd>
+              <dd>{{ result(c.opened, sentOf(c)) }}</dd>
             </div>
           </dl>
         </article>
@@ -145,14 +145,14 @@
               <span class="ln-small">{{ shortDate(c.startedAt || c.updatedAt) }}</span>
               <span class="is-num">{{ $utils.niceNumber(delivered(c)) }}</span>
               <span class="camps-ov-open">
-                <span class="camps-ov-bar" aria-hidden="true"><span :style="{ width: `${pct(c.opened, delivered(c))}%` }" /></span>
-                <span class="is-num">{{ rate(c.opened, delivered(c)) }}</span>
+                <span v-if="perPerson" class="camps-ov-bar" aria-hidden="true"><span :style="{ width: `${pct(c.opened, delivered(c))}%` }" /></span>
+                <span class="is-num">{{ result(c.opened, delivered(c)) }}</span>
               </span>
-              <span class="is-num">{{ rate(c.clicked, delivered(c)) }}</span>
+              <span class="is-num">{{ result(c.clicked, delivered(c)) }}</span>
             </template>
             <span v-else class="camps-ov-sent-m ln-small">
               <span>{{ shortDate(c.startedAt || c.updatedAt) }}</span>
-              <span>{{ $t('campaigns.overview.opened', { n: rate(c.opened, delivered(c)) }) }}</span>
+              <span>{{ $t('campaigns.overview.opened', { n: result(c.opened, delivered(c)) }) }}</span>
             </span>
           </router-link>
           <div class="camps-ov-sent-foot ln-small">
@@ -197,7 +197,9 @@ interface ListRef { id: number; name: string }
 interface Item {
   id: number; name: string; status: string; pauseReason?: string | null;
   sendAt?: string; startedAt?: string; updatedAt?: string; updatedByName: string;
-  toSend: number; sent: number; lists: ListRef[]; audience: number; bounced: number; opened: number; clicked: number;
+  toSend: number; sent: number; lists: ListRef[]; audience: number;
+  // Results, counted as on the Analytics page (models.CampaignEngagement).
+  bounced: number; delivered: number; opened: number; clicked: number; anonymous: number;
 }
 interface Overview { campaigns: Item[]; counts: { status: string; count: number }[] }
 // A running campaign's live figures from /api/campaigns/running/stats.
@@ -212,7 +214,11 @@ const { t } = useI18n();
 const router = useRouter();
 const { ago, shortDate } = useTime();
 const isMobile = useMedia('(max-width: 767px)');
-const { refreshTick } = storeToRefs(useMainStore());
+const { refreshTick, serverConfig } = storeToRefs(useMainStore());
+
+// Opens and clicks count people only with per-subscriber tracking on;
+// without it they count every view and click, and a rate would overstate.
+const perPerson = computed(() => !!(serverConfig.value as { privacy?: { individual_tracking?: boolean } }).privacy?.individual_tracking);
 
 const data = ref<Overview | null>(null);
 const live = ref<Record<number, Live>>({});
@@ -264,7 +270,7 @@ function listNames(c: Item): string {
 const sentOf = (c: Item) => live.value[c.id]?.sent ?? c.sent;
 const totalOf = (c: Item) => live.value[c.id]?.toSend ?? c.toSend;
 const rateOf = (c: Item) => live.value[c.id]?.rate || live.value[c.id]?.netRate || 0;
-const delivered = (c: Item) => Math.max(0, c.sent - c.bounced);
+const delivered = (c: Item) => c.delivered;
 
 function pct(n: number, of: number): number {
   return of ? Math.min(100, (n / of) * 100) : 0;
@@ -272,6 +278,11 @@ function pct(n: number, of: number): number {
 
 function rate(n: number, of: number): string {
   return of ? `${((n / of) * 100).toFixed(1)}%` : '–';
+}
+
+// result is n as a share of `of` when counts are of people, else the count.
+function result(n: number, of: number): string {
+  return perPerson.value ? rate(n, of) : String($utils.niceNumber(n));
 }
 
 function hhmm(stamp?: string): string {

@@ -503,6 +503,19 @@ func (c *Core) GetRunningCampaignStats(ctx context.Context, tenantID int) ([]mod
 	return out, nil
 }
 
+// dateOnlyLen is the length of a bare YYYY-MM-DD date.
+const dateOnlyLen = len("2006-01-02")
+
+// inclusiveEnd makes a bare YYYY-MM-DD end date cover that whole day. As a
+// timestamp it means the day's first instant, so a range "to" today left
+// out everything that happened today. Full timestamps pass through.
+func inclusiveEnd(to string) string {
+	if len(to) == dateOnlyLen {
+		return to + " 23:59:59.999999"
+	}
+	return to
+}
+
 func (c *Core) GetCampaignAnalyticsCounts(ctx context.Context, tenantID int, campIDs []int, typ, fromDate, toDate string) ([]models.CampaignAnalyticsCount, error) {
 	// Pick campaign view counts or click counts.
 	var q *sqlx.Stmt
@@ -523,7 +536,7 @@ func (c *Core) GetCampaignAnalyticsCounts(ctx context.Context, tenantID int, cam
 
 	out := []models.CampaignAnalyticsCount{}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, q).Select(&out, pq.Array(campIDs), fromDate, toDate)
+		return stmtx(tx, q).Select(&out, pq.Array(campIDs), fromDate, inclusiveEnd(toDate))
 	})
 	if err != nil {
 		c.log.Printf("error fetching campaign %s: %v", typ, err)
@@ -534,11 +547,40 @@ func (c *Core) GetCampaignAnalyticsCounts(ctx context.Context, tenantID int, cam
 	return out, nil
 }
 
+// GetCampaignEngagement returns the results of the given campaigns, all
+// time, in no particular order.
+func (c *Core) GetCampaignEngagement(ctx context.Context, tenantID int, campIDs []int) ([]models.CampaignEngagementCount, error) {
+	out := []models.CampaignEngagementCount{}
+	err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.q.GetCampaignEngagement).Select(&out, pq.Array(campIDs))
+	})
+	if err != nil {
+		c.log.Printf("error fetching campaign engagement: %v", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError,
+			c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
+	}
+	return out, nil
+}
+
+// campaignEngagement returns the results of the given campaigns by ID,
+// for attaching to campaigns fetched in the same transaction.
+func (c *Core) campaignEngagement(tx *sqlx.Tx, campIDs []int) (map[int]models.CampaignEngagement, error) {
+	var rows []models.CampaignEngagementCount
+	if err := stmtx(tx, c.q.GetCampaignEngagement).Select(&rows, pq.Array(campIDs)); err != nil {
+		return nil, err
+	}
+	out := make(map[int]models.CampaignEngagement, len(rows))
+	for _, r := range rows {
+		out[r.CampaignID] = r.CampaignEngagement
+	}
+	return out, nil
+}
+
 // GetCampaignAnalyticsLinks returns link click analytics for the given campaign IDs.
 func (c *Core) GetCampaignAnalyticsLinks(ctx context.Context, tenantID int, campIDs []int, typ, fromDate, toDate string) ([]models.CampaignAnalyticsLink, error) {
 	out := []models.CampaignAnalyticsLink{}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.GetCampaignLinkCounts).Select(&out, pq.Array(campIDs), fromDate, toDate)
+		return stmtx(tx, c.q.GetCampaignLinkCounts).Select(&out, pq.Array(campIDs), fromDate, inclusiveEnd(toDate))
 	})
 	if err != nil {
 		c.log.Printf("error fetching campaign %s: %v", typ, err)
@@ -553,7 +595,7 @@ func (c *Core) GetCampaignAnalyticsLinks(ctx context.Context, tenantID int, camp
 func (c *Core) GetCampaignBounceTypes(ctx context.Context, tenantID int, campIDs []int, fromDate, toDate string) ([]models.CampaignBounceTypeCount, error) {
 	out := []models.CampaignBounceTypeCount{}
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.GetCampaignBounceTypeCounts).Select(&out, pq.Array(campIDs), fromDate, toDate)
+		return stmtx(tx, c.q.GetCampaignBounceTypeCounts).Select(&out, pq.Array(campIDs), fromDate, inclusiveEnd(toDate))
 	})
 	if err != nil {
 		c.log.Printf("error fetching campaign bounce types: %v", err)

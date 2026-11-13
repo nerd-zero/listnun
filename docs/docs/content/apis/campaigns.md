@@ -6,6 +6,7 @@
 | GET    | [/api/campaigns/{campaign_id}](#get-apicampaignscampaign_id)                | Retrieve a specific campaign.             |
 | GET    | [/api/campaigns/{campaign_id}/preview](#get-apicampaignscampaign_idpreview) | Retrieve preview of a campaign.           |
 | GET    | [/api/campaigns/running/stats](#get-apicampaignsrunningstats)               | Retrieve stats of specified campaigns.    |
+| GET    | [/api/campaigns/analytics/engagement](#get-apicampaignsanalyticsengagement) | Retrieve campaigns' results, all time.    |
 | GET    | [/api/campaigns/analytics/{type}](#get-apicampaignsanalyticstype)           | Retrieve view counts for a  campaign.     |
 | GET    | [/api/campaigns/overview](#get-apicampaignsoverview)                        | What's sending, scheduled, drafted and recently sent. |
 | GET    | [/api/campaigns/{campaign_id}/inbox-check](#get-apicampaignscampaign_idinbox-check) | Run the inbox check on a campaign.  |
@@ -201,9 +202,49 @@ curl -u "api_user:token" -X GET 'http://localhost:9000/api/campaigns/running/sta
 
 ______________________________________________________________________
 
+#### GET /api/campaigns/analytics/engagement
+
+Retrieve campaigns' results, all time, counted the same way as on the Campaigns overview and the Analytics page.
+
+- `delivered` is sent less `bounced` (people with a bounce), and is what open and click rates are a share of.
+- `opened` is people who viewed or clicked. A click counts as an open, because the email was opened even when images were blocked and the view pixel never loaded.
+- `clicked` is people who clicked.
+- `anonymous` is views and clicks recorded without a subscriber: with **Individual subscriber tracking** off, or for subscribers since deleted. Each of those counts once in `opened` and `clicked`, so with it above zero they may count a person more than once.
+
+##### Parameters
+
+| Name | Type       | Required | Description                     |
+| :--- | :--------- | :------- | :------------------------------ |
+| id   | number\[\] | Yes      | Campaign IDs to get results for. |
+
+##### Example Request
+
+```shell
+curl -u "api_user:token" -X GET 'http://localhost:9000/api/campaigns/analytics/engagement?id=1'
+```
+
+##### Example Response
+
+```json
+{
+  "data": [
+    {
+      "campaign_id": 1,
+      "bounced": 12,
+      "delivered": 29968,
+      "opened": 6120,
+      "clicked": 1544,
+      "anonymous": 0
+    }
+  ]
+}
+```
+
+______________________________________________________________________
+
 #### GET /api/campaigns/analytics/{type}
 
-Retrieve stats of specified campaigns.
+Retrieve stats of specified campaigns. `views` and `clicks` count people: each subscriber once per campaign, on the day of their first view or click in the range. `links` counts the people who clicked each link.
 
 ##### Parameters
 
@@ -211,8 +252,8 @@ Retrieve stats of specified campaigns.
 | :--- | :--------- | :------- | :-------------------------------------------- |
 | id   | number\[\] | Yes      | Campaign IDs to get stats for.                |
 | type | string     | Yes      | Analytics type: views, links, clicks, bounces |
-| from | string     | Yes      | Start value of date range.                    |
-| to   | string     | Yes      | End value of date range.                      |
+| from | string     | Yes      | Start of the date range: a date (`2024-08-04`) or an ISO 8601 timestamp. |
+| to   | string     | Yes      | End of the date range. A date includes that whole day. |
 
 
 ##### Example Request
