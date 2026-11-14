@@ -372,6 +372,9 @@ definitions:
       opened:
         description: Opened is people who viewed or clicked.
         type: integer
+      replied:
+        description: Replied is people who replied, leaving out auto-replies.
+        type: integer
     type: object
   CampaignListRef:
     properties:
@@ -411,6 +414,9 @@ definitions:
         type: integer
       pause_reason:
         type: string
+      replied:
+        description: Replied is people who replied, leaving out auto-replies.
+        type: integer
       send_at:
         type: string
       sent:
@@ -1017,6 +1023,9 @@ definitions:
         type: string
       opened:
         description: Opened is people who viewed or clicked.
+        type: integer
+      replied:
+        description: Replied is people who replied, leaving out auto-replies.
         type: integer
       send_at:
         type: string
@@ -3588,7 +3597,7 @@ paths:
     get:
       operationId: getCampaignAnalytics
       parameters:
-      - description: Analytics type (views, clicks, bounces, links, bounce_types)
+      - description: Analytics type (views, clicks, bounces, replies, links, bounce_types)
         in: path
         name: type
         required: true

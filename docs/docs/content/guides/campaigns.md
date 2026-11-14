@@ -128,7 +128,7 @@ If your workspace uses [email validation](settings.md#email-validation), startin
 
 ## Results
 
-**Campaigns › Analytics** compares campaigns: how many people opened, clicked and bounced, bounces split into hard and soft, and which links were clicked most. Pick the campaigns at the top. The totals and rates are each campaign's results all time, the same figures as on the Campaigns overview; the chart, links and bounce types follow the date range, which starts from the day the earliest campaign went out until you pick one.
+**Campaigns › Analytics** compares campaigns: how many people opened, clicked, bounced and, with [Replies](#replies) set up, replied, bounces split into hard and soft, and which links were clicked most. Pick the campaigns at the top. The totals and rates are each campaign's results all time, the same figures as on the Campaigns overview; the chart, links and bounce types follow the date range, which starts from the day the earliest campaign went out until you pick one.
 
 Opens and clicks count people, once each per campaign, and rates are a share of delivered emails (sent, less those that bounced). Anyone who clicked counts as having opened, since many email apps block the image that records an open. Rates need **Settings › Privacy › Individual subscriber tracking**: without it each view and click is counted on its own, so only the counts are shown.
 

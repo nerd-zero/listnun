@@ -865,7 +865,7 @@ func (a *App) GetCampaignEngagement(c echo.Context) error {
 //	@Summary		Get campaign analytics
 //	@Tags			campaigns
 //	@Produce		json
-//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, links, bounce_types)"
+//	@Param			type	path		string		true	"Analytics type (views, clicks, bounces, replies, links, bounce_types)"
 //	@Param			id		query		[]int		true	"Campaign IDs"
 //	@Param			from	query		string		true	"Start (YYYY-MM-DD, or an ISO 8601 timestamp)"
 //	@Param			to		query		string		true	"End, inclusive (YYYY-MM-DD, or an ISO 8601 timestamp)"

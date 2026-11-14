@@ -36,10 +36,11 @@ func testCoreForCampaignsOverview(t *testing.T, pool *sqlx.DB) *Core {
 	return &Core{
 		db: pool,
 		q: &models.Queries{
-			SetCampaignEditor:       prep("set-campaign-editor"),
-			GetCampaignsOverview:    prep("get-campaigns-overview"),
-			GetCampaignStatusCounts: prep("get-campaign-status-counts"),
-			GetCampaignEngagement:   prep("get-campaign-engagement"),
+			SetCampaignEditor:         prep("set-campaign-editor"),
+			GetCampaignsOverview:      prep("get-campaigns-overview"),
+			GetCampaignStatusCounts:   prep("get-campaign-status-counts"),
+			GetCampaignEngagement:     prep("get-campaign-engagement"),
+			GetCampaignReplyAnalytics: prep("get-campaign-reply-analytics-counts"),
 		},
 		i18n: lang,
 	}
@@ -168,12 +169,23 @@ func TestCampaignEngagement(t *testing.T) {
 	pool.MustExec(`INSERT INTO bounces (tenant_id, subscriber_id, campaign_id, type, source) VALUES ($1, $2, $3, 'soft', 'test'), ($1, $2, $3, 'hard', 'test')`,
 		f.tenant, bounced, camp)
 
+	// a replies twice, someone outside the list twice (with different
+	// casing), and an out-of-office auto-reply comes back.
+	pool.MustExec(`INSERT INTO campaign_replies (tenant_id, uuid, campaign_id, subscriber_id, from_email, is_auto, provider_message_id, received_at) VALUES
+		($1, gen_random_uuid(), $2, $3, 'a@example.com', false, gen_random_uuid()::TEXT, NOW() - INTERVAL '2 days'),
+		($1, gen_random_uuid(), $2, $3, 'a@example.com', false, gen_random_uuid()::TEXT, NOW()),
+		($1, gen_random_uuid(), $2, NULL, 'Out@Example.com', false, gen_random_uuid()::TEXT, NOW()),
+		($1, gen_random_uuid(), $2, NULL, 'out@example.com', false, gen_random_uuid()::TEXT, NOW()),
+		($1, gen_random_uuid(), $2, $4, 'b@example.com', true, gen_random_uuid()::TEXT, NOW())`,
+		f.tenant, camp, a, b)
+
 	want := models.CampaignEngagement{
 		Bounced:   1,
 		Delivered: 9,
 		Opened:    4, // a, b (clicked, so opened), and the larger of 1 anonymous view and 2 anonymous clicks
 		Clicked:   4, // a, b and the 2 anonymous clicks
 		Anonymous: 3,
+		Replied:   2, // a and the outside address; not the auto-reply
 	}
 
 	got, err := c.GetCampaignEngagement(ctx, f.tenant, []int{camp})
@@ -182,6 +194,20 @@ func TestCampaignEngagement(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].CampaignID != camp || got[0].CampaignEngagement != want {
 		t.Errorf("engagement = %+v, want %+v", got, want)
+	}
+
+	// Replies over time count each replier once, at their first reply.
+	day := func(d time.Duration) string { return time.Now().Add(d).Format("2006-01-02") }
+	series, err := c.GetCampaignAnalyticsCounts(ctx, f.tenant, []int{camp}, "replies", day(-10*24*time.Hour), day(0))
+	if err != nil {
+		t.Fatalf("GetCampaignAnalyticsCounts(replies): %v", err)
+	}
+	total := 0
+	for _, p := range series {
+		total += p.Count
+	}
+	if len(series) != 2 || total != 2 {
+		t.Errorf("reply series = %+v, want a 2 days ago and the outside address today", series)
 	}
 
 	ov, err := c.GetCampaignsOverview(ctx, f.tenant, true, nil, CampaignsOverviewLimits{Sent: 4})

@@ -69,7 +69,7 @@
 
     <template v-else>
       <!-- Metric cards double as the chart's metric picker -->
-      <div class="ana-metrics" role="radiogroup" :aria-label="$t('analytics.metric')">
+      <div class="ana-metrics" role="radiogroup" :aria-label="$t('analytics.metric')" :style="{ '--ana-cards': metricCards.length }">
         <button
           v-for="m in metricCards"
           :key="m.key"
@@ -181,13 +181,13 @@ import { getCampaigns as campaignsApi } from '../api/generated/endpoints/campaig
 
 // Campaigns and analytics rows are the API's camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-type Metric = 'views' | 'clicks' | 'bounces';
+type Metric = 'views' | 'clicks' | 'bounces' | 'replies';
 
 interface Point { campaignId: number; count: number; timestamp: string }
 
 // A campaign's results all time (models.CampaignEngagementCount, camelCased).
 interface Engagement {
-  campaignId: number; bounced: number; delivered: number; opened: number; clicked: number; anonymous: number;
+  campaignId: number; bounced: number; delivered: number; opened: number; clicked: number; anonymous: number; replied: number;
 }
 
 // While a picked campaign is sending, how often its results refresh.
@@ -222,6 +222,7 @@ const data = reactive<Record<Metric | 'links' | 'bounce_types', { loading: boole
   views: { loading: false, rows: [] },
   clicks: { loading: false, rows: [] },
   bounces: { loading: false, rows: [] },
+  replies: { loading: false, rows: [] },
   links: { loading: false, rows: [] },
   bounce_types: { loading: false, rows: [] },
 });
@@ -232,7 +233,10 @@ const engagement = reactive<{ loading: boolean; byId: Record<number, Engagement>
 
 const loadingAny = computed(() => Object.values(data).some((d) => d.loading));
 const hasData = computed(() => form.campaigns.length > 0 && !loadingAny.value);
-const metricLabel = computed(() => t(metric.value === 'bounces' ? 'globals.terms.bounces' : `campaigns.${metric.value}`));
+const METRIC_LABELS: Record<Metric, string> = {
+  views: 'campaigns.views', clicks: 'campaigns.clicks', bounces: 'globals.terms.bounces', replies: 'campaigns.replies.title',
+};
+const metricLabel = computed(() => t(METRIC_LABELS[metric.value]));
 
 function colorFor(id: number): string {
   const i = form.campaigns.findIndex((c) => c.id === id);
@@ -248,7 +252,7 @@ function total(rows: Loose[], id?: number): number {
   return rows.reduce((n, r) => (id === undefined || r.campaignId === id ? n + (r.count || 0) : n), 0);
 }
 
-type Counted = 'opened' | 'clicked' | 'bounced';
+type Counted = 'opened' | 'clicked' | 'bounced' | 'replied';
 
 // sum adds up one result across the picked campaigns.
 function sum(key: Counted): number {
@@ -259,6 +263,11 @@ function sum(key: Counted): number {
 // click counted on its own) they'd overstate, and aren't shown.
 const showRates = computed(() => !!privacy.value.individual_tracking);
 
+// Replies show where the workspace has reply tracking, or a picked
+// campaign got replies while it had.
+const showReplies = computed(() => !!(serverConfig.value as Loose).reply_tracking
+  || form.campaigns.some((c) => (engagement.byId[c.id]?.replied || 0) > 0));
+
 // Some views or clicks were recorded without a subscriber, so the counts
 // may include a person more than once.
 const hasAnonymous = computed(() => form.campaigns.some((c) => (engagement.byId[c.id]?.anonymous || 0) > 0));
@@ -266,7 +275,8 @@ const hasAnonymous = computed(() => form.campaigns.some((c) => (engagement.byId[
 // rates is each campaign's result as a share of `of` (delivered, or sent
 // for bounces), leaving out campaigns at zero so only what happened shows.
 function rates(key: Counted, of: 'delivered' | 'sent'): { id: number; rate: string }[] {
-  if (!showRates.value && key !== 'bounced') return [];
+  // Bounces and replies are always per person.
+  if (!showRates.value && (key === 'opened' || key === 'clicked')) return [];
   return form.campaigns
     .map((c) => ({ c, e: engagement.byId[c.id] }))
     .filter(({ c, e }) => e && e[key] && (of === 'sent' ? c.sent : e.delivered))
@@ -298,6 +308,9 @@ const metricCards = computed(() => [
   {
     key: 'bounces', label: t('globals.terms.bounces'), value: sum('bounced'), rates: rates('bounced', 'sent'), of: t('analytics.ofSendsShort'), sub: t('analytics.allTime'),
   },
+  ...(showReplies.value ? [{
+    key: 'replies', label: t('analytics.replied'), value: sum('replied'), rates: rates('replied', 'delivered'), of: t('analytics.ofDelivered'), sub: t('analytics.allTime'),
+  }] : []),
   {
     key: 'links', label: t('analytics.links'), value: data.links.rows.length, rates: null, of: '', sub: t('analytics.clickedOnce'),
   },
@@ -380,7 +393,7 @@ function fetchEngagement(quiet = false) {
 function fetchAll(quiet = false) {
   const [from, to] = range.value || [];
   if (!form.campaigns.length || !from || !to) return;
-  (['views', 'clicks', 'bounces', 'links', 'bounce_types'] as const).forEach((typ) => {
+  (['views', 'clicks', 'bounces', 'replies', 'links', 'bounce_types'] as const).forEach((typ) => {
     data[typ].loading = !quiet;
     getCampaignAnalytics(typ, {
       id: form.campaigns.map((c) => c.id),
@@ -451,7 +464,7 @@ function exportCsv() {
   const header = ['campaign_id', 'campaign', 'metric', 'timestamp', 'count'];
   const lines = [header.join(',')];
   const name = (id: number) => (form.campaigns.find((c) => c.id === id)?.name || '').replace(/"/g, '""');
-  (['views', 'clicks', 'bounces'] as const).forEach((m) => {
+  (['views', 'clicks', 'bounces', 'replies'] as const).forEach((m) => {
     (data[m].rows as Point[]).forEach((r) => {
       lines.push([r.campaignId, `"${name(r.campaignId)}"`, m, r.timestamp, r.count].join(','));
     });
@@ -537,9 +550,10 @@ onMounted(() => {
 
 .ana-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--ana-cards, 4), minmax(0, 1fr));
   gap: 12px;
 
+  @media (max-width: 1100px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   @media (max-width: 900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .ana-metric {
