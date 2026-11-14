@@ -536,6 +536,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/analytics/engagement": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get campaign results",
+                "operationId": "getCampaignEngagement",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Campaign IDs",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/CampaignEngagementCount"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/analytics/{type}": {
             "get": {
                 "produces": [
@@ -549,7 +591,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Analytics type (views, clicks, bounces, links, bounce_types)",
+                        "description": "Analytics type (views, clicks, bounces, replies, links, bounce_types)",
                         "name": "type",
                         "in": "path",
                         "required": true
@@ -567,14 +609,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Start date (YYYY-MM-DD)",
+                        "description": "Start (YYYY-MM-DD, or an ISO 8601 timestamp)",
                         "name": "from",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "End date (YYYY-MM-DD)",
+                        "description": "End, inclusive (YYYY-MM-DD, or an ISO 8601 timestamp)",
                         "name": "to",
                         "in": "query",
                         "required": true
@@ -8108,6 +8150,38 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignEngagementCount": {
+            "type": "object",
+            "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
+                "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
+                    "type": "integer"
+                },
+                "campaign_id": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
+                    "type": "integer"
+                },
+                "opened": {
+                    "description": "Opened is people who viewed or clicked.",
+                    "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
+                }
+            }
+        },
         "CampaignListRef": {
             "type": "object",
             "properties": {
@@ -8122,13 +8196,23 @@ const docTemplate = `{
         "CampaignOverviewItem": {
             "type": "object",
             "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
                 "audience": {
                     "type": "integer"
                 },
                 "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
                     "type": "integer"
                 },
                 "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
                     "type": "integer"
                 },
                 "id": {
@@ -8144,10 +8228,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened": {
+                    "description": "Opened is people who viewed or clicked.",
                     "type": "integer"
                 },
                 "pause_reason": {
                     "type": "string"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
                 },
                 "send_at": {
                     "type": "string"
@@ -8976,7 +9065,20 @@ const docTemplate = `{
         "ListCampaign": {
             "type": "object",
             "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
+                "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
+                    "type": "integer"
+                },
                 "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
                     "type": "integer"
                 },
                 "id": {
@@ -8986,6 +9088,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened": {
+                    "description": "Opened is people who viewed or clicked.",
+                    "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
                     "type": "integer"
                 },
                 "send_at": {

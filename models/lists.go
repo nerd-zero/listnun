@@ -63,8 +63,7 @@ type ListCampaign struct {
 	StartedAt null.Time `db:"started_at" json:"started_at" swaggertype:"string"`
 	SendAt    null.Time `db:"send_at" json:"send_at" swaggertype:"string"`
 	Sent      int       `db:"sent" json:"sent"`
-	Opened    int       `db:"opened" json:"opened"`
-	Clicked   int       `db:"clicked" json:"clicked"`
+	CampaignEngagement
 } // @name ListCampaign
 
 // ListActivity is a list's recent joins and leaves, day by day and in

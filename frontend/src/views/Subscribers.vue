@@ -364,7 +364,7 @@ const store = useMainStore();
 const { refreshTick, loading } = storeToRefs(store);
 const subscribers = computed(() => (store.subscribers as Loose) || {});
 const lists = computed(() => (store.lists as Loose) || {});
-const { shortDate, ago } = useTime();
+const { ago } = useTime();
 const isMobile = useMedia('(max-width: 991px)');
 
 const {
