@@ -27,6 +27,10 @@ Templates use the listmonk template language, so you can add the subscriber's na
 
 See the [Templating reference](../templating.md) for everything you can use. **Preview** shows the template with sample content and a sample subscriber.
 
+### Visual template width
+
+A visual email is 600px wide unless you change it. Click the area around the email in the builder to open its **Global** settings, and set **Content width** anywhere from 480px to 800px. Campaigns imported from the template take its width, and each campaign can change its own. On phones the email still shrinks to fit the screen. With **Outlook compatibility** on, Outlook on Windows keeps to the width too.
+
 ## Media
 
 **Campaigns › Media** is your workspace's library of images and files, used for images in campaigns, campaign attachments and your email logo.
