@@ -12,7 +12,7 @@ import (
 // that transaction's duration (SET LOCAL), so the override doesn't leak onto
 // a subsequently reused connection once the transaction ends.
 //
-// Isolation is fail-closed (v6.41.0): a query on the tenant pool sees no
+// Isolation is fail-closed (v6.42.0): a query on the tenant pool sees no
 // tenant's rows unless it runs inside WithTenant, or inside System on the
 // system pool. SET LOCAL, a statement, is used rather than set_config, a
 // function: EXECUTE on set_config is revoked from the app's roles so a

@@ -246,7 +246,7 @@ func TestOperatorSeed_NoTenantOneSecrets(t *testing.T) {
 	}
 }
 
-// Row-level security is fail-closed (v6.41.0): with no tenant set, a
+// Row-level security is fail-closed (v6.42.0): with no tenant set, a
 // tenant-pool connection sees nothing (it used to see every tenant), the
 // system pool sees everything, and WithTenant sees only its own tenant.
 // set_config is revoked, so a query can't switch tenants mid-flight.

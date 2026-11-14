@@ -359,7 +359,7 @@ var ErrQueryExprNotAllowed = errors.New("the query can't call set_config or use 
 // accepts (quoted, schema-qualified, any case), or U& escapes that could
 // spell it. Changing app.current_tenant mid-query would sidestep tenant
 // isolation. EXECUTE on set_config is also revoked from the app's roles
-// (v6.41.0); this is the first, clearer line.
+// (v6.42.0); this is the first, clearer line.
 func CheckQueryExpr(exp string) error {
 	e := strings.ToLower(strings.ReplaceAll(exp, `"`, ""))
 	if strings.Contains(e, "set_config") || strings.Contains(e, "u&") {

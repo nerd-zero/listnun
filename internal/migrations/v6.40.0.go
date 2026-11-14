@@ -8,24 +8,27 @@ import (
 	"github.com/knadh/stuffbin"
 )
 
-// V6_40_0 marks each workspace's Super Admin role. Super Admin used to be
-// recognised by role ID 1, which only tenant 1's role has (role IDs are one
-// sequence across tenants), so every other workspace's Super Admin was an
-// ordinary role: missing permissions added since it was created, and
-// editable and deletable. At most one role per workspace is super.
+// platformSMTPHost is the host of the SMTP servers the platform has set up
+// through the Operator API so far. Those were stored without a marker, so
+// V6_40_0 recognises them by it. From now on the Operator API marks the
+// servers it sets up itself.
+const platformSMTPHost = "smtp.postmarkapp.com"
+
+// V6_40_0 adds managed_by_platform to every SMTP server: true for those
+// the platform set up, which their workspaces then can't see or change
+// (models.Settings.SMTPManaged), false for the rest. Servers that already
+// have it are left as they are.
 func V6_40_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger) error {
 	_, err := db.Exec(`
-		ALTER TABLE roles ADD COLUMN IF NOT EXISTS super BOOLEAN NOT NULL DEFAULT false;
-
-		-- Each workspace's Super Admin: role 1 (tenant 1's, whatever it's
-		-- called now), else the top-level user role named Super Admin.
-		UPDATE roles SET super = true
-		    WHERE NOT super AND type = 'user' AND parent_id IS NULL
-		    AND (id = 1 OR (name = 'Super Admin' AND NOT EXISTS (
-		        SELECT 1 FROM roles r WHERE r.tenant_id = roles.tenant_id AND r.super)));
-
-		DROP INDEX IF EXISTS idx_roles_super;
-		CREATE UNIQUE INDEX idx_roles_super ON roles(tenant_id) WHERE super;
-	`)
+		UPDATE settings SET value = (
+		    SELECT COALESCE(JSONB_AGG(
+		        CASE WHEN e ? 'managed_by_platform' THEN e
+		        ELSE e || JSONB_BUILD_OBJECT('managed_by_platform', LOWER(TRIM(COALESCE(e->>'host', ''))) = $1)
+		        END ORDER BY n), '[]'::JSONB)
+		    FROM JSONB_ARRAY_ELEMENTS(settings.value) WITH ORDINALITY AS t(e, n)
+		)
+		WHERE key = 'smtp' AND JSONB_TYPEOF(value) = 'array'
+		    AND EXISTS (SELECT 1 FROM JSONB_ARRAY_ELEMENTS(settings.value) e WHERE NOT e ? 'managed_by_platform');
+	`, platformSMTPHost)
 	return err
 }

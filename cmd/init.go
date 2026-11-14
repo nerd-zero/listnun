@@ -285,7 +285,7 @@ func initFS(appDir, frontendDir, staticDir, i18nDir string) stuffbin.FileSystem 
 // initDB initializes the main DB connection pool and parse and loads the app's
 // SQL queries into a prepared query map.
 // systemPoolOption puts the system pool's connections in app.all_tenants
-// mode, which the row-level policies let see every tenant's rows (v6.41.0).
+// mode, which the row-level policies let see every tenant's rows (v6.42.0).
 const systemPoolOption = `options='-c app.all_tenants=on'`
 
 // initDB opens the database's two pools: the tenant pool, where row-level

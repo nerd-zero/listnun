@@ -75,7 +75,11 @@ func (a *App) GetSettings(c echo.Context) error {
 		return err
 	}
 
-	// Empty out passwords.
+	// Empty out passwords. Platform-managed SMTP servers go out as their
+	// names only: their usernames are credentials too.
+	if s.SMTPManaged() {
+		s.SMTP = s.ManagedSMTPView()
+	}
 	for i := range s.SMTP {
 		s.SMTP[i].Password = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SMTP[i].Password))
 	}
@@ -123,6 +127,12 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	cur, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
 	if err != nil {
 		return err
+	}
+
+	// Platform-managed SMTP can't be changed here: whatever came in, the
+	// stored servers stay (core.UpdateSettings enforces this too).
+	if cur.SMTPManaged() {
+		set.SMTP = cur.SMTP
 	}
 
 	// Validate and sanitize postback Messenger names along with SMTP names
@@ -635,6 +645,16 @@ func (a *App) handleSettingsRestart(c echo.Context) error {
 //	@Failure		500		{object}	echo.HTTPError
 //	@Router			/api/settings/smtp/test [post]
 func (a *App) TestSMTPSettings(c echo.Context) error {
+	// A workspace whose SMTP the platform manages can't test servers of
+	// its own either.
+	cur, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if cur.SMTPManaged() {
+		return echo.NewHTTPError(http.StatusForbidden, a.i18n.T("settings.smtp.managedByPlatform"))
+	}
+
 	// Copy the raw JSON post body.
 	reqBody, err := io.ReadAll(c.Request().Body)
 	if err != nil {
