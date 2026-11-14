@@ -26,8 +26,6 @@ const (
 )
 
 const (
-	// SuperAdminRoleID is the database ID of the primordial super admin role.
-	SuperAdminRoleID = 1
 
 	// User.
 	UserTypeUser       = "user"
@@ -103,6 +101,7 @@ type User struct {
 	LoggedInAt    null.Time        `db:"loggedin_at" json:"loggedin_at"`
 	UserRoleID    int              `db:"user_role_id" json:"user_role_id,omitempty"`
 	UserRoleName  string           `db:"user_role_name" json:"-"`
+	UserRoleSuper bool             `db:"user_role_super" json:"-"`
 	ListRoleID    *int             `db:"list_role_id" json:"list_role_id,omitempty"`
 	ListRoleName  null.String      `db:"list_role_name" json:"-"`
 	UserRolePerms pq.StringArray   `db:"user_role_permissions" json:"-"`
@@ -113,6 +112,8 @@ type User struct {
 		ID          int      `db:"-" json:"id"`
 		Name        string   `db:"-" json:"name"`
 		Permissions []string `db:"-" json:"permissions"`
+		// Super is the workspace's Super Admin role: every permission.
+		Super bool `db:"-" json:"super"`
 	} `db:"-" json:"user_role"`
 
 	ListRole           *ListRolePermissions        `db:"-" json:"list_role"`
@@ -146,6 +147,9 @@ type Role struct {
 	Type        string         `db:"type" json:"type"`
 	Name        null.String    `db:"name" json:"name"`
 	Permissions pq.StringArray `db:"permissions" json:"permissions"`
+	// Super marks the workspace's Super Admin role, which has every
+	// permission and can't be edited or deleted. Set only by the server.
+	Super bool `db:"super" json:"super"`
 
 	ListID   null.Int         `db:"list_id" json:"-"`
 	ParentID null.Int         `db:"parent_id" json:"-"`
@@ -165,10 +169,16 @@ type ListRole struct {
 	Lists    []ListPermission `db:"-" json:"lists"`
 } // @name ListRole
 
+// IsSuperAdmin says whether the user has the workspace's Super Admin role.
+// It used to be "role ID 1", which only tenant 1's Super Admin role has.
+func (u *User) IsSuperAdmin() bool {
+	return u.UserRole.Super
+}
+
 // HasPerm checks if the user has a specific permission.
 func (u *User) HasPerm(perm string) bool {
-	// Short-circuit if the user is the primordial super admin.
-	if u.UserRoleID == SuperAdminRoleID {
+	// Short-circuit if the user is the workspace's Super Admin.
+	if u.IsSuperAdmin() {
 		return true
 	}
 
@@ -210,8 +220,8 @@ func (u *User) HasListPerm(types PermType, listIDs ...int) error {
 }
 
 func (u *User) hasListPerm(perm string, listID int) bool {
-	// Short-circuit if the user is the primordial super admin.
-	if u.UserRoleID == SuperAdminRoleID {
+	// Short-circuit if the user is the workspace's Super Admin.
+	if u.IsSuperAdmin() {
 		return true
 	}
 
@@ -232,8 +242,8 @@ func (u *User) GetPermittedLists(types PermType) (bool, []int) {
 		return false, nil
 	}
 
-	// Short-circuit if the user is the primordial super admin.
-	if u.UserRoleID == SuperAdminRoleID {
+	// Short-circuit if the user is the workspace's Super Admin.
+	if u.IsSuperAdmin() {
 		return true, nil
 	}
 

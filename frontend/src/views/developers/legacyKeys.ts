@@ -21,10 +21,8 @@ export const SCOPE_PERMISSIONS: Record<APIKeyScope, string[]> = {
   'webhooks:manage': ['webhooks:get', 'webhooks:manage'],
 };
 
-// The built-in admin role holds every permission.
-const ADMIN_ROLE_ID = 1;
-
-export interface LegacyRole { id: number; permissions?: string[] | null }
+// super is the workspace's Super Admin role, which holds every permission.
+export interface LegacyRole { id: number; permissions?: string[] | null; super?: boolean }
 
 // The scopes an API user can carry over: what keys could do before the
 // newer scopes existed. tx:logs, keys:manage and webhooks:manage stay off
@@ -36,7 +34,7 @@ const CARRY_OVER: APIKeyScope[] = ['tx:send', 'subscribers:read'];
 export function suggestScopes(role: LegacyRole | null | undefined): APIKeyScope[] {
   const scopes = CARRY_OVER;
   if (!role) return [];
-  if (role.id === ADMIN_ROLE_ID) return scopes;
+  if (role.super) return scopes;
   const held = new Set(role.permissions || []);
   return scopes.filter((s) => SCOPE_PERMISSIONS[s].every((p) => held.has(p)));
 }
@@ -46,7 +44,7 @@ export function suggestScopes(role: LegacyRole | null | undefined): APIKeyScope[
 // admin role it returns ['*'].
 export function uncoveredPermissions(role: LegacyRole | null | undefined, scopes: APIKeyScope[]): string[] {
   if (!role) return [];
-  if (role.id === ADMIN_ROLE_ID) return ['*'];
+  if (role.super) return ['*'];
   const granted = new Set(scopes.flatMap((s) => SCOPE_PERMISSIONS[s]));
   return (role.permissions || []).filter((p) => !granted.has(p));
 }
