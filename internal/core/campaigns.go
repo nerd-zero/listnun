@@ -658,18 +658,16 @@ func (c *Core) RegisterCampaignLinkClick(ctx context.Context, tenantID int, link
 }
 
 // ExportCampaignViews returns an iterator with campaign views for streaming/exporting.
-//
-// TODO(#40): ctx/tenantID are accepted for a consistent call-site shape with
-// the rest of Core, but the iterator below does NOT yet enforce tenant
-// scoping - same deferred shape as ExportSubscribers (see subscribers.go),
-// for the same reason (long-lived Preparex'd statement doesn't fit
-// WithTenant's short-transaction shape; zero risk today, no real
-// multi-tenant dataset exists yet).
+// Each batch runs in a short read-only tenant transaction, and the query
+// filters by tenant too, so only tenantID's views are exported.
 func (c *Core) ExportCampaignViews(ctx context.Context, tenantID int, since time.Time, batchSize int) func() ([]models.CampaignViewExport, error) {
 	offset := 0
 	return func() ([]models.CampaignViewExport, error) {
 		var out []models.CampaignViewExport
-		if err := c.q.ExportCampaignViews.Select(&out, since, batchSize, offset); err != nil {
+		err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+			return stmtx(tx, c.q.ExportCampaignViews).Select(&out, since, batchSize, offset, tenantID)
+		})
+		if err != nil {
 			c.log.Printf("error exporting campaign views: %v", err)
 			return nil, echo.NewHTTPError(http.StatusInternalServerError,
 				c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))
@@ -680,13 +678,15 @@ func (c *Core) ExportCampaignViews(ctx context.Context, tenantID int, since time
 }
 
 // ExportCampaignLinkClicks returns an iterator with campaign link click for streaming/exporting.
-//
-// TODO(#40): see ExportCampaignViews above - same deferred tenant scoping.
+// Scoped to tenantID the same way as ExportCampaignViews.
 func (c *Core) ExportCampaignLinkClicks(ctx context.Context, tenantID int, since time.Time, batchSize int) func() ([]models.CampaignClickExport, error) {
 	offset := 0
 	return func() ([]models.CampaignClickExport, error) {
 		var out []models.CampaignClickExport
-		if err := c.q.ExportCampaignLinkClicks.Select(&out, since, batchSize, offset); err != nil {
+		err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+			return stmtx(tx, c.q.ExportCampaignLinkClicks).Select(&out, since, batchSize, offset, tenantID)
+		})
+		if err != nil {
 			c.log.Printf("error exporting campaign link clicks: %v", err)
 			return nil, echo.NewHTTPError(http.StatusInternalServerError,
 				c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.analytics}", "error", pqErrMsg(err)))

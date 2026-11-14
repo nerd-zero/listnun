@@ -29,7 +29,6 @@ import (
 	"github.com/knadh/stuffbin"
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/bounce"
-	"github.com/nerd-zero/listnun/internal/buflog"
 	"github.com/nerd-zero/listnun/internal/captcha"
 	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/core"
@@ -75,7 +74,6 @@ type App struct {
 	pg             *paginator.Paginator
 	events         *events.Events
 	log            *log.Logger
-	bufLog         *buflog.BufLog
 
 	about         about
 	fnOptinNotify func(models.Subscriber, []int) (int, error)
@@ -95,10 +93,9 @@ type App struct {
 }
 
 var (
-	// Buffered log writer for storing N lines of log entries for the UI.
+	// Error log lines are mirrored to the admin event stream (cmd/events.go).
 	evStream = events.New()
-	bufLog   = buflog.New(5000)
-	lo       = log.New(io.MultiWriter(os.Stdout, bufLog, evStream.ErrWriter()), "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
+	lo       = log.New(io.MultiWriter(os.Stdout, evStream.ErrWriter()), "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
 	ko      = koanf.New(".")
 	fs      stuffbin.FileSystem
@@ -343,7 +340,6 @@ func main() {
 		i18n:        i18n,
 		log:         lo,
 		events:      evStream,
-		bufLog:      bufLog,
 
 		pg: paginator.New(paginator.Opt{
 			DefaultPerPage: 20,

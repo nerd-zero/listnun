@@ -268,13 +268,8 @@ func (c *Core) GetSubscriberActivity(ctx context.Context, tenantID int, id int) 
 // repeatedly until there are nil subscribers. It's an iterator because exports can be extremely
 // large and may have to be fetched in batches from the DB and streamed somewhere.
 //
-// TODO(#40): ctx/tenantID are accepted for a consistent call-site shape
-// with the rest of Core, but the iterator below does NOT yet enforce
-// tenant scoping - it holds a single Preparex'd statement across
-// potentially many calls over a long export, which doesn't fit
-// WithTenant's short-transaction shape. Zero actual risk today (no way to
-// create a second tenant with real data yet, Operator API is phase 9,
-// unbuilt); revisit once there's a real multi-tenant dataset to protect.
+// Each batch runs in its own short read-only tenant transaction, and the
+// query filters by tenant too.
 func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, query string, subIDs, listIDs []int, subStatus string, batchSize int) (func() ([]models.SubscriberExport, error), error) {
 	if subIDs == nil {
 		subIDs = []int{}
@@ -293,7 +288,7 @@ func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, q
 
 	// Validate the tables used in the query.
 	if err := validateQueryTables(c.db, stmt, allowedSubQueryTables,
-		pq.Array(listIDs), 0, pq.Array(subIDs), subStatus, searchStr, batchSize); err != nil {
+		pq.Array(listIDs), 0, pq.Array(subIDs), subStatus, searchStr, batchSize, tenantID); err != nil {
 		c.log.Printf("error validating query tables: %v", err)
 		return nil, echo.NewHTTPError(http.StatusBadRequest,
 			c.i18n.Ts("subscribers.errorPreparingQuery", "error", err.Error()))
@@ -306,18 +301,13 @@ func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, q
 		return nil, err
 	}
 
-	// Prepare the actual query statement.
-	tx, err := c.db.Preparex(stmt)
-	if err != nil {
-		c.log.Printf("error preparing subscriber query: %v", err)
-		return nil, echo.NewHTTPError(http.StatusBadRequest,
-			c.i18n.Ts("subscribers.errorPreparingQuery", "error", pqErrMsg(err)))
-	}
-
 	id := 0
 	return func() ([]models.SubscriberExport, error) {
 		var out []models.SubscriberExport
-		if err := tx.Select(&out, pq.Array(listIDs), id, pq.Array(subIDs), subStatus, searchStr, batchSize); err != nil {
+		err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+			return tx.Select(&out, stmt, pq.Array(listIDs), id, pq.Array(subIDs), subStatus, searchStr, batchSize, tenantID)
+		})
+		if err != nil {
 			c.log.Printf("error exporting subscribers by query: %v", err)
 			return nil, echo.NewHTTPError(http.StatusInternalServerError,
 				c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
