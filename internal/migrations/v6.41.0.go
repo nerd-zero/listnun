@@ -8,12 +8,12 @@ import (
 	"github.com/knadh/stuffbin"
 )
 
-// V6_40_0 marks each workspace's Super Admin role. Super Admin used to be
+// V6_41_0 marks each workspace's Super Admin role. Super Admin used to be
 // recognised by role ID 1, which only tenant 1's role has (role IDs are one
 // sequence across tenants), so every other workspace's Super Admin was an
 // ordinary role: missing permissions added since it was created, and
 // editable and deletable. At most one role per workspace is super.
-func V6_40_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger) error {
+func V6_41_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logger) error {
 	_, err := db.Exec(`
 		ALTER TABLE roles ADD COLUMN IF NOT EXISTS super BOOLEAN NOT NULL DEFAULT false;
 
