@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -362,7 +363,7 @@ func (c *Core) InsertSubscriber(ctx context.Context, tenantID int, sub models.Su
 			tenantID)
 	})
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Constraint == "subscribers_email_key" {
+		if isEmailTaken(err) {
 			return models.Subscriber{}, false, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
 		} else {
 			// return sub.Subscriber, errSubscriberExists
@@ -424,6 +425,17 @@ func (c *Core) GetRiskySubscriberIDs(ctx context.Context, tenantID int, subscrib
 	return ids, nil
 }
 
+// isEmailTaken says whether err is another subscriber in the tenant already
+// having the e-mail: the exact address (subscribers_email_key) or the same
+// one in different case (idx_subs_email), which used to come back as a 500.
+func isEmailTaken(err error) bool {
+	var pqErr *pq.Error
+	if !errors.As(err, &pqErr) {
+		return false
+	}
+	return pqErr.Constraint == "subscribers_email_key" || pqErr.Constraint == "idx_subs_email"
+}
+
 // UpdateSubscriber updates a subscriber's properties.
 func (c *Core) UpdateSubscriber(ctx context.Context, tenantID int, id int, sub models.Subscriber) (models.Subscriber, error) {
 	// Format raw JSON attributes.
@@ -447,6 +459,9 @@ func (c *Core) UpdateSubscriber(ctx context.Context, tenantID int, id int, sub m
 		)
 		return err
 	})
+	if isEmailTaken(err) {
+		return models.Subscriber{}, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
+	}
 	if err != nil {
 		c.log.Printf("error updating subscriber: %v", err)
 		return models.Subscriber{}, echo.NewHTTPError(http.StatusInternalServerError,
@@ -497,6 +512,9 @@ func (c *Core) UpdateSubscriberWithLists(ctx context.Context, tenantID int, id i
 			tenantID)
 		return err
 	})
+	if isEmailTaken(err) {
+		return models.Subscriber{}, false, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
+	}
 	if err != nil {
 		c.log.Printf("error updating subscriber: %v", err)
 		return models.Subscriber{}, false, echo.NewHTTPError(http.StatusInternalServerError,
