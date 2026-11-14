@@ -9460,6 +9460,10 @@ const docTemplate = `{
                 "idle_timeout": {
                     "type": "string"
                 },
+                "managed_by_platform": {
+                    "description": "ManagedByPlatform is always set by SetTenantSMTP, whatever the\nrequest says: see models.Settings.SMTPManaged.",
+                    "type": "boolean"
+                },
                 "max_conns": {
                     "type": "integer"
                 },
@@ -10363,72 +10367,7 @@ const docTemplate = `{
                 "smtp": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "auth_protocol": {
-                                "type": "string"
-                            },
-                            "email_headers": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "enabled": {
-                                "type": "boolean"
-                            },
-                            "from_addresses": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "hello_hostname": {
-                                "type": "string"
-                            },
-                            "host": {
-                                "type": "string"
-                            },
-                            "idle_timeout": {
-                                "type": "string"
-                            },
-                            "max_conns": {
-                                "type": "integer"
-                            },
-                            "max_msg_retries": {
-                                "type": "integer"
-                            },
-                            "msg_retry_delay": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "password": {
-                                "type": "string"
-                            },
-                            "port": {
-                                "type": "integer"
-                            },
-                            "tls_skip_verify": {
-                                "type": "boolean"
-                            },
-                            "tls_type": {
-                                "type": "string"
-                            },
-                            "username": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "wait_timeout": {
-                                "type": "string"
-                            }
-                        }
+                        "$ref": "#/definitions/models.SMTPServer"
                     }
                 },
                 "upload.extensions": {
@@ -11853,6 +11792,78 @@ const docTemplate = `{
                 },
                 "required": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.SMTPServer": {
+            "type": "object",
+            "properties": {
+                "auth_protocol": {
+                    "type": "string"
+                },
+                "email_headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "from_addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hello_hostname": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "idle_timeout": {
+                    "type": "string"
+                },
+                "managed_by_platform": {
+                    "description": "ManagedByPlatform marks a server set up by the platform through\nthe Operator API (PUT /api/operator/tenants/{id}/smtp). Its\ncredentials work outside listnun, so a workspace whose SMTP is\nmanaged never sees its servers' details and can't change them:\nsee Settings.SMTPManaged.",
+                    "type": "boolean"
+                },
+                "max_conns": {
+                    "type": "integer"
+                },
+                "max_msg_retries": {
+                    "type": "integer"
+                },
+                "msg_retry_delay": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "tls_skip_verify": {
+                    "type": "boolean"
+                },
+                "tls_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "wait_timeout": {
+                    "type": "string"
                 }
             }
         },
