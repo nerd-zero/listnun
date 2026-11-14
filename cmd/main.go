@@ -60,6 +60,7 @@ type App struct {
 	media       *tenantMedia
 	operator    *operatorStore
 	replies     *tenantReplies
+	tracking    *tenantTracking
 	bounce      *bounce.Manager
 	captcha     *captcha.Captcha
 	i18n        *i18n.I18n
@@ -210,7 +211,7 @@ func init() {
 	}
 
 	// Prepare queries.
-	queries = prepareQueries(qMap, db, ko)
+	queries = prepareQueries(qMap, db)
 }
 
 func main() {
@@ -240,6 +241,9 @@ func main() {
 		// Each tenant's campaign reply tracking setup (cmd/tenant_replies.go).
 		replyCfg = newTenantReplies(queries, lo)
 
+		// Each tenant's link/view tracking settings (cmd/tenant_tracking.go).
+		trackingCfg = newTenantTracking(queries, lo)
+
 		// Initialize i18n language map.
 		i18n = initI18n(ko.MustString("app.lang"), fs)
 
@@ -260,7 +264,7 @@ func main() {
 		usageMeter = usage.New(usageStore{q: queries}, lo)
 
 		// Campaign manager.
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, trackingCfg, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
 		importers = newTenantImporters(queries, db, core, mgr, i18n)
@@ -333,6 +337,7 @@ func main() {
 		media:       mediaResolver,
 		operator:    opStore,
 		replies:     replyCfg,
+		tracking:    trackingCfg,
 		bounce:      bounce,
 		captcha:     initCaptcha(),
 		i18n:        i18n,

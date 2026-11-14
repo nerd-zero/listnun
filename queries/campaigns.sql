@@ -240,30 +240,25 @@ u AS (
 )
 SELECT camps.*, campMedia.media_id FROM camps LEFT JOIN campMedia ON (campMedia.campaign_id = camps.id);
 
--- name: get-campaign-analytics-unique-counts
+-- name: get-campaign-analytics-counts
+-- raw: true
+-- %s = campaign_views or link_clicks (interpolated on boot). Counts people,
+-- not events: each subscriber once per campaign, in the bucket of their
+-- first view/click in the range. Rows without a subscriber (recorded while
+-- the tenant had per-subscriber tracking off, or the subscriber was since
+-- deleted) can't be told apart, so each of those counts once.
 WITH intval AS (
     -- For intervals < a week, aggregate counts hourly, otherwise daily.
     SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
 ),
-uniqIDs AS (
-    SELECT DISTINCT ON(subscriber_id, campaign_id) subscriber_id, campaign_id, DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
+firsts AS (
+    SELECT DISTINCT ON (campaign_id, COALESCE(subscriber_id, -id)) campaign_id, DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
     FROM %s
     WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
-    ORDER BY subscriber_id, campaign_id, "timestamp"
+    ORDER BY campaign_id, COALESCE(subscriber_id, -id), created_at
 )
-SELECT COUNT(*) AS "count", campaign_id, "timestamp"
-    FROM uniqIDs GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
-
--- name: get-campaign-analytics-counts
--- raw: true
-WITH intval AS (
-    -- For intervals < a week, aggregate counts hourly, otherwise daily.
-    SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
-)
-SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
-    FROM %s
-    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
-    GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+SELECT campaign_id, COUNT(*) AS "count", "timestamp"
+    FROM firsts GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
 -- name: get-campaign-bounce-counts
 WITH intval AS (
@@ -283,9 +278,9 @@ SELECT campaign_id, type, COUNT(*) AS "count"
     GROUP BY campaign_id, type ORDER BY campaign_id, type;
 
 -- name: get-campaign-link-counts
--- raw: true
--- %s = * or DISTINCT subscriber_id (prepared based on based on individual tracking=on/off). Prepared on boot.
-SELECT COUNT(%s) AS "count", url
+-- People who clicked each link: a subscriber once, a click recorded
+-- without one (see get-campaign-analytics-counts) once per click.
+SELECT COUNT(DISTINCT COALESCE(link_clicks.subscriber_id, -link_clicks.id)) AS "count", url
     FROM link_clicks
     LEFT JOIN links ON (link_clicks.link_id = links.id)
     WHERE campaign_id=ANY($1) AND link_clicks.created_at >= $2 AND link_clicks.created_at <= $3

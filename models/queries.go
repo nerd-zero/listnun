@@ -127,8 +127,8 @@ type Queries struct {
 	GetArchivedCampaigns *sqlx.Stmt `query:"get-archived-campaigns"`
 	CampaignHasLists     *sqlx.Stmt `query:"campaign-has-lists"`
 
-	// These two queries are read as strings and based on settings.individual_tracking=on/off,
-	// are interpolated and copied to view and click counts. Same query, different tables.
+	// get-campaign-analytics-counts is read as a string and interpolated
+	// into the view and click counts on boot. Same query, different tables.
 	GetCampaignAnalyticsCounts  string     `query:"get-campaign-analytics-counts"`
 	GetCampaignViewCounts       *sqlx.Stmt `query:"get-campaign-view-counts"`
 	GetCampaignClickCounts      *sqlx.Stmt `query:"get-campaign-click-counts"`
@@ -249,6 +249,7 @@ type Queries struct {
 	UpdateSettings      *sqlx.Stmt `query:"update-settings"`
 	UpdateSettingsByKey *sqlx.Stmt `query:"update-settings-by-key"`
 	GetTenantRootURL    *sqlx.Stmt `query:"get-tenant-root-url"`
+	GetTenantTracking   *sqlx.Stmt `query:"get-tenant-tracking"`
 
 	// GetStats *sqlx.Stmt `query:"get-stats"`
 	RecordBounce                *sqlx.Stmt `query:"record-bounce"`
