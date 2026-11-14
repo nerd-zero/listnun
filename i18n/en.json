@@ -986,6 +986,7 @@
     "settings.smtp.off": "Off",
     "settings.smtp.expand": "Expand",
     "settings.smtp.collapse": "Collapse",
+    "settings.smtp.managedByPlatform": "Email sending is set up and managed by your provider. Its servers and sign-in details aren't shown here and can't be changed.",
     "settings.title": "Settings",
     "settings.updateAvailable": "A new update {version} is available.",
     "subscribers.advancedQuery": "Advanced query",

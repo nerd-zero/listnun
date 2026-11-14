@@ -1171,6 +1171,11 @@ definitions:
         type: string
       idle_timeout:
         type: string
+      managed_by_platform:
+        description: |-
+          ManagedByPlatform is always set by SetTenantSMTP, whatever the
+          request says: see models.Settings.SMTPManaged.
+        type: boolean
       max_conns:
         type: integer
       max_msg_retries:
@@ -1786,50 +1791,7 @@ definitions:
         type: array
       smtp:
         items:
-          properties:
-            auth_protocol:
-              type: string
-            email_headers:
-              items:
-                additionalProperties:
-                  type: string
-                type: object
-              type: array
-            enabled:
-              type: boolean
-            from_addresses:
-              items:
-                type: string
-              type: array
-            hello_hostname:
-              type: string
-            host:
-              type: string
-            idle_timeout:
-              type: string
-            max_conns:
-              type: integer
-            max_msg_retries:
-              type: integer
-            msg_retry_delay:
-              type: string
-            name:
-              type: string
-            password:
-              type: string
-            port:
-              type: integer
-            tls_skip_verify:
-              type: boolean
-            tls_type:
-              type: string
-            username:
-              type: string
-            uuid:
-              type: string
-            wait_timeout:
-              type: string
-          type: object
+          $ref: '#/definitions/models.SMTPServer'
         type: array
       upload.extensions:
         items:
@@ -2782,6 +2744,59 @@ definitions:
         type: string
       required:
         type: boolean
+    type: object
+  models.SMTPServer:
+    properties:
+      auth_protocol:
+        type: string
+      email_headers:
+        items:
+          additionalProperties:
+            type: string
+          type: object
+        type: array
+      enabled:
+        type: boolean
+      from_addresses:
+        items:
+          type: string
+        type: array
+      hello_hostname:
+        type: string
+      host:
+        type: string
+      idle_timeout:
+        type: string
+      managed_by_platform:
+        description: |-
+          ManagedByPlatform marks a server set up by the platform through
+          the Operator API (PUT /api/operator/tenants/{id}/smtp). Its
+          credentials work outside listnun, so a workspace whose SMTP is
+          managed never sees its servers' details and can't change them:
+          see Settings.SMTPManaged.
+        type: boolean
+      max_conns:
+        type: integer
+      max_msg_retries:
+        type: integer
+      msg_retry_delay:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      tls_skip_verify:
+        type: boolean
+      tls_type:
+        type: string
+      username:
+        type: string
+      uuid:
+        type: string
+      wait_timeout:
+        type: string
     type: object
   models.Tenant:
     properties:

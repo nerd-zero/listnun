@@ -500,6 +500,10 @@ type operatorSMTPEntry struct {
 	TLSType       string              `json:"tls_type"`
 	TLSSkipVerify bool                `json:"tls_skip_verify"`
 	FromAddresses []string            `json:"from_addresses"`
+
+	// ManagedByPlatform is always set by SetTenantSMTP, whatever the
+	// request says: see models.Settings.SMTPManaged.
+	ManagedByPlatform bool `json:"managed_by_platform"`
 } // @name OperatorSMTPEntry
 
 // SetTenantSMTP replaces a tenant's smtp setting (until now, tenant 1's
@@ -510,6 +514,7 @@ type operatorSMTPEntry struct {
 // writes whatever it's given into the tenant's settings.
 func (s *operatorStore) SetTenantSMTP(tenantID int, entry operatorSMTPEntry) error {
 	entry.UUID = uuid.Must(uuid.NewV4()).String()
+	entry.ManagedByPlatform = true
 
 	b, err := json.Marshal([]operatorSMTPEntry{entry})
 	if err != nil {
