@@ -29,7 +29,6 @@ import (
 	"github.com/knadh/stuffbin"
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/bounce"
-	"github.com/nerd-zero/listnun/internal/captcha"
 	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/events"
@@ -60,8 +59,10 @@ type App struct {
 	replies     *tenantReplies
 	tracking    *tenantTracking
 	bounce      *bounce.Manager
-	captcha     *captcha.Captcha
-	i18n        *i18n.I18n
+	// settings caches each workspace's own settings for request-time
+	// reads, and its captcha client (cmd/tenant_settings.go).
+	settings *tenantSettings
+	i18n     *i18n.I18n
 	// langs serves the language a visitor picked on the sign-in pages;
 	// langList is what the picker offers.
 	langs    *i18n.Cache
@@ -358,7 +359,7 @@ func main() {
 		replies:     replyCfg,
 		tracking:    trackingCfg,
 		bounce:      bounce,
-		captcha:     initCaptcha(),
+		settings:    newTenantSettings(core),
 		i18n:        i18n,
 		log:         lo,
 		events:      evStream,

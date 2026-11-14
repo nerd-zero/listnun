@@ -244,7 +244,7 @@ func (a *App) formResp(c echo.Context, f models.Form, public []models.List) form
 	var b bytes.Buffer
 	data := formPageData{Form: f, Lists: formLists(f, public), Action: out.URL, Root: a.requestRootURL(c)}
 	if f.Captcha {
-		data.Captcha = a.captchaWidget()
+		data.Captcha = a.captchaWidget(c)
 	}
 	if err := embedTpl.Execute(&b, data); err != nil {
 		a.log.Printf("error rendering form embed: %v", err)
@@ -337,8 +337,8 @@ func (a *App) formPage(c echo.Context, f models.Form) (formPageData, error) {
 		out.Title = f.Name
 	}
 	out.Description = f.Intro
-	if f.Captcha && a.captcha.IsEnabled() {
-		out.Captcha = a.captchaWidget()
+	if f.Captcha && a.captchaFor(c).IsEnabled() {
+		out.Captcha = a.captchaWidget(c)
 	}
 	if out.Embed {
 		out.Action += "?embed=1"

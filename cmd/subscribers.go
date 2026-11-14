@@ -1000,7 +1000,7 @@ func (a *App) ExportSubscriberData(c echo.Context) error {
 		return err
 	}
 
-	_, b, err := a.exportSubscriberData(c.Request().Context(), tenantID(c), id, "", a.cfg.Privacy.Exportable)
+	_, b, err := a.exportSubscriberData(c.Request().Context(), tenantID(c), id, "", lookupMap(a.ws(c).PrivacyExportable))
 	if err != nil {
 		a.log.Printf("error exporting subscriber data: %s", err)
 		return echo.NewHTTPError(http.StatusInternalServerError,
