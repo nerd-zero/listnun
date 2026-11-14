@@ -71,5 +71,27 @@ SELECT COUNT(*) FROM scrub_validation_batches WHERE tenant_id = $1 AND status IN
 UPDATE scrub_validation_batches SET status = $2, submitted_count = $3, validated_count = $4, invalid_count = $5, updated_at = NOW()
 WHERE batch_id = $1;
 
+-- name: record-scrub-batch-progress
+-- Applies one of Scrub's progress callbacks for batch $1 and returns how
+-- many more addresses Scrub has processed since the last one recorded --
+-- what's billed as validation usage. $4/$5 are Scrub's cumulative valid
+-- and invalid counts (its webhook's validated_total_count counts only the
+-- valid ones; processed = valid + invalid). Counts never go backwards, so
+-- a redelivered or out-of-order callback returns 0, and the row lock
+-- makes two concurrent callbacks for one batch each bill only their own
+-- increase.
+WITH prev AS (
+    SELECT validated_count + invalid_count AS processed
+    FROM scrub_validation_batches WHERE batch_id = $1 FOR UPDATE
+)
+UPDATE scrub_validation_batches b
+SET status = $2, submitted_count = $3,
+    validated_count = GREATEST(b.validated_count, $4),
+    invalid_count = GREATEST(b.invalid_count, $5),
+    updated_at = NOW()
+FROM prev
+WHERE b.batch_id = $1
+RETURNING GREATEST(GREATEST(b.validated_count, $4) + GREATEST(b.invalid_count, $5) - prev.processed, 0) AS newly_processed;
+
 -- name: delete-scrub-validation-batch
 DELETE FROM scrub_validation_batches WHERE batch_id = $1;

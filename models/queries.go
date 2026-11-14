@@ -50,6 +50,7 @@ type Queries struct {
 	GetScrubValidationBatch            *sqlx.Stmt `query:"get-scrub-validation-batch"`
 	GetScrubValidationBatchesByJob     *sqlx.Stmt `query:"get-scrub-validation-batches-by-job"`
 	UpdateScrubValidationBatchProgress *sqlx.Stmt `query:"update-scrub-validation-batch-progress"`
+	RecordScrubBatchProgress           *sqlx.Stmt `query:"record-scrub-batch-progress"`
 	DeleteScrubValidationBatch         *sqlx.Stmt `query:"delete-scrub-validation-batch"`
 
 	InsertScrubValidationJob         *sqlx.Stmt `query:"insert-scrub-validation-job"`

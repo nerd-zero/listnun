@@ -96,20 +96,9 @@ func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s mo
 		log.Printf("scrub: error updating validation batch progress: %v", err)
 	}
 
-	// Bill what Scrub accepted (its submitted_count, which a quota-capped
-	// batch can make smaller than len(emails)), not what we sent. Written
-	// straight to usage_counters rather than through the buffered meter:
-	// submissions are infrequent, and Scrub has already charged the
-	// platform for this batch, so it must not sit in memory.
-	if err := addUsage(q, []usage.Row{{
-		TenantID: tenantID,
-		Kind:     usage.KindValidation,
-		Bucket:   time.Now().UTC().Truncate(usage.BucketSize),
-		Count:    int64(sub.SubmittedCount),
-	}}); err != nil {
-		log.Printf("scrub: error recording validation usage for tenant %d batch %s (%d emails unbilled): %v", tenantID, batchID, sub.SubmittedCount, err)
-	}
-
+	// Not billed here: validation usage is what Scrub reports having
+	// processed, counted as its progress callbacks arrive
+	// (ScrubBatchWebhook via recordScrubValidationUsage).
 	return batchID, nil
 }
 
@@ -220,10 +209,13 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "webhook verification failed")
 	}
 
-	if _, err := a.queries.UpdateScrubValidationBatchProgress.Exec(
+	var newlyProcessed int64
+	if err := a.queries.RecordScrubBatchProgress.Get(&newlyProcessed,
 		batch.BatchID, progress.Status, progress.SubmittedTotalCount, progress.ValidatedTotalCount, progress.InvalidTotalCount,
 	); err != nil {
 		a.log.Printf("scrub: error updating validation batch %s: %v", batch.BatchID, err)
+	} else {
+		recordScrubValidationUsage(a.queries, batch, newlyProcessed)
 	}
 
 	// A job-linked chunk (list-validate) is aggregated into its parent
@@ -261,6 +253,27 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// recordScrubValidationUsage bills newlyProcessed validations to batch's
+// tenant -- the addresses Scrub reported processing (valid or invalid)
+// since its previous callback for the batch. Billing what Scrub actually
+// processed, rather than what was submitted, means a batch Scrub accepts
+// but never works through isn't charged to the tenant. Written straight
+// to usage_counters rather than through the buffered meter: callbacks are
+// infrequent and must not be lost with the process.
+func recordScrubValidationUsage(q *models.Queries, batch models.ScrubValidationBatch, newlyProcessed int64) {
+	if newlyProcessed <= 0 {
+		return
+	}
+	if err := addUsage(q, []usage.Row{{
+		TenantID: batch.TenantID,
+		Kind:     usage.KindValidation,
+		Bucket:   time.Now().UTC().Truncate(usage.BucketSize),
+		Count:    newlyProcessed,
+	}}); err != nil {
+		log.Printf("scrub: error recording validation usage for tenant %d batch %s (%d validations unbilled): %v", batch.TenantID, batch.BatchID, newlyProcessed, err)
+	}
 }
 
 // updateScrubJobProgress aggregates every chunk's progress under jobID
