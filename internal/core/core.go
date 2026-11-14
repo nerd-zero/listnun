@@ -52,7 +52,9 @@ type Constants struct {
 
 // Hooks contains external function hooks that are required by the core package.
 type Hooks struct {
-	SendOptinConfirmation func(models.Subscriber, []int) (int, error)
+	// SendOptinConfirmation e-mails a subscriber of tenantID an opt-in
+	// confirmation for listIDs, and returns how many lists it covers.
+	SendOptinConfirmation func(tenantID int, sub models.Subscriber, listIDs []int) (int, error)
 }
 
 // Opt contains the controllers required to start the core.

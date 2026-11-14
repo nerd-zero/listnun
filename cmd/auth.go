@@ -549,11 +549,9 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 	// Create the default "Super Admin" with all permissions if it doesn't
 	// already exist for this tenant.
 	//
-	// Looked up by name (not auth.SuperAdminRoleID, a global constant)
-	// since role IDs are a single sequence shared across all tenants - a
-	// different tenant's role id=1 is invisible under RLS, so checking by
-	// ID alone can never find a non-first tenant's existing role. That
-	// previously meant every tenant after the first unconditionally
+	// Looked up by its super flag, not an ID, since role IDs are a single
+	// sequence shared across all tenants. Looking it up by ID used to mean
+	// every tenant after the first unconditionally
 	// created a brand new role on every first-time-setup attempt,
 	// including retries: if a prior attempt got as far as creating the
 	// role but failed before creating the user (e.g. a duplicate
@@ -567,7 +565,7 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 		return err
 	}
 	for _, r := range roles {
-		if r.Type == auth.RoleTypeUser && r.Name.String == "Super Admin" {
+		if r.Super {
 			roleID = r.ID
 			break
 		}
@@ -575,8 +573,9 @@ func (a *App) doFirstTimeSetup(c echo.Context) error {
 
 	if roleID == 0 {
 		r := auth.Role{
-			Type: auth.RoleTypeUser,
-			Name: null.NewString("Super Admin", true),
+			Type:  auth.RoleTypeUser,
+			Name:  null.NewString("Super Admin", true),
+			Super: true,
 		}
 		for p := range a.cfg.Permissions {
 			r.Permissions = append(r.Permissions, p)
@@ -668,8 +667,7 @@ func (a *App) doForgotPassword(c echo.Context) error {
 	// and the user was looked up in that workspace.
 	resetURL := fmt.Sprintf("%s/admin/reset?token=%s&email=%s", a.requestRootURL(c), token, url.QueryEscape(email))
 
-	// Prepare the email.
-	var msg bytes.Buffer
+	// Send the email, as the workspace (its SMTP and From address).
 	data := struct {
 		ResetURL string
 		L        *i18n.I18n
@@ -677,21 +675,11 @@ func (a *App) doForgotPassword(c echo.Context) error {
 		ResetURL: resetURL,
 		L:        a.i18n,
 	}
-
-	// Render the email template.
-	if err := notifs.Tpls.ExecuteTemplate(&msg, notifs.TplForgotPassword, data); err != nil {
-		a.log.Printf("error compiling notification template '%s': %v", notifs.TplForgotPassword, err)
-		return echo.NewHTTPError(http.StatusInternalServerError, a.visitorI18n(c).T("globals.messages.internalError"))
-	}
-
-	subject, body := notifs.GetTplSubject(a.visitorI18n(c).T("email.forgotPassword.subject"), msg.Bytes())
-
-	// Send the email.
-	if err := a.emailMsgr.Push(models.Message{
-		From:    a.cfg.FromEmail,
-		To:      []string{email},
-		Subject: subject,
-		Body:    body,
+	if err := a.sysMail.send(c.Request().Context(), tenantID(c), systemMessage{
+		To:       []string{email},
+		Subject:  a.visitorI18n(c).T("email.forgotPassword.subject"),
+		Template: notifs.TplForgotPassword,
+		Data:     data,
 	}); err != nil {
 		a.log.Printf("error sending reset email: %s", err)
 	}

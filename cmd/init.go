@@ -573,7 +573,7 @@ func initI18n(lang string, fs stuffbin.FileSystem) *i18n.I18n {
 }
 
 // initCore initializes the CRUD DB core .
-func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), queries *models.Queries, db *sqlx.DB, i *i18n.I18n, ko *koanf.Koanf) *core.Core {
+func initCore(fnNotify func(tenantID int, sub models.Subscriber, listIDs []int) (int, error), queries *models.Queries, db *sqlx.DB, i *i18n.I18n, ko *koanf.Koanf) *core.Core {
 	opt := &core.Opt{
 		Constants: core.Constants{
 			SendOptinConfirmation: ko.Bool("app.send_optin_confirmation"),
@@ -600,7 +600,7 @@ func initCore(fnNotify func(sub models.Subscriber, listIDs []int) (int, error), 
 // tenantMessengers resolver it wires in, so callers can invalidate a
 // tenant's cached SMTP messengers after a settings save (cmd/settings.go's
 // handleSettingsRestart) without needing a full process restart.
-func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, tt *tenantTracking, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
+func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlConfig, co *core.Core, md *tenantMedia, meter *usage.Meter, tr *tenantReplies, tt *tenantTracking, sm *systemMail, i *i18n.I18n, ko *koanf.Koanf) (*manager.Manager, *tenantMessengers) {
 	if ko.Bool("passive") {
 		lo.Println("running in passive mode. won't process campaigns.")
 	}
@@ -627,6 +627,9 @@ func initCampaignManager(msgrs []manager.Messenger, q *models.Queries, u *UrlCon
 		ScanCampaigns:         !ko.Bool("passive"),
 		ReplyAddress:          tr.ReplyAddress,
 		Tracking:              tt.For,
+		NotifyAdmins: func(tenantID int, subject string, data any) error {
+			return sm.notifyAdmins(context.Background(), tenantID, subject, notifs.TplCampaignStatus, data)
+		},
 	}, newManagerStore(q, co, md), tm, meter, i, lo)
 
 	// Attach all messengers to the campaign manager.
@@ -801,7 +804,7 @@ func initMediaStore(ko *koanf.Koanf) (media.Store, error) {
 }
 
 // initNotifs initializes the notifier with the system e-mail templates.
-func initNotifs(fs stuffbin.FileSystem, i *i18n.I18n, em *email.Emailer, u *UrlConfig, ko *koanf.Koanf) {
+func initNotifs(fs stuffbin.FileSystem, i *i18n.I18n, u *UrlConfig) {
 	tpls, err := stuffbin.ParseTemplatesGlob(initTplFuncs(i, u), fs, "/static/email-templates/*.html")
 	if err != nil {
 		lo.Fatalf("error parsing e-mail notif templates: %v", err)
@@ -825,11 +828,9 @@ func initNotifs(fs stuffbin.FileSystem, i *i18n.I18n, em *email.Emailer, u *UrlC
 		lo.Println("system e-mail templates are plaintext")
 	}
 
-	notifs.Initialize(notifs.Opt{
-		FromEmail:    ko.String("app.from_email"),
-		SystemEmails: ko.Strings("app.notify_emails"),
-		ContentType:  contentType,
-	}, tpls, em, lo)
+	if err := notifs.Initialize(notifs.Opt{ContentType: contentType}, tpls); err != nil {
+		lo.Fatalf("error initializing e-mail notif templates: %v", err)
+	}
 }
 
 // initBounceManager initializes the bounce manager that scans mailboxes and listens to webhooks
@@ -1210,7 +1211,7 @@ func initAuth(co *core.Core, db *sql.DB, ko *koanf.Koanf) *auth.Auth {
 			Status:        auth.UserStatusEnabled,
 			Type:          auth.UserTypeAPI,
 		}
-		u.UserRole.ID = auth.SuperAdminRoleID
+		u.UserRole.Super = true
 		a.CacheAPIUser(u)
 
 		lo.Println(`WARNING: Remove the admin_username and admin_password fields from the TOML configuration file. If you are using APIs, create and use new credentials. Users are now managed via the Admin -> Settings -> Users dashboard.`)

@@ -75,7 +75,7 @@ func (c *Core) CreateRole(ctx context.Context, tenantID int, r auth.Role) (auth.
 	var out auth.Role
 
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.CreateRole).Get(&out, r.Name, auth.RoleTypeUser, pq.Array(r.Permissions), tenantID)
+		return stmtx(tx, c.q.CreateRole).Get(&out, r.Name, auth.RoleTypeUser, pq.Array(r.Permissions), tenantID, r.Super)
 	})
 	if err != nil {
 		return out, echo.NewHTTPError(http.StatusInternalServerError,
@@ -90,7 +90,7 @@ func (c *Core) CreateListRole(ctx context.Context, tenantID int, r auth.ListRole
 	var out auth.ListRole
 
 	err := c.WithTenant(ctx, tenantID, nil, func(tx *sqlx.Tx) error {
-		return stmtx(tx, c.q.CreateRole).Get(&out, r.Name, auth.RoleTypeList, pq.Array([]string{}), tenantID)
+		return stmtx(tx, c.q.CreateRole).Get(&out, r.Name, auth.RoleTypeList, pq.Array([]string{}), tenantID, false)
 	})
 	if err != nil {
 		return out, echo.NewHTTPError(http.StatusInternalServerError,

@@ -497,6 +497,9 @@ CREATE TABLE roles (
     list_id          INTEGER NULL REFERENCES lists(id) ON DELETE CASCADE ON UPDATE CASCADE,
     permissions      TEXT[] NOT NULL DEFAULT '{}',
     name             TEXT NULL,
+    -- The workspace's Super Admin role: every permission, can't be edited
+    -- or deleted. At most one per workspace.
+    super            BOOLEAN NOT NULL DEFAULT false,
     created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

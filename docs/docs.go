@@ -9685,6 +9685,10 @@ const docTemplate = `{
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "super": {
+                            "description": "Super is the workspace's Super Admin role: every permission.",
+                            "type": "boolean"
                         }
                     }
                 },
@@ -9719,6 +9723,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "super": {
+                    "description": "Super marks the workspace's Super Admin role, which has every\npermission and can't be edited or deleted. Set only by the server.",
+                    "type": "boolean"
                 },
                 "type": {
                     "type": "string"
@@ -11074,6 +11082,10 @@ const docTemplate = `{
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "super": {
+                            "description": "Super is the workspace's Super Admin role: every permission.",
+                            "type": "boolean"
                         }
                     }
                 },

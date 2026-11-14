@@ -21,7 +21,6 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	"golang.org/x/text/cases"
@@ -112,7 +111,7 @@ type Manager struct {
 	usage      *usage.Meter
 	i18n       *i18n.I18n
 	messengers map[string]Messenger
-	fnNotify   func(subject string, data any) error
+	fnNotify   func(tenantID int, subject string, data any) error
 	log        *log.Logger
 
 	// Campaigns that are currently running.
@@ -213,6 +212,10 @@ type Config struct {
 	// tenant sets these in its own Settings, so they can't come from the
 	// boot-time config, which is tenant 1's.
 	Tracking func(tenantID int) Tracking
+
+	// NotifyAdmins e-mails a campaign status notification to the tenant's
+	// own notify addresses. Nil sends none.
+	NotifyAdmins func(tenantID int, subject string, data any) error
 }
 
 // Tracking is one tenant's link and view tracking settings.
@@ -305,14 +308,12 @@ func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter
 	}
 
 	m := &Manager{
-		cfg:      cfg,
-		store:    store,
-		resolver: resolver,
-		usage:    meter,
-		i18n:     i,
-		fnNotify: func(subject string, data any) error {
-			return notifs.NotifySystem(subject, notifs.TplCampaignStatus, data, nil)
-		},
+		cfg:          cfg,
+		store:        store,
+		resolver:     resolver,
+		usage:        meter,
+		i18n:         i,
+		fnNotify:     cfg.NotifyAdmins,
 		log:          l,
 		messengers:   make(map[string]Messenger),
 		pipes:        make(map[int]*pipe),
@@ -933,7 +934,10 @@ func (m *Manager) sendNotif(c *models.Campaign, status, reason string) error {
 		}
 	)
 
-	return m.fnNotify(subject, data)
+	if m.fnNotify == nil {
+		return nil
+	}
+	return m.fnNotify(c.TenantID, subject, data)
 }
 
 // makeGnericFuncMap returns a generic template func map with custom template

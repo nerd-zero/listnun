@@ -1,19 +1,14 @@
-// package notifs is a special singleton, stateful globally accessible package
-// that handles sending out arbitrary notifications to the admin and users.
-// It's initialized once in the main package and is accessed globally across
-// other packages.
+// Package notifs holds the system e-mail templates (opt-in confirmations,
+// notifications, password resets and so on). It's initialized once in the
+// main package; cmd/system_mail.go sends them per workspace.
 package notifs
 
 import (
 	"bytes"
+	"errors"
 	"html/template"
-	"log"
-	"net/textproto"
 	"regexp"
 	"strings"
-
-	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/models"
 )
 
 const (
@@ -24,81 +19,58 @@ const (
 	TplForgotPassword  = "forgot-password"
 )
 
-type FuncPush func(msg models.Message) error
-type FuncNotif func(toEmails []string, subject, tplName string, data any, headers textproto.MIMEHeader) error
-type FuncNotifSystem func(subject, tplName string, data any, headers textproto.MIMEHeader) error
-
 type Opt struct {
-	FromEmail    string
-	SystemEmails []string
-	ContentType  string
-}
-
-type Notifs struct {
-	em *email.Emailer
-	lo *log.Logger
-
-	opt Opt
+	ContentType string
 }
 
 var (
 	reTitle = regexp.MustCompile(`(?s)<title\s*data-i18n\s*>(.+?)</title>`)
 
+	// Tpls are the system e-mail templates, with the boot-time (tenant 1)
+	// template functions.
 	Tpls *template.Template
-	no   *Notifs
+
+	// pristine is a never-executed copy of Tpls for Render to clone:
+	// html/template can't clone a template set once it has run.
+	pristine *template.Template
+
+	opt Opt
 )
 
-// Initialize returns a new Notifs instance.
-func Initialize(opt Opt, tpls *template.Template, em *email.Emailer, lo *log.Logger) {
-	if no != nil {
-		lo.Fatal("notifs already initialized")
+// Initialize sets the system e-mail templates. Sending is per workspace
+// (cmd/system_mail.go); this package only holds the templates.
+func Initialize(o Opt, tpls *template.Template) error {
+	if Tpls != nil {
+		return errors.New("notifs already initialized")
 	}
-
-	Tpls = tpls
-	no = &Notifs{
-		opt: opt,
-		em:  em,
-		lo:  lo,
+	p, err := tpls.Clone()
+	if err != nil {
+		return err
 	}
+	Tpls, pristine, opt = tpls, p, o
+	return nil
 }
 
-// NotifySystem sends out an e-mail notification to the admin emails.
-func NotifySystem(subject, tplName string, data any, hdr textproto.MIMEHeader) error {
-	return Notify(no.opt.SystemEmails, subject, tplName, data, hdr)
+// ContentType is the system e-mail templates' content type (html or plain).
+func ContentType() string {
+	return opt.ContentType
 }
 
-// Notify sends out an e-mail notification.
-func Notify(toEmails []string, subject, tplName string, data any, hdr textproto.MIMEHeader) error {
-	if len(toEmails) == 0 {
-		return nil
+// Render executes tplName with funcs replacing template functions of the
+// same name (e.g. a workspace's own RootURL), on a fresh copy of the
+// templates so concurrent renders for different workspaces don't mix.
+func Render(funcs template.FuncMap, tplName string, data any) ([]byte, error) {
+	t, err := pristine.Clone()
+	if err != nil {
+		return nil, err
 	}
+	t.Funcs(funcs)
 
 	var buf bytes.Buffer
-	if err := Tpls.ExecuteTemplate(&buf, tplName, data); err != nil {
-		no.lo.Printf("error compiling notification template '%s': %v", tplName, err)
-		return err
+	if err := t.ExecuteTemplate(&buf, tplName, data); err != nil {
+		return nil, err
 	}
-	body := buf.Bytes()
-
-	subject, body = GetTplSubject(subject, body)
-
-	m := models.Message{
-		Messenger:   "email",
-		ContentType: no.opt.ContentType,
-		From:        no.opt.FromEmail,
-		To:          toEmails,
-		Subject:     subject,
-		Body:        body,
-		Headers:     hdr,
-	}
-
-	// Send the message.
-	if err := no.em.Push(m); err != nil {
-		no.lo.Printf("error sending admin notification (%s): %v", subject, err)
-		return err
-	}
-
-	return nil
+	return buf.Bytes(), nil
 }
 
 // GetTplSubject extracts any custom i18n subject rendered in the given rendered
