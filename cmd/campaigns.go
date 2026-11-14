@@ -1167,7 +1167,7 @@ func (a *App) checkScrubJobOnCampaign(ctx context.Context, tenantID int, campaig
 
 	for _, l := range campLists {
 		var job models.ScrubValidationJob
-		if err := a.queries.GetActiveScrubJobForList.Get(&job, tenantID, l.ID); err == nil {
+		if err := a.sysQueries.GetActiveScrubJobForList.Get(&job, tenantID, l.ID); err == nil {
 			return true, l.Name, nil
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			a.log.Printf("error checking active scrub job for list %d: %v", l.ID, err)

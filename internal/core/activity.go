@@ -53,9 +53,14 @@ func (c *Core) GetActivity(ctx context.Context, tenantID, limit int, source stri
 // PruneActivity deletes activity log lines past their retention, across
 // workspaces.
 func (c *Core) PruneActivity() (int64, error) {
-	res, err := c.q.PruneActivity.Exec(fmt.Sprintf("%d seconds", int(ActivityRetention.Seconds())))
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+	var n int64
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		res, err := stmtx(tx, c.sysq().PruneActivity).Exec(fmt.Sprintf("%d seconds", int(ActivityRetention.Seconds())))
+		if err != nil {
+			return err
+		}
+		n, err = res.RowsAffected()
+		return err
+	})
+	return n, err
 }

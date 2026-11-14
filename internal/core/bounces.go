@@ -103,16 +103,21 @@ func (c *Core) RecordBounce(b models.Bounce) error {
 		c.markTxBounced(b)
 	}
 
-	_, err := c.q.RecordBounce.Exec(b.SubscriberUUID,
-		b.Email,
-		b.CampaignUUID,
-		b.Type,
-		b.Source,
-		b.Meta,
-		b.CreatedAt,
-		count,
-		act,
-		b.TenantID)
+	// Across tenants (System): POP3 bounces have no tenant, and record-bounce
+	// limits the lookup to b.TenantID itself when it's set.
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.sysq().RecordBounce).Exec(b.SubscriberUUID,
+			b.Email,
+			b.CampaignUUID,
+			b.Type,
+			b.Source,
+			b.Meta,
+			b.CreatedAt,
+			count,
+			act,
+			b.TenantID)
+		return err
+	})
 
 	if err != nil {
 		// Ignore the error if it complained of no subscriber. With no

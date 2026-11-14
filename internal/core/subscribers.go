@@ -135,6 +135,9 @@ func (c *Core) GetSubscribersByEmail(ctx context.Context, tenantID int, emails [
 
 // QuerySubscribers queries and returns paginated subscrribers based on the given params including the total count.
 func (c *Core) QuerySubscribers(ctx context.Context, tenantID int, searchStr, queryExp string, listIDs []int, subStatus string, order, orderBy string, offset, limit int) (models.Subscribers, int, error) {
+	if err := models.CheckQueryExpr(queryExp); err != nil {
+		return nil, 0, echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("subscribers.errorPreparingQuery", "error", err.Error()))
+	}
 	// Sort params.
 	if !strSliceContains(orderBy, subQuerySortFields) {
 		orderBy = "subscribers.id"
@@ -284,6 +287,9 @@ func (c *Core) GetSubscriberActivity(ctx context.Context, tenantID int, id int) 
 // Each batch runs in its own short read-only tenant transaction, and the
 // query filters by tenant too.
 func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, query string, subIDs, listIDs []int, subStatus string, batchSize int) (func() ([]models.SubscriberExport, error), error) {
+	if err := models.CheckQueryExpr(query); err != nil {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("subscribers.errorPreparingQuery", "error", err.Error()))
+	}
 	if subIDs == nil {
 		subIDs = []int{}
 	}
@@ -730,6 +736,9 @@ func (c *Core) DeleteBlocklistedSubscribers(ctx context.Context, tenantID int) (
 }
 
 func (c *Core) getSubscriberCount(ctx context.Context, tenantID int, searchStr, queryExp, subStatus string, listIDs []int) (int, error) {
+	if err := models.CheckQueryExpr(queryExp); err != nil {
+		return 0, echo.NewHTTPError(http.StatusBadRequest, c.i18n.Ts("subscribers.errorPreparingQuery", "error", err.Error()))
+	}
 	// If there's no condition, it's a "get all" call which can probably be optionally pulled from cache.
 	if queryExp == "" {
 		_ = c.refreshCache(matListSubStats, false)

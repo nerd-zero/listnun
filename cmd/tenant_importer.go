@@ -34,7 +34,9 @@ import (
 // rebuilt from the new settings on next use once it isn't importing, so a
 // running import keeps its state.
 type tenantImporters struct {
-	q       *models.Queries
+	q *models.Queries
+	// sysQ are the system pool's statements, for Scrub batches (cmd/scrub_batch.go).
+	sysQ    *models.Queries
 	db      *sqlx.DB
 	core    *core.Core
 	manager *manager.Manager
@@ -46,9 +48,10 @@ type tenantImporters struct {
 	stale map[int]bool
 }
 
-func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, sm *systemMail, i *i18n.I18n) *tenantImporters {
+func newTenantImporters(q, sysQ *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, sm *systemMail, i *i18n.I18n) *tenantImporters {
 	return &tenantImporters{
 		q:       q,
+		sysQ:    sysQ,
 		db:      db,
 		core:    co,
 		manager: mgr,
@@ -105,7 +108,7 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		// come back later via /webhooks/scrub/batch (cmd/scrub_batch.go),
 		// not synchronously here.
 		ScrubSubmitFunc: func(listIDs []int, emails []string) error {
-			_, err := submitScrubBatch(context.Background(), t.q, tenantID, settings, listIDs, emails, "")
+			_, err := submitScrubBatch(context.Background(), t.sysQ, tenantID, settings, listIDs, emails, "")
 			return err
 		},
 

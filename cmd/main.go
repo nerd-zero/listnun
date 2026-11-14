@@ -42,11 +42,14 @@ import (
 
 // App contains the "global" shared components, controllers and fields.
 type App struct {
-	cfg         *Config
-	urlCfg      *UrlConfig
-	fs          stuffbin.FileSystem
-	db          *sqlx.DB
-	queries     *models.Queries
+	cfg     *Config
+	urlCfg  *UrlConfig
+	fs      stuffbin.FileSystem
+	db      *sqlx.DB
+	queries *models.Queries
+	// sysQueries are the same statements on the system pool, for work
+	// that's across tenants by design (see initDB).
+	sysQueries  *models.Queries
 	core        *core.Core
 	manager     *manager.Manager
 	messengers  []manager.Messenger
@@ -98,11 +101,14 @@ var (
 	evStream = events.New()
 	lo       = log.New(io.MultiWriter(os.Stdout, evStream.ErrWriter()), "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile)
 
-	ko      = koanf.New(".")
-	fs      stuffbin.FileSystem
-	db      *sqlx.DB
-	queries *models.Queries
-	qMap    goyesql.Queries
+	ko = koanf.New(".")
+	fs stuffbin.FileSystem
+	// db is the tenant pool, sysDB the system pool (see initDB).
+	db         *sqlx.DB
+	sysDB      *sqlx.DB
+	queries    *models.Queries
+	sysQueries *models.Queries
+	qMap       goyesql.Queries
 
 	// Compile-time variables.
 	buildString   string
@@ -162,7 +168,7 @@ func boot() {
 	}
 
 	// Connect to the database.
-	db = initDB()
+	db, sysDB = initDB()
 
 	// Initialize the embedded filesystem with static assets.
 	fs = initFS(appDir, frontendDir, ko.String("static-dir"), ko.String("i18n-dir"))
@@ -171,7 +177,7 @@ func boot() {
 	// as the installer needs to work on an empty DB.
 	if ko.Bool("install") {
 		// Save the version of the last listed migration.
-		install(migList[len(migList)-1].version, db, fs, !ko.Bool("yes"), ko.Bool("idempotent"))
+		install(migList[len(migList)-1].version, sysDB, fs, !ko.Bool("yes"), ko.Bool("idempotent"))
 		os.Exit(0)
 	}
 
@@ -179,7 +185,7 @@ func boot() {
 	isNightly := strings.Contains(versionString, "nightly")
 
 	// Check if the DB schema is installed.
-	if ok, err := checkSchema(db); err != nil {
+	if ok, err := checkSchema(sysDB); err != nil {
 		log.Fatalf("error checking schema in DB: %v", err)
 	} else if !ok {
 		lo.Fatal("the database does not appear to be setup. Run --install.")
@@ -189,7 +195,7 @@ func boot() {
 		// Even on explicit upgrade runs, for nightly builds, do not record the last
 		// migration version in the DB.
 		lo.Printf("running upgrade...")
-		upgrade(db, fs, !ko.Bool("yes"), !isNightly)
+		upgrade(sysDB, fs, !ko.Bool("yes"), !isNightly)
 		os.Exit(0)
 	}
 
@@ -198,10 +204,10 @@ func boot() {
 	// nightly releases, they may change multiple times.
 	if isNightly {
 		lo.Printf("auto-running all migrations for nightly %s since last major version", versionString)
-		upgrade(db, fs, false, false)
+		upgrade(sysDB, fs, false, false)
 	} else {
 		// Before the queries are prepared, see if there are pending upgrades.
-		checkUpgrade(db)
+		checkUpgrade(sysDB)
 	}
 
 	// Read the SQL queries from the queries file.
@@ -209,11 +215,12 @@ func boot() {
 
 	// Load settings from DB.
 	if q, ok := qMap["get-settings"]; ok {
-		initSettings(q.Query, db, ko)
+		initSettings(q.Query, sysDB, ko)
 	}
 
 	// Prepare queries.
 	queries = prepareQueries(qMap, db)
+	sysQueries = prepareQueries(qMap, sysDB)
 }
 
 func main() {
@@ -243,10 +250,10 @@ func main() {
 		urlCfg = initUrlConfig(ko)
 
 		// Each tenant's campaign reply tracking setup (cmd/tenant_replies.go).
-		replyCfg = newTenantReplies(queries, lo)
+		replyCfg = newTenantReplies(sysQueries, lo)
 
 		// Each tenant's link/view tracking settings (cmd/tenant_tracking.go).
-		trackingCfg = newTenantTracking(queries, lo)
+		trackingCfg = newTenantTracking(sysQueries, lo)
 
 		// Initialize i18n language map.
 		i18n = initI18n(ko.MustString("app.lang"), fs)
@@ -266,7 +273,7 @@ func main() {
 		}
 
 		// Crud core.
-		core = initCore(sysMail.optinNotify, queries, db, i18n, ko)
+		core = initCore(sysMail.optinNotify, queries, sysQueries, db, sysDB, i18n, ko)
 
 		// Lazily resolves and caches each tenant's media.Store from their
 		// own settings (upload.* is per-tenant since phase 5).
@@ -277,16 +284,16 @@ func main() {
 
 		// Billing usage ledger: counts tenant sends and Scrub submissions
 		// into usage_counters for listnun (see internal/usage).
-		usageMeter = usage.New(usageStore{q: queries}, lo)
+		usageMeter = usage.New(usageStore{q: sysQueries}, lo)
 
 		// Campaign manager.
 		// Each workspace's settings for request-time reads (cmd/tenant_settings.go).
 		wsSettings = newTenantSettings(core)
 
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, trackingCfg, sysMail, wsSettings, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, sysQueries, urlCfg, core, mediaResolver, usageMeter, replyCfg, trackingCfg, sysMail, wsSettings, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
-		importers = newTenantImporters(queries, db, core, mgr, sysMail, i18n)
+		importers = newTenantImporters(queries, sysQueries, db, core, mgr, sysMail, i18n)
 
 		// Initialize the auth manager.
 		auth = initAuth(core, db.DB, ko)
@@ -350,6 +357,7 @@ func main() {
 		fs:          fs,
 		db:          db,
 		queries:     queries,
+		sysQueries:  sysQueries,
 		core:        core,
 		manager:     mgr,
 		messengers:  msgrs,
@@ -423,8 +431,9 @@ func main() {
 			lo.Printf("error flushing usage counters on shutdown: %v", err)
 		}
 
-		// Close the DB pool.
+		// Close the DB pools.
 		db.Close()
+		sysDB.Close()
 
 		// Close the messenger pool.
 		for _, m := range app.messengers {

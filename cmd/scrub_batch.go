@@ -201,7 +201,7 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 	}
 
 	var batch models.ScrubValidationBatch
-	if err := a.queries.GetScrubValidationBatch.Get(&batch, progress.BatchID); err != nil {
+	if err := a.sysQueries.GetScrubValidationBatch.Get(&batch, progress.BatchID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, "unknown batch")
 		}
@@ -218,7 +218,7 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "webhook verification failed")
 	}
 
-	if _, err := a.queries.UpdateScrubValidationBatchProgress.Exec(
+	if _, err := a.sysQueries.UpdateScrubValidationBatchProgress.Exec(
 		batch.BatchID, progress.Status, progress.SubmittedTotalCount, progress.ValidatedTotalCount, progress.InvalidTotalCount,
 	); err != nil {
 		a.log.Printf("scrub: error updating validation batch %s: %v", batch.BatchID, err)
@@ -253,7 +253,7 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 		// can't be swept back to unchecked_error automatically. An admin
 		// can still recover via a manual full-list Scrub rescan (ScrubList).
 		a.log.Printf("scrub: validation batch %s failed for tenant %d", batch.BatchID, batch.TenantID)
-		if _, err := a.queries.DeleteScrubValidationBatch.Exec(batch.BatchID); err != nil {
+		if _, err := a.sysQueries.DeleteScrubValidationBatch.Exec(batch.BatchID); err != nil {
 			a.log.Printf("scrub: error deleting validation batch %s: %v", batch.BatchID, err)
 		}
 	}
@@ -266,13 +266,13 @@ func (a *App) ScrubBatchWebhook(c echo.Context) error {
 // every chunk has reached a terminal status (completed or failed).
 func (a *App) updateScrubJobProgress(ctx context.Context, jobID string) {
 	var job models.ScrubValidationJob
-	if err := a.queries.GetScrubValidationJob.Get(&job, jobID); err != nil {
+	if err := a.sysQueries.GetScrubValidationJob.Get(&job, jobID); err != nil {
 		a.log.Printf("scrub: error loading validation job %s: %v", jobID, err)
 		return
 	}
 
 	var batches []models.ScrubValidationBatch
-	if err := a.queries.GetScrubValidationBatchesByJob.Select(&batches, jobID); err != nil {
+	if err := a.sysQueries.GetScrubValidationBatchesByJob.Select(&batches, jobID); err != nil {
 		a.log.Printf("scrub: error listing batches for job %s: %v", jobID, err)
 		return
 	}
@@ -283,7 +283,7 @@ func (a *App) updateScrubJobProgress(ctx context.Context, jobID string) {
 		status = models.ScrubBatchStatusCompleted
 	}
 
-	if _, err := a.queries.UpdateScrubValidationJobProgress.Exec(jobID, completed, submitted, validated, invalid, status); err != nil {
+	if _, err := a.sysQueries.UpdateScrubValidationJobProgress.Exec(jobID, completed, submitted, validated, invalid, status); err != nil {
 		a.log.Printf("scrub: error updating validation job %s: %v", jobID, err)
 	}
 	if !done {
@@ -329,14 +329,14 @@ func classifyHistoryResults(results []scrub.HistoryResult) (deliverable, undeliv
 // there's no reliable way to split invalid_syntax out).
 func (a *App) applyScrubResults(ctx context.Context, tenantID int, listIDs []int, deliverable, undeliverable []string) {
 	if len(deliverable) > 0 {
-		if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusDeliverable, pq.Array(deliverable)); err != nil {
+		if _, err := a.sysQueries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusDeliverable, pq.Array(deliverable)); err != nil {
 			a.log.Printf("scrub: error setting scrub status (tenant %d): %v", tenantID, err)
 		}
 	}
 	if len(undeliverable) == 0 {
 		return
 	}
-	if _, err := a.queries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusUndeliverable, pq.Array(undeliverable)); err != nil {
+	if _, err := a.sysQueries.SetSubscribersScrubStatusByEmail.Exec(tenantID, scrub.StatusUndeliverable, pq.Array(undeliverable)); err != nil {
 		a.log.Printf("scrub: error setting scrub status (tenant %d): %v", tenantID, err)
 	}
 	if len(listIDs) == 0 {
@@ -372,7 +372,7 @@ func (a *App) reconcileScrubBatch(ctx context.Context, batch models.ScrubValidat
 	// just accumulate dead rows for tenants that, say, disabled Scrub
 	// between submission and this callback arriving.
 	defer func() {
-		if _, err := a.queries.DeleteScrubValidationBatch.Exec(batch.BatchID); err != nil {
+		if _, err := a.sysQueries.DeleteScrubValidationBatch.Exec(batch.BatchID); err != nil {
 			a.log.Printf("scrub: error deleting validation batch %s: %v", batch.BatchID, err)
 		}
 	}()
@@ -401,7 +401,7 @@ func (a *App) reconcileScrubBatch(ctx context.Context, batch models.ScrubValidat
 	deliverable, undeliverable := classifyHistoryResults(results)
 	a.applyScrubResults(ctx, batch.TenantID, listIDs, deliverable, undeliverable)
 	for _, listID := range listIDs {
-		if _, err := a.queries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
+		if _, err := a.sysQueries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
 			a.log.Printf("scrub: error updating list %d scrub result for batch %s: %v", listID, batch.BatchID, err)
 		}
 	}
@@ -416,7 +416,7 @@ func (a *App) reconcileScrubBatch(ctx context.Context, batch models.ScrubValidat
 // the same gap reconcileScrubBatch accepts for a fully-failed batch.
 func (a *App) reconcileScrubJob(ctx context.Context, job models.ScrubValidationJob) {
 	defer func() {
-		if _, err := a.queries.DeleteScrubValidationJob.Exec(job.JobID); err != nil {
+		if _, err := a.sysQueries.DeleteScrubValidationJob.Exec(job.JobID); err != nil {
 			a.log.Printf("scrub: error deleting validation job %s: %v", job.JobID, err)
 		}
 	}()
@@ -431,7 +431,7 @@ func (a *App) reconcileScrubJob(ctx context.Context, job models.ScrubValidationJ
 	}
 
 	var batches []models.ScrubValidationBatch
-	if err := a.queries.GetScrubValidationBatchesByJob.Select(&batches, job.JobID); err != nil {
+	if err := a.sysQueries.GetScrubValidationBatchesByJob.Select(&batches, job.JobID); err != nil {
 		a.log.Printf("scrub: error listing batches for job %s: %v", job.JobID, err)
 		return
 	}
@@ -469,7 +469,7 @@ func (a *App) reconcileScrubJob(ctx context.Context, job models.ScrubValidationJ
 		return
 	}
 	for _, listID := range listIDs {
-		if _, err := a.queries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
+		if _, err := a.sysQueries.UpdateListScrubResult.Exec(listID, len(deliverable), len(undeliverable)); err != nil {
 			a.log.Printf("scrub: error updating list %d scrub result for job %s: %v", listID, job.JobID, err)
 		}
 	}

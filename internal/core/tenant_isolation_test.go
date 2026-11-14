@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,16 @@ import (
 
 // These tests run the shipped SQL as a role without BYPASSRLS, like the
 // app's, and check each path only touches the tenant's own rows.
+
+// isolationSystemPools maps each isolationPool to a system-pool connection
+// (app.all_tenants on) for the same role, as cmd/init.go's initDB opens.
+var isolationSystemPools sync.Map
+
+// systemPool returns isolationPool db's system-pool counterpart.
+func systemPool(db *sqlx.DB) *sqlx.DB {
+	s, _ := isolationSystemPools.Load(db)
+	return s.(*sqlx.DB)
+}
 
 // isolationPool connects as a fresh NOSUPERUSER NOBYPASSRLS role that can
 // read everything and write the rows these paths write.
@@ -38,14 +49,21 @@ func isolationPool(t *testing.T, admin *sqlx.DB) *sqlx.DB {
 	if err != nil {
 		t.Fatalf("connecting as test role: %v", err)
 	}
+	sys, err := sqlx.Connect("postgres", dbDSN(role, password)+" options='-c app.all_tenants=on'")
+	if err != nil {
+		t.Fatalf("connecting as test role (system): %v", err)
+	}
+	tenantPool := db.Unsafe()
+	isolationSystemPools.Store(tenantPool, sys.Unsafe())
 	t.Cleanup(func() {
+		sys.Close()
 		db.Close()
 		admin.MustExec(`REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM ` + quoted)
 		admin.MustExec(`REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM ` + quoted)
 		admin.MustExec(`REVOKE USAGE ON SCHEMA public FROM ` + quoted)
 		admin.MustExec(`DROP ROLE IF EXISTS ` + quoted)
 	})
-	return db.Unsafe()
+	return tenantPool
 }
 
 // shippedQueries parses queries/<file>.sql.
@@ -160,7 +178,8 @@ func TestExports_OnlyTheTenantsOwnRows(t *testing.T) {
 // only from the campaign's own tenant.
 func TestNextCampaignSubscribers_OnlyTheCampaignsTenant(t *testing.T) {
 	admin := testPool(t)
-	c := testCoreForIsolation(t, isolationPool(t, admin))
+	// The campaign manager runs on the system pool (cmd's sysQueries).
+	c := testCoreForIsolation(t, systemPool(isolationPool(t, admin)))
 	a, b := newListFixture(t, admin), newListFixture(t, admin)
 
 	listA := a.list("A", models.ListOptinSingle)
@@ -224,5 +243,97 @@ func TestOperatorSeed_NoTenantOneSecrets(t *testing.T) {
 	tx.Get(&keysNew, `SELECT COUNT(*) FROM settings WHERE tenant_id = $1`, tenant)
 	if keysNew < keys1 {
 		t.Errorf("new tenant has %d settings, tenant 1 %d: some keys weren't seeded", keysNew, keys1)
+	}
+}
+
+// Row-level security is fail-closed (v6.42.0): with no tenant set, a
+// tenant-pool connection sees nothing (it used to see every tenant), the
+// system pool sees everything, and WithTenant sees only its own tenant.
+// set_config is revoked, so a query can't switch tenants mid-flight.
+func TestRLS_FailClosed(t *testing.T) {
+	admin := testPool(t)
+	pool := isolationPool(t, admin)
+	c := testCoreForIsolation(t, pool)
+	c.sys = systemPool(pool)
+	a, b := newListFixture(t, admin), newListFixture(t, admin)
+	a.subscriber("rls-a@example.com", "enabled")
+	b.subscriber("rls-b@example.com", "enabled")
+
+	count := func(q func(dest any) error) int {
+		var n int
+		if err := q(&n); err != nil {
+			t.Fatalf("count: %v", err)
+		}
+		return n
+	}
+	const ours = `SELECT COUNT(*) FROM subscribers WHERE email LIKE 'rls-%@example.com'`
+
+	if n := count(func(d any) error { return pool.Get(d, ours) }); n != 0 {
+		t.Errorf("no tenant set: saw %d subscribers, want none", n)
+	}
+	var sys int
+	if err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error { return tx.Get(&sys, ours) }); err != nil || sys != 2 {
+		t.Errorf("system pool: saw %d (%v), want both tenants' 2", sys, err)
+	}
+	var own int
+	if err := c.WithTenant(context.Background(), a.tenant, nil, func(tx *sqlx.Tx) error { return tx.Get(&own, ours) }); err != nil || own != 1 {
+		t.Errorf("WithTenant: saw %d (%v), want only its own 1", own, err)
+	}
+
+	// A query expression can't switch tenants.
+	err := c.WithTenant(context.Background(), a.tenant, nil, func(tx *sqlx.Tx) error {
+		var x string
+		return tx.Get(&x, `SELECT set_config('app.current_tenant', '', true)`)
+	})
+	if err == nil || !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("set_config from the app role: err = %v, want permission denied", err)
+	}
+}
+
+// System transactions run on the system pool, so they must use statements
+// prepared there: database/sql can't rebind a statement from another pool
+// ("statement from different database used"). Found running the app; the
+// other tests here share one pool between tenant and system work.
+func TestSystem_UsesTheSystemPoolsStatements(t *testing.T) {
+	admin := testPool(t)
+	pool := isolationPool(t, admin)
+	sys := systemPool(pool)
+	users := shippedQueries(t, "users.sql")["get-users"].Query
+	prep := func(db *sqlx.DB) *sqlx.Stmt {
+		s, err := db.Preparex(users)
+		if err != nil {
+			t.Fatalf("prepare get-users: %v", err)
+		}
+		t.Cleanup(func() { s.Close() })
+		return s
+	}
+	lang, _ := i18n.New([]byte(`{"_.code":"en","_.name":"English"}`))
+	c := New(&Opt{
+		DB: pool, SystemDB: sys,
+		Queries:       &models.Queries{GetUsers: prep(pool)},
+		SystemQueries: &models.Queries{GetUsers: prep(sys)},
+		I18n:          lang, Log: log.New(io.Discard, "", 0),
+	}, nil)
+
+	a, b := newListFixture(t, admin), newListFixture(t, admin)
+	for _, f := range []*listFixture{a, b} {
+		var role int
+		if err := admin.Get(&role, `INSERT INTO roles (tenant_id, type, name) VALUES ($1, 'user', 'Sys test') RETURNING id`, f.tenant); err != nil {
+			t.Fatalf("inserting role: %v", err)
+		}
+		admin.MustExec(`INSERT INTO users (tenant_id, username, password_login, email, name, type, status, user_role_id)
+			VALUES ($1, $2, false, $2 || '@example.com', $2, 'api', 'enabled', $3)`, f.tenant, fmt.Sprintf("sys-test-%d", f.tenant), role)
+	}
+
+	got, err := c.GetAllUsersUnscoped()
+	if err != nil {
+		t.Fatalf("GetAllUsersUnscoped: %v", err)
+	}
+	seen := map[int]bool{}
+	for _, u := range got {
+		seen[u.TenantID] = true
+	}
+	if !seen[a.tenant] || !seen[b.tenant] {
+		t.Errorf("system lookup saw tenants %v, want both %d and %d", seen, a.tenant, b.tenant)
 	}
 }

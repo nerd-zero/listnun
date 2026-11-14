@@ -800,13 +800,13 @@ func (a *App) GetScrubListStatus(c echo.Context) error {
 	}
 
 	var statuses []models.ListScrubStatus
-	if err := a.queries.GetListScrubStatus.Select(&statuses, tID); err != nil {
+	if err := a.sysQueries.GetListScrubStatus.Select(&statuses, tID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			a.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.lists}", "error", err.Error()))
 	}
 
 	var jobs []models.ScrubValidationJob
-	if err := a.queries.GetActiveScrubJobsForTenant.Select(&jobs, tID); err != nil {
+	if err := a.sysQueries.GetActiveScrubJobsForTenant.Select(&jobs, tID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			a.i18n.Ts("globals.messages.errorFetching", "name", "Scrub", "error", err.Error()))
 	}
@@ -878,14 +878,14 @@ func (a *App) ScrubList(c echo.Context) error {
 	}
 
 	var active models.ScrubValidationJob
-	if err := a.queries.GetActiveScrubJobForList.Get(&active, tID, id); err == nil {
+	if err := a.sysQueries.GetActiveScrubJobForList.Get(&active, tID, id); err == nil {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.tooManyJobs"))
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	var emails []string
-	if err := a.queries.GetListSubscriberEmails.Select(&emails, id, tID); err != nil {
+	if err := a.sysQueries.GetListSubscriberEmails.Select(&emails, id, tID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError,
 			a.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", err.Error()))
 	}
@@ -893,7 +893,7 @@ func (a *App) ScrubList(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.noSubscribers"))
 	}
 
-	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, id, emails)
+	jobID, err := submitScrubListValidation(ctx, a.sysQueries, tID, s, id, emails)
 	if err != nil {
 		a.log.Printf("error submitting scrub list validation (list %d, tenant %d): %v", id, tID, err)
 		return echo.NewHTTPError(http.StatusBadGateway,
@@ -931,7 +931,7 @@ func (a *App) GetScrubListProgress(c echo.Context) error {
 	tID := tenantID(c)
 
 	var job models.ScrubValidationJob
-	if err := a.queries.GetScrubValidationJob.Get(&job, requestID); err != nil {
+	if err := a.sysQueries.GetScrubValidationJob.Get(&job, requestID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return echo.NewHTTPError(http.StatusNotFound, "job not found")
 		}

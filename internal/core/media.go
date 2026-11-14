@@ -130,11 +130,13 @@ func (c *Core) GetMediaUsage(ctx context.Context, tenantID int) (models.MediaUsa
 }
 
 // GetUnsizedMedia returns up to limit files, across tenants, whose size
-// hasn't been measured. It runs without a tenant set, which the media
-// table's row-level policy allows for system jobs.
+// hasn't been measured. A system job, across tenants (System).
 func (c *Core) GetUnsizedMedia(limit int) ([]models.UnsizedMedia, error) {
 	var out []models.UnsizedMedia
-	if err := c.q.GetUnsizedMedia.Select(&out, limit); err != nil {
+	err := c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		return stmtx(tx, c.sysq().GetUnsizedMedia).Select(&out, limit)
+	})
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -143,6 +145,8 @@ func (c *Core) GetUnsizedMedia(limit int) ([]models.UnsizedMedia, error) {
 // SetMediaSize records a file's size in bytes (media.SizeUnknown if it
 // couldn't be read).
 func (c *Core) SetMediaSize(id int, size int64) error {
-	_, err := c.q.SetMediaSize.Exec(id, size)
-	return err
+	return c.System(context.Background(), nil, func(tx *sqlx.Tx) error {
+		_, err := stmtx(tx, c.sysq().SetMediaSize).Exec(id, size)
+		return err
+	})
 }
