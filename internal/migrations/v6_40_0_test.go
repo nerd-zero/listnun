@@ -1,58 +1,53 @@
 package migrations
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"testing"
 	"time"
-
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 )
 
-func testDB(t *testing.T) *sqlx.DB {
-	t.Helper()
-	get := func(env, def string) string {
-		if v := os.Getenv(env); v != "" {
-			return v
-		}
-		return def
-	}
-	db, err := sqlx.Connect("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		get("LISTNUN_db__host", "127.0.0.1"), get("LISTNUN_db__port", "5435"),
-		get("LISTNUN_db__user", "listnun-dev"), get("LISTNUN_db__password", "listnun-dev"),
-		get("LISTNUN_db__database", "listnun-dev")))
-	if err != nil {
-		t.Skipf("skipping: no reachable test database: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	return db
-}
-
-// Each workspace's Super Admin role gets marked, tenant 1's by its ID even
-// if renamed, and running the migration again changes nothing.
-func TestV6_40_0_MarksEachWorkspacesSuperAdmin(t *testing.T) {
+// The platform's existing servers get marked managed, a workspace's own
+// don't, servers already marked keep their mark, and running it again
+// changes nothing.
+func TestV6_40_0_MarksPlatformSMTP(t *testing.T) {
 	db := testDB(t)
 	lo := log.New(io.Discard, "", 0)
-	if err := V6_40_0(db, nil, nil, lo); err != nil {
-		t.Fatalf("migration: %v", err)
-	}
 
-	var tenant int
-	if err := db.Get(&tenant, `INSERT INTO tenants (slug, name) VALUES ($1, 'Super test') RETURNING id`,
-		fmt.Sprintf("super-test-%d", time.Now().UnixNano())); err != nil {
-		t.Fatalf("inserting tenant: %v", err)
+	type server struct {
+		Host    string `json:"host"`
+		Managed *bool  `json:"managed_by_platform,omitempty"`
 	}
-	t.Cleanup(func() { db.MustExec(`DELETE FROM tenants WHERE id = $1`, tenant) })
-
-	var superRole, editor int
-	for name, id := range map[string]*int{"Super Admin": &superRole, "Editor": &editor} {
-		if err := db.Get(id, `INSERT INTO roles (tenant_id, type, name, permissions) VALUES ($1, 'user', $2, '{}') RETURNING id`, tenant, name); err != nil {
-			t.Fatalf("inserting role %s: %v", name, err)
+	no := false
+	tenant := func(servers []server) int {
+		var id int
+		if err := db.Get(&id, `INSERT INTO tenants (slug, name) VALUES ($1, 'Migration test') RETURNING id`,
+			fmt.Sprintf("v6-40-0-%d", time.Now().UnixNano())); err != nil {
+			t.Fatalf("inserting tenant: %v", err)
 		}
+		t.Cleanup(func() { db.MustExec(`DELETE FROM tenants WHERE id = $1`, id) })
+		b, _ := json.Marshal(servers)
+		db.MustExec(`INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::jsonb)
+			ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`, id, b)
+		return id
 	}
+	read := func(id int) []server {
+		var b []byte
+		if err := db.Get(&b, `SELECT value FROM settings WHERE tenant_id = $1 AND key = 'smtp'`, id); err != nil {
+			t.Fatalf("reading smtp: %v", err)
+		}
+		var out []server
+		if err := json.Unmarshal(b, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	platform := tenant([]server{{Host: " SMTP.postmarkapp.com"}})
+	own := tenant([]server{{Host: "smtp.own.example"}, {Host: "smtp.backup.example"}})
+	kept := tenant([]server{{Host: "smtp.postmarkapp.com", Managed: &no}})
 
 	for range 2 {
 		if err := V6_40_0(db, nil, nil, lo); err != nil {
@@ -60,14 +55,18 @@ func TestV6_40_0_MarksEachWorkspacesSuperAdmin(t *testing.T) {
 		}
 	}
 
-	var got []int
-	db.Select(&got, `SELECT id FROM roles WHERE tenant_id = $1 AND super ORDER BY id`, tenant)
-	if len(got) != 1 || got[0] != superRole {
-		t.Errorf("super roles = %v, want only the workspace's Super Admin %d", got, superRole)
+	if s := read(platform); s[0].Managed == nil || !*s[0].Managed {
+		t.Errorf("platform server = %+v, want it marked managed", s)
 	}
-
-	var one bool
-	if err := db.Get(&one, `SELECT super FROM roles WHERE id = 1`); err == nil && !one {
-		t.Error("tenant 1's role 1 isn't marked super")
+	for _, s := range read(own) {
+		if s.Managed == nil || *s.Managed {
+			t.Errorf("own server %+v, want managed_by_platform false", s)
+		}
+	}
+	if s := read(own); len(s) != 2 || s[0].Host != "smtp.own.example" || s[1].Host != "smtp.backup.example" {
+		t.Errorf("own servers = %+v, want both kept in order", s)
+	}
+	if s := read(kept); *s[0].Managed {
+		t.Errorf("server already marked = %+v, want its mark kept", s)
 	}
 }
