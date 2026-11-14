@@ -145,3 +145,18 @@ func TestSettingsRestart(t *testing.T) {
 		t.Error("single-tenant: want restarts")
 	}
 }
+
+func TestSendLimits(t *testing.T) {
+	s := models.Settings{AppMessageRate: 10, AppConcurrency: 3, AppMessageSlidingWindow: true,
+		AppMessageSlidingWindowDuration: "1h", AppMessageSlidingWindowRate: 5000}
+	l := sendLimits(s)
+	if l.PerSecond != 30 || l.Window != time.Hour || l.WindowMax != 5000 {
+		t.Errorf("limits = %+v, want 30/s and 5000 per hour", l)
+	}
+
+	s.AppMessageSlidingWindow = false
+	s.AppMessageSlidingWindowDuration = "an hour"
+	if l := sendLimits(s); l.Window != 0 || l.WindowMax != 0 {
+		t.Errorf("limits = %+v, want no window when it's off", l)
+	}
+}

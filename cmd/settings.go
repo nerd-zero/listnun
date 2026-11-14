@@ -498,12 +498,14 @@ type tenantCacheChanges struct {
 // where they're used, or through a per-workspace cache a save clears
 // (tenantSettings, tenantMessengers, tenantMedia, tenantTracking, the OIDC
 // cache, tenantImporters, twofa). Anything else is read once at boot from
-// tenant 1's settings and process-wide - the sending rate and
-// concurrency, crons, language, postback messengers, bounce mailboxes, the
+// tenant 1's settings and process-wide - the per-worker sending rate and
+// the number of workers (each workspace's own rate is also applied live,
+// see sendLimits), crons, language, postback messengers, bounce mailboxes, the
 // root URL - and needs a restart. A setting added to models.Settings later
 // falls on the restart side until it's listed here.
 var liveSettings = map[string]bool{
 	"smtp": true, "security.oidc": true, "inactive_cleanup": true, "scrub": true, "branding": true,
+	"app.message_sliding_window": true, "app.message_sliding_window_duration": true, "app.message_sliding_window_rate": true,
 	"app.site_name": true, "app.logo_url": true, "app.favicon_url": true,
 	"app.from_email": true, "app.notify_emails": true, "app.send_optin_confirmation": true,
 	"app.enable_public_subscription_page": true, "app.enable_public_archive": true,

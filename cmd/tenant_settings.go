@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/nerd-zero/listnun/internal/captcha"
+	"github.com/nerd-zero/listnun/internal/manager"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -138,4 +139,21 @@ func lookupMap(keys []string) map[string]bool {
 		out[k] = true
 	}
 	return out
+}
+
+// sendLimits are a workspace's own sending limits (Settings › Performance):
+// its message rate times its concurrency per second, and its sliding
+// window. They apply to its campaigns only; tenant 1's rate and
+// concurrency are still the server's per-worker ceiling and worker count.
+func sendLimits(s models.Settings) manager.SendLimits {
+	var l manager.SendLimits
+	if s.AppMessageRate > 0 && s.AppConcurrency > 0 {
+		l.PerSecond = s.AppMessageRate * s.AppConcurrency
+	}
+	if s.AppMessageSlidingWindow && s.AppMessageSlidingWindowRate > 0 {
+		if d, err := time.ParseDuration(s.AppMessageSlidingWindowDuration); err == nil {
+			l.Window, l.WindowMax = d, s.AppMessageSlidingWindowRate
+		}
+	}
+	return l
 }
