@@ -1863,6 +1863,8 @@
     "campaigns.overview.col.delivered": "Delivered",
     "campaigns.overview.col.opened": "Opened",
     "campaigns.overview.col.clicked": "Clicked",
+    "campaigns.overview.col.bounced": "Bounced",
+    "campaigns.overview.col.replied": "Replied",
     "campaigns.overview.mostRecent": "{n} most recent of {total}",
     "campaigns.overview.showAllSent": "Show all sent",
     "campaigns.overview.opened": "{n} opened",

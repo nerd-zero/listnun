@@ -31,11 +31,15 @@
             <strong>{{ $t('campaigns.overview.pausedTitle', { name: c.name }) }}</strong>
             <span>{{ pausedText(c) }}</span>
             <span v-if="c.pauseReason" class="ln-small">{{ $t(`campaigns.pauseReason.${c.pauseReason}`) }}</span>
+            <span class="camps-ov-stats ln-small" data-cy="paused-stats">
+              <span v-for="f in soFar(c)" :key="f.key">{{ f.label }} <strong>{{ f.value }}</strong></span>
+            </span>
           </span>
         </span>
         <span class="camps-ov-paused-actions">
-          <PvButton :label="$t('campaigns.overview.review')" severity="secondary" outlined size="small" @click="open(c)" />
+          <PvButton :label="$t('campaigns.overview.review')" severity="secondary" outlined size="small" @click="edit(c)" />
           <PvButton v-if="$can('campaigns:send')" :label="$t('campaigns.overview.resume')" size="small" data-cy="btn-resume" @click="askStatus(c, 'running')" />
+          <row-icon-button icon="pi-ellipsis-h" :label="$t('globals.buttons.rowActions')" cy="btn-row-menu" menu @click="(e) => openMenu(e, c)" />
         </span>
       </div>
 
@@ -51,6 +55,7 @@
             <span class="camps-ov-live-actions">
               <PvButton v-if="$can('campaigns:send')" icon="pi pi-pause" :label="$t('campaigns.confirm.paused.action')" severity="secondary" outlined @click="askStatus(c, 'paused')" />
               <PvButton :label="$t('campaigns.overview.liveResults')" severity="secondary" outlined @click="openResults(c)" />
+              <row-icon-button icon="pi-ellipsis-h" :label="$t('globals.buttons.rowActions')" cy="btn-row-menu" menu @click="(e) => openMenu(e, c)" />
             </span>
           </div>
           <div class="camps-ov-progress" role="progressbar" :aria-valuenow="sentOf(c)" aria-valuemin="0" :aria-valuemax="totalOf(c)">
@@ -69,9 +74,9 @@
               <dt>{{ $t('campaigns.overview.timeLeft') }}</dt>
               <dd>{{ timeLeftLabel(c) }}</dd>
             </div>
-            <div>
-              <dt>{{ $t('campaigns.overview.openedSoFar') }}</dt>
-              <dd>{{ result(c.opened, sentOf(c)) }}</dd>
+            <div v-for="f in soFar(c)" :key="f.key">
+              <dt>{{ f.label }}</dt>
+              <dd>{{ f.value }}</dd>
             </div>
           </dl>
         </article>
@@ -90,7 +95,10 @@
                   <strong>{{ c.name }}</strong>
                   <span class="ln-small">{{ $t('campaigns.overview.audience', { lists: listNames(c), n: $utils.niceNumber(c.audience) }) }}</span>
                 </span>
-                <router-link :to="{ name: 'campaign', params: { id: c.id } }">{{ $t('globals.buttons.edit') }}</router-link>
+                <span class="camps-ov-row-actions">
+                  <router-link :to="{ name: 'campaign', params: { id: c.id } }">{{ $t('globals.buttons.edit') }}</router-link>
+                  <row-icon-button icon="pi-ellipsis-h" :label="$t('globals.buttons.rowActions')" cy="btn-row-menu" menu @click="(e) => openMenu(e, c)" />
+                </span>
               </div>
             </template>
           </div>
@@ -102,17 +110,28 @@
             <h2 class="camps-ov-h2">{{ $t('campaigns.overview.draftsTitle') }}</h2>
             <router-link :to="{ name: 'allCampaigns', query: { status: 'draft' } }" class="ln-small">{{ $t('campaigns.overview.allDrafts', { n: count('draft') }) }}</router-link>
           </div>
-          <router-link
-            v-for="c in drafts"
-            :key="c.id"
-            :to="{ name: 'campaign', params: { id: c.id } }"
-            class="ln-card camps-ov-draft"
-            data-cy="draft"
-          >
-            <strong>{{ c.name }}</strong>
+          <div v-for="c in drafts" :key="c.id" class="ln-card camps-ov-draft" data-cy="draft">
+            <router-link :to="{ name: 'campaign', params: { id: c.id } }" class="camps-ov-draft-name">{{ c.name }}</router-link>
             <span class="ln-small">{{ draftMeta(c) }}</span>
-            <span class="camps-ov-continue">{{ $t('campaigns.overview.continue') }}</span>
-          </router-link>
+            <span class="camps-ov-draft-actions">
+              <router-link :to="{ name: 'campaign', params: { id: c.id } }" class="camps-ov-continue">{{ $t('campaigns.overview.continue') }}</router-link>
+              <span class="camps-ov-row-actions">
+                <PvButton
+                  v-if="sendAction(c) && c.lists.length"
+                  :icon="`pi ${sendAction(c)!.icon}`"
+                  :label="sendAction(c)!.label"
+                  :data-cy="sendAction(c)!.cy"
+                  size="small"
+                  severity="secondary"
+                  outlined
+                  @click="sendAction(c)!.run()"
+                />
+                <row-icon-button icon="pi-eye" :label="$t('campaigns.preview')" cy="btn-preview" @click="preview(c)" />
+                <row-icon-button v-if="$can('campaigns:manage')" icon="pi-copy" :label="$t('globals.buttons.clone')" cy="btn-clone" @click="askClone(c)" />
+                <row-icon-button icon="pi-ellipsis-h" :label="$t('globals.buttons.rowActions')" cy="btn-row-menu" menu @click="(e) => openMenu(e, c)" />
+              </span>
+            </span>
+          </div>
         </section>
       </div>
 
@@ -123,22 +142,26 @@
           <router-link v-if="$can('campaigns:get_analytics')" :to="{ name: 'campaignAnalytics' }" class="ln-small">{{ $t('campaigns.overview.compare') }}</router-link>
         </div>
         <div class="ln-card camps-ov-sent">
-          <div v-if="!isMobile" class="camps-ov-sent-row is-head" aria-hidden="true">
+          <div v-if="!isMobile" class="camps-ov-sent-row is-head" :style="sentGrid" aria-hidden="true">
             <span>{{ $t('campaigns.overview.col.campaign') }}</span>
             <span>{{ $t('campaigns.overview.col.sent') }}</span>
             <span class="is-num">{{ $t('campaigns.overview.col.delivered') }}</span>
             <span>{{ $t('campaigns.overview.col.opened') }}</span>
             <span class="is-num">{{ $t('campaigns.overview.col.clicked') }}</span>
+            <span class="is-num">{{ $t('campaigns.overview.col.bounced') }}</span>
+            <span v-if="showReplies" class="is-num">{{ $t('campaigns.overview.col.replied') }}</span>
+            <span />
           </div>
-          <router-link
+          <div
             v-for="c in sent"
             :key="c.id"
-            :to="{ name: 'campaign', params: { id: c.id } }"
             class="camps-ov-sent-row"
+            :style="isMobile ? undefined : sentGrid"
             data-cy="sent"
+            @click="edit(c)"
           >
             <span class="camps-ov-sent-name">
-              <strong>{{ c.name }}</strong>
+              <router-link :to="{ name: 'campaign', params: { id: c.id } }" @click.stop>{{ c.name }}</router-link>
               <span class="ln-small">{{ listNames(c) }}</span>
             </span>
             <template v-if="!isMobile">
@@ -149,12 +172,27 @@
                 <span class="is-num">{{ result(c.opened, delivered(c)) }}</span>
               </span>
               <span class="is-num">{{ result(c.clicked, delivered(c)) }}</span>
+              <span class="is-num">
+                <router-link
+                  v-if="c.bounced && $can('bounces:get')"
+                  :to="{ name: 'bounces', query: { campaign_id: c.id } }"
+                  class="camps-ov-bounces"
+                  @click.stop
+                >{{ $utils.niceNumber(c.bounced) }}</router-link>
+                <template v-else>{{ $utils.niceNumber(c.bounced) }}</template>
+              </span>
+              <span v-if="showReplies" class="is-num">{{ result(c.replied, delivered(c)) }}</span>
             </template>
             <span v-else class="camps-ov-sent-m ln-small">
               <span>{{ shortDate(c.startedAt || c.updatedAt) }}</span>
               <span>{{ $t('campaigns.overview.opened', { n: result(c.opened, delivered(c)) }) }}</span>
             </span>
-          </router-link>
+            <span class="camps-ov-row-actions" @click.stop>
+              <row-icon-button v-if="!isMobile && $can('campaigns:get_analytics')" icon="pi-chart-bar" :label="$t('globals.terms.analytics')" cy="btn-analytics" @click="analytics(c)" />
+              <row-icon-button v-if="!isMobile && $can('campaigns:manage')" icon="pi-copy" :label="$t('globals.buttons.clone')" cy="btn-clone" @click="askClone(c)" />
+              <row-icon-button icon="pi-ellipsis-h" :label="$t('globals.buttons.rowActions')" cy="btn-row-menu" menu @click="(e) => openMenu(e, c)" />
+            </span>
+          </div>
           <div class="camps-ov-sent-foot ln-small">
             <span>{{ $t('campaigns.overview.mostRecent', { n: sent.length, total: count('finished') }) }}</span>
             <router-link :to="{ name: 'allCampaigns', query: { status: 'finished' } }">{{ $t('campaigns.overview.showAllSent') }}</router-link>
@@ -163,12 +201,31 @@
       </section>
     </template>
 
+    <PvMenu ref="menu" :model="menuItems" popup />
+
+    <campaign-preview v-if="previewItem" type="campaign" :id="previewItem.id" :title="previewItem.name" @close="previewItem = null" />
+
+    <dialog-form
+      v-model:visible="clone.open"
+      :title="$t('globals.buttons.clone')"
+      :submit-label="$t('globals.buttons.clone')"
+      :busy="clone.busy"
+      :submit-disabled="!clone.name.trim()"
+      @submit="doClone"
+    >
+      <div class="ln-field">
+        <label for="clone-name">{{ $t('globals.fields.name') }}</label>
+        <PvInputText id="clone-name" v-model="clone.name" autofocus />
+      </div>
+    </dialog-form>
+
     <confirm-action
       v-model:visible="confirm.open"
       :title="confirm.title"
       :text="confirm.text"
       :confirm-label="confirm.label"
-      :danger="false"
+      :confirm-text="confirm.typed"
+      :danger="confirm.danger"
       :busy="confirm.busy"
       @confirm="confirm.run"
     />
@@ -177,7 +234,7 @@
 
 <script setup lang="ts">
 import {
-  computed, onMounted, onUnmounted, reactive, ref, watch,
+  computed, onMounted, onUnmounted, ref, watch,
 } from 'vue';
 import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
@@ -191,6 +248,10 @@ import PageHeader from '../components/ui/PageHeader.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
+import DialogForm from '../components/ui/DialogForm.vue';
+import RowIconButton from '../components/ui/RowIconButton.vue';
+import CampaignPreview from '../components/CampaignPreview.vue';
+import { useCampaignActions } from '../composables/useCampaignActions';
 import { getCampaigns as campaignsApi } from '../api/generated/endpoints/campaigns/campaigns';
 
 interface ListRef { id: number; name: string }
@@ -199,7 +260,7 @@ interface Item {
   sendAt?: string; startedAt?: string; updatedAt?: string; updatedByName: string;
   toSend: number; sent: number; lists: ListRef[]; audience: number;
   // Results, counted as on the Analytics page (models.CampaignEngagement).
-  bounced: number; delivered: number; opened: number; clicked: number; anonymous: number;
+  bounced: number; delivered: number; opened: number; clicked: number; anonymous: number; replied: number;
 }
 interface Overview { campaigns: Item[]; counts: { status: string; count: number }[] }
 // A running campaign's live figures from /api/campaigns/running/stats.
@@ -209,7 +270,7 @@ interface Live { id: number; sent: number; toSend: number; rate: number; netRate
 const LIVE_POLL_MS = 2000;
 
 const { $utils, $can } = useGlobal();
-const { getCampaignsOverview, getRunningCampaignStats, updateCampaignStatus } = campaignsApi();
+const { getCampaignsOverview, getRunningCampaignStats } = campaignsApi();
 const { t } = useI18n();
 const router = useRouter();
 const { ago, shortDate } = useTime();
@@ -224,9 +285,21 @@ const data = ref<Overview | null>(null);
 const live = ref<Record<number, Live>>({});
 const query = ref('');
 let pollTimer: ReturnType<typeof setInterval> | null = null;
-const confirm = reactive({
-  open: false, title: '', text: '', label: '', busy: false, run: () => {},
-});
+const {
+  previewItem, confirm, clone, menu, menuItems, openMenu,
+  edit, analytics, preview, askStatus, askClone, doClone, sendAction,
+} = useCampaignActions(() => fetchOverview());
+
+// Replies show where the workspace has reply tracking, or a campaign here
+// got replies while it had (as on the Analytics page).
+const showReplies = computed(() => !!(serverConfig.value as { reply_tracking?: boolean }).reply_tracking
+  || (data.value?.campaigns || []).some((c) => c.replied > 0));
+
+// The sent table's columns: campaign, date, delivered, opened, clicked,
+// bounced, replied (when shown) and actions.
+const sentGrid = computed(() => ({
+  gridTemplateColumns: `minmax(0, 2.4fr) 80px 80px minmax(0, 1.4fr) 70px 70px${showReplies.value ? ' 70px' : ''} 108px`,
+}));
 
 const byStatus = (s: string) => (data.value?.campaigns || []).filter((c) => c.status === s);
 const paused = computed(() => byStatus('paused'));
@@ -312,24 +385,36 @@ function pausedText(c: Item): string {
   });
 }
 
+// soFar is a sending or paused campaign's results so far, counted as on
+// the Analytics page.
+function soFar(c: Item): { key: string; label: string; value: string }[] {
+  const of = delivered(c);
+  const out = [
+    { key: 'opened', label: t('campaigns.overview.openedSoFar'), value: result(c.opened, of) },
+    { key: 'clicked', label: t('campaigns.overview.col.clicked'), value: result(c.clicked, of) },
+    { key: 'bounced', label: t('campaigns.overview.col.bounced'), value: String($utils.niceNumber(c.bounced)) },
+  ];
+  if (showReplies.value) out.push({ key: 'replied', label: t('campaigns.overview.col.replied'), value: result(c.replied, of) });
+  return out;
+}
+
 function draftMeta(c: Item): string {
   const when = ago(c.updatedAt);
   const edited = c.updatedByName ? t('campaigns.overview.editedBy', { when, name: c.updatedByName }) : t('campaigns.overview.edited', { when });
-  return `${edited}, ${c.lists.length ? listNames(c) : t('campaigns.overview.noLists')}`;
-}
-
-function open(c: Item) {
-  router.push({ name: 'campaign', params: { id: c.id } });
+  const who = c.lists.length
+    ? t('campaigns.overview.audience', { lists: listNames(c), n: $utils.niceNumber(c.audience) })
+    : t('campaigns.overview.noLists');
+  return `${edited}, ${who}`;
 }
 
 // openResults shows a sending campaign's results on the Analytics page,
 // from the day it started; without access to analytics, the campaign.
 function openResults(c: Item) {
   if (!$can('campaigns:get_analytics')) {
-    open(c);
+    edit(c);
     return;
   }
-  router.push({ name: 'campaignAnalytics', query: { id: String(c.id) } });
+  analytics(c);
 }
 
 function onSearch() {
@@ -357,26 +442,6 @@ function fetchOverview() {
   getCampaignsOverview().then((d) => {
     data.value = d as unknown as Overview;
     pollLive();
-  });
-}
-
-function askStatus(c: Item, status: 'running' | 'paused') {
-  const resume = status === 'running';
-  Object.assign(confirm, {
-    open: true,
-    title: resume ? t('campaigns.overview.resumeTitle', { name: c.name }) : t('campaigns.confirm.paused.title', { name: c.name }),
-    text: resume
-      ? t('campaigns.overview.resumeText', { n: $utils.niceNumber(Math.max(0, c.toSend - c.sent)) })
-      : t('campaigns.confirm.paused.text'),
-    label: resume ? t('campaigns.overview.resume') : t('campaigns.confirm.paused.action'),
-    run: () => {
-      confirm.busy = true;
-      updateCampaignStatus(c.id, { status } as never).then(() => {
-        confirm.open = false;
-        $utils.toast(t('campaigns.statusChanged', { name: c.name, status: t(`campaigns.status.${status}`) }));
-        fetchOverview();
-      }).finally(() => { confirm.busy = false; });
-    },
   });
 }
 
@@ -454,7 +519,16 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
   h3 { margin: 0; font-size: 17px; font-weight: 600; }
 }
-.camps-ov-live-actions { display: flex; gap: 8px; }
+.camps-ov-live-actions { display: flex; gap: 8px; align-items: center; }
+.camps-ov-row-actions { display: inline-flex; gap: 2px; align-items: center; justify-content: flex-end; }
+.camps-ov-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 4px;
+
+  strong { color: var(--ln-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+}
 .camps-ov-progress {
   height: 8px;
   border-radius: 99px;
@@ -465,7 +539,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 }
 .camps-ov-figures {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 12px;
   margin: 0;
 
@@ -503,7 +577,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
   & + & { border-top: 1px solid var(--ln-border); }
   time { color: var(--ln-text-2); font-size: 13px; }
-  a { color: var(--ln-text); font-size: 13px; font-weight: 500; text-decoration: underline; }
+  .camps-ov-row-actions > a { color: var(--ln-text); font-size: 13px; font-weight: 500; text-decoration: underline; margin-right: 6px; }
 }
 .camps-ov-next-name { display: flex; flex-direction: column; min-width: 0; strong { font-weight: 500; } }
 
@@ -513,17 +587,16 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
   gap: 4px;
   padding: 16px 18px;
   color: var(--ln-text);
-  text-decoration: none;
 
-  &:hover { border-color: var(--ln-border-strong); text-decoration: none; }
-  strong { font-weight: 500; }
+  &:hover { border-color: var(--ln-border-strong); }
 }
-.camps-ov-continue { margin-top: 6px; font-size: 13px; font-weight: 600; }
+.camps-ov-draft-name { color: var(--ln-text); font-weight: 500; text-decoration: none; &:hover { text-decoration: underline; } }
+.camps-ov-draft-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.camps-ov-continue { font-size: 13px; font-weight: 600; color: var(--ln-text); text-decoration: underline; }
 
 .camps-ov-sent { overflow: hidden; }
 .camps-ov-sent-row {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) 90px 90px minmax(0, 1.6fr) 80px;
   gap: 16px;
   align-items: center;
   padding: 14px 18px;
@@ -531,6 +604,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
   color: var(--ln-text);
   text-decoration: none;
 
+  &:not(.is-head) { cursor: pointer; }
   &:hover:not(.is-head) { background: var(--ln-hover); text-decoration: none; }
   &.is-head {
     border-top: 0;
@@ -541,9 +615,16 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
     color: var(--ln-text-3);
   }
   .is-num { text-align: right; font-variant-numeric: tabular-nums; }
-  @media (max-width: 767px) { grid-template-columns: minmax(0, 1fr) auto; }
+  @media (max-width: 767px) { grid-template-columns: minmax(0, 1fr) auto auto; }
 }
-.camps-ov-sent-name { display: flex; flex-direction: column; min-width: 0; strong { font-weight: 500; } }
+.camps-ov-sent-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  a { color: var(--ln-text); font-weight: 500; text-decoration: none; &:hover { text-decoration: underline; } }
+}
+.camps-ov-bounces { color: var(--ln-text); text-decoration: underline; }
 .camps-ov-sent-m { display: flex; flex-direction: column; align-items: flex-end; }
 .camps-ov-open { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 10px; align-items: center; }
 .camps-ov-bar {
