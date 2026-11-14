@@ -50,18 +50,22 @@ type Queries struct {
 	GetScrubValidationBatch            *sqlx.Stmt `query:"get-scrub-validation-batch"`
 	GetScrubValidationBatchesByJob     *sqlx.Stmt `query:"get-scrub-validation-batches-by-job"`
 	UpdateScrubValidationBatchProgress *sqlx.Stmt `query:"update-scrub-validation-batch-progress"`
+	RecordScrubBatchProgress           *sqlx.Stmt `query:"record-scrub-batch-progress"`
 	DeleteScrubValidationBatch         *sqlx.Stmt `query:"delete-scrub-validation-batch"`
 
 	InsertScrubValidationJob         *sqlx.Stmt `query:"insert-scrub-validation-job"`
 	GetScrubValidationJob            *sqlx.Stmt `query:"get-scrub-validation-job"`
 	GetActiveScrubJobForList         *sqlx.Stmt `query:"get-active-scrub-job-for-list"`
 	GetActiveScrubJobsForTenant      *sqlx.Stmt `query:"get-active-scrub-jobs-for-tenant"`
+	CountUnfinishedScrubBatches      *sqlx.Stmt `query:"count-unfinished-scrub-batches-for-tenant"`
 	UpdateScrubValidationJobProgress *sqlx.Stmt `query:"update-scrub-validation-job-progress"`
 	DeleteScrubValidationJob         *sqlx.Stmt `query:"delete-scrub-validation-job"`
 
-	GetListSubscriberEmails *sqlx.Stmt `query:"get-list-subscriber-emails"`
-	GetListScrubStatus      *sqlx.Stmt `query:"get-list-scrub-status"`
-	UpdateListScrubResult   *sqlx.Stmt `query:"update-list-scrub-result"`
+	GetListSubscriberEmails      *sqlx.Stmt `query:"get-list-subscriber-emails"`
+	GetUncheckedSubscriberEmails *sqlx.Stmt `query:"get-unchecked-subscriber-emails"`
+	GetTenantListIDs             *sqlx.Stmt `query:"get-tenant-list-ids"`
+	GetListScrubStatus           *sqlx.Stmt `query:"get-list-scrub-status"`
+	UpdateListScrubResult        *sqlx.Stmt `query:"update-list-scrub-result"`
 
 	// Non-prepared arbitrary subscriber queries.
 	QuerySubscribers                       string     `query:"query-subscribers"`

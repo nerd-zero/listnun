@@ -850,7 +850,7 @@ func (a *App) ScrubList(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.noSubscribers"))
 	}
 
-	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, id, emails)
+	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, []int{id}, emails)
 	if err != nil {
 		a.log.Printf("error submitting scrub list validation (list %d, tenant %d): %v", id, tID, err)
 		return echo.NewHTTPError(http.StatusBadGateway,

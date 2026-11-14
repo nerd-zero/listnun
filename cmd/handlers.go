@@ -325,6 +325,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.PUT("/tenants/:id/bounce-webhooks", hasID(a.SetOperatorTenantBounceWebhooks))
 		g.PUT("/tenants/:id/replies", hasID(a.SetOperatorTenantReplies))
 		g.GET("/tenants/:id/scrub/usage", hasID(a.GetOperatorTenantScrubUsage))
+		g.POST("/tenants/:id/scrub/validate-unchecked", hasID(a.ValidateOperatorTenantUnchecked))
 		g.GET("/tenants/:id/storage", hasID(a.GetOperatorTenantStorage))
 		g.GET("/tenants/:id/usage", hasID(a.GetOperatorTenantUsage))
 		g.GET("/tenants/:id/activity", hasID(a.GetOperatorTenantActivity))

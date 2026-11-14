@@ -88,6 +88,11 @@ SELECT COUNT(*) FROM l, c;
 -- name: update-lists-date
 UPDATE lists SET updated_at=NOW() WHERE id = ANY($1) AND tenant_id = $2;
 
+-- name: get-tenant-list-ids
+-- Every list of tenant $1 -- the lists a tenant-wide Scrub validation
+-- unsubscribes undeliverable addresses from.
+SELECT id FROM lists WHERE tenant_id = $1 ORDER BY id;
+
 -- name: get-list-scrub-status
 -- Lightweight per-list Scrub summary for GetScrubListStatus -- deliberately
 -- not the full get-lists/query-lists shape (subscriber counts etc.),

@@ -4584,6 +4584,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/operator/tenants/{id}/scrub/validate-unchecked": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Submits each enabled subscriber with no Scrub status (or unchecked_error) once; undeliverable ones are unsubscribed from the tenant's lists when results arrive. Billed as validation usage.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Validate a tenant's unchecked subscribers with Scrub (Operator API)",
+                "operationId": "validateOperatorTenantUnchecked",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.operatorScrubValidation"
+                        }
+                    },
+                    "400": {
+                        "description": "Scrub isn't configured for the tenant",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "409": {
+                        "description": "A validation is already in flight",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "502": {
+                        "description": "Scrub refused the submission",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/sending-health": {
             "get": {
                 "security": [
@@ -11288,6 +11353,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {}
+            }
+        },
+        "cmd.operatorScrubValidation": {
+            "type": "object",
+            "properties": {
+                "job_id": {
+                    "description": "JobID is the scrub_validation_jobs id tracking the submission;\nempty when there was nothing to validate.",
+                    "type": "string"
+                },
+                "submitted": {
+                    "description": "Submitted is how many addresses were sent to Scrub.",
+                    "type": "integer"
+                }
             }
         },
         "cmd.operatorSetCustomDomainReq": {

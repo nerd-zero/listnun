@@ -2528,6 +2528,17 @@ definitions:
     properties:
       data: {}
     type: object
+  cmd.operatorScrubValidation:
+    properties:
+      job_id:
+        description: |-
+          JobID is the scrub_validation_jobs id tracking the submission;
+          empty when there was nothing to validate.
+        type: string
+      submitted:
+        description: Submitted is how many addresses were sent to Scrub.
+        type: integer
+    type: object
   cmd.operatorSetCustomDomainReq:
     properties:
       custom_domain:
@@ -5942,6 +5953,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a tenant's Scrub validation usage (Operator API)
+      tags:
+      - operator
+  /api/operator/tenants/{id}/scrub/validate-unchecked:
+    post:
+      description: Fork-only, off by default (see [operator] config). Requires the
+        Operator API bearer token. Submits each enabled subscriber with no Scrub status
+        (or unchecked_error) once; undeliverable ones are unsubscribed from the tenant's
+        lists when results arrive. Billed as validation usage.
+      operationId: validateOperatorTenantUnchecked
+      parameters:
+      - description: Tenant ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/cmd.operatorScrubValidation'
+        "400":
+          description: Scrub isn't configured for the tenant
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "404":
+          description: Tenant not found
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "409":
+          description: A validation is already in flight
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "502":
+          description: Scrub refused the submission
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      security:
+      - BearerAuth: []
+      summary: Validate a tenant's unchecked subscribers with Scrub (Operator API)
       tags:
       - operator
   /api/operator/tenants/{id}/sending-health:
