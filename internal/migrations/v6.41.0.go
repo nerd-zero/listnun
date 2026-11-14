@@ -17,12 +17,18 @@ func V6_41_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf, lo *log.Logge
 	_, err := db.Exec(`
 		ALTER TABLE roles ADD COLUMN IF NOT EXISTS super BOOLEAN NOT NULL DEFAULT false;
 
-		-- Each workspace's Super Admin: role 1 (tenant 1's, whatever it's
-		-- called now), else the top-level user role named Super Admin.
-		UPDATE roles SET super = true
-		    WHERE NOT super AND type = 'user' AND parent_id IS NULL
-		    AND (id = 1 OR (name = 'Super Admin' AND NOT EXISTS (
-		        SELECT 1 FROM roles r WHERE r.tenant_id = roles.tenant_id AND r.super)));
+		-- Each workspace's Super Admin: tenant 1's role 1 (the one install
+		-- made, whatever it's called now), else the top-level user role
+		-- named Super Admin. Exactly one per workspace, and none for a
+		-- workspace that already has one: tenant 1 can have both a renamed
+		-- role 1 and a role named Super Admin.
+		UPDATE roles SET super = true WHERE id IN (
+		    SELECT DISTINCT ON (tenant_id) id FROM roles r
+		        WHERE type = 'user' AND parent_id IS NULL
+		        AND ((id = 1 AND tenant_id = 1) OR name = 'Super Admin')
+		        AND NOT EXISTS (SELECT 1 FROM roles s WHERE s.tenant_id = r.tenant_id AND s.super)
+		        ORDER BY tenant_id, id = 1 DESC, id
+		);
 
 		DROP INDEX IF EXISTS idx_roles_super;
 		CREATE UNIQUE INDEX idx_roles_super ON roles(tenant_id) WHERE super;
