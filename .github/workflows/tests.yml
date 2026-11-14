@@ -71,8 +71,13 @@ jobs:
 
       - name: Run tests
         # -race: internal/core/tenant_test.go's RLS concurrency test is
-        # written to run under the race detector.
-        run: go test -race ./...
+        # written to run under the race detector. The migration tests run
+        # last, on their own: they change the shared database's schema
+        # (row-level policies, indexes), which deadlocks other packages'
+        # tests running alongside them.
+        run: |
+          go test -race $(go list ./... | grep -v '/internal/migrations$')
+          go test -race ./internal/migrations
         env:
           LISTNUN_db__host: localhost
           LISTNUN_db__port: 5432
