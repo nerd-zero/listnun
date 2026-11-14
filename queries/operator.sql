@@ -125,6 +125,13 @@ UPDATE tenants SET custom_domain = $2, updated_at = NOW() WHERE id = $1 RETURNIN
 INSERT INTO settings (tenant_id, key, value) VALUES ($1, 'smtp', $2::JSONB)
 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;
 
+-- name: operator-set-tenant-settings
+-- Sets the given settings keys ($2, a JSON object of key: value) for
+-- tenant $1, leaving its other settings as they are.
+INSERT INTO settings (tenant_id, key, value)
+SELECT $1, key, value FROM JSONB_EACH($2::JSONB)
+ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
+
 -- name: operator-set-tenant-replies
 -- Replaces the tenant's reply tracking setup (models.TenantReplies) - see
 -- cmd/operator.go's SetTenantReplies. Its own "replies" key, which the

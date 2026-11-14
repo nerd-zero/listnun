@@ -4465,6 +4465,71 @@
                 }
             }
         },
+        "/api/operator/tenants/{id}/media": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. New tenants copy tenant 1's media storage until this is called; set each tenant its own bucket (or bucket path) so tenants' media are kept apart. The tenant's cached media store is rebuilt on its next upload.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Set a tenant's media storage (Operator API)",
+                "operationId": "setOperatorTenantMedia",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Media storage",
+                        "name": "media",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/cmd.operatorMediaReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.okResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/replies": {
             "put": {
                 "security": [
@@ -11330,6 +11395,60 @@
             "type": "object",
             "properties": {
                 "data": {}
+            }
+        },
+        "cmd.operatorMediaReq": {
+            "type": "object",
+            "properties": {
+                "provider": {
+                    "description": "Provider is \"s3\" or \"filesystem\".",
+                    "type": "string"
+                },
+                "s3": {
+                    "description": "S3 is required when Provider is \"s3\".",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/cmd.operatorS3"
+                        }
+                    ]
+                }
+            }
+        },
+        "cmd.operatorS3": {
+            "type": "object",
+            "properties": {
+                "access_key_id": {
+                    "type": "string"
+                },
+                "bucket": {
+                    "type": "string"
+                },
+                "bucket_path": {
+                    "description": "BucketPath is the prefix inside the bucket, e.g. \"/tenants/42\".\nDefaults to \"/\".",
+                    "type": "string"
+                },
+                "bucket_type": {
+                    "description": "BucketType is \"public\" or \"private\" (served through signed URLs).\nDefaults to \"public\".",
+                    "type": "string"
+                },
+                "expiry": {
+                    "description": "Expiry is how long a private bucket's signed URLs last, as a Go\nduration (\"167h\"). Defaults to \"167h\".",
+                    "type": "string"
+                },
+                "public_url": {
+                    "description": "PublicURL is the base URL media is served from, when it differs\nfrom the bucket's own (a CDN, say). Optional.",
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "secret_access_key": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "URL is the S3 endpoint, e.g. https://s3.eu-west-1.amazonaws.com or\na MinIO/R2 endpoint.",
+                    "type": "string"
+                }
             }
         },
         "cmd.operatorSetCustomDomainReq": {
