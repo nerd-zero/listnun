@@ -39,6 +39,7 @@ func testCoreForCampaignsOverview(t *testing.T, pool *sqlx.DB) *Core {
 			SetCampaignEditor:       prep("set-campaign-editor"),
 			GetCampaignsOverview:    prep("get-campaigns-overview"),
 			GetCampaignStatusCounts: prep("get-campaign-status-counts"),
+			GetCampaignEngagement:   prep("get-campaign-engagement"),
 		},
 		i18n: lang,
 	}
@@ -132,6 +133,77 @@ func TestCampaignsOverview_SectionsLimitsAndPermissions(t *testing.T) {
 	for _, sc := range limited.Counts {
 		if sc.Status == "draft" && sc.Count != 4 {
 			t.Errorf("limited draft count = %d, want 4 (not the Secret draft)", sc.Count)
+		}
+	}
+}
+
+// Clicked used to count every click, and opened only views that loaded the
+// pixel, so a campaign could show more people clicking than opening, and
+// the overview and Analytics counted it differently. Both now read
+// get-campaign-engagement.
+func TestCampaignEngagement(t *testing.T) {
+	pool := testPool(t)
+	c := testCoreForCampaignsOverview(t, rlsPool(t, pool))
+	f := newListFixture(t, pool)
+	ctx := context.Background()
+
+	news := f.list("News", models.ListOptinSingle)
+	camp := f.campaign("Sent", "finished", news, time.Hour)
+	pool.MustExec(`UPDATE campaigns SET sent = 10 WHERE id = $1`, camp)
+	a := f.subscriber("a@example.com", "enabled")
+	b := f.subscriber("b@example.com", "enabled")
+	bounced := f.subscriber("c@example.com", "enabled")
+
+	var link int
+	if err := pool.Get(&link, `INSERT INTO links (tenant_id, uuid, url) VALUES ($1, gen_random_uuid(), 'https://engagement.test/'||gen_random_uuid()) RETURNING id`, f.tenant); err != nil {
+		t.Fatalf("inserting link: %v", err)
+	}
+	// a views twice and clicks three times; b clicks with images off (no
+	// view). One view and two clicks were recorded without a subscriber.
+	pool.MustExec(`INSERT INTO campaign_views (tenant_id, campaign_id, subscriber_id) VALUES ($1, $2, $3), ($1, $2, $3), ($1, $2, NULL)`, f.tenant, camp, a)
+	pool.MustExec(`INSERT INTO link_clicks (tenant_id, campaign_id, subscriber_id, link_id) VALUES
+		($1, $2, $3, $5), ($1, $2, $3, $5), ($1, $2, $3, $5), ($1, $2, $4, $5), ($1, $2, NULL, $5), ($1, $2, NULL, $5)`,
+		f.tenant, camp, a, b, link)
+	// One person bounced twice.
+	pool.MustExec(`INSERT INTO bounces (tenant_id, subscriber_id, campaign_id, type, source) VALUES ($1, $2, $3, 'soft', 'test'), ($1, $2, $3, 'hard', 'test')`,
+		f.tenant, bounced, camp)
+
+	want := models.CampaignEngagement{
+		Bounced:   1,
+		Delivered: 9,
+		Opened:    4, // a, b (clicked, so opened), and the larger of 1 anonymous view and 2 anonymous clicks
+		Clicked:   4, // a, b and the 2 anonymous clicks
+		Anonymous: 3,
+	}
+
+	got, err := c.GetCampaignEngagement(ctx, f.tenant, []int{camp})
+	if err != nil {
+		t.Fatalf("GetCampaignEngagement: %v", err)
+	}
+	if len(got) != 1 || got[0].CampaignID != camp || got[0].CampaignEngagement != want {
+		t.Errorf("engagement = %+v, want %+v", got, want)
+	}
+
+	ov, err := c.GetCampaignsOverview(ctx, f.tenant, true, nil, CampaignsOverviewLimits{Sent: 4})
+	if err != nil {
+		t.Fatalf("GetCampaignsOverview: %v", err)
+	}
+	for _, it := range ov.Campaigns {
+		if it.ID == camp && it.CampaignEngagement != want {
+			t.Errorf("overview engagement = %+v, want the same as GetCampaignEngagement %+v", it.CampaignEngagement, want)
+		}
+	}
+}
+
+// A range ending on a bare date used to stop at that day's first instant,
+// so "to today" left out today's views and clicks.
+func TestInclusiveEnd(t *testing.T) {
+	for in, want := range map[string]string{
+		"2026-11-13":                "2026-11-13 23:59:59.999999",
+		"2026-11-13T18:30:00+02:00": "2026-11-13T18:30:00+02:00",
+	} {
+		if got := inclusiveEnd(in); got != want {
+			t.Errorf("inclusiveEnd(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

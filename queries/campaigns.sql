@@ -260,6 +260,58 @@ firsts AS (
 SELECT campaign_id, COUNT(*) AS "count", "timestamp"
     FROM firsts GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
+-- name: get-campaign-engagement
+-- Each campaign in $1's results, counted one way wherever they show
+-- (models.CampaignEngagement):
+--   bounced:   people with a bounce on it.
+--   delivered: sent less bounced.
+--   clicked:   subscribers who clicked, plus each click recorded without
+--              a subscriber (per-subscriber tracking off, or since deleted).
+--   opened:    subscribers who viewed or clicked: a click means the email
+--              was opened, even when images were blocked and the view
+--              pixel never loaded. Plus, for views and clicks recorded
+--              without a subscriber, the larger of the two, so opened is
+--              never below clicked.
+--   anonymous: views and clicks recorded without a subscriber, which may
+--              count one person more than once.
+WITH known AS (
+    SELECT campaign_id, subscriber_id, BOOL_OR(clicked) AS clicked FROM (
+        SELECT campaign_id, subscriber_id, FALSE AS clicked FROM campaign_views
+            WHERE campaign_id = ANY($1) AND subscriber_id IS NOT NULL
+        UNION ALL
+        SELECT campaign_id, subscriber_id, TRUE FROM link_clicks
+            WHERE campaign_id = ANY($1) AND subscriber_id IS NOT NULL
+    ) e GROUP BY campaign_id, subscriber_id
+),
+people AS (
+    SELECT campaign_id, COUNT(*) AS opened, COUNT(*) FILTER (WHERE clicked) AS clicked
+    FROM known GROUP BY campaign_id
+),
+anon_views AS (
+    SELECT campaign_id, COUNT(*) AS n FROM campaign_views
+    WHERE campaign_id = ANY($1) AND subscriber_id IS NULL GROUP BY campaign_id
+),
+anon_clicks AS (
+    SELECT campaign_id, COUNT(*) AS n FROM link_clicks
+    WHERE campaign_id = ANY($1) AND subscriber_id IS NULL GROUP BY campaign_id
+),
+bounced AS (
+    SELECT campaign_id, COUNT(DISTINCT subscriber_id) AS n FROM bounces
+    WHERE campaign_id = ANY($1) GROUP BY campaign_id
+)
+SELECT c.id AS campaign_id,
+    COALESCE(b.n, 0) AS bounced,
+    GREATEST(c.sent - COALESCE(b.n, 0), 0) AS delivered,
+    COALESCE(p.opened, 0) + GREATEST(COALESCE(av.n, 0), COALESCE(ac.n, 0)) AS opened,
+    COALESCE(p.clicked, 0) + COALESCE(ac.n, 0) AS clicked,
+    COALESCE(av.n, 0) + COALESCE(ac.n, 0) AS anonymous
+    FROM campaigns c
+    LEFT JOIN people p ON p.campaign_id = c.id
+    LEFT JOIN anon_views av ON av.campaign_id = c.id
+    LEFT JOIN anon_clicks ac ON ac.campaign_id = c.id
+    LEFT JOIN bounced b ON b.campaign_id = c.id
+    WHERE c.id = ANY($1);
+
 -- name: get-campaign-bounce-counts
 WITH intval AS (
     -- For intervals < a week, aggregate counts hourly, otherwise daily.
@@ -544,8 +596,8 @@ UPDATE campaigns SET updated_by = $2, updated_by_name = $3 WHERE id = $1;
 -- name: get-campaigns-overview
 -- The campaigns on the Campaigns overview: every running and paused one,
 -- the next $3 scheduled, the $4 latest drafts and the $5 latest sent,
--- among those the user can see ($1 all, else those on lists $2). Opens
--- and clicks count people, as get-list-recent-campaigns does.
+-- among those the user can see ($1 all, else those on lists $2). Results
+-- (opens, clicks, bounces) come from get-campaign-engagement.
 WITH visible AS (
     SELECT c.* FROM campaigns c
     WHERE $1 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_id = c.id AND list_id = ANY($2::INT[]))
@@ -566,12 +618,7 @@ SELECT c.id, c.uuid, c.name, c.status, c.pause_reason, c.send_at, c.started_at, 
     -- People on the campaign's lists who'd get it, for scheduled campaigns.
     (SELECT COUNT(DISTINCT sl.subscriber_id) FROM subscriber_lists sl
         WHERE c.status = 'scheduled' AND sl.status != 'unsubscribed'
-        AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience,
-    (SELECT COUNT(*) FROM bounces WHERE campaign_id = c.id) AS bounced,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM campaign_views WHERE campaign_id = c.id) AS opened,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM link_clicks WHERE campaign_id = c.id) AS clicked
+        AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience
     FROM campaigns c WHERE c.id IN (SELECT id FROM picked);
 
 -- name: get-campaign-status-counts
