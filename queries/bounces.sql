@@ -7,15 +7,23 @@
 -- $10 is the tenant the bounce came in for (a webhook's request tenant):
 -- when non-zero, the subscriber and campaign lookups are limited to it, so
 -- a bounce can't match the same email address in another tenant. 0 (POP3
--- mailbox scanning, which has no tenant) keeps the unscoped lookup.
-WITH sub AS (
+-- mailbox scanning, which has no tenant) looks the subscriber up in the
+-- bounced campaign's tenant when the bounce names one. An email address
+-- can be a subscriber in several tenants; if it still matches more than
+-- one, nothing is recorded rather than acting on another tenant's
+-- subscriber (it used to fail with "more than one row returned").
+WITH camp AS (
+    SELECT id, tenant_id FROM campaigns WHERE $3 != '' AND uuid = $3::UUID
+        AND ($10::INT = 0 OR tenant_id = $10::INT)
+),
+candidates AS (
     SELECT id, status, tenant_id FROM subscribers
     WHERE CASE WHEN $1 != '' THEN uuid = $1::UUID ELSE email = $2 END
         AND ($10::INT = 0 OR tenant_id = $10::INT)
+        AND (NOT EXISTS (SELECT 1 FROM camp) OR tenant_id = (SELECT tenant_id FROM camp))
 ),
-camp AS (
-    SELECT id FROM campaigns WHERE $3 != '' AND uuid = $3::UUID
-        AND ($10::INT = 0 OR tenant_id = $10::INT)
+sub AS (
+    SELECT * FROM candidates WHERE (SELECT COUNT(*) FROM candidates) = 1
 ),
 num AS (
     -- Add a +1 to include the current insertion that is happening.

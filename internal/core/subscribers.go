@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -268,13 +269,8 @@ func (c *Core) GetSubscriberActivity(ctx context.Context, tenantID int, id int) 
 // repeatedly until there are nil subscribers. It's an iterator because exports can be extremely
 // large and may have to be fetched in batches from the DB and streamed somewhere.
 //
-// TODO(#40): ctx/tenantID are accepted for a consistent call-site shape
-// with the rest of Core, but the iterator below does NOT yet enforce
-// tenant scoping - it holds a single Preparex'd statement across
-// potentially many calls over a long export, which doesn't fit
-// WithTenant's short-transaction shape. Zero actual risk today (no way to
-// create a second tenant with real data yet, Operator API is phase 9,
-// unbuilt); revisit once there's a real multi-tenant dataset to protect.
+// Each batch runs in its own short read-only tenant transaction, and the
+// query filters by tenant too.
 func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, query string, subIDs, listIDs []int, subStatus string, batchSize int) (func() ([]models.SubscriberExport, error), error) {
 	if subIDs == nil {
 		subIDs = []int{}
@@ -293,7 +289,7 @@ func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, q
 
 	// Validate the tables used in the query.
 	if err := validateQueryTables(c.db, stmt, allowedSubQueryTables,
-		pq.Array(listIDs), 0, pq.Array(subIDs), subStatus, searchStr, batchSize); err != nil {
+		pq.Array(listIDs), 0, pq.Array(subIDs), subStatus, searchStr, batchSize, tenantID); err != nil {
 		c.log.Printf("error validating query tables: %v", err)
 		return nil, echo.NewHTTPError(http.StatusBadRequest,
 			c.i18n.Ts("subscribers.errorPreparingQuery", "error", err.Error()))
@@ -306,18 +302,13 @@ func (c *Core) ExportSubscribers(ctx context.Context, tenantID int, searchStr, q
 		return nil, err
 	}
 
-	// Prepare the actual query statement.
-	tx, err := c.db.Preparex(stmt)
-	if err != nil {
-		c.log.Printf("error preparing subscriber query: %v", err)
-		return nil, echo.NewHTTPError(http.StatusBadRequest,
-			c.i18n.Ts("subscribers.errorPreparingQuery", "error", pqErrMsg(err)))
-	}
-
 	id := 0
 	return func() ([]models.SubscriberExport, error) {
 		var out []models.SubscriberExport
-		if err := tx.Select(&out, pq.Array(listIDs), id, pq.Array(subIDs), subStatus, searchStr, batchSize); err != nil {
+		err := c.WithTenant(ctx, tenantID, &sql.TxOptions{ReadOnly: true}, func(tx *sqlx.Tx) error {
+			return tx.Select(&out, stmt, pq.Array(listIDs), id, pq.Array(subIDs), subStatus, searchStr, batchSize, tenantID)
+		})
+		if err != nil {
 			c.log.Printf("error exporting subscribers by query: %v", err)
 			return nil, echo.NewHTTPError(http.StatusInternalServerError,
 				c.i18n.Ts("globals.messages.errorFetching", "name", "{globals.terms.subscribers}", "error", pqErrMsg(err)))
@@ -372,7 +363,7 @@ func (c *Core) InsertSubscriber(ctx context.Context, tenantID int, sub models.Su
 			tenantID)
 	})
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Constraint == "subscribers_email_key" {
+		if isEmailTaken(err) {
 			return models.Subscriber{}, false, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
 		} else {
 			// return sub.Subscriber, errSubscriberExists
@@ -434,6 +425,17 @@ func (c *Core) GetRiskySubscriberIDs(ctx context.Context, tenantID int, subscrib
 	return ids, nil
 }
 
+// isEmailTaken says whether err is another subscriber in the tenant already
+// having the e-mail: the exact address (subscribers_email_key) or the same
+// one in different case (idx_subs_email), which used to come back as a 500.
+func isEmailTaken(err error) bool {
+	var pqErr *pq.Error
+	if !errors.As(err, &pqErr) {
+		return false
+	}
+	return pqErr.Constraint == "subscribers_email_key" || pqErr.Constraint == "idx_subs_email"
+}
+
 // UpdateSubscriber updates a subscriber's properties.
 func (c *Core) UpdateSubscriber(ctx context.Context, tenantID int, id int, sub models.Subscriber) (models.Subscriber, error) {
 	// Format raw JSON attributes.
@@ -457,6 +459,9 @@ func (c *Core) UpdateSubscriber(ctx context.Context, tenantID int, id int, sub m
 		)
 		return err
 	})
+	if isEmailTaken(err) {
+		return models.Subscriber{}, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
+	}
 	if err != nil {
 		c.log.Printf("error updating subscriber: %v", err)
 		return models.Subscriber{}, echo.NewHTTPError(http.StatusInternalServerError,
@@ -507,6 +512,9 @@ func (c *Core) UpdateSubscriberWithLists(ctx context.Context, tenantID int, id i
 			tenantID)
 		return err
 	})
+	if isEmailTaken(err) {
+		return models.Subscriber{}, false, echo.NewHTTPError(http.StatusConflict, c.i18n.T("subscribers.emailExists"))
+	}
 	if err != nil {
 		c.log.Printf("error updating subscriber: %v", err)
 		return models.Subscriber{}, false, echo.NewHTTPError(http.StatusInternalServerError,

@@ -73,6 +73,7 @@ func (a *App) requestRootURL(c echo.Context) string {
 //	@Success		200	{object}	serverConfig
 //	@Router			/api/config [get]
 func (a *App) GetServerConfig(c echo.Context) error {
+	tr := a.tracking.For(tenantID(c))
 	out := serverConfig{
 		RootURL:       a.requestRootURL(c),
 		FromEmail:     a.cfg.FromEmail,
@@ -85,8 +86,8 @@ func (a *App) GetServerConfig(c echo.Context) error {
 			DisableTracking    bool `json:"disable_tracking"`
 			IndividualTracking bool `json:"individual_tracking"`
 		}{
-			DisableTracking:    a.cfg.Privacy.DisableTracking,
-			IndividualTracking: a.cfg.Privacy.IndividualTracking,
+			DisableTracking:    tr.Disabled,
+			IndividualTracking: tr.Individual,
 		},
 	}
 	out.PublicSubscription.Enabled = a.cfg.EnablePublicSubPage

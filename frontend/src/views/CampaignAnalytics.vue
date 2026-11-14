@@ -69,7 +69,7 @@
 
     <template v-else>
       <!-- Metric cards double as the chart's metric picker -->
-      <div class="ana-metrics" role="radiogroup" :aria-label="$t('analytics.metric')">
+      <div class="ana-metrics" role="radiogroup" :aria-label="$t('analytics.metric')" :style="{ '--ana-cards': metricCards.length }">
         <button
           v-for="m in metricCards"
           :key="m.key"
@@ -83,11 +83,11 @@
         >
           <span class="ln-tile-label">{{ m.label }}</span>
           <span class="ln-tile-value">
-            <PvSkeleton v-if="loadingAny" width="80px" height="28px" />
+            <PvSkeleton v-if="loadingAny || engagement.loading" width="80px" height="28px" />
             <template v-else>{{ m.value.toLocaleString() }}</template>
           </span>
           <span class="ln-small ana-sub">
-            <template v-if="m.rates">
+            <template v-if="m.rates && m.rates.length">
               <span v-for="r in m.rates" :key="r.id" class="ana-rate">
                 <span
                   v-if="form.campaigns.length > 1"
@@ -97,13 +97,15 @@
                   :style="{ background: colorFor(r.id) }"
                 />{{ r.rate }}
               </span>
-              <span v-if="m.rates.length" class="ana-of">{{ $t('analytics.ofSendsShort') }}</span>
+              <span class="ana-of">{{ m.of }}</span>
             </template>
             <template v-else>{{ m.sub }}</template>
           </span>
         </button>
       </div>
       <p v-if="!privacy.disable_tracking && !privacy.individual_tracking" class="ln-small ana-note">{{ $t('analytics.nonUnique') }}</p>
+      <p v-else-if="hasAnonymous" class="ln-small ana-note">{{ $t('analytics.someAnonymous') }}</p>
+      <p v-if="sending" class="ln-small ana-note ana-live" role="status"><span class="ana-live-dot" aria-hidden="true" />{{ $t('analytics.live') }}</p>
 
       <section class="ln-card ana-chart">
         <div class="ana-chart-head">
@@ -162,7 +164,7 @@
 
 <script setup lang="ts">
 import {
-  computed, onMounted, reactive, ref,
+  computed, onBeforeUnmount, onMounted, reactive, ref, watch,
 } from 'vue';
 import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
@@ -171,6 +173,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
+import { readItem, writeItem } from '../safeStorage';
 import PageHeader from '../components/ui/PageHeader.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
@@ -179,9 +182,17 @@ import { getCampaigns as campaignsApi } from '../api/generated/endpoints/campaig
 
 // Campaigns and analytics rows are the API's camelCased objects.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-type Metric = 'views' | 'clicks' | 'bounces';
+type Metric = 'views' | 'clicks' | 'bounces' | 'replies';
 
 interface Point { campaignId: number; count: number; timestamp: string }
+
+// A campaign's results all time (models.CampaignEngagementCount, camelCased).
+interface Engagement {
+  campaignId: number; bounced: number; delivered: number; opened: number; clicked: number; anonymous: number; replied: number;
+}
+
+// While a picked campaign is sending, how often its results refresh.
+const LIVE_REFRESH_MS = 30_000;
 
 // Comparing more than this many campaigns makes the chart unreadable.
 const MAX_CAMPAIGNS = 5;
@@ -189,7 +200,9 @@ const MAX_CAMPAIGNS = 5;
 const SERIES: ChartSeries['tone'][] = ['success', 'warn', 'danger', 'neutral', 'ink'];
 
 const { $utils } = useGlobal();
-const { listCampaigns, getCampaign, getCampaignAnalytics } = campaignsApi();
+const {
+  listCampaigns, getCampaign, getCampaignAnalytics, getCampaignEngagement,
+} = campaignsApi();
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -210,13 +223,21 @@ const data = reactive<Record<Metric | 'links' | 'bounce_types', { loading: boole
   views: { loading: false, rows: [] },
   clicks: { loading: false, rows: [] },
   bounces: { loading: false, rows: [] },
+  replies: { loading: false, rows: [] },
   links: { loading: false, rows: [] },
   bounce_types: { loading: false, rows: [] },
 });
 
+// Each campaign's results, all time (the cards); data above is the range
+// (the chart, links and bounce types).
+const engagement = reactive<{ loading: boolean; byId: Record<number, Engagement> }>({ loading: false, byId: {} });
+
 const loadingAny = computed(() => Object.values(data).some((d) => d.loading));
 const hasData = computed(() => form.campaigns.length > 0 && !loadingAny.value);
-const metricLabel = computed(() => t(metric.value === 'bounces' ? 'globals.terms.bounces' : `campaigns.${metric.value}`));
+const METRIC_LABELS: Record<Metric, string> = {
+  views: 'campaigns.views', clicks: 'campaigns.clicks', bounces: 'globals.terms.bounces', replies: 'campaigns.replies.title',
+};
+const metricLabel = computed(() => t(METRIC_LABELS[metric.value]));
 
 function colorFor(id: number): string {
   const i = form.campaigns.findIndex((c) => c.id === id);
@@ -232,39 +253,67 @@ function total(rows: Loose[], id?: number): number {
   return rows.reduce((n, r) => (id === undefined || r.campaignId === id ? n + (r.count || 0) : n), 0);
 }
 
-// rates is each campaign's total as a share of its sends, leaving out
-// campaigns at zero (or with nothing sent) so only what happened shows.
-function rates(rows: Loose[]): { id: number; rate: string }[] {
+type Counted = 'opened' | 'clicked' | 'bounced' | 'replied';
+
+// sum adds up one result across the picked campaigns.
+function sum(key: Counted): number {
+  return form.campaigns.reduce((n, c) => n + (engagement.byId[c.id]?.[key] || 0), 0);
+}
+
+// Rates count people, so without per-subscriber tracking (every view and
+// click counted on its own) they'd overstate, and aren't shown.
+const showRates = computed(() => !!privacy.value.individual_tracking);
+
+// Replies show where the workspace has reply tracking, or a picked
+// campaign got replies while it had.
+const showReplies = computed(() => !!(serverConfig.value as Loose).reply_tracking
+  || form.campaigns.some((c) => (engagement.byId[c.id]?.replied || 0) > 0));
+
+// Some views or clicks were recorded without a subscriber, so the counts
+// may include a person more than once.
+const hasAnonymous = computed(() => form.campaigns.some((c) => (engagement.byId[c.id]?.anonymous || 0) > 0));
+
+// rates is each campaign's result as a share of `of` (delivered, or sent
+// for bounces), leaving out campaigns at zero so only what happened shows.
+function rates(key: Counted, of: 'delivered' | 'sent'): { id: number; rate: string }[] {
+  // Bounces and replies are always per person.
+  if (!showRates.value && (key === 'opened' || key === 'clicked')) return [];
   return form.campaigns
-    .filter((c) => c.sent && total(rows, c.id) > 0)
-    .map((c) => {
-      const pct = (total(rows, c.id) / c.sent) * 100;
+    .map((c) => ({ c, e: engagement.byId[c.id] }))
+    .filter(({ c, e }) => e && e[key] && (of === 'sent' ? c.sent : e.delivered))
+    .map(({ c, e }) => {
+      const pct = ((e[key] || 0) / ((of === 'sent' ? c.sent : e.delivered) || 1)) * 100;
       return { id: c.id, rate: `${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%` };
     });
 }
 
 // The tracking-off banner, once dismissed, stays hidden in this browser.
 const TRACKING_NOTICE_KEY = 'ln-analytics-tracking-dismissed';
-const trackingNoticeHidden = ref(localStorage.getItem(TRACKING_NOTICE_KEY) === '1');
+const trackingNoticeHidden = ref(readItem(TRACKING_NOTICE_KEY) === '1');
 function hideTrackingNotice() {
-  localStorage.setItem(TRACKING_NOTICE_KEY, '1');
+  writeItem(TRACKING_NOTICE_KEY, '1');
   trackingNoticeHidden.value = true;
 }
 
 const links = computed(() => data.links.rows.slice(0, 10) as { url: string; count: number }[]);
 
+// The cards are each campaign's results all time, counted as on the
+// Campaigns overview; picking one charts it over the date range.
 const metricCards = computed(() => [
   {
-    key: 'views', label: t('campaigns.views'), value: total(data.views.rows), rates: rates(data.views.rows), sub: '',
+    key: 'views', label: t('analytics.opened'), value: sum('opened'), rates: rates('opened', 'delivered'), of: t('analytics.ofDelivered'), sub: t('analytics.allTime'),
   },
   {
-    key: 'clicks', label: t('campaigns.clicks'), value: total(data.clicks.rows), rates: rates(data.clicks.rows), sub: '',
+    key: 'clicks', label: t('analytics.clicked'), value: sum('clicked'), rates: rates('clicked', 'delivered'), of: t('analytics.ofDelivered'), sub: t('analytics.allTime'),
   },
   {
-    key: 'bounces', label: t('globals.terms.bounces'), value: total(data.bounces.rows), rates: rates(data.bounces.rows), sub: '',
+    key: 'bounces', label: t('globals.terms.bounces'), value: sum('bounced'), rates: rates('bounced', 'sent'), of: t('analytics.ofSendsShort'), sub: t('analytics.allTime'),
   },
+  ...(showReplies.value ? [{
+    key: 'replies', label: t('analytics.replied'), value: sum('replied'), rates: rates('replied', 'delivered'), of: t('analytics.ofDelivered'), sub: t('analytics.allTime'),
+  }] : []),
   {
-    key: 'links', label: t('analytics.links'), value: data.links.rows.length, rates: null, sub: t('analytics.clickedOnce'),
+    key: 'links', label: t('analytics.links'), value: data.links.rows.length, rates: null, of: '', sub: t('analytics.clickedOnce'),
   },
 ]);
 
@@ -327,15 +376,30 @@ function shortUrl(u: string): string {
   }
 }
 
-function fetchAll() {
+// ISO_OFFSET sends range bounds as local time with the offset, so the
+// server's days are the viewer's days.
+const ISO_OFFSET = 'YYYY-MM-DDTHH:mm:ssZ';
+
+// quiet refreshes skip the loading placeholders, so live numbers update in
+// place instead of flashing.
+function fetchEngagement(quiet = false) {
+  if (!form.campaigns.length) return;
+  engagement.loading = !quiet;
+  getCampaignEngagement({ id: form.campaigns.map((c) => c.id) }).then((rows) => {
+    const list = (rows as unknown as Engagement[]) || [];
+    engagement.byId = Object.fromEntries(list.map((r) => [r.campaignId, r]));
+  }).finally(() => { engagement.loading = false; });
+}
+
+function fetchAll(quiet = false) {
   const [from, to] = range.value || [];
   if (!form.campaigns.length || !from || !to) return;
-  (['views', 'clicks', 'bounces', 'links', 'bounce_types'] as const).forEach((typ) => {
-    data[typ].loading = true;
+  (['views', 'clicks', 'bounces', 'replies', 'links', 'bounce_types'] as const).forEach((typ) => {
+    data[typ].loading = !quiet;
     getCampaignAnalytics(typ, {
       id: form.campaigns.map((c) => c.id),
-      from: dayjs(from).format('YYYY-MM-DD'),
-      to: dayjs(to).format('YYYY-MM-DD'),
+      from: dayjs(from).startOf('day').format(ISO_OFFSET),
+      to: dayjs(to).endOf('day').format(ISO_OFFSET),
     } as never).then((rows) => {
       data[typ].rows = (rows as unknown as Loose[]) || [];
     }).finally(() => { data[typ].loading = false; });
@@ -353,17 +417,35 @@ function syncQuery() {
   });
 }
 
+// Until someone picks a range, it follows the campaigns: from the day the
+// earliest one started, so a past campaign's chart isn't cut short.
+const rangePicked = ref(false);
+
+function fitRange() {
+  if (rangePicked.value) return;
+  const starts = form.campaigns.map((c) => c.startedAt).filter(Boolean).map((d) => dayjs(d));
+  if (!starts.length) return;
+  const first = starts.reduce((a, b) => (b.isBefore(a) ? b : a));
+  const [from] = range.value || [];
+  if (!from || first.isBefore(dayjs(from))) {
+    range.value = [first.startOf('day').toDate(), dayjs().endOf('day').toDate()];
+  }
+}
+
 function onCampaigns(v: Loose[]) {
   if (v.length > MAX_CAMPAIGNS) {
     form.campaigns = v.slice(0, MAX_CAMPAIGNS);
     $utils.toast(t('analytics.maxCampaigns', { n: MAX_CAMPAIGNS }), 'is-danger');
   }
+  fitRange();
   syncQuery();
+  fetchEngagement();
   fetchAll();
 }
 
 function onRange(v: Date[] | null) {
   if (!v || !v[0] || !v[1]) return;
+  rangePicked.value = true;
   syncQuery();
   fetchAll();
 }
@@ -383,7 +465,7 @@ function exportCsv() {
   const header = ['campaign_id', 'campaign', 'metric', 'timestamp', 'count'];
   const lines = [header.join(',')];
   const name = (id: number) => (form.campaigns.find((c) => c.id === id)?.name || '').replace(/"/g, '""');
-  (['views', 'clicks', 'bounces'] as const).forEach((m) => {
+  (['views', 'clicks', 'bounces', 'replies'] as const).forEach((m) => {
     (data[m].rows as Point[]).forEach((r) => {
       lines.push([r.campaignId, `"${name(r.campaignId)}"`, m, r.timestamp, r.count].join(','));
     });
@@ -396,11 +478,40 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+// Live results: while a picked campaign is sending, refresh its status
+// and results, so "Live results" on the Campaigns overview stays live.
+let liveTimer: ReturnType<typeof setInterval> | null = null;
+const sending = computed(() => form.campaigns.some((c) => c.status === 'running'));
+
+function refreshLive() {
+  Promise.allSettled(form.campaigns.map((c) => getCampaign(c.id))).then((res) => {
+    res.forEach((r, i) => {
+      if (r.status === 'fulfilled' && form.campaigns[i]) Object.assign(form.campaigns[i], r.value as unknown as Loose);
+    });
+  });
+  // Ranges that ended today run on to now.
+  const [from, to] = range.value || [];
+  if (from && to && dayjs(to).isSame(dayjs(), 'day')) range.value = [from, dayjs().endOf('day').toDate()];
+  fetchEngagement(true);
+  fetchAll(true);
+}
+
+watch(sending, (on) => {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = on ? setInterval(refreshLive, LIVE_REFRESH_MS) : null;
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (liveTimer) clearInterval(liveTimer);
+});
+
 onMounted(() => {
   const now = dayjs().endOf('day');
   const from = route.query.from ? dayjs.unix(Number(route.query.from)) : now.subtract(10, 'day').startOf('day');
   const to = route.query.to ? dayjs.unix(Number(route.query.to)) : now;
   range.value = [from.toDate(), to.toDate()];
+
+  rangePicked.value = !!route.query.from;
 
   const ids = $utils.parseQueryIDs(route.query.id) as number[];
   if (!ids.length) return;
@@ -408,6 +519,8 @@ onMounted(() => {
   Promise.allSettled(ids.slice(0, MAX_CAMPAIGNS).map((id) => getCampaign(id))).then((res) => {
     res.forEach((r) => { if (r.status === 'fulfilled') form.campaigns.push(r.value as unknown as Loose); });
     isSearchLoading.value = false;
+    fitRange();
+    fetchEngagement();
     fetchAll();
   });
 });
@@ -438,9 +551,10 @@ onMounted(() => {
 
 .ana-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--ana-cards, 4), minmax(0, 1fr));
   gap: 12px;
 
+  @media (max-width: 1100px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   @media (max-width: 900px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .ana-metric {
@@ -456,6 +570,8 @@ onMounted(() => {
 // Each campaign's rate next to its colour, then "of sends" once.
 .ana-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 1.4em; }
 .ana-rate { display: inline-flex; align-items: center; gap: 5px; }
+.ana-live { display: flex; align-items: center; gap: 6px; }
+.ana-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ln-success); }
 .ana-of { margin-left: -6px; }
 .ana-note { margin: -4px 0 0; }
 .ana-fix { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; margin-left: 4px; }

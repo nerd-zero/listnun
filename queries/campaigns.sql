@@ -240,30 +240,85 @@ u AS (
 )
 SELECT camps.*, campMedia.media_id FROM camps LEFT JOIN campMedia ON (campMedia.campaign_id = camps.id);
 
--- name: get-campaign-analytics-unique-counts
+-- name: get-campaign-analytics-counts
+-- raw: true
+-- %s = campaign_views or link_clicks (interpolated on boot). Counts people,
+-- not events: each subscriber once per campaign, in the bucket of their
+-- first view/click in the range. Rows without a subscriber (recorded while
+-- the tenant had per-subscriber tracking off, or the subscriber was since
+-- deleted) can't be told apart, so each of those counts once.
 WITH intval AS (
     -- For intervals < a week, aggregate counts hourly, otherwise daily.
     SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
 ),
-uniqIDs AS (
-    SELECT DISTINCT ON(subscriber_id, campaign_id) subscriber_id, campaign_id, DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
+firsts AS (
+    SELECT DISTINCT ON (campaign_id, COALESCE(subscriber_id, -id)) campaign_id, DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
     FROM %s
     WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
-    ORDER BY subscriber_id, campaign_id, "timestamp"
+    ORDER BY campaign_id, COALESCE(subscriber_id, -id), created_at
 )
-SELECT COUNT(*) AS "count", campaign_id, "timestamp"
-    FROM uniqIDs GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+SELECT campaign_id, COUNT(*) AS "count", "timestamp"
+    FROM firsts GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
--- name: get-campaign-analytics-counts
--- raw: true
-WITH intval AS (
-    -- For intervals < a week, aggregate counts hourly, otherwise daily.
-    SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
+-- name: get-campaign-engagement
+-- Each campaign in $1's results, counted one way wherever they show
+-- (models.CampaignEngagement):
+--   bounced:   people with a bounce on it.
+--   delivered: sent less bounced.
+--   clicked:   subscribers who clicked, plus each click recorded without
+--              a subscriber (per-subscriber tracking off, or since deleted).
+--   opened:    subscribers who viewed or clicked: a click means the email
+--              was opened, even when images were blocked and the view
+--              pixel never loaded. Plus, for views and clicks recorded
+--              without a subscriber, the larger of the two, so opened is
+--              never below clicked.
+--   anonymous: views and clicks recorded without a subscriber, which may
+--              count one person more than once.
+--   replied:   people who replied (the subscriber, else the sending
+--              address), leaving out auto-replies, as get-campaign-reply-counts.
+WITH known AS (
+    SELECT campaign_id, subscriber_id, BOOL_OR(clicked) AS clicked FROM (
+        SELECT campaign_id, subscriber_id, FALSE AS clicked FROM campaign_views
+            WHERE campaign_id = ANY($1) AND subscriber_id IS NOT NULL
+        UNION ALL
+        SELECT campaign_id, subscriber_id, TRUE FROM link_clicks
+            WHERE campaign_id = ANY($1) AND subscriber_id IS NOT NULL
+    ) e GROUP BY campaign_id, subscriber_id
+),
+people AS (
+    SELECT campaign_id, COUNT(*) AS opened, COUNT(*) FILTER (WHERE clicked) AS clicked
+    FROM known GROUP BY campaign_id
+),
+anon_views AS (
+    SELECT campaign_id, COUNT(*) AS n FROM campaign_views
+    WHERE campaign_id = ANY($1) AND subscriber_id IS NULL GROUP BY campaign_id
+),
+anon_clicks AS (
+    SELECT campaign_id, COUNT(*) AS n FROM link_clicks
+    WHERE campaign_id = ANY($1) AND subscriber_id IS NULL GROUP BY campaign_id
+),
+bounced AS (
+    SELECT campaign_id, COUNT(DISTINCT subscriber_id) AS n FROM bounces
+    WHERE campaign_id = ANY($1) GROUP BY campaign_id
+),
+replied AS (
+    SELECT campaign_id, COUNT(DISTINCT COALESCE(subscriber_id::TEXT, LOWER(from_email))) AS n FROM campaign_replies
+    WHERE campaign_id = ANY($1) AND NOT is_auto GROUP BY campaign_id
 )
-SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), created_at) AS "timestamp"
-    FROM %s
-    WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
-    GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+SELECT c.id AS campaign_id,
+    COALESCE(b.n, 0) AS bounced,
+    GREATEST(c.sent - COALESCE(b.n, 0), 0) AS delivered,
+    COALESCE(p.opened, 0) + GREATEST(COALESCE(av.n, 0), COALESCE(ac.n, 0)) AS opened,
+    COALESCE(p.clicked, 0) + COALESCE(ac.n, 0) AS clicked,
+    COALESCE(av.n, 0) + COALESCE(ac.n, 0) AS anonymous,
+    COALESCE(r.n, 0) AS replied
+    FROM campaigns c
+    LEFT JOIN people p ON p.campaign_id = c.id
+    LEFT JOIN anon_views av ON av.campaign_id = c.id
+    LEFT JOIN anon_clicks ac ON ac.campaign_id = c.id
+    LEFT JOIN bounced b ON b.campaign_id = c.id
+    LEFT JOIN replied r ON r.campaign_id = c.id
+    WHERE c.id = ANY($1);
 
 -- name: get-campaign-bounce-counts
 WITH intval AS (
@@ -275,6 +330,24 @@ SELECT campaign_id, COUNT(*) AS "count", DATE_TRUNC((SELECT * FROM intval), crea
     WHERE campaign_id=ANY($1) AND created_at >= $2 AND created_at <= $3
     GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
 
+-- name: get-campaign-reply-analytics-counts
+-- People who replied to each campaign over time, in the bucket of their
+-- first reply in the range: the subscriber, else the sending address, as
+-- get-campaign-reply-counts. Auto-replies are left out.
+WITH intval AS (
+    -- For intervals < a week, aggregate counts hourly, otherwise daily.
+    SELECT CASE WHEN (EXTRACT (EPOCH FROM ($3::TIMESTAMP - $2::TIMESTAMP)) / 86400) >= 7 THEN 'day' ELSE 'hour' END
+),
+firsts AS (
+    SELECT DISTINCT ON (campaign_id, COALESCE(subscriber_id::TEXT, LOWER(from_email)))
+        campaign_id, DATE_TRUNC((SELECT * FROM intval), received_at) AS "timestamp"
+    FROM campaign_replies
+    WHERE campaign_id = ANY($1) AND NOT is_auto AND received_at >= $2 AND received_at <= $3
+    ORDER BY campaign_id, COALESCE(subscriber_id::TEXT, LOWER(from_email)), received_at
+)
+SELECT campaign_id, COUNT(*) AS "count", "timestamp"
+    FROM firsts GROUP BY campaign_id, "timestamp" ORDER BY "timestamp" ASC;
+
 -- name: get-campaign-bounce-type-counts
 -- Bounces per campaign and type (soft, hard, complaint) in a date range.
 SELECT campaign_id, type, COUNT(*) AS "count"
@@ -283,15 +356,16 @@ SELECT campaign_id, type, COUNT(*) AS "count"
     GROUP BY campaign_id, type ORDER BY campaign_id, type;
 
 -- name: get-campaign-link-counts
--- raw: true
--- %s = * or DISTINCT subscriber_id (prepared based on based on individual tracking=on/off). Prepared on boot.
-SELECT COUNT(%s) AS "count", url
+-- People who clicked each link: a subscriber once, a click recorded
+-- without one (see get-campaign-analytics-counts) once per click.
+SELECT COUNT(DISTINCT COALESCE(link_clicks.subscriber_id, -link_clicks.id)) AS "count", url
     FROM link_clicks
     LEFT JOIN links ON (link_clicks.link_id = links.id)
     WHERE campaign_id=ANY($1) AND link_clicks.created_at >= $2 AND link_clicks.created_at <= $3
     GROUP BY links.url ORDER BY "count" DESC LIMIT 50;
 
 -- name: export-campaign-views
+-- $4 tenant: exports run outside a tenant transaction.
 SELECT campaign_views.campaign_id,
        COALESCE(campaigns.uuid::TEXT, '') AS campaign_uuid,
        COALESCE(campaigns.name, '') AS campaign_name,
@@ -303,10 +377,11 @@ SELECT campaign_views.campaign_id,
     FROM campaign_views
     LEFT JOIN campaigns ON (campaigns.id = campaign_views.campaign_id)
     LEFT JOIN subscribers ON (subscribers.id = campaign_views.subscriber_id)
-    WHERE campaign_views.created_at >= $1
+    WHERE campaign_views.tenant_id = $4 AND campaign_views.created_at >= $1
     ORDER BY campaign_views.id ASC LIMIT $2 OFFSET $3;
 
 -- name: export-campaign-link-clicks
+-- $4 tenant: exports run outside a tenant transaction.
 SELECT link_clicks.campaign_id,
        COALESCE(campaigns.uuid::TEXT, '') AS campaign_uuid,
        COALESCE(campaigns.name, '') AS campaign_name,
@@ -319,7 +394,7 @@ SELECT link_clicks.campaign_id,
     LEFT JOIN campaigns ON (campaigns.id = link_clicks.campaign_id)
     LEFT JOIN links ON (links.id = link_clicks.link_id)
     LEFT JOIN subscribers ON (subscribers.id = link_clicks.subscriber_id)
-    WHERE link_clicks.created_at >= $1
+    WHERE link_clicks.tenant_id = $4 AND link_clicks.created_at >= $1
     ORDER BY link_clicks.id ASC LIMIT $2 OFFSET $3;
 
 -- name: get-running-campaign
@@ -343,10 +418,16 @@ SELECT campaigns.id AS campaign_id, campaigns.type as campaign_type, last_subscr
 -- the query planner works as expected. The difference is staggering. ~15 seconds on a subscribers table with 15m
 -- rows and a subscriber_lists table with 70 million rows when fetching subscribers for a campaign with a single list,
 -- vs. a few million seconds using this current approach.
-WITH campLists AS (
+-- Runs outside a tenant transaction (the campaign manager serves every
+-- tenant), so subscribers and lists are filtered to the campaign's tenant
+-- explicitly: a list or subscription from another tenant must never mail.
+WITH camp AS (
+    SELECT tenant_id FROM campaigns WHERE id = $1
+),
+campLists AS (
     SELECT lists.id AS list_id, optin FROM lists
     LEFT JOIN campaign_lists ON campaign_lists.list_id = lists.id
-    WHERE campaign_lists.campaign_id = $1
+    WHERE campaign_lists.campaign_id = $1 AND lists.tenant_id = (SELECT tenant_id FROM camp)
 ),
 subs AS (
     SELECT s.*
@@ -357,6 +438,8 @@ subs AS (
         JOIN subscribers s ON s.id = sl.subscriber_id
         WHERE
             sl.list_id = ANY($5::INT[])
+            AND s.tenant_id = (SELECT tenant_id FROM camp)
+            AND sl.tenant_id = (SELECT tenant_id FROM camp)
             -- last_subscriber_id
             AND s.id > $3
              -- max_subscriber_id
@@ -549,8 +632,8 @@ UPDATE campaigns SET updated_by = $2, updated_by_name = $3 WHERE id = $1;
 -- name: get-campaigns-overview
 -- The campaigns on the Campaigns overview: every running and paused one,
 -- the next $3 scheduled, the $4 latest drafts and the $5 latest sent,
--- among those the user can see ($1 all, else those on lists $2). Opens
--- and clicks count people, as get-list-recent-campaigns does.
+-- among those the user can see ($1 all, else those on lists $2). Results
+-- (opens, clicks, bounces) come from get-campaign-engagement.
 WITH visible AS (
     SELECT c.* FROM campaigns c
     WHERE $1 OR EXISTS (SELECT 1 FROM campaign_lists WHERE campaign_id = c.id AND list_id = ANY($2::INT[]))
@@ -571,12 +654,7 @@ SELECT c.id, c.uuid, c.name, c.status, c.pause_reason, c.send_at, c.started_at, 
     -- People on the campaign's lists who'd get it, for scheduled campaigns.
     (SELECT COUNT(DISTINCT sl.subscriber_id) FROM subscriber_lists sl
         WHERE c.status = 'scheduled' AND sl.status != 'unsubscribed'
-        AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience,
-    (SELECT COUNT(*) FROM bounces WHERE campaign_id = c.id) AS bounced,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM campaign_views WHERE campaign_id = c.id) AS opened,
-    (SELECT CASE WHEN COUNT(subscriber_id) > 0 THEN COUNT(DISTINCT subscriber_id) ELSE COUNT(*) END
-        FROM link_clicks WHERE campaign_id = c.id) AS clicked
+        AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience
     FROM campaigns c WHERE c.id IN (SELECT id FROM picked);
 
 -- name: get-campaign-status-counts

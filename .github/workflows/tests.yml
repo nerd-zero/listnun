@@ -7,9 +7,14 @@ on:
       - "feature/**"
   pull_request:
     types: [opened, synchronize, reopened]
+  # build.yml runs these before it builds and pushes an image, so nothing
+  # deploys with failing tests.
+  workflow_call:
 
 concurrency:
-  group: tests-${{ github.ref }}
+  # github.workflow is the caller's name when build.yml calls this, so a
+  # deploy's test run doesn't cancel (or get cancelled by) the push's own.
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -41,11 +46,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          go-version-file: go.mod
           cache: true
 
       - name: Install dependencies
         run: go mod download
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l cmd internal models queries)
+          if [ -n "$unformatted" ]; then
+            echo "Not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
 
       - name: Load schema
         # The postgres service above starts with an empty database - tests
@@ -55,7 +70,9 @@ jobs:
         run: PGPASSWORD=listnun psql -h localhost -U listnun -d listnun -f schema.sql
 
       - name: Run tests
-        run: make test
+        # -race: internal/core/tenant_test.go's RLS concurrency test is
+        # written to run under the race detector.
+        run: go test -race ./...
         env:
           LISTNUN_db__host: localhost
           LISTNUN_db__port: 5432
@@ -64,11 +81,10 @@ jobs:
           LISTNUN_db__database: listnun
 
   # ──────────────────────────────────────────────────────────────────────────
-  # Frontend build + lint + unit tests
+  # Frontend build + lint + type check + unit tests
   # ──────────────────────────────────────────────────────────────────────────
-  # NOTE: vue-tsc type checking is not yet enforced here — there are ~120
-  # pre-existing type errors from the JS→TS migration that need to be resolved
-  # first. Add `yarn vue-tsc --noEmit` once those are fixed.
+  # The types step runs vue-tsc against the generated API client, so type
+  # errors fail the build like lint errors do.
   frontend:
     name: Frontend (${{ matrix.step }})
     runs-on: ubuntu-latest
@@ -76,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        step: [build, lint, unit]
+        step: [build, lint, types, unit]
 
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +121,11 @@ jobs:
         if: matrix.step == 'lint'
         working-directory: frontend
         run: yarn lint
+
+      - name: Type check
+        if: matrix.step == 'types'
+        working-directory: frontend
+        run: npx vue-tsc --noEmit -p .
 
       - name: Unit tests
         if: matrix.step == 'unit'

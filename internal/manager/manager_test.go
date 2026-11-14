@@ -3,10 +3,13 @@ package manager
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"strings"
 	"testing"
+
+	"github.com/nerd-zero/listnun/models"
 )
 
 // linkStore is a fake Store that hands out a distinct link UUID per
@@ -27,6 +30,7 @@ func (s *linkStore) GetTenantRootURL(tenantID int) (string, error) {
 
 func newLinkTestManager(st Store) *Manager {
 	return &Manager{
+		cfg:        Config{Tracking: func(int) Tracking { return Tracking{} }},
 		store:      st,
 		links:      make(map[linkKey]string),
 		tenantURLs: make(map[int]tenantURLCfg),
@@ -53,5 +57,58 @@ func TestTrackLinkCachesPerTenant(t *testing.T) {
 	}
 	if !strings.HasPrefix(b, "https://t2.example.com/link/uuid-2-") {
 		t.Errorf("tenant 2 got %q, want its own link on its own root URL", b)
+	}
+}
+
+// Tracking settings are per tenant. They used to come from the boot-time
+// config (tenant 1's), so another tenant turning on per-subscriber
+// tracking still sent placeholder subscribers and counted every click.
+func TestTrackingSettingsPerTenant(t *testing.T) {
+	m := newLinkTestManager(&linkStore{})
+	m.cfg.Tracking = func(tenantID int) Tracking {
+		switch tenantID {
+		case 2:
+			return Tracking{Individual: true}
+		case 3:
+			return Tracking{Disabled: true}
+		}
+		return Tracking{}
+	}
+
+	msg := func(tenantID int) *CampaignMessage {
+		c := &models.Campaign{TenantID: tenantID}
+		c.UUID = "camp-uuid"
+		s := models.Subscriber{}
+		s.UUID = "sub-uuid"
+		return &CampaignMessage{Campaign: c, Subscriber: s}
+	}
+
+	cases := []struct {
+		tenantID     int
+		wantLink     string
+		wantPixelHas string
+		wantNoPixel  bool
+	}{
+		{1, "https://t1.example.com/link/uuid-1-1/camp-uuid/" + dummyUUID, "/camp-uuid/" + dummyUUID + "/px.png", false},
+		{2, "https://t2.example.com/link/uuid-2-2/camp-uuid/sub-uuid", "/camp-uuid/sub-uuid/px.png", false},
+		{3, "https://listnun.app", "", true},
+	}
+	for _, tc := range cases {
+		c := msg(tc.tenantID)
+		f := m.TemplateFuncs(c.Campaign)
+
+		link := f["TrackLink"].(func(string, *CampaignMessage) string)("https://listnun.app", c)
+		if link != tc.wantLink {
+			t.Errorf("tenant %d: TrackLink = %q, want %q", tc.tenantID, link, tc.wantLink)
+		}
+
+		px := string(f["TrackView"].(func(*CampaignMessage) template.HTML)(c))
+		if tc.wantNoPixel {
+			if px != "" {
+				t.Errorf("tenant %d: TrackView = %q, want no pixel", tc.tenantID, px)
+			}
+		} else if !strings.Contains(px, tc.wantPixelHas) {
+			t.Errorf("tenant %d: TrackView = %q, want it to contain %q", tc.tenantID, px, tc.wantPixelHas)
+		}
 	}
 }
