@@ -50,7 +50,7 @@
             </div>
             <span class="camps-ov-live-actions">
               <PvButton v-if="$can('campaigns:send')" icon="pi pi-pause" :label="$t('campaigns.confirm.paused.action')" severity="secondary" outlined @click="askStatus(c, 'paused')" />
-              <PvButton :label="$t('campaigns.overview.liveResults')" severity="secondary" outlined @click="open(c)" />
+              <PvButton :label="$t('campaigns.overview.liveResults')" severity="secondary" outlined @click="openResults(c)" />
             </span>
           </div>
           <div class="camps-ov-progress" role="progressbar" :aria-valuenow="sentOf(c)" aria-valuemin="0" :aria-valuemax="totalOf(c)">
@@ -208,7 +208,7 @@ interface Live { id: number; sent: number; toSend: number; rate: number; netRate
 // How often running campaigns' figures refresh.
 const LIVE_POLL_MS = 2000;
 
-const { $utils } = useGlobal();
+const { $utils, $can } = useGlobal();
 const { getCampaignsOverview, getRunningCampaignStats, updateCampaignStatus } = campaignsApi();
 const { t } = useI18n();
 const router = useRouter();
@@ -320,6 +320,16 @@ function draftMeta(c: Item): string {
 
 function open(c: Item) {
   router.push({ name: 'campaign', params: { id: c.id } });
+}
+
+// openResults shows a sending campaign's results on the Analytics page,
+// from the day it started; without access to analytics, the campaign.
+function openResults(c: Item) {
+  if (!$can('campaigns:get_analytics')) {
+    open(c);
+    return;
+  }
+  router.push({ name: 'campaignAnalytics', query: { id: String(c.id) } });
 }
 
 function onSearch() {

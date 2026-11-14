@@ -23,6 +23,7 @@
     "analytics.ofDelivered": "of delivered",
     "analytics.allTime": "All time",
     "analytics.someAnonymous": "Some views and clicks were recorded without a subscriber (before \"Views and clicks per subscriber\" was on, or the subscriber was since deleted), so they may count a person more than once.",
+    "analytics.live": "Sending now. Results update every 30 seconds.",
     "analytics.nonUnique": "Counts include repeat views and clicks, and rates aren't shown, because \"Views and clicks per subscriber\" is off in Privacy settings.",
     "analytics.turnOnTracking": "Turn tracking on",
     "analytics.clickedOnce": "clicked at least once",

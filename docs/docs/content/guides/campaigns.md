@@ -7,7 +7,7 @@ A campaign is an email you send to one or more lists. **Campaigns › All campai
 | Section | What it shows |
 | :------ | :------------ |
 | **Paused** banner | One per paused campaign: how far it got and how many people are still waiting, with **Review** and **Resume sending**. |
-| **Sending now** | Each running campaign's progress (sent of total), speed, time left and opens so far, refreshed every couple of seconds, with **Pause** and **Live results**. |
+| **Sending now** | Each running campaign's progress (sent of total), speed, time left and opens so far, refreshed every couple of seconds, with **Pause** and **Live results**, which opens the campaign in Analytics, refreshing every 30 seconds while it sends. |
 | **Up next** | Scheduled campaigns by day, with their lists and audience. |
 | **Drafts** | The latest three, with who edited them and when. **All drafts** shows the rest. |
 | **Sent** | The latest four, with delivered, open rate and click rate. **Show all sent** and **Compare in analytics** go further. |
