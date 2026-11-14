@@ -112,3 +112,25 @@ func TestTrackingSettingsPerTenant(t *testing.T) {
 		}
 	}
 }
+
+// Campaign status notifications went to tenant 1's notify addresses for
+// every workspace's campaigns; they now carry the campaign's workspace.
+func TestSendNotifCarriesTheCampaignsTenant(t *testing.T) {
+	var gotTenant int
+	m := &Manager{fnNotify: func(tenantID int, subject string, data any) error {
+		gotTenant = tenantID
+		return nil
+	}}
+	c := &models.Campaign{TenantID: 7, Name: "Launch"}
+	if err := m.sendNotif(c, "finished", ""); err != nil {
+		t.Fatal(err)
+	}
+	if gotTenant != 7 {
+		t.Errorf("notification for tenant %d, want the campaign's 7", gotTenant)
+	}
+
+	// With no notifier configured, nothing is sent and nothing fails.
+	if err := (&Manager{}).sendNotif(c, "finished", ""); err != nil {
+		t.Errorf("sendNotif with no notifier: %v", err)
+	}
+}

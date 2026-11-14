@@ -52,7 +52,6 @@ type App struct {
 	manager     *manager.Manager
 	messengers  []manager.Messenger
 	tenantMsgrs *tenantMessengers
-	emailMsgr   manager.Messenger
 	importers   *tenantImporters
 	importStage *importstage.Stage
 	auth        *auth.Auth
@@ -75,8 +74,9 @@ type App struct {
 	events         *events.Events
 	log            *log.Logger
 
-	about         about
-	fnOptinNotify func(models.Subscriber, []int) (int, error)
+	about about
+	// sysMail sends each workspace's system e-mails (cmd/system_mail.go).
+	sysMail *systemMail
 	// optinResends holds the tenants with a bulk opt-in resend running.
 	optinResends sync.Map
 
@@ -114,7 +114,11 @@ var (
 	frontendDir string = "frontend/dist"
 )
 
-func init() {
+// boot reads flags and config, connects to the database, runs install or
+// upgrade when asked, and prepares the queries. It used to be the package's
+// init(), which ran (and exited without a config file) before any test in
+// this package could.
+func boot() {
 	// Initialize commandline flags.
 	initFlags(ko)
 
@@ -212,6 +216,8 @@ func init() {
 }
 
 func main() {
+	boot()
+
 	// Initialize SMTP messengers and the media store. Declared ahead of the
 	// var () block below since they need error handling, which can't live
 	// inside a var () list.
@@ -244,10 +250,22 @@ func main() {
 		// Initialize i18n language map.
 		i18n = initI18n(ko.MustString("app.lang"), fs)
 
-		fbOptinNotify = makeOptinNotifyHook(ko.Bool("privacy.unsubscribe_header"), urlCfg, queries, i18n)
+		// Each workspace's system e-mail (cmd/system_mail.go). Core, the
+		// tenant messengers and the fallback messenger are filled in below,
+		// before anything is sent.
+		sysMail = &systemMail{
+			defaults: systemMailDefaults{
+				FromEmail:   ko.String("app.from_email"),
+				RootURL:     urlCfg.RootURL,
+				LogoURL:     urlCfg.LogoURL,
+				UnsubHeader: ko.Bool("privacy.unsubscribe_header"),
+			},
+			i18n: i18n,
+			log:  lo,
+		}
 
 		// Crud core.
-		core = initCore(fbOptinNotify, queries, db, i18n, ko)
+		core = initCore(sysMail.optinNotify, queries, db, i18n, ko)
 
 		// Lazily resolves and caches each tenant's media.Store from their
 		// own settings (upload.* is per-tenant since phase 5).
@@ -261,10 +279,10 @@ func main() {
 		usageMeter = usage.New(usageStore{q: queries}, lo)
 
 		// Campaign manager.
-		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, trackingCfg, i18n, ko)
+		mgr, tenantMsgrs = initCampaignManager(msgrs, queries, urlCfg, core, mediaResolver, usageMeter, replyCfg, trackingCfg, sysMail, i18n, ko)
 
 		// Bulk importer, resolved lazily per tenant (see cmd/tenant_importer.go).
-		importers = newTenantImporters(queries, db, core, mgr, i18n)
+		importers = newTenantImporters(queries, db, core, mgr, sysMail, i18n)
 
 		// Initialize the auth manager.
 		auth = initAuth(core, db.DB, ko)
@@ -295,8 +313,13 @@ func main() {
 		}
 	}
 
-	// Initialize the global admin/sub e-mail notifier.
-	initNotifs(fs, i18n, emailMsgr, urlCfg, ko)
+	// System e-mail templates, and the rest of sysMail's wiring.
+	initNotifs(fs, i18n, urlCfg)
+	sysMail.core = core
+	sysMail.msgrs = tenantMsgrs
+	if emailMsgr != nil {
+		sysMail.fallback = emailMsgr
+	}
 
 	// Initialize and cache tx templates in memory.
 	initTxTemplates(mgr, core)
@@ -327,7 +350,6 @@ func main() {
 		manager:     mgr,
 		messengers:  msgrs,
 		tenantMsgrs: tenantMsgrs,
-		emailMsgr:   emailMsgr,
 		importers:   importers,
 		importStage: importstage.New(),
 		auth:        auth,
@@ -350,9 +372,9 @@ func main() {
 			AllowAll:       true,
 		}),
 
-		fnOptinNotify: fbOptinNotify,
-		about:         initAbout(queries, db),
-		chReload:      chReload,
+		sysMail:  sysMail,
+		about:    initAbout(queries, db),
+		chReload: chReload,
 	}
 	app.langList, app.langs = initLangCache(fs)
 	app.managedCleanup = initManagedCleanup()

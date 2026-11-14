@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -29,7 +28,6 @@ import (
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -629,18 +627,19 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 			a.i18n.Ts("globals.messages.errorCreating", "name", "SMTP", "error", err.Error()))
 	}
 
-	// Render the test email template body.
-	var b bytes.Buffer
-	if err := notifs.Tpls.ExecuteTemplate(&b, "smtp-test", nil); err != nil {
-		a.log.Printf("error compiling notification template '%s': %v", "smtp-test", err)
+	// Render the test email template body, with the workspace's logo.
+	w := a.sysMail.workspace(c.Request().Context(), tenantID(c))
+	_, body, err := render(w, a.i18n.T("settings.smtp.testConnection"), "smtp-test", nil)
+	if err != nil {
+		a.log.Printf("%v", err)
 		return err
 	}
 
 	m := models.Message{}
-	m.From = a.tenantFromEmail(c.Request().Context(), tenantID(c))
+	m.From = w.From
 	m.To = []string{to}
 	m.Subject = a.i18n.T("settings.smtp.testConnection")
-	m.Body = b.Bytes()
+	m.Body = body
 	if err := msgr.Push(m); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
