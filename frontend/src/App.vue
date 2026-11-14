@@ -76,6 +76,7 @@ import { useDarkMode } from './composables/useDarkMode';
 import AppShell from './components/AppShell.vue';
 import NoAccess from './views/NoAccess.vue';
 import { translateOr } from './composables/translateOr';
+import { waitForServer } from './api/waitForServer';
 
 setToastInstance(useToast());
 setConfirmInstance(useConfirm());
@@ -119,13 +120,41 @@ function doLogout() {
   $api.logout().then(() => { document.location.href = uris.root; });
 }
 
-function reloadApp() {
-  $api.reloadApp().then(() => {
-    $utils.toast('Reloading…');
-    const poll = setInterval(() => {
-      $api.getHealth().then(() => { clearInterval(poll); document.location.reload(); });
-    }, 500);
-  });
+// How long a restart may take before we stop waiting and say so.
+const RESTART_TIMEOUT_MS = 60000;
+
+async function reloadApp() {
+  try {
+    await $api.reloadApp();
+  } catch {
+    // The API client has already shown the error.
+    return;
+  }
+  $utils.toast(t('settings.restarting'));
+  try {
+    await waitForServer(RESTART_TIMEOUT_MS);
+    document.location.reload();
+  } catch {
+    $utils.toast(t('settings.restartTimeout'), 'is-danger');
+  }
+}
+
+// MAX_ERROR_TOASTS caps how many server errors are toasted per page load,
+// so a burst of failures doesn't bury the screen.
+const MAX_ERROR_TOASTS = 50;
+
+interface ServerEvent {
+  type?: string;
+  message?: string;
+}
+
+function parseEvent(raw: string): ServerEvent | null {
+  try {
+    const d: unknown = JSON.parse(raw);
+    return d !== null && typeof d === 'object' ? d as ServerEvent : null;
+  } catch {
+    return null;
+  }
 }
 
 function listenEvents() {
@@ -133,13 +162,12 @@ function listenEvents() {
   const src = new EventSource(uris.errorEvents, { withCredentials: true });
   let n = 0;
   src.onmessage = (e) => {
-    if (n > 50) return;
+    if (n > MAX_ERROR_TOASTS) return;
+    const d = parseEvent(e.data);
+    if (d?.type !== 'error' || typeof d.message !== 'string') return;
     n += 1;
-    const d = JSON.parse(e.data);
-    if (d?.type === 'error') {
-      const m = re.exec(d.message.trim());
-      if (m) $utils.toast(m[2], 'is-danger', null, true);
-    }
+    const m = re.exec(d.message.trim());
+    if (m) $utils.toast(m[2], 'is-danger');
   };
 }
 

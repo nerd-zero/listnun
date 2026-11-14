@@ -27,8 +27,8 @@
         </div>
       </div>
 
-      <list-selector label="Target lists" placeholder="Lists to apply to" v-model="form.lists" :selected="form.lists"
-        :all="lists.results" />
+      <list-selector :label="$t('subscribers.targetLists')" :placeholder="$t('subscribers.targetListsPlaceholder')" v-model="form.lists" :selected="form.lists"
+        :all="allLists" />
 
       <div v-if="form.action === 'confirm'" class="lm-field">
         <small class="lm-help">{{ $t('subscribers.markConfirmedHelp') }}</small>
@@ -60,6 +60,8 @@ withDefaults(defineProps<{ numSubscribers?: number }>(), { numSubscribers: 0 });
 const emit = defineEmits(['finished', 'close']);
 
 const { lists } = storeToRefs(useMainStore());
+// The store holds the minimal lists response ({ results }), or [] before it loads.
+const allLists = computed(() => (lists.value as { results?: unknown[] } | null)?.results ?? []);
 
 const form = reactive({ action: 'add', lists: [] as any[], preconfirm: false });
 

@@ -3,6 +3,7 @@ import dayDuration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import updateLocale from 'dayjs/plugin/updateLocale';
 import { showToast, showConfirm, showPrompt } from './toastService';
+import { readJSON, writeJSON } from './safeStorage';
 
 dayjs.extend(updateLocale);
 dayjs.extend(relativeTime);
@@ -10,6 +11,13 @@ dayjs.extend(dayDuration);
 
 const reEmail = /(.+?)@(.+?)/ig;
 const prefKey = 'listnun_pref';
+
+// readPrefs returns the saved preferences, or none if they're missing,
+// unreadable or not an object.
+function readPrefs(): Record<string, unknown> {
+  const p = readJSON(prefKey);
+  return p !== null && typeof p === 'object' && !Array.isArray(p) ? p as Record<string, unknown> : {};
+}
 
 // Shared page/sort click handlers for the query-params-plus-refetch
 // pattern repeated across every paginated table view (Lists, Media,
@@ -213,21 +221,11 @@ export default class Utils {
   };
 
   getPref = (key: string): unknown => {
-    if (localStorage.getItem(prefKey) === null) {
-      return null;
-    }
-
-    const p = JSON.parse(localStorage.getItem(prefKey)!);
+    const p = readPrefs();
     return key in p ? p[key] : null;
   };
 
   setPref = (key: string, val: unknown): void => {
-    let p: Record<string, unknown> = {};
-    if (localStorage.getItem(prefKey) !== null) {
-      p = JSON.parse(localStorage.getItem(prefKey)!);
-    }
-
-    p[key] = val;
-    localStorage.setItem(prefKey, JSON.stringify(p));
+    writeJSON(prefKey, { ...readPrefs(), [key]: val });
   };
 }
