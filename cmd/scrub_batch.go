@@ -113,16 +113,18 @@ func submitScrubBatch(ctx context.Context, q *models.Queries, tenantID int, s mo
 	return batchID, nil
 }
 
-// submitScrubListValidation is cmd/settings.go's ScrubList: fetches
-// listID's own subscriber emails and submits them to Scrub directly
-// (chunked at scrubBatchMaxEmails), tracked as one scrub_validation_jobs
-// row so the UI can poll a single activeJobRequestId regardless of how
-// many chunks it took. Unlike submitScrubBatch's fail-open CSV-import
+// submitScrubListValidation submits emails to Scrub (chunked at
+// scrubBatchMaxEmails) as one validate job over listIDs, tracked as one
+// scrub_validation_jobs row so the UI can poll a single
+// activeJobRequestId regardless of how many chunks it took. Undeliverable
+// addresses are unsubscribed from listIDs once results arrive
+// (reconcileScrubJob). Used by cmd/settings.go's ScrubList (one list) and
+// the Operator API's tenant-wide validate (every list of the tenant). Unlike submitScrubBatch's fail-open CSV-import
 // convention, a submission failure here fails the whole job immediately
 // -- this is a user-initiated, foreground action the caller can just
 // retry, rather than a background job left showing stuck partial
 // progress forever.
-func submitScrubListValidation(ctx context.Context, q *models.Queries, tenantID int, s models.Settings, listID int, emails []string) (jobID string, err error) {
+func submitScrubListValidation(ctx context.Context, q *models.Queries, tenantID int, s models.Settings, listIDs []int, emails []string) (jobID string, err error) {
 	jobUUID, err := uuid.NewV4()
 	if err != nil {
 		return "", fmt.Errorf("generating job id: %w", err)
@@ -131,12 +133,12 @@ func submitScrubListValidation(ctx context.Context, q *models.Queries, tenantID 
 
 	chunks := scrub.ChunkEmails(emails, scrubBatchMaxEmails)
 
-	if _, err := q.InsertScrubValidationJob.Exec(jobID, tenantID, pq.Array([]int{listID}), len(chunks), len(emails)); err != nil {
+	if _, err := q.InsertScrubValidationJob.Exec(jobID, tenantID, pq.Array(listIDs), len(chunks), len(emails)); err != nil {
 		return "", fmt.Errorf("recording validation job: %w", err)
 	}
 
 	for _, chunk := range chunks {
-		if _, err := submitScrubBatch(ctx, q, tenantID, s, []int{listID}, chunk, jobID); err != nil {
+		if _, err := submitScrubBatch(ctx, q, tenantID, s, listIDs, chunk, jobID); err != nil {
 			// Cascades to delete any chunks that succeeded before this
 			// one failed (scrub_validation_batches.job_id FK, ON DELETE
 			// CASCADE).
@@ -464,8 +466,10 @@ func (a *App) reconcileScrubJob(ctx context.Context, job models.ScrubValidationJ
 	// Only refresh the list's "last validated" summary if at least one
 	// chunk actually completed -- a job where every chunk failed outright
 	// has nothing genuine to report, and 0/0 counts would misleadingly
-	// read as "validated, found nothing" rather than "never ran".
-	if !anyCompleted {
+	// read as "validated, found nothing" rather than "never ran". And only
+	// for a single-list job (ScrubList): a tenant-wide one's counts cover
+	// every list's subscribers at once, so they'd misstate each list's.
+	if !anyCompleted || len(listIDs) != 1 {
 		return
 	}
 	for _, listID := range listIDs {

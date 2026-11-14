@@ -936,6 +936,97 @@ func (a *App) GetOperatorTenantScrubUsage(c echo.Context) error {
 	return c.JSON(http.StatusOK, okResp{out})
 }
 
+// operatorScrubValidation is ValidateOperatorTenantUnchecked's response.
+type operatorScrubValidation struct {
+	// JobID is the scrub_validation_jobs id tracking the submission;
+	// empty when there was nothing to validate.
+	JobID string `json:"job_id"`
+	// Submitted is how many addresses were sent to Scrub.
+	Submitted int `json:"submitted"`
+}
+
+// ValidateOperatorTenantUnchecked sends every enabled subscriber of a
+// tenant that Scrub has never validated (or couldn't) to Scrub, once per
+// address however many lists it's on, as one validate job over all the
+// tenant's lists -- the backfill for subscribers added before Scrub was
+// on, or whose import submission failed. Results apply exactly as a
+// list's own Validate does: each address is tagged, and undeliverable
+// ones are unsubscribed from the tenant's lists (and running campaigns on
+// them are paused while it runs). Unlike validating list by list, an
+// address on several lists is submitted, and billed, once. Refused while
+// the tenant has a validation still in flight, whose subscribers would
+// otherwise be submitted again.
+//
+//	@ID				validateOperatorTenantUnchecked
+//	@Summary		Validate a tenant's unchecked subscribers with Scrub (Operator API)
+//	@Description	Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Submits each enabled subscriber with no Scrub status (or unchecked_error) once; undeliverable ones are unsubscribed from the tenant's lists when results arrive. Billed as validation usage.
+//	@Tags			operator
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Tenant ID"
+//	@Success		200	{object}	operatorScrubValidation
+//	@Failure		400	{object}	echo.HTTPError	"Scrub isn't configured for the tenant"
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		404	{object}	echo.HTTPError	"Tenant not found"
+//	@Failure		409	{object}	echo.HTTPError	"A validation is already in flight"
+//	@Failure		502	{object}	echo.HTTPError	"Scrub refused the submission"
+//	@Router			/api/operator/tenants/{id}/scrub/validate-unchecked [post]
+func (a *App) ValidateOperatorTenantUnchecked(c echo.Context) error {
+	id := getID(c)
+	ctx := c.Request().Context()
+
+	if _, err := a.operator.GetTenant(id); err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "tenant not found")
+	}
+
+	s, err := a.core.GetSettings(ctx, id)
+	if err != nil {
+		a.log.Printf("error getting tenant %d settings: %v", id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error getting tenant settings")
+	}
+	if !scrubValidationEnabled(s) || s.Scrub.IntegrationID == "" || strings.TrimSpace(s.AppRootURL) == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "scrub isn't configured for this tenant")
+	}
+
+	var active []models.ScrubValidationJob
+	if err := a.queries.GetActiveScrubJobsForTenant.Select(&active, id); err != nil {
+		a.log.Printf("error listing tenant %d scrub jobs: %v", id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error checking validations in flight")
+	}
+	var unfinished int
+	if err := a.queries.CountUnfinishedScrubBatches.Get(&unfinished, id); err != nil {
+		a.log.Printf("error counting tenant %d scrub batches: %v", id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error checking validations in flight")
+	}
+	if len(active) > 0 || unfinished > 0 {
+		return echo.NewHTTPError(http.StatusConflict, "a validation is already in flight for this tenant")
+	}
+
+	var emails []string
+	if err := a.queries.GetUncheckedSubscriberEmails.Select(&emails, id); err != nil {
+		a.log.Printf("error listing tenant %d unchecked subscribers: %v", id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error listing unchecked subscribers")
+	}
+	if len(emails) == 0 {
+		return c.JSON(http.StatusOK, okResp{operatorScrubValidation{}})
+	}
+
+	var listIDs []int
+	if err := a.queries.GetTenantListIDs.Select(&listIDs, id); err != nil {
+		a.log.Printf("error listing tenant %d lists: %v", id, err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "error listing lists")
+	}
+
+	jobID, err := submitScrubListValidation(ctx, a.queries, id, s, listIDs, emails)
+	if err != nil {
+		a.log.Printf("error submitting tenant %d unchecked subscribers to scrub: %v", id, err)
+		return echo.NewHTTPError(http.StatusBadGateway, err.Error())
+	}
+	pauseCampaignsForRiskySubscriberWith(ctx, a.core, a.manager, id, listIDs, "scrub_job_started")
+
+	return c.JSON(http.StatusOK, okResp{operatorScrubValidation{JobID: jobID, Submitted: len(emails)}})
+}
+
 // GetOperatorTenantUsage returns a tenant's billable usage -- emails sent
 // and Scrub validations submitted -- over [from, to), as counted by this
 // instance when the work happened (usage_counters), not as reported by

@@ -61,6 +61,12 @@ SELECT * FROM scrub_validation_batches WHERE batch_id = $1;
 -- chunk's Scrub-side history once the whole job completes.
 SELECT * FROM scrub_validation_batches WHERE job_id = $1;
 
+-- name: count-unfinished-scrub-batches-for-tenant
+-- Batches of tenant $1 Scrub hasn't finished with -- their subscribers
+-- still read as unchecked until it does, so a tenant-wide validate must
+-- not resubmit (and pay for) them meanwhile.
+SELECT COUNT(*) FROM scrub_validation_batches WHERE tenant_id = $1 AND status IN ('pending', 'processing');
+
 -- name: update-scrub-validation-batch-progress
 UPDATE scrub_validation_batches SET status = $2, submitted_count = $3, validated_count = $4, invalid_count = $5, updated_at = NOW()
 WHERE batch_id = $1;

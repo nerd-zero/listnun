@@ -45,11 +45,22 @@ SELECT * FROM subscribers WHERE email=ANY($1);
 
 -- name: get-list-subscriber-emails
 -- Emails to submit for cmd/settings.go's ScrubList (list-validate) --
--- everyone on the list except those already unsubscribed from it, since
--- there's no point re-validating an address nothing will ever be sent to.
+-- everyone on the list except those already unsubscribed from it or
+-- blocklisted, since there's no point paying to validate an address
+-- nothing will ever be sent to.
 SELECT s.email FROM subscribers s
     JOIN subscriber_lists sl ON (sl.subscriber_id = s.id)
-    WHERE sl.list_id = $1 AND s.tenant_id = $2 AND sl.status != 'unsubscribed';
+    WHERE sl.list_id = $1 AND s.tenant_id = $2 AND sl.status != 'unsubscribed' AND s.status != 'blocklisted';
+
+-- name: get-unchecked-subscriber-emails
+-- Every enabled subscriber of tenant $1 that Scrub has never validated
+-- (no scrub_status) or couldn't (unchecked_error) -- what the Operator
+-- API's tenant-wide validate submits, once per address however many
+-- lists it's on.
+SELECT email FROM subscribers
+    WHERE tenant_id = $1 AND status = 'enabled'
+      AND (scrub_status IS NULL OR scrub_status = 'unchecked_error')
+    ORDER BY id;
 
 -- name: get-subscriber-lists
 WITH sub AS (
