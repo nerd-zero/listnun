@@ -29,6 +29,19 @@ func (c *Core) GetCampaignsOverview(ctx context.Context, tenantID int, getAll bo
 			lim.Scheduled, lim.Drafts, lim.Sent); err != nil {
 			return err
 		}
+
+		ids := make([]int, len(out.Campaigns))
+		for i, cm := range out.Campaigns {
+			ids[i] = cm.ID
+		}
+		eng, err := c.campaignEngagement(tx, ids)
+		if err != nil {
+			return err
+		}
+		for i := range out.Campaigns {
+			out.Campaigns[i].CampaignEngagement = eng[out.Campaigns[i].ID]
+		}
+
 		return stmtx(tx, c.q.GetCampaignStatusCounts).Select(&out.Counts, getAll, pq.Array(permittedLists))
 	})
 	if err != nil {

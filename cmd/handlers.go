@@ -202,6 +202,7 @@ func initHTTPHandlers(e *echo.Echo, a *App) {
 		g.GET("/api/campaigns/audience", pm(a.GetCampaignAudience, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/auto-paused", pm(a.GetAutoPausedCampaigns, "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id", pm(hasID(a.GetCampaign), "campaigns:get_all", "campaigns:get"))
+		g.GET("/api/campaigns/analytics/engagement", pm(a.GetCampaignEngagement, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/analytics/:type", pm(a.GetCampaignViewAnalytics, "campaigns:get_analytics"))
 		g.GET("/api/campaigns/:id/preview", pm(hasID(a.PreviewCampaign), "campaigns:get_all", "campaigns:get"))
 		g.GET("/api/campaigns/:id/inbox-check", pm(hasID(a.GetCampaignInboxCheck), "campaigns:get_all", "campaigns:get"))
@@ -482,34 +483,36 @@ func (a *App) RobotsTxt(c echo.Context) error {
 
 // serveCustomAppearance serves the given custom CSS/JS appearance blob
 // meant for customizing public and admin pages from the admin settings UI.
+// It's the requesting tenant's own, not the boot-time (tenant 1) config.
 func serveCustomAppearance(name string) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		var (
-			app = c.Get("app").(*App)
+		app := c.Get("app").(*App)
 
-			out []byte
+		var (
+			out string
 			hdr string
 		)
+		s, err := app.core.GetSettings(c.Request().Context(), tenantID(c))
+		if err != nil {
+			// Pages work without their customisation; don't break them.
+			app.log.Printf("error reading tenant %d's custom appearance: %v", tenantID(c), err)
+		}
 
 		switch name {
 		case "admin.custom_css":
-			out = app.cfg.Appearance.AdminCSS
-			hdr = "text/css; charset=utf-8"
+			out, hdr = s.AdminCustomCSS, "text/css; charset=utf-8"
 
 		case "admin.custom_js":
-			out = app.cfg.Appearance.AdminJS
-			hdr = "application/javascript; charset=utf-8"
+			out, hdr = s.AdminCustomJS, "application/javascript; charset=utf-8"
 
 		case "public.custom_css":
-			out = app.cfg.Appearance.PublicCSS
-			hdr = "text/css; charset=utf-8"
+			out, hdr = s.PublicCustomCSS, "text/css; charset=utf-8"
 
 		case "public.custom_js":
-			out = app.cfg.Appearance.PublicJS
-			hdr = "application/javascript; charset=utf-8"
+			out, hdr = s.PublicCustomJS, "application/javascript; charset=utf-8"
 		}
 
-		return c.Blob(http.StatusOK, hdr, out)
+		return c.Blob(http.StatusOK, hdr, []byte(out))
 	}
 }
 

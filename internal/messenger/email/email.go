@@ -2,6 +2,7 @@ package email
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/mail"
@@ -58,10 +59,18 @@ func NormalizeAddr(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
+// ErrNoServers is returned when there's no enabled SMTP server to send with.
+var ErrNoServers = errors.New("no SMTP servers enabled")
+
 // New returns an SMTP e-mail Messenger backend with the given SMTP servers.
 // Group indicates whether the messenger represents a group of SMTP servers (1 or more)
 // that are used as a round-robin pool, or a single server.
 func New(name string, servers ...Server) (*Emailer, error) {
+	// Push picks a server at random, and with none that panics.
+	if len(servers) == 0 {
+		return nil, ErrNoServers
+	}
+
 	e := &Emailer{
 		name:  name,
 		pools: make(map[string][]*Server),
@@ -137,6 +146,9 @@ func (e *Emailer) Push(m models.Message) error {
 		if srvs := e.getPool(m.From); srvs != nil {
 			pool = srvs
 		}
+	}
+	if len(pool) == 0 {
+		return ErrNoServers
 	}
 	srv := pool[rand.Intn(len(pool))]
 

@@ -81,9 +81,8 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useMedia } from '../composables/useMedia';
-import {
-  getSettings, updateSettings, getServerConfig, getHealth,
-} from '../api';
+import { getSettings, updateSettings, getServerConfig } from '../api';
+import { waitForServer } from '../api/waitForServer';
 import SubNav, { type SubNavItem } from '../components/ui/SubNav.vue';
 import TableSkeleton from '../components/ui/TableSkeleton.vue';
 import ConfirmAction from '../components/ui/ConfirmAction.vue';
@@ -292,32 +291,6 @@ function setForm(d: Loose) {
   Object.assign(f, d);
 }
 
-// Saving settings (when no campaigns are running) makes the backend restart
-// itself ~500ms later to apply the change (cmd/settings.go's
-// handleSettingsRestart -> syscall.Exec in cmd/init.go). Fetching data right
-// after the save races that restart window: the request can land while the
-// listener is closed or the process is mid-exec, which a proxy in front of
-// the app (e.g. Cloudflare) surfaces as a gateway error. Wait for the health
-// endpoint to come back before making any further requests.
-function waitForServer(timeoutMs = 30000) {
-  const start = Date.now();
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const poll = setInterval(() => {
-        getHealth().then(() => {
-          clearInterval(poll);
-          resolve(true);
-        }).catch(() => {
-          if (Date.now() - start > timeoutMs) {
-            clearInterval(poll);
-            reject(new Error('timed out waiting for the server to restart'));
-          }
-        });
-      }, 500);
-    }, 1500);
-  });
-}
-
 async function onSubmit() {
   if (!form.value) return;
   const f = JSON.parse(JSON.stringify(form.value));
@@ -389,6 +362,8 @@ async function onSubmit() {
       return;
     }
 
+    // Saving settings (when no campaigns are running) restarts the backend;
+    // wait for it to come back before fetching anything.
     $utils.toast(t('settings.savedApplying'));
     try {
       await waitForServer();

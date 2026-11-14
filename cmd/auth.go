@@ -176,9 +176,11 @@ func (a *App) TwofaPage(c echo.Context) error {
 //	@Success		200
 //	@Router			/api/logout [post]
 func (a *App) Logout(c echo.Context) error {
-	// Delete the session from the DB and cookie.
-	sess := c.Get(auth.SessionKey).(*simplesessions.Session)
-	_ = sess.Destroy()
+	// Delete the session from the DB and cookie. An API key has no session
+	// to end.
+	if sess, ok := c.Get(auth.SessionKey).(*simplesessions.Session); ok && sess != nil {
+		_ = sess.Destroy()
+	}
 
 	return c.JSON(http.StatusOK, okResp{true})
 }

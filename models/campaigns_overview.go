@@ -48,9 +48,7 @@ type CampaignOverviewItem struct {
 	Sent          int              `db:"sent" json:"sent"`
 	Lists         CampaignListRefs `db:"lists" json:"lists"`
 	Audience      int              `db:"audience" json:"audience"`
-	Bounced       int              `db:"bounced" json:"bounced"`
-	Opened        int              `db:"opened" json:"opened"`
-	Clicked       int              `db:"clicked" json:"clicked"`
+	CampaignEngagement
 } // @name CampaignOverviewItem
 
 // CampaignStatusCount is how many campaigns are in a status.

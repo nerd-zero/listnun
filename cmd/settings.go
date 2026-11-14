@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -374,13 +375,20 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	// internal/auth's OIDC cache) instead of the full-process restart every
 	// other settings group still needs - a full restart affects every
 	// tenant on the process, not just the one saving.
+	// Invalidated even when a restart follows: with campaigns running the
+	// restart is put off, and these groups shouldn't wait for it.
 	changes := diffSettingsGroups(cur, set)
+	a.invalidateTenantCaches(tenantID(c), changes)
 	if changes.other {
 		return a.handleSettingsRestart(c)
 	}
-	a.invalidateTenantCaches(tenantID(c), changes)
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// smtpEnabled is the part of an SMTP server setting UpdateSettingsByKey checks.
+type smtpEnabled struct {
+	Enabled bool `json:"enabled"`
 }
 
 // UpdateSettingsByKey updates a single setting key-value in the DB.
@@ -405,6 +413,18 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	var b json.RawMessage
 	if err := c.Bind(&b); err != nil {
 		return err
+	}
+
+	// The full settings save requires an enabled SMTP server; without one
+	// nothing can send, so saving the key on its own does too.
+	if key == "smtp" {
+		var servers []smtpEnabled
+		if err := json.Unmarshal(b, &servers); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
+		}
+		if !slices.ContainsFunc(servers, func(s smtpEnabled) bool { return s.Enabled }) {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.errorNoSMTP"))
+		}
 	}
 
 	if key == "inactive_cleanup" {
@@ -436,6 +456,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		a.media.Invalidate(tenantID(c))
 	case key == "security.oidc":
 		a.auth.InvalidateOIDC(tenantID(c))
+	case key == "privacy.disable_tracking" || key == "privacy.individual_tracking":
+		a.tracking.invalidate(tenantID(c))
 	case key == "inactive_cleanup":
 		// Read fresh by the scheduler on every tick.
 	default:
@@ -447,16 +469,17 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 
 // tenantCacheChanges describes which process-lifetime per-tenant caches
 // (cmd/tenant_messenger.go, cmd/tenant_media.go, internal/auth's OIDC
-// cache) are stale after a settings save, and whether anything outside
-// those three groups also changed.
+// cache, cmd/tenant_tracking.go) are stale after a settings save, and
+// whether anything outside those groups also changed.
 type tenantCacheChanges struct {
-	smtp  bool
-	media bool
-	oidc  bool
-	other bool
+	smtp     bool
+	media    bool
+	oidc     bool
+	tracking bool
+	other    bool
 }
 
-// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC fields so the
+// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC/tracking fields so the
 // remainder can be compared to detect changes outside those groups.
 func withoutTenantCachedGroups(s models.Settings) models.Settings {
 	var zero models.Settings
@@ -476,6 +499,8 @@ func withoutTenantCachedGroups(s models.Settings) models.Settings {
 	s.UploadS3BucketPath = ""
 	s.UploadS3BucketType = ""
 	s.UploadS3Expiry = ""
+	s.PrivacyDisableTracking = false
+	s.PrivacyIndividualTracking = false
 	// The cleanup scheduler reads settings on every tick, so no restart.
 	s.InactiveCleanup = zero.InactiveCleanup
 	return s
@@ -504,7 +529,9 @@ func diffSettingsGroups(cur, set models.Settings) tenantCacheChanges {
 			cur.UploadS3BucketPath != set.UploadS3BucketPath ||
 			cur.UploadS3BucketType != set.UploadS3BucketType ||
 			cur.UploadS3Expiry != set.UploadS3Expiry,
-		oidc:  !reflect.DeepEqual(cur.OIDC, set.OIDC),
+		oidc: !reflect.DeepEqual(cur.OIDC, set.OIDC),
+		tracking: cur.PrivacyDisableTracking != set.PrivacyDisableTracking ||
+			cur.PrivacyIndividualTracking != set.PrivacyIndividualTracking,
 		other: !reflect.DeepEqual(withoutTenantCachedGroups(cur), withoutTenantCachedGroups(set)),
 	}
 }
@@ -522,6 +549,9 @@ func (a *App) invalidateTenantCaches(tenantID int, c tenantCacheChanges) {
 	}
 	if c.oidc {
 		a.auth.InvalidateOIDC(tenantID)
+	}
+	if c.tracking {
+		a.tracking.invalidate(tenantID)
 	}
 }
 
@@ -614,7 +644,9 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, okResp{a.bufLog.Lines()})
+	// The log is the whole process's, every tenant's lines included, so
+	// none of it goes back to a tenant. The response keeps its shape.
+	return c.JSON(http.StatusOK, okResp{[]string{}})
 }
 
 // TestScrubSettings verifies that the Scrub URL and API key are reachable.

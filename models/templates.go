@@ -89,6 +89,30 @@ type CampaignAnalyticsCount struct {
 	Timestamp  time.Time `db:"timestamp" json:"timestamp"`
 } // @name CampaignAnalyticsCount
 
+// CampaignEngagement is a campaign's results, counted one way wherever
+// they show (see get-campaign-engagement for each count's definition).
+type CampaignEngagement struct {
+	// Bounced is people with a bounce on the campaign.
+	Bounced int `db:"bounced" json:"bounced"`
+	// Delivered is sent less bounced: what rates are a share of.
+	Delivered int `db:"delivered" json:"delivered"`
+	// Opened is people who viewed or clicked.
+	Opened int `db:"opened" json:"opened"`
+	// Clicked is people who clicked.
+	Clicked int `db:"clicked" json:"clicked"`
+	// Anonymous is views and clicks recorded without a subscriber, which
+	// Opened and Clicked may count more than once for one person.
+	Anonymous int `db:"anonymous" json:"anonymous"`
+	// Replied is people who replied, leaving out auto-replies.
+	Replied int `db:"replied" json:"replied"`
+} // @name CampaignEngagement
+
+// CampaignEngagementCount is one campaign's CampaignEngagement.
+type CampaignEngagementCount struct {
+	CampaignID int `db:"campaign_id" json:"campaign_id"`
+	CampaignEngagement
+} // @name CampaignEngagementCount
+
 // CampaignBounceTypeCount is the number of bounces of one type for a campaign.
 type CampaignBounceTypeCount struct {
 	CampaignID int    `db:"campaign_id" json:"campaign_id"`
