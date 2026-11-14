@@ -641,9 +641,10 @@ SELECT c.id, c.uuid, c.name, c.status, c.pause_reason, c.send_at, c.started_at, 
     c.updated_by_name, c.to_send, c.sent,
     COALESCE((SELECT JSON_AGG(JSON_BUILD_OBJECT('id', COALESCE(cl.list_id, 0), 'name', cl.list_name) ORDER BY cl.list_name)
         FROM campaign_lists cl WHERE cl.campaign_id = c.id), '[]') AS lists,
-    -- People on the campaign's lists who'd get it, for scheduled campaigns.
+    -- People on the campaign's lists who'd get it, for scheduled campaigns
+    -- and drafts.
     (SELECT COUNT(DISTINCT sl.subscriber_id) FROM subscriber_lists sl
-        WHERE c.status = 'scheduled' AND sl.status != 'unsubscribed'
+        WHERE c.status IN ('scheduled', 'draft') AND sl.status != 'unsubscribed'
         AND sl.list_id IN (SELECT list_id FROM campaign_lists WHERE campaign_id = c.id)) AS audience
     FROM campaigns c WHERE c.id IN (SELECT id FROM picked);
 
