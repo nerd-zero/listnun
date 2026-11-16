@@ -49,7 +49,22 @@ func (c *Core) GetListActivity(ctx context.Context, tenantID, listID int, since 
 		if err := stmtx(tx, c.q.GetListActivity).Select(&out.Days, listID, since); err != nil {
 			return err
 		}
-		return stmtx(tx, c.q.GetListRecentCampaigns).Select(&out.Campaigns, listID, numCampaigns)
+		if err := stmtx(tx, c.q.GetListRecentCampaigns).Select(&out.Campaigns, listID, numCampaigns); err != nil {
+			return err
+		}
+
+		ids := make([]int, len(out.Campaigns))
+		for i, cm := range out.Campaigns {
+			ids[i] = cm.ID
+		}
+		eng, err := c.campaignEngagement(tx, ids)
+		if err != nil {
+			return err
+		}
+		for i := range out.Campaigns {
+			out.Campaigns[i].CampaignEngagement = eng[out.Campaigns[i].ID]
+		}
+		return nil
 	})
 	if err != nil {
 		c.log.Printf("error fetching list activity: %v", err)

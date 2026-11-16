@@ -443,6 +443,13 @@ func (s *Session) Start() {
 				s.log.Printf("error creating DB transaction: %v", err)
 				continue
 			}
+			// Scope the batch to the importing tenant, so RLS applies to
+			// it as to every other tenant request.
+			if _, err := tx.Exec(`SELECT set_config('app.current_tenant', $1::TEXT, true)`, s.opt.TenantID); err != nil {
+				s.log.Printf("error scoping import to tenant %d: %v", s.opt.TenantID, err)
+				_ = tx.Rollback()
+				continue
+			}
 
 			if s.opt.Mode == ModeSubscribe {
 				stmt = tx.Stmt(s.im.opt.UpsertStmt)
@@ -508,7 +515,7 @@ func (s *Session) Start() {
 	if cur == 0 {
 		s.im.setStatus(StatusFinished)
 		s.log.Printf("imported finished")
-		if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr); err != nil {
+		if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr, s.opt.TenantID); err != nil {
 			s.log.Printf("error updating lists date: %v", err)
 		}
 		s.im.sendNotif(StatusFinished)
@@ -530,7 +537,7 @@ func (s *Session) Start() {
 	s.im.setPending(0)
 	s.im.setStatus(StatusFinished)
 	s.log.Printf("imported finished")
-	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr); err != nil {
+	if _, err := s.im.opt.UpdateListDateStmt.Exec(listIDsArr, s.opt.TenantID); err != nil {
 		s.log.Printf("error updating lists date: %v", err)
 	}
 

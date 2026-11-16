@@ -1,8 +1,25 @@
 import { defineStore } from 'pinia';
 import { models, type ModelName } from '../constants';
+import type { ServerConfig } from '../api/generated/model';
 
 type LoadingState = Record<ModelName, boolean>;
-type ModelState = Record<ModelName, unknown>;
+
+// The signed-in user, as the legacy client stores it (camelCased).
+export interface Profile {
+  id?: number;
+  username?: string;
+  name?: string;
+  email?: string;
+  userRole?: { id: number; name?: string; permissions: string[] };
+  listRole?: { lists: { id: number; permissions: string[] }[] } | null;
+}
+
+// serverConfig is stored as the server sends it (snake_case): the legacy
+// client fetches it with camelCase off.
+type ModelState = Record<Exclude<ModelName, 'serverConfig' | 'profile'>, unknown> & {
+  serverConfig: ServerConfig;
+  profile: Profile;
+};
 
 interface MainStoreState extends ModelState {
   loading: LoadingState;

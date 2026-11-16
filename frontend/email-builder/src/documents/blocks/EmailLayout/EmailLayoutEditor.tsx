@@ -4,7 +4,7 @@ import { useCurrentBlockId } from '../../editor/EditorBlock';
 import { setDocument, setSelectedBlockId, useDocument } from '../../editor/EditorContext';
 import EditorChildrenIds from '../helpers/EditorChildrenIds';
 
-import { EmailLayoutProps } from './EmailLayoutPropsSchema';
+import { DEFAULT_LAYOUT_WIDTH, EmailLayoutProps } from './EmailLayoutPropsSchema';
 
 function getFontFamily(fontFamily: EmailLayoutProps['fontFamily']) {
   const f = fontFamily ?? 'MODERN_SANS';
@@ -59,7 +59,7 @@ export default function EmailLayoutEditor(props: EmailLayoutProps) {
         width="100%"
         style={{
           margin: '0 auto',
-          maxWidth: '600px',
+          maxWidth: `${props.width ?? DEFAULT_LAYOUT_WIDTH}px`,
           backgroundColor: props.canvasColor ?? '#FFFFFF',
           borderRadius: props.borderRadius ?? undefined,
           border: (() => {

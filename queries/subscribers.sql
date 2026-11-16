@@ -45,11 +45,22 @@ SELECT * FROM subscribers WHERE email=ANY($1);
 
 -- name: get-list-subscriber-emails
 -- Emails to submit for cmd/settings.go's ScrubList (list-validate) --
--- everyone on the list except those already unsubscribed from it, since
--- there's no point re-validating an address nothing will ever be sent to.
+-- everyone on the list except those already unsubscribed from it or
+-- blocklisted, since there's no point paying to validate an address
+-- nothing will ever be sent to.
 SELECT s.email FROM subscribers s
     JOIN subscriber_lists sl ON (sl.subscriber_id = s.id)
-    WHERE sl.list_id = $1 AND s.tenant_id = $2 AND sl.status != 'unsubscribed';
+    WHERE sl.list_id = $1 AND s.tenant_id = $2 AND sl.status != 'unsubscribed' AND s.status != 'blocklisted';
+
+-- name: get-unchecked-subscriber-emails
+-- Every enabled subscriber of tenant $1 that Scrub has never validated
+-- (no scrub_status) or couldn't (unchecked_error) -- what the Operator
+-- API's tenant-wide validate submits, once per address however many
+-- lists it's on.
+SELECT email FROM subscribers
+    WHERE tenant_id = $1 AND status = 'enabled'
+      AND (scrub_status IS NULL OR scrub_status = 'unchecked_error')
+    ORDER BY id;
 
 -- name: get-subscriber-lists
 WITH sub AS (
@@ -119,7 +130,7 @@ WITH sub AS (
     RETURNING id, status
 ),
 listIDs AS (
-    SELECT id FROM lists WHERE
+    SELECT id FROM lists WHERE tenant_id = $9 AND
         (CASE WHEN CARDINALITY($6::INT[]) > 0 THEN id=ANY($6)
               ELSE uuid=ANY($7::UUID[]) END)
 ),
@@ -158,8 +169,9 @@ WITH sub AS (
 ),
 subs AS (
     INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
-    SELECT sub.id, listID, CASE WHEN sub.status = 'blocklisted' THEN 'unsubscribed' ELSE $6::subscription_status END, $9
-    FROM sub, UNNEST($5::INT[]) AS listID
+    SELECT sub.id, lists.id, CASE WHEN sub.status = 'blocklisted' THEN 'unsubscribed' ELSE $6::subscription_status END, $9
+    -- Only tenant $9's own lists, whatever IDs the import names.
+    FROM sub, lists WHERE lists.id = ANY($5::INT[]) AND lists.tenant_id = $9
     ON CONFLICT (subscriber_id, list_id) DO UPDATE
     SET updated_at = NOW(),
         status = CASE WHEN $8 THEN EXCLUDED.status ELSE subscriber_lists.status END
@@ -202,7 +214,7 @@ WITH s AS (
     WHERE id = $1 RETURNING id
 ),
 listIDs AS (
-    SELECT id FROM lists WHERE
+    SELECT id FROM lists WHERE tenant_id = $12 AND
         (CASE WHEN CARDINALITY($6::INT[]) > 0 THEN id=ANY($6)
               ELSE uuid=ANY($7::UUID[]) END)
 ),
@@ -253,8 +265,12 @@ UPDATE subscriber_lists SET status='unsubscribed', updated_at=NOW()
     WHERE subscriber_id = ANY($1::INT[]);
 
 -- name: add-subscribers-to-lists
+-- Only subscribers and lists of tenant $4 (foreign keys don't check the
+-- tenant, so the IDs are matched against the tenant's own rows).
 INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
-    (SELECT a, b, (CASE WHEN $3 != '' THEN $3::subscription_status ELSE 'unconfirmed' END), $4 FROM UNNEST($1::INT[]) a, UNNEST($2::INT[]) b)
+    (SELECT s.id, l.id, (CASE WHEN $3 != '' THEN $3::subscription_status ELSE 'unconfirmed' END), $4
+        FROM subscribers s, lists l
+        WHERE s.id = ANY($1::INT[]) AND s.tenant_id = $4 AND l.id = ANY($2::INT[]) AND l.tenant_id = $4)
     ON CONFLICT (subscriber_id, list_id) DO UPDATE SET status=(CASE WHEN $3 != '' THEN $3::subscription_status ELSE subscriber_lists.status END);
 
 -- name: delete-subscriptions
@@ -413,7 +429,9 @@ SELECT subscribers.id,
         AND subscriber_lists.subscriber_id = subscribers.id
         AND ($4 = '' OR subscriber_lists.status = $4::subscription_status)
     )
-    WHERE subscriber_lists.list_id = ALL($1::INT[]) AND id > $2
+    -- The export runs batch by batch, each in its own tenant transaction;
+    -- the explicit tenant filter backs up RLS.
+    WHERE subscribers.tenant_id = $7 AND subscriber_lists.list_id = ALL($1::INT[]) AND id > $2
     AND (CASE WHEN CARDINALITY($3::INT[]) > 0 THEN id=ANY($3) ELSE true END)
     AND (CASE WHEN $5 != '' THEN name ~* $5 OR email ~* $5 ELSE TRUE END)
     AND %query%
@@ -460,7 +478,9 @@ UPDATE subscriber_lists SET status='unsubscribed', updated_at=NOW()
 -- raw: true
 WITH subs AS (%query%)
 INSERT INTO subscriber_lists (subscriber_id, list_id, status, tenant_id)
-    (SELECT a, b, (CASE WHEN $6 != '' THEN $6::subscription_status ELSE 'unconfirmed' END), $7 FROM UNNEST(ARRAY(SELECT id FROM subs)) a, UNNEST($5::INT[]) b)
+    (SELECT s.id, l.id, (CASE WHEN $6 != '' THEN $6::subscription_status ELSE 'unconfirmed' END), $7
+        FROM subscribers s, lists l
+        WHERE s.id IN (SELECT id FROM subs) AND s.tenant_id = $7 AND l.id = ANY($5::INT[]) AND l.tenant_id = $7)
     ON CONFLICT (subscriber_id, list_id) DO NOTHING;
 
 -- name: delete-subscriptions-by-query

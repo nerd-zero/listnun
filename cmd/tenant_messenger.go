@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
 	"github.com/nerd-zero/listnun/internal/core"
 	"github.com/nerd-zero/listnun/internal/manager"
 )
+
+// messengerDrainTime is how long a replaced tenant messenger is kept open
+// for messages a worker already picked it for, before its pools close.
+const messengerDrainTime = 2 * time.Minute
 
 // tenantMessengers is a manager.MessengerResolver that lazily builds and
 // caches SMTP messengers per tenant from that tenant's own settings
@@ -40,10 +45,24 @@ func newTenantMessengers(co *core.Core) *tenantMessengers {
 // GetMessenger call to rebuild them from that tenant's current settings
 // instead of requiring a full process restart (cmd/settings.go's
 // handleSettingsRestart).
+//
+// The evicted messengers' SMTP pools are closed once messages already
+// handed to them have had time to go: dropping them without closing kept
+// their connections open for the life of the process.
 func (t *tenantMessengers) Invalidate(tenantID int) {
 	t.mu.Lock()
+	old := t.cache[tenantID]
 	delete(t.cache, tenantID)
 	t.mu.Unlock()
+
+	if len(old) == 0 {
+		return
+	}
+	time.AfterFunc(messengerDrainTime, func() {
+		for _, m := range old {
+			_ = m.Close()
+		}
+	})
 }
 
 // GetMessenger implements manager.MessengerResolver.

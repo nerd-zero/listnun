@@ -63,8 +63,13 @@ jobs:
             echo "${{ needs.prepare_build.outputs.APP_IMAGE_REPOSITORY }} does not exist, continuing with build."
           fi
 
+  tests:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/tests.yml
+
   deploy:
-    needs: [prepare_build]
+    # Never build and push an image from a commit whose tests fail.
+    needs: [prepare_build, tests]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     permissions:
@@ -79,7 +84,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26.1"
+          go-version-file: go.mod
 
       - name: Set up Node
         uses: actions/setup-node@v4

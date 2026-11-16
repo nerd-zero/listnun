@@ -100,26 +100,7 @@ type Settings struct {
 	UploadS3BucketType         string `json:"upload.s3.bucket_type"`
 	UploadS3Expiry             string `json:"upload.s3.expiry"`
 
-	SMTP []struct {
-		Name          string              `json:"name"`
-		UUID          string              `json:"uuid"`
-		Enabled       bool                `json:"enabled"`
-		Host          string              `json:"host"`
-		HelloHostname string              `json:"hello_hostname"`
-		Port          int                 `json:"port"`
-		AuthProtocol  string              `json:"auth_protocol"`
-		Username      string              `json:"username"`
-		Password      string              `json:"password,omitempty"`
-		EmailHeaders  []map[string]string `json:"email_headers"`
-		MaxConns      int                 `json:"max_conns"`
-		MaxMsgRetries int                 `json:"max_msg_retries"`
-		MsgRetryDelay string              `json:"msg_retry_delay"`
-		IdleTimeout   string              `json:"idle_timeout"`
-		WaitTimeout   string              `json:"wait_timeout"`
-		TLSType       string              `json:"tls_type"`
-		TLSSkipVerify bool                `json:"tls_skip_verify"`
-		FromAddresses []string            `json:"from_addresses"`
-	} `json:"smtp"`
+	SMTP []SMTPServer `json:"smtp"`
 
 	Messengers []struct {
 		UUID          string `json:"uuid"`
@@ -238,3 +219,62 @@ type BrandLogo struct {
 	Height      int    `json:"height"`
 	UploadedAt  string `json:"uploaded_at"`
 } // @name BrandLogo
+
+// SMTPManaged says whether the platform manages the workspace's SMTP (any
+// of its servers was set up through the Operator API). Its admins then
+// can't see the servers' details, change them, add their own or test one.
+func (s Settings) SMTPManaged() bool {
+	for _, m := range s.SMTP {
+		if m.ManagedByPlatform {
+			return true
+		}
+	}
+	return false
+}
+
+// ManagedSMTPView is what a workspace's admins see of its platform-managed
+// SMTP servers: each one's name, whether it's on, and that it's managed,
+// with no host, username or other detail.
+func (s Settings) ManagedSMTPView() []SMTPServer {
+	out := make([]SMTPServer, 0, len(s.SMTP))
+	for _, m := range s.SMTP {
+		out = append(out, SMTPServer{
+			Name:              m.Name,
+			UUID:              m.UUID,
+			Enabled:           m.Enabled,
+			EmailHeaders:      []map[string]string{},
+			FromAddresses:     []string{},
+			ManagedByPlatform: m.ManagedByPlatform,
+		})
+	}
+	return out
+}
+
+// SMTPServer is one of a workspace's SMTP servers (Settings › SMTP).
+type SMTPServer struct {
+	Name          string              `json:"name"`
+	UUID          string              `json:"uuid"`
+	Enabled       bool                `json:"enabled"`
+	Host          string              `json:"host"`
+	HelloHostname string              `json:"hello_hostname"`
+	Port          int                 `json:"port"`
+	AuthProtocol  string              `json:"auth_protocol"`
+	Username      string              `json:"username"`
+	Password      string              `json:"password,omitempty"`
+	EmailHeaders  []map[string]string `json:"email_headers"`
+	MaxConns      int                 `json:"max_conns"`
+	MaxMsgRetries int                 `json:"max_msg_retries"`
+	MsgRetryDelay string              `json:"msg_retry_delay"`
+	IdleTimeout   string              `json:"idle_timeout"`
+	WaitTimeout   string              `json:"wait_timeout"`
+	TLSType       string              `json:"tls_type"`
+	TLSSkipVerify bool                `json:"tls_skip_verify"`
+	FromAddresses []string            `json:"from_addresses"`
+
+	// ManagedByPlatform marks a server set up by the platform through
+	// the Operator API (PUT /api/operator/tenants/{id}/smtp). Its
+	// credentials work outside listnun, so a workspace whose SMTP is
+	// managed never sees its servers' details and can't change them:
+	// see Settings.SMTPManaged.
+	ManagedByPlatform bool `json:"managed_by_platform"`
+}

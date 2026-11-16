@@ -221,11 +221,11 @@ import dayjs from 'dayjs';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import type { MenuItem } from 'primevue/menuitem';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
 import { useTime } from '../composables/useTime';
 import { useMedia } from '../composables/useMedia';
+import { useCampaignActions } from '../composables/useCampaignActions';
 import { makeQueryHandlers } from '../utils';
 import CampaignPreview from '../components/CampaignPreview.vue';
 import PageHeader from '../components/ui/PageHeader.vue';
@@ -241,17 +241,12 @@ import { getDashboard } from '../api/generated/endpoints/dashboard/dashboard';
 // Campaign rows are the API's camelCased campaign objects.
 type Campaign = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-interface PopupMenu { toggle: (e: Event) => void }
-interface RowAction { label: string; icon: string; cy: string; run: () => void }
 interface CampaignPage { results?: Campaign[]; total?: number; perPage?: number }
 
 const STATUSES = ['running', 'scheduled', 'draft', 'paused', 'finished', 'cancelled'];
 
 const { $utils, $can } = useGlobal();
-const {
-  listCampaigns, getCampaign, createCampaign, deleteCampaign, deleteCampaigns,
-  updateCampaignStatus, getRunningCampaignStats,
-} = campaignsApi();
+const { listCampaigns, deleteCampaigns, getRunningCampaignStats } = campaignsApi();
 const { getDashboardCounts } = getDashboard();
 const { t } = useI18n();
 const route = useRoute();
@@ -260,12 +255,18 @@ const { shortDate, ago } = useTime();
 const isMobile = useMedia('(max-width: 767px)');
 const store = useMainStore();
 const { refreshTick, loading } = storeToRefs(store);
+const {
+  previewItem, confirm, clone, menu, menuItems, openMenu, askClone, doClone, primary,
+} = useCampaignActions(() => {
+  fetchCampaigns();
+  fetchCounts();
+  pollStats();
+});
 const campaigns = computed<CampaignPage>({
   get: () => (store.campaigns as CampaignPage) || {},
   set: (v) => { store.campaigns = v; },
 });
 
-const previewItem = ref<Campaign | null>(null);
 const pollID = ref<number | undefined>(undefined);
 const runningStats = ref<Record<number, Campaign>>({});
 const statusCounts = ref<Record<string, number>>({});
@@ -273,15 +274,6 @@ const statusFilter = ref<string>((route.query.status as string) || '');
 const bulk = reactive({ checked: [] as Campaign[], all: false });
 const queryParams = reactive({
   page: 1, query: (route.query.query as string) || '', orderBy: 'created_at', order: 'desc',
-});
-
-const menu = ref<PopupMenu | null>(null);
-const menuFor = ref<Campaign | null>(null);
-const clone = reactive({
-  open: false, busy: false, name: '', source: null as Campaign | null,
-});
-const confirm = reactive({
-  open: false, title: '', text: '', label: '', typed: '', danger: true, busy: false, run: () => {},
 });
 
 const rows = computed<Campaign[]>(() => campaigns.value.results || []);
@@ -404,55 +396,6 @@ function pollStats() {
   }, 1000);
 }
 
-function setStatus(c: Campaign, status: string) {
-  confirm.busy = true;
-  updateCampaignStatus(c.id, { status } as never)
-    .then(() => {
-      confirm.open = false;
-      $utils.toast(t('campaigns.statusChanged', { name: c.name, status: t(`campaigns.status.${status}`) }));
-      fetchCampaigns();
-      fetchCounts();
-      pollStats();
-    })
-    .finally(() => { confirm.busy = false; });
-}
-
-// askStatus confirms a status change, naming the campaign and saying what
-// happens.
-function askStatus(c: Campaign, status: string) {
-  Object.assign(confirm, {
-    open: true,
-    title: t(`campaigns.confirm.${status}.title`, { name: c.name }),
-    text: t(`campaigns.confirm.${status}.text`, { n: (c.toSend || 0).toLocaleString() }),
-    label: t(`campaigns.confirm.${status}.action`),
-    typed: '',
-    danger: status === 'cancelled',
-    run: () => setStatus(c, status),
-  });
-}
-
-function askDelete(c: Campaign) {
-  Object.assign(confirm, {
-    open: true,
-    title: t('campaigns.confirm.delete.title', { name: c.name }),
-    text: t('campaigns.confirm.delete.text'),
-    label: t('globals.buttons.delete'),
-    typed: '',
-    danger: true,
-    run: () => {
-      confirm.busy = true;
-      deleteCampaign(c.id)
-        .then(() => {
-          confirm.open = false;
-          fetchCampaigns();
-          fetchCounts();
-          $utils.toast(t('globals.messages.deleted', { name: c.name }));
-        })
-        .finally(() => { confirm.busy = false; });
-    },
-  });
-}
-
 function askDeleteSelected() {
   const n = numSelected.value;
   const name = t('globals.terms.campaign', n);
@@ -483,121 +426,6 @@ function askDeleteSelected() {
         .finally(() => { confirm.busy = false; });
     },
   });
-}
-
-// primary is the one action a row shows directly, by status.
-function primary(c: Campaign): RowAction | null {
-  const send = $can('campaigns:send');
-  if (c.status === 'running' && send) {
-    return {
-      label: t('campaigns.pause'), icon: 'pi-pause', cy: 'btn-pause', run: () => askStatus(c, 'paused'),
-    };
-  }
-  if (c.status === 'paused' && send) {
-    return {
-      label: t('campaigns.send'), icon: 'pi-play', cy: 'btn-resume', run: () => askStatus(c, 'running'),
-    };
-  }
-  if ((c.status === 'finished' || c.status === 'cancelled') && $can('campaigns:get_analytics')) {
-    return {
-      label: t('globals.terms.analytics'),
-      icon: 'pi-chart-bar',
-      cy: 'btn-analytics',
-      run: () => router.push({ name: 'campaignAnalytics', query: { id: c.id } }),
-    };
-  }
-  return {
-    label: t('campaigns.preview'), icon: 'pi-eye', cy: 'btn-preview', run: () => { previewItem.value = c; },
-  };
-}
-
-const menuItems = computed<MenuItem[]>(() => {
-  const c = menuFor.value;
-  if (!c) return [];
-  const send = $can('campaigns:send');
-  const items: MenuItem[] = [
-    { label: t('globals.buttons.edit'), icon: 'pi pi-pencil', command: () => router.push({ name: 'campaign', params: { id: c.id } }) },
-    { label: t('campaigns.preview'), icon: 'pi pi-eye', command: () => { previewItem.value = c; } },
-  ];
-  if (send && c.status === 'draft' && !c.sendAt) {
-    items.push({ label: t('campaigns.start'), icon: 'pi pi-send', command: () => askStatus(c, 'running') });
-  }
-  if (send && c.status === 'draft' && c.sendAt) {
-    items.push({ label: t('campaigns.schedule'), icon: 'pi pi-clock', command: () => askStatus(c, 'scheduled') });
-  }
-  if (send && c.status === 'scheduled') {
-    items.push({ label: t('campaigns.unschedule'), icon: 'pi pi-clock', command: () => askStatus(c, 'draft') });
-  }
-  if ($can('campaigns:get_analytics') && c.status !== 'draft') {
-    items.push({
-      label: t('globals.terms.analytics'),
-      icon: 'pi pi-chart-bar',
-      command: () => router.push({ name: 'campaignAnalytics', query: { id: c.id } }),
-    });
-  }
-  if (send && (c.status === 'running' || c.status === 'paused')) {
-    items.push({ separator: true }, {
-      label: t('globals.buttons.cancel'), icon: 'pi pi-times-circle', class: 'is-danger', command: () => askStatus(c, 'cancelled'),
-    });
-  }
-  if ($can('campaigns:manage')) {
-    items.push({ separator: true }, {
-      label: t('globals.buttons.delete'), icon: 'pi pi-trash', class: 'is-danger', command: () => askDelete(c),
-    });
-  }
-  return items;
-});
-
-function openMenu(e: Event, c: Campaign) {
-  menuFor.value = c;
-  menu.value?.toggle(e);
-}
-
-function askClone(c: Campaign) {
-  clone.source = c;
-  clone.name = t('campaigns.copyOf', { name: c.name });
-  clone.open = true;
-}
-
-async function doClone() {
-  const c = clone.source;
-  if (!c) return;
-  clone.busy = true;
-  try {
-    const full = await getCampaign(c.id) as unknown as Campaign;
-    const now = dayjs();
-    const sendLater = !!c.sendAt;
-    let sendAt = null;
-    if (sendLater) sendAt = dayjs(c.sendAt).isAfter(now) ? c.sendAt : now.add(7, 'day');
-    const name = clone.name.trim();
-    const data: Record<string, unknown> = {
-      name,
-      subject: c.subject,
-      lists: (c.lists || []).map((l: { id: number }) => l.id),
-      type: c.type,
-      from_email: c.fromEmail,
-      content_type: c.contentType,
-      messenger: c.messenger,
-      tags: c.tags,
-      template_id: c.templateId,
-      body: full.body,
-      body_source: full.bodySource,
-      altbody: c.altbody,
-      headers: c.headers,
-      send_later: sendLater,
-      send_at: sendAt,
-      archive: c.archive,
-      archive_template_id: c.archiveTemplateId,
-      archive_meta: c.archiveMeta,
-      media: (c.media || []).map((m: { id: number }) => m.id),
-    };
-    if (c.archive) data.archive_slug = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString().slice(-4)}`;
-    const created = await createCampaign(data as never) as unknown as Campaign;
-    clone.open = false;
-    router.push({ name: 'campaign', params: { id: created.id } });
-  } finally {
-    clone.busy = false;
-  }
 }
 
 // EmptyCampaigns: none yet, or none in the current filter.

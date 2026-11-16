@@ -536,6 +536,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/campaigns/analytics/engagement": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "campaigns"
+                ],
+                "summary": "Get campaign results",
+                "operationId": "getCampaignEngagement",
+                "parameters": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Campaign IDs",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/CampaignEngagementCount"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/campaigns/analytics/{type}": {
             "get": {
                 "produces": [
@@ -549,7 +591,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Analytics type (views, clicks, bounces, links, bounce_types)",
+                        "description": "Analytics type (views, clicks, bounces, replies, links, bounce_types)",
                         "name": "type",
                         "in": "path",
                         "required": true
@@ -567,14 +609,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Start date (YYYY-MM-DD)",
+                        "description": "Start (YYYY-MM-DD, or an ISO 8601 timestamp)",
                         "name": "from",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "End date (YYYY-MM-DD)",
+                        "description": "End, inclusive (YYYY-MM-DD, or an ISO 8601 timestamp)",
                         "name": "to",
                         "in": "query",
                         "required": true
@@ -4542,6 +4584,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/operator/tenants/{id}/scrub/validate-unchecked": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fork-only, off by default (see [operator] config). Requires the Operator API bearer token. Submits each enabled subscriber with no Scrub status (or unchecked_error) once; undeliverable ones are unsubscribed from the tenant's lists when results arrive. Billed as validation usage.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "operator"
+                ],
+                "summary": "Validate a tenant's unchecked subscribers with Scrub (Operator API)",
+                "operationId": "validateOperatorTenantUnchecked",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Tenant ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/cmd.operatorScrubValidation"
+                        }
+                    },
+                    "400": {
+                        "description": "Scrub isn't configured for the tenant",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Tenant not found",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "409": {
+                        "description": "A validation is already in flight",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "502": {
+                        "description": "Scrub refused the submission",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/operator/tenants/{id}/sending-health": {
             "get": {
                 "security": [
@@ -8108,6 +8215,38 @@ const docTemplate = `{
                 }
             }
         },
+        "CampaignEngagementCount": {
+            "type": "object",
+            "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
+                "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
+                    "type": "integer"
+                },
+                "campaign_id": {
+                    "type": "integer"
+                },
+                "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
+                    "type": "integer"
+                },
+                "opened": {
+                    "description": "Opened is people who viewed or clicked.",
+                    "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
+                }
+            }
+        },
         "CampaignListRef": {
             "type": "object",
             "properties": {
@@ -8122,13 +8261,23 @@ const docTemplate = `{
         "CampaignOverviewItem": {
             "type": "object",
             "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
                 "audience": {
                     "type": "integer"
                 },
                 "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
                     "type": "integer"
                 },
                 "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
                     "type": "integer"
                 },
                 "id": {
@@ -8144,10 +8293,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened": {
+                    "description": "Opened is people who viewed or clicked.",
                     "type": "integer"
                 },
                 "pause_reason": {
                     "type": "string"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
+                    "type": "integer"
                 },
                 "send_at": {
                     "type": "string"
@@ -8976,7 +9130,20 @@ const docTemplate = `{
         "ListCampaign": {
             "type": "object",
             "properties": {
+                "anonymous": {
+                    "description": "Anonymous is views and clicks recorded without a subscriber, which\nOpened and Clicked may count more than once for one person.",
+                    "type": "integer"
+                },
+                "bounced": {
+                    "description": "Bounced is people with a bounce on the campaign.",
+                    "type": "integer"
+                },
                 "clicked": {
+                    "description": "Clicked is people who clicked.",
+                    "type": "integer"
+                },
+                "delivered": {
+                    "description": "Delivered is sent less bounced: what rates are a share of.",
                     "type": "integer"
                 },
                 "id": {
@@ -8986,6 +9153,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "opened": {
+                    "description": "Opened is people who viewed or clicked.",
+                    "type": "integer"
+                },
+                "replied": {
+                    "description": "Replied is people who replied, leaving out auto-replies.",
                     "type": "integer"
                 },
                 "send_at": {
@@ -9288,6 +9460,10 @@ const docTemplate = `{
                 "idle_timeout": {
                     "type": "string"
                 },
+                "managed_by_platform": {
+                    "description": "ManagedByPlatform is always set by SetTenantSMTP, whatever the\nrequest says: see models.Settings.SMTPManaged.",
+                    "type": "boolean"
+                },
                 "max_conns": {
                     "type": "integer"
                 },
@@ -9574,6 +9750,10 @@ const docTemplate = `{
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "super": {
+                            "description": "Super is the workspace's Super Admin role: every permission.",
+                            "type": "boolean"
                         }
                     }
                 },
@@ -9608,6 +9788,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "super": {
+                    "description": "Super marks the workspace's Super Admin role, which has every\npermission and can't be edited or deleted. Set only by the server.",
+                    "type": "boolean"
                 },
                 "type": {
                     "type": "string"
@@ -10183,72 +10367,7 @@ const docTemplate = `{
                 "smtp": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "auth_protocol": {
-                                "type": "string"
-                            },
-                            "email_headers": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "enabled": {
-                                "type": "boolean"
-                            },
-                            "from_addresses": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "hello_hostname": {
-                                "type": "string"
-                            },
-                            "host": {
-                                "type": "string"
-                            },
-                            "idle_timeout": {
-                                "type": "string"
-                            },
-                            "max_conns": {
-                                "type": "integer"
-                            },
-                            "max_msg_retries": {
-                                "type": "integer"
-                            },
-                            "msg_retry_delay": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "password": {
-                                "type": "string"
-                            },
-                            "port": {
-                                "type": "integer"
-                            },
-                            "tls_skip_verify": {
-                                "type": "boolean"
-                            },
-                            "tls_type": {
-                                "type": "string"
-                            },
-                            "username": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "wait_timeout": {
-                                "type": "string"
-                            }
-                        }
+                        "$ref": "#/definitions/models.SMTPServer"
                     }
                 },
                 "upload.extensions": {
@@ -11028,6 +11147,10 @@ const docTemplate = `{
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "super": {
+                            "description": "Super is the workspace's Super Admin role: every permission.",
+                            "type": "boolean"
                         }
                     }
                 },
@@ -11230,6 +11353,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "data": {}
+            }
+        },
+        "cmd.operatorScrubValidation": {
+            "type": "object",
+            "properties": {
+                "job_id": {
+                    "description": "JobID is the scrub_validation_jobs id tracking the submission;\nempty when there was nothing to validate.",
+                    "type": "string"
+                },
+                "submitted": {
+                    "description": "Submitted is how many addresses were sent to Scrub.",
+                    "type": "integer"
+                }
             }
         },
         "cmd.operatorSetCustomDomainReq": {
@@ -11615,6 +11751,78 @@ const docTemplate = `{
                 },
                 "required": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.SMTPServer": {
+            "type": "object",
+            "properties": {
+                "auth_protocol": {
+                    "type": "string"
+                },
+                "email_headers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "from_addresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hello_hostname": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "idle_timeout": {
+                    "type": "string"
+                },
+                "managed_by_platform": {
+                    "description": "ManagedByPlatform marks a server set up by the platform through\nthe Operator API (PUT /api/operator/tenants/{id}/smtp). Its\ncredentials work outside listnun, so a workspace whose SMTP is\nmanaged never sees its servers' details and can't change them:\nsee Settings.SMTPManaged.",
+                    "type": "boolean"
+                },
+                "max_conns": {
+                    "type": "integer"
+                },
+                "max_msg_retries": {
+                    "type": "integer"
+                },
+                "msg_retry_delay": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "tls_skip_verify": {
+                    "type": "boolean"
+                },
+                "tls_type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "wait_timeout": {
+                    "type": "string"
                 }
             }
         },

@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -17,11 +17,21 @@ func (a *App) EventStream(c echo.Context) error {
 	hdr.Set(echo.HeaderCacheControl, "no-store")
 	hdr.Set(echo.HeaderConnection, "keep-alive")
 
+	// The stream carries the process's error log lines, which with
+	// several tenants include other tenants' data. Until events are tagged
+	// by tenant, a multi-tenant server sends none; the stream stays open so
+	// the admin UI doesn't keep reconnecting.
+	if a.cfg.MultiTenancyEnabled {
+		<-c.Request().Context().Done()
+		return nil
+	}
+
 	// Subscribe to the event stream with a random ID.
 	id := fmt.Sprintf("api:%v", time.Now().UnixNano())
 	sub, err := a.events.Subscribe(id)
 	if err != nil {
-		log.Fatalf("error subscribing to events: %v", err)
+		a.log.Printf("error subscribing to events: %v", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	ctx := c.Request().Context()

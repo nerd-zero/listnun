@@ -21,7 +21,6 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/nerd-zero/listnun/internal/i18n"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/internal/usage"
 	"github.com/nerd-zero/listnun/models"
 	"golang.org/x/text/cases"
@@ -112,7 +111,7 @@ type Manager struct {
 	usage      *usage.Meter
 	i18n       *i18n.I18n
 	messengers map[string]Messenger
-	fnNotify   func(subject string, data any) error
+	fnNotify   func(tenantID int, subject string, data any) error
 	log        *log.Logger
 
 	// Campaigns that are currently running.
@@ -184,8 +183,6 @@ type Config struct {
 	SlidingWindowRate     int
 	RequeueOnError        bool
 	FromEmail             string
-	IndividualTracking    bool
-	DisableTracking       bool
 	LinkTrackURL          string
 	UnsubURL              string
 	OptinURL              string
@@ -210,6 +207,26 @@ type Config struct {
 	// tenant has no reply tracking setup -- such campaigns then send with
 	// their own Reply-To unchanged.
 	ReplyAddress func(tenantID, campaignID, subscriberID int) string
+
+	// Tracking returns a tenant's own link/view tracking settings. Each
+	// tenant sets these in its own Settings, so they can't come from the
+	// boot-time config, which is tenant 1's.
+	Tracking func(tenantID int) Tracking
+
+	// NotifyAdmins e-mails a campaign status notification to the tenant's
+	// own notify addresses. Nil sends none.
+	NotifyAdmins func(tenantID int, subject string, data any) error
+}
+
+// Tracking is one tenant's link and view tracking settings.
+type Tracking struct {
+	// Disabled turns off tracked links and the view pixel altogether.
+	Disabled bool `db:"disable_tracking"`
+
+	// Individual puts the subscriber in tracked links and the view
+	// pixel, so views and clicks can be counted per person. Off, every
+	// message carries a placeholder subscriber instead.
+	Individual bool `db:"individual_tracking"`
 }
 
 // tenantURLCfg mirrors Config's URL template fields, resolved against one
@@ -286,16 +303,17 @@ func New(cfg Config, store Store, resolver MessengerResolver, meter *usage.Meter
 	if cfg.MessageRate < 1 {
 		cfg.MessageRate = 1
 	}
+	if cfg.Tracking == nil {
+		cfg.Tracking = func(int) Tracking { return Tracking{} }
+	}
 
 	m := &Manager{
-		cfg:      cfg,
-		store:    store,
-		resolver: resolver,
-		usage:    meter,
-		i18n:     i,
-		fnNotify: func(subject string, data any) error {
-			return notifs.NotifySystem(subject, notifs.TplCampaignStatus, data, nil)
-		},
+		cfg:          cfg,
+		store:        store,
+		resolver:     resolver,
+		usage:        meter,
+		i18n:         i,
+		fnNotify:     cfg.NotifyAdmins,
 		log:          l,
 		messengers:   make(map[string]Messenger),
 		pipes:        make(map[int]*pipe),
@@ -508,24 +526,26 @@ func (m *Manager) TemplateFuncs(c *models.Campaign) template.FuncMap {
 
 	f := template.FuncMap{
 		"TrackLink": func(url string, msg *CampaignMessage) string {
-			if m.cfg.DisableTracking {
+			tr := m.cfg.Tracking(msg.Campaign.TenantID)
+			if tr.Disabled {
 				return url
 			}
 
 			subUUID := msg.Subscriber.UUID
-			if !m.cfg.IndividualTracking {
+			if !tr.Individual {
 				subUUID = dummyUUID
 			}
 
 			return m.trackLink(msg.Campaign.TenantID, url, msg.Campaign.UUID, subUUID)
 		},
 		"TrackView": func(msg *CampaignMessage) template.HTML {
-			if m.cfg.DisableTracking {
+			tr := m.cfg.Tracking(msg.Campaign.TenantID)
+			if tr.Disabled {
 				return template.HTML("")
 			}
 
 			subUUID := msg.Subscriber.UUID
-			if !m.cfg.IndividualTracking {
+			if !tr.Individual {
 				subUUID = dummyUUID
 			}
 
@@ -650,6 +670,19 @@ func (m *Manager) scanCampaigns(tick time.Duration) {
 
 // worker is a blocking function that perpetually listents to events (message) on different
 // queues and processes them.
+// sendSafely runs send, turning a panic into an error. A panic in a worker
+// goroutine takes the whole process down, and with its campaign still
+// running, it does again on every restart; as an error it counts towards
+// the campaign's send errors like any other failure.
+func sendSafely(send func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic sending message: %v", r)
+		}
+	}()
+	return send()
+}
+
 func (m *Manager) worker() {
 	// Counter to keep track of the message / sec rate limit.
 	numMsg := 0
@@ -675,7 +708,7 @@ func (m *Manager) worker() {
 			}
 			numMsg++
 
-			err := m.sendCampaignMessage(msg)
+			err := sendSafely(func() error { return m.sendCampaignMessage(msg) })
 			if err != nil {
 				m.log.Printf("error sending message in campaign %s: subscriber %d: %v", msg.Campaign.Name, msg.Subscriber.ID, err)
 				m.reportSendError(msg, err)
@@ -709,7 +742,7 @@ func (m *Manager) worker() {
 			// Push the message to the messenger.
 			msgr, err := m.getMessenger(context.Background(), msg.TenantID, msg.Messenger)
 			if err == nil {
-				err = msgr.Push(msg)
+				err = sendSafely(func() error { return msgr.Push(msg) })
 			}
 			if err == nil {
 				m.countSent(msgr, msg)
@@ -855,7 +888,7 @@ func (m *Manager) getCurrentCampaigns() map[int]currentCampaignIDs {
 // trackLink register a URL and return its UUID to be used in message templates
 // for tracking links.
 func (m *Manager) trackLink(tenantID int, url, campUUID, subUUID string) string {
-	if m.cfg.DisableTracking {
+	if m.cfg.Tracking(tenantID).Disabled {
 		return url
 	}
 
@@ -901,7 +934,10 @@ func (m *Manager) sendNotif(c *models.Campaign, status, reason string) error {
 		}
 	)
 
-	return m.fnNotify(subject, data)
+	if m.fnNotify == nil {
+		return nil
+	}
+	return m.fnNotify(c.TenantID, subject, data)
 }
 
 // makeGnericFuncMap returns a generic template func map with custom template

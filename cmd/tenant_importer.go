@@ -38,18 +38,20 @@ type tenantImporters struct {
 	db      *sqlx.DB
 	core    *core.Core
 	manager *manager.Manager
+	sysMail *systemMail
 	i18n    *i18n.I18n
 
 	mu    sync.Mutex
 	cache map[int]*subimporter.Importer
 }
 
-func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, i *i18n.I18n) *tenantImporters {
+func newTenantImporters(q *models.Queries, db *sqlx.DB, co *core.Core, mgr *manager.Manager, sm *systemMail, i *i18n.I18n) *tenantImporters {
 	return &tenantImporters{
 		q:       q,
 		db:      db,
 		core:    co,
 		manager: mgr,
+		sysMail: sm,
 		i18n:    i,
 		cache:   make(map[int]*subimporter.Importer),
 	}
@@ -78,15 +80,27 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 		UpdateListDateStmt: t.q.UpdateListsDate.Stmt,
 		TenantID:           tenantID,
 
-		// Scrub validate-on-import -- baked in from this tenant's settings
-		// at first use, same "requires a process restart to pick up a
-		// settings change" precedent as DomainBlocklist/DomainAllowlist
-		// above (this whole importer is cached per-tenant for the
-		// process's lifetime). Submission is fire-and-forget: results
-		// come back later via /webhooks/scrub/batch (cmd/scrub_batch.go),
-		// not synchronously here.
+		// Scrub validate-on-import. The tenant's Scrub settings are read
+		// at each submission, not baked in like DomainBlocklist above:
+		// this importer is cached for the process's lifetime, so a tenant
+		// that turned Scrub on after its first import would otherwise
+		// never have an import validated until a restart. Submission is
+		// fire-and-forget: results come back later via
+		// /webhooks/scrub/batch (cmd/scrub_batch.go). A failed submission
+		// leaves those subscribers unchecked, so it's recorded in the
+		// tenant's activity log, not only the process log -- found live:
+		// an import's batches failed with nothing but a log line nobody
+		// saw, and its subscribers were never validated.
 		ScrubSubmitFunc: func(listIDs []int, emails []string) error {
-			_, err := submitScrubBatch(context.Background(), t.q, tenantID, settings, listIDs, emails, "")
+			ctx := context.Background()
+			s, err := t.core.GetSettings(ctx, tenantID)
+			if err == nil {
+				_, err = submitScrubBatch(ctx, t.q, tenantID, s, listIDs, emails, "")
+			}
+			if err != nil {
+				t.core.LogActivity(tenantID, models.ActivityWarn, "import",
+					fmt.Sprintf("%d imported subscribers couldn't be sent to Scrub for validation and are unchecked: %v", len(emails), err))
+			}
 			return err
 		},
 
@@ -111,7 +125,8 @@ func (t *tenantImporters) Get(ctx context.Context, tenantID int) (*subimporter.I
 				}
 			}
 			t.core.RefreshMatViews(true)
-			notifs.NotifySystem(subject, notifs.TplImport, data, nil)
+			// To this workspace's own notify addresses.
+			_ = t.sysMail.notifyAdmins(context.Background(), tenantID, subject, notifs.TplImport, data)
 			return nil
 		},
 	}, t.db.DB, t.i18n)

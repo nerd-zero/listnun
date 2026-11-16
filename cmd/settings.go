@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -28,7 +28,6 @@ import (
 	"github.com/nerd-zero/listnun/internal/auth"
 	"github.com/nerd-zero/listnun/internal/cleanup"
 	"github.com/nerd-zero/listnun/internal/messenger/email"
-	"github.com/nerd-zero/listnun/internal/notifs"
 	"github.com/nerd-zero/listnun/models"
 )
 
@@ -75,7 +74,11 @@ func (a *App) GetSettings(c echo.Context) error {
 		return err
 	}
 
-	// Empty out passwords.
+	// Empty out passwords. Platform-managed SMTP servers go out as their
+	// names only: their usernames are credentials too.
+	if s.SMTPManaged() {
+		s.SMTP = s.ManagedSMTPView()
+	}
 	for i := range s.SMTP {
 		s.SMTP[i].Password = strings.Repeat(pwdMask, utf8.RuneCountInString(s.SMTP[i].Password))
 	}
@@ -123,6 +126,12 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	cur, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
 	if err != nil {
 		return err
+	}
+
+	// Platform-managed SMTP can't be changed here: whatever came in, the
+	// stored servers stay (core.UpdateSettings enforces this too).
+	if cur.SMTPManaged() {
+		set.SMTP = cur.SMTP
 	}
 
 	// Validate and sanitize postback Messenger names along with SMTP names
@@ -304,7 +313,7 @@ func (a *App) UpdateSettings(c echo.Context) error {
 
 	// OIDC user auto-creation is enabled. Validate.
 	if set.OIDC.AutoCreateUsers {
-		if set.OIDC.DefaultUserRoleID.Int < auth.SuperAdminRoleID {
+		if set.OIDC.DefaultUserRoleID.Int < 1 {
 			return echo.NewHTTPError(http.StatusBadRequest,
 				a.i18n.Ts("globals.messages.invalidFields", "name", a.i18n.T("settings.security.OIDCDefaultRole")))
 		}
@@ -376,13 +385,20 @@ func (a *App) UpdateSettings(c echo.Context) error {
 	// internal/auth's OIDC cache) instead of the full-process restart every
 	// other settings group still needs - a full restart affects every
 	// tenant on the process, not just the one saving.
+	// Invalidated even when a restart follows: with campaigns running the
+	// restart is put off, and these groups shouldn't wait for it.
 	changes := diffSettingsGroups(cur, set)
+	a.invalidateTenantCaches(tenantID(c), changes)
 	if changes.other {
 		return a.handleSettingsRestart(c)
 	}
-	a.invalidateTenantCaches(tenantID(c), changes)
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// smtpEnabled is the part of an SMTP server setting UpdateSettingsByKey checks.
+type smtpEnabled struct {
+	Enabled bool `json:"enabled"`
 }
 
 // UpdateSettingsByKey updates a single setting key-value in the DB.
@@ -407,6 +423,18 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 	var b json.RawMessage
 	if err := c.Bind(&b); err != nil {
 		return err
+	}
+
+	// The full settings save requires an enabled SMTP server; without one
+	// nothing can send, so saving the key on its own does too.
+	if key == "smtp" {
+		var servers []smtpEnabled
+		if err := json.Unmarshal(b, &servers); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidData"))
+		}
+		if !slices.ContainsFunc(servers, func(s smtpEnabled) bool { return s.Enabled }) {
+			return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.errorNoSMTP"))
+		}
 	}
 
 	if key == "inactive_cleanup" {
@@ -438,6 +466,8 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 		a.media.Invalidate(tenantID(c))
 	case key == "security.oidc":
 		a.auth.InvalidateOIDC(tenantID(c))
+	case key == "privacy.disable_tracking" || key == "privacy.individual_tracking":
+		a.tracking.invalidate(tenantID(c))
 	case key == "inactive_cleanup":
 		// Read fresh by the scheduler on every tick.
 	default:
@@ -449,16 +479,17 @@ func (a *App) UpdateSettingsByKey(c echo.Context) error {
 
 // tenantCacheChanges describes which process-lifetime per-tenant caches
 // (cmd/tenant_messenger.go, cmd/tenant_media.go, internal/auth's OIDC
-// cache) are stale after a settings save, and whether anything outside
-// those three groups also changed.
+// cache, cmd/tenant_tracking.go) are stale after a settings save, and
+// whether anything outside those groups also changed.
 type tenantCacheChanges struct {
-	smtp  bool
-	media bool
-	oidc  bool
-	other bool
+	smtp     bool
+	media    bool
+	oidc     bool
+	tracking bool
+	other    bool
 }
 
-// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC fields so the
+// withoutTenantCachedGroups zeroes out the SMTP/upload/OIDC/tracking fields so the
 // remainder can be compared to detect changes outside those groups.
 func withoutTenantCachedGroups(s models.Settings) models.Settings {
 	var zero models.Settings
@@ -478,6 +509,8 @@ func withoutTenantCachedGroups(s models.Settings) models.Settings {
 	s.UploadS3BucketPath = ""
 	s.UploadS3BucketType = ""
 	s.UploadS3Expiry = ""
+	s.PrivacyDisableTracking = false
+	s.PrivacyIndividualTracking = false
 	// The cleanup scheduler reads settings on every tick, so no restart.
 	s.InactiveCleanup = zero.InactiveCleanup
 	return s
@@ -506,7 +539,9 @@ func diffSettingsGroups(cur, set models.Settings) tenantCacheChanges {
 			cur.UploadS3BucketPath != set.UploadS3BucketPath ||
 			cur.UploadS3BucketType != set.UploadS3BucketType ||
 			cur.UploadS3Expiry != set.UploadS3Expiry,
-		oidc:  !reflect.DeepEqual(cur.OIDC, set.OIDC),
+		oidc: !reflect.DeepEqual(cur.OIDC, set.OIDC),
+		tracking: cur.PrivacyDisableTracking != set.PrivacyDisableTracking ||
+			cur.PrivacyIndividualTracking != set.PrivacyIndividualTracking,
 		other: !reflect.DeepEqual(withoutTenantCachedGroups(cur), withoutTenantCachedGroups(set)),
 	}
 }
@@ -524,6 +559,9 @@ func (a *App) invalidateTenantCaches(tenantID int, c tenantCacheChanges) {
 	}
 	if c.oidc {
 		a.auth.InvalidateOIDC(tenantID)
+	}
+	if c.tracking {
+		a.tracking.invalidate(tenantID)
 	}
 }
 
@@ -564,6 +602,16 @@ func (a *App) handleSettingsRestart(c echo.Context) error {
 //	@Failure		500		{object}	echo.HTTPError
 //	@Router			/api/settings/smtp/test [post]
 func (a *App) TestSMTPSettings(c echo.Context) error {
+	// A workspace whose SMTP the platform manages can't test servers of
+	// its own either.
+	cur, err := a.core.GetSettings(c.Request().Context(), tenantID(c))
+	if err != nil {
+		return err
+	}
+	if cur.SMTPManaged() {
+		return echo.NewHTTPError(http.StatusForbidden, a.i18n.T("settings.smtp.managedByPlatform"))
+	}
+
 	// Copy the raw JSON post body.
 	reqBody, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -599,23 +647,26 @@ func (a *App) TestSMTPSettings(c echo.Context) error {
 			a.i18n.Ts("globals.messages.errorCreating", "name", "SMTP", "error", err.Error()))
 	}
 
-	// Render the test email template body.
-	var b bytes.Buffer
-	if err := notifs.Tpls.ExecuteTemplate(&b, "smtp-test", nil); err != nil {
-		a.log.Printf("error compiling notification template '%s': %v", "smtp-test", err)
+	// Render the test email template body, with the workspace's logo.
+	w := a.sysMail.workspace(c.Request().Context(), tenantID(c))
+	_, body, err := render(w, a.i18n.T("settings.smtp.testConnection"), "smtp-test", nil)
+	if err != nil {
+		a.log.Printf("%v", err)
 		return err
 	}
 
 	m := models.Message{}
-	m.From = a.tenantFromEmail(c.Request().Context(), tenantID(c))
+	m.From = w.From
 	m.To = []string{to}
 	m.Subject = a.i18n.T("settings.smtp.testConnection")
-	m.Body = b.Bytes()
+	m.Body = body
 	if err := msgr.Push(m); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, okResp{a.bufLog.Lines()})
+	// The log is the whole process's, every tenant's lines included, so
+	// none of it goes back to a tenant. The response keeps its shape.
+	return c.JSON(http.StatusOK, okResp{[]string{}})
 }
 
 // TestScrubSettings verifies that the Scrub URL and API key are reachable.
@@ -799,7 +850,7 @@ func (a *App) ScrubList(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("settings.scrub.noSubscribers"))
 	}
 
-	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, id, emails)
+	jobID, err := submitScrubListValidation(ctx, a.queries, tID, s, []int{id}, emails)
 	if err != nil {
 		a.log.Printf("error submitting scrub list validation (list %d, tenant %d): %v", id, tID, err)
 		return echo.NewHTTPError(http.StatusBadGateway,

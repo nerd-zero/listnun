@@ -1,4 +1,5 @@
 import { reactive } from 'vue';
+import { readJSON, writeJSON } from '../safeStorage';
 
 // Nav groups the user opened or closed by hand. Kept at module level so the
 // sidebar and the drawer share it and it survives the sidebar/rail swap,
@@ -8,23 +9,16 @@ const STORAGE_KEY = 'ln-nav-open';
 type OpenState = Record<string, boolean>;
 
 function load(): OpenState {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-    return Object.fromEntries(Object.entries(v).filter(([, open]) => typeof open === 'boolean')) as OpenState;
-  } catch {
-    return {};
-  }
+  const v = readJSON(STORAGE_KEY);
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.entries(v).filter(([, open]) => typeof open === 'boolean')) as OpenState;
 }
 
 const opened = reactive<OpenState>(load());
 
+// If storage is blocked, the state still holds for this visit.
 function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(opened));
-  } catch {
-    // Storage can be blocked (private mode); the state still holds for this visit.
-  }
+  writeJSON(STORAGE_KEY, opened);
 }
 
 export function useNavOpen() {

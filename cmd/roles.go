@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -66,6 +67,8 @@ func (a *App) CreateUserRole(c echo.Context) error {
 	if err := a.validateUserRole(r); err != nil {
 		return err
 	}
+	// Only the server makes a Super Admin role.
+	r.Super = false
 
 	// Create the role in the DB.
 	out, err := a.core.CreateRole(c.Request().Context(), tenantID(c), r)
@@ -120,8 +123,8 @@ func (a *App) CreateListRole(c echo.Context) error {
 func (a *App) UpdateUserRole(c echo.Context) error {
 	id := getID(c)
 
-	// ID 1 is reserved for the Super Admin user role.
-	if id == auth.SuperAdminRoleID {
+	// The workspace's Super Admin role can't be changed or removed.
+	if a.isSuperRole(c.Request().Context(), tenantID(c), id) {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidID"))
 	}
 
@@ -167,8 +170,8 @@ func (a *App) UpdateListRole(c echo.Context) error {
 	// Get the role ID.
 	id := getID(c)
 
-	// ID 1 is reserved for the Super Admin user role.
-	if id == auth.SuperAdminRoleID {
+	// The workspace's Super Admin role can't be changed or removed.
+	if a.isSuperRole(c.Request().Context(), tenantID(c), id) {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidID"))
 	}
 
@@ -213,8 +216,8 @@ func (a *App) DeleteRole(c echo.Context) error {
 	// Get the role ID.
 	id := getID(c)
 
-	// ID 1 is reserved for the Super Admin user role.
-	if id == auth.SuperAdminRoleID {
+	// The workspace's Super Admin role can't be changed or removed.
+	if a.isSuperRole(c.Request().Context(), tenantID(c), id) {
 		return echo.NewHTTPError(http.StatusBadRequest, a.i18n.T("globals.messages.invalidID"))
 	}
 
@@ -229,6 +232,12 @@ func (a *App) DeleteRole(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, okResp{true})
+}
+
+// isSuperRole says whether id is the workspace's Super Admin role.
+func (a *App) isSuperRole(ctx context.Context, tenantID, id int) bool {
+	r, err := a.core.GetRole(ctx, tenantID, id)
+	return err == nil && r.Super
 }
 
 func (a *App) validateUserRole(r auth.Role) error {

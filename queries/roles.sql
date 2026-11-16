@@ -27,7 +27,8 @@ SELECT p.*, COALESCE(l.listPerms, '[]'::JSONB) AS "list_permissions" FROM mainro
 
 
 -- name: create-role
-INSERT INTO roles (name, type, permissions, created_at, updated_at, tenant_id) VALUES($1, $2, $3, NOW(), NOW(), $4) RETURNING *;
+-- $5: the workspace's Super Admin role (only ever set by the server).
+INSERT INTO roles (name, type, permissions, created_at, updated_at, tenant_id, super) VALUES($1, $2, $3, NOW(), NOW(), $4, $5) RETURNING *;
 
 -- name: upsert-list-permissions
 WITH d AS (
@@ -46,7 +47,8 @@ INSERT INTO roles (parent_id, list_id, permissions, type, tenant_id)
 DELETE FROM roles WHERE parent_id=$1 AND list_id=$2;
 
 -- name: update-role
-UPDATE roles SET name=$2, permissions=$3 WHERE id=$1 and parent_id IS NULL RETURNING *;
+-- The Super Admin role (super) has every permission and isn't edited.
+UPDATE roles SET name=$2, permissions=$3 WHERE id=$1 and parent_id IS NULL AND NOT super RETURNING *;
 
 -- name: delete-role
-DELETE FROM roles WHERE id=$1;
+DELETE FROM roles WHERE id=$1 AND NOT super;

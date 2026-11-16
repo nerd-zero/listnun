@@ -8,9 +8,9 @@ describe('legacy API user to key', () => {
   });
 
   it('gives the admin role the carry-over scopes only and flags it as uncoverable', () => {
-    expect(suggestScopes({ id: 1 })).toEqual(['tx:send', 'subscribers:read']);
+    expect(suggestScopes({ id: 41, super: true })).toEqual(['tx:send', 'subscribers:read']);
     expect(suggestScopes({ id: 5, permissions: ['tx:send', 'tx:logs', 'webhooks:get', 'webhooks:manage'] })).toEqual(['tx:send']);
-    expect(uncoveredPermissions({ id: 1 }, ['tx:send'])).toEqual(['*']);
+    expect(uncoveredPermissions({ id: 41, super: true }, ['tx:send'])).toEqual(['*']);
   });
 
   it('lists permissions a key with the chosen scopes cannot use', () => {

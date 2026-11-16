@@ -234,9 +234,6 @@ function dismissTwofa() {
   try { localStorage.setItem(TWOFA_DISMISS_KEY, '1'); } catch { /* private mode */ }
 }
 
-/** The built-in role holding every permission (auth.SuperAdminRoleID). */
-const SUPER_ADMIN_ROLE_ID = 1;
-
 const roleOptions = computed(() => ((userRoles.value as Loose[]) || []).map((r) => ({ id: r.id, name: r.name })));
 
 function isSelf(u: Loose): boolean {
@@ -265,7 +262,9 @@ watch(() => confirm.open, (open) => { if (!open) roleRev.value += 1; });
 // first instead of happening on a stray click.
 function setRole(u: Loose, id: number) {
   if (!id || id === u.userRole?.id) return;
-  if (id !== SUPER_ADMIN_ROLE_ID) {
+  // The workspace's Super Admin role (roles.super), whatever its ID.
+  const isSuper = ((userRoles.value as Loose[]) || []).some((r) => r.id === id && r.super);
+  if (!isSuper) {
     saveRole(u, id);
     return;
   }

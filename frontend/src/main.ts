@@ -192,18 +192,18 @@ router.afterEach((to) => {
   document.title = `${title} listnun`;
 });
 
-async function initConfig(instance: typeof app) {
-  let profile: Record<string, unknown>;
-  let cfg: Record<string, unknown>;
-  try {
-    [profile, cfg] = await Promise.all([api.getUserProfile(), api.getServerConfig()]);
-  } catch (err: unknown) {
-    const axiosErr = err as { response?: { status: number } };
-    if (axiosErr.response && axiosErr.response.status === 403) {
-      window.location.href = '/admin/login';
-    }
-    return;
-  }
+interface Boot {
+  profile: Record<string, unknown>;
+  langCode: string;
+  lang: unknown;
+}
+
+// loadBoot fetches what the app needs before it can mount: the user's
+// profile, the server config and a language pack.
+async function loadBoot(): Promise<Boot> {
+  const [profile, cfg] = await Promise.all([api.getUserProfile(), api.getServerConfig()]) as [
+    Record<string, unknown>, Record<string, unknown>,
+  ];
 
   // A language picked on the sign-in page wins over the workspace default;
   // fall back to the default if that pack can't be loaded.
@@ -215,6 +215,60 @@ async function initConfig(instance: typeof app) {
     langCode = cfg.lang as string;
     lang = await api.getLang(langCode);
   }
+  return { profile, langCode, lang };
+}
+
+function isForbidden(err: unknown): boolean {
+  return (err as { response?: { status?: number } } | null)?.response?.status === 403;
+}
+
+// showBootError replaces the blank page left by a failed boot with a
+// message and a Reload button. Plain DOM and plain English: neither the
+// app nor its language pack loaded.
+function showBootError() {
+  const root = document.getElementById('app');
+  if (!root) return;
+
+  const box = document.createElement('div');
+  box.setAttribute('role', 'alert');
+  box.style.cssText = 'max-width:28rem;margin:20vh auto;padding:0 1rem;font-family:sans-serif;text-align:center;';
+
+  const title = document.createElement('h1');
+  title.textContent = 'listnun could not start';
+  title.style.cssText = 'font-size:1.25rem;margin-bottom:.5rem;';
+
+  const msg = document.createElement('p');
+  msg.textContent = 'The server could not be reached or returned an error. Check your connection and try again.';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = 'Reload';
+  btn.style.cssText = 'margin-top:1rem;padding:.5rem 1.25rem;cursor:pointer;';
+  btn.addEventListener('click', () => window.location.reload());
+
+  box.append(title, msg, btn);
+  root.replaceChildren(box);
+}
+
+async function initConfig(instance: typeof app) {
+  let boot: Boot;
+  try {
+    // Retry once before giving up: a single failure is often a server that
+    // is just restarting. Not signed in (403) needs no retry.
+    boot = await loadBoot().catch((err: unknown) => {
+      if (isForbidden(err)) throw err;
+      return loadBoot();
+    });
+  } catch (err: unknown) {
+    if (isForbidden(err)) {
+      window.location.href = '/admin/login';
+    } else {
+      showBootError();
+    }
+    return;
+  }
+
+  const { profile, langCode, lang } = boot;
   (i18n.global.locale as unknown as { value: string }).value = langCode;
   i18n.global.setLocaleMessage(langCode, lang as Record<string, unknown>);
 

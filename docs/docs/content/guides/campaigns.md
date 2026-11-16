@@ -7,7 +7,7 @@ A campaign is an email you send to one or more lists. **Campaigns › All campai
 | Section | What it shows |
 | :------ | :------------ |
 | **Paused** banner | One per paused campaign: how far it got and how many people are still waiting, with **Review** and **Resume sending**. |
-| **Sending now** | Each running campaign's progress (sent of total), speed, time left and opens so far, refreshed every couple of seconds, with **Pause** and **Live results**. |
+| **Sending now** | Each running campaign's progress (sent of total), speed, time left and opens so far, refreshed every couple of seconds, with **Pause** and **Live results**, which opens the campaign in Analytics, refreshing every 30 seconds while it sends. |
 | **Up next** | Scheduled campaigns by day, with their lists and audience. |
 | **Drafts** | The latest three, with who edited them and when. **All drafts** shows the rest. |
 | **Sent** | The latest four, with delivered, open rate and click rate. **Show all sent** and **Compare in analytics** go further. |
@@ -128,7 +128,9 @@ If your workspace uses [email validation](settings.md#email-validation), startin
 
 ## Results
 
-**Campaigns › Analytics** compares campaigns over time: views (opens), clicks, bounces split into hard and soft, and which links were clicked most. Pick the campaigns and the date range at the top.
+**Campaigns › Analytics** compares campaigns: how many people opened, clicked, bounced and, with [Replies](#replies) set up, replied, bounces split into hard and soft, and which links were clicked most. Pick the campaigns at the top. The totals and rates are each campaign's results all time, the same figures as on the Campaigns overview; the chart, links and bounce types follow the date range, which starts from the day the earliest campaign went out until you pick one.
+
+Opens and clicks count people, once each per campaign, and rates are a share of delivered emails (sent, less those that bounced). Anyone who clicked counts as having opened, since many email apps block the image that records an open. Rates need **Settings › Privacy › Individual subscriber tracking**: without it each view and click is counted on its own, so only the counts are shown.
 
 Opens are counted with a tracking image, which many email apps block until the reader allows images, so open counts are always a little low. Clicks are reliable. See [Tracking opens and clicks](tracking.md).
 

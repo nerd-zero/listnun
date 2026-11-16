@@ -1,5 +1,13 @@
 <template>
-  <div class="set-cards">
+  <!-- SMTP the platform manages: its details aren't sent here at all. -->
+  <div v-if="managed" class="set-cards">
+    <section class="ln-card smtp-managed" data-cy="smtp-managed">
+      <i class="pi pi-lock" aria-hidden="true" />
+      <p>{{ $t('settings.smtp.managedByPlatform') }}</p>
+    </section>
+  </div>
+
+  <div v-else class="set-cards">
     <!-- Every server, then the one being edited below it. -->
     <section class="ln-card smtp-servers">
       <div v-for="(item, n) in data.smtp" :key="n" class="smtp-server" :class="{ 'is-editing': editing === Number(n) }">
@@ -177,6 +185,10 @@ const { t } = useI18n();
 
 const data = props.form;
 
+// The platform manages this workspace's SMTP: its servers come without
+// details and can't be changed, added to or tested here.
+const managed = computed(() => (data.smtp || []).some((m: { managed_by_platform?: boolean }) => m.managed_by_platform));
+
 // Fill-in presets shown under Host, in this order.
 const PRESETS = [
   { key: 'postmark', label: 'Postmark' }, { key: 'ses', label: 'Amazon SES' }, { key: 'gmail', label: 'Gmail' },
@@ -285,6 +297,15 @@ function fillSettings(n: number | string, key: string) {
 </script>
 
 <style scoped lang="scss">
+.smtp-managed {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 18px 20px;
+
+  i { margin-top: 3px; color: var(--ln-text-3); }
+  p { margin: 0; color: var(--ln-text-2); }
+}
 .smtp-servers { overflow: hidden; }
 .smtp-server {
   display: flex;

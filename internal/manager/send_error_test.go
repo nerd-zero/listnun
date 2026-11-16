@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/nerd-zero/listnun/models"
@@ -40,5 +41,17 @@ func TestReportSendErrorOncePerRun(t *testing.T) {
 	m.reportSendError(CampaignMessage{Campaign: camp, pipe: &pipe{camp: camp, m: m}}, loginErr)
 	if len(st.reported) != 2 {
 		t.Errorf("reported %v, want a new run to report again", st.reported)
+	}
+}
+
+// A panic while sending (an empty SMTP pool did this) killed the worker
+// goroutine and so the process; it's now an ordinary send error.
+func TestSendSafelyTurnsPanicIntoError(t *testing.T) {
+	err := sendSafely(func() error { panic("boom") })
+	if err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Errorf("err = %v, want the panic as an error", err)
+	}
+	if err := sendSafely(func() error { return nil }); err != nil {
+		t.Errorf("err = %v, want nil", err)
 	}
 }

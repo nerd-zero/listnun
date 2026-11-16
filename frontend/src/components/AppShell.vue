@@ -177,6 +177,7 @@ import type { MenuItem } from 'primevue/menuitem';
 import Navigation from './Navigation.vue';
 import { translateOr } from '../composables/translateOr';
 import LnIcon from './ui/LnIcon.vue';
+import { readItem, writeItem } from '../safeStorage';
 
 // Below this width the sidebar becomes a drawer.
 const MOBILE_BREAKPOINT = 992;
@@ -201,7 +202,7 @@ const route = useRoute();
 
 const isMobile = ref(window.innerWidth < MOBILE_BREAKPOINT);
 const drawerOpen = ref(false);
-const rail = ref(localStorage.getItem(RAIL_KEY) === '1');
+const rail = ref(readItem(RAIL_KEY) === '1');
 const accountMenu = ref<PopupMenu | null>(null);
 
 // Full-width pages (the campaign editor) set meta.rail to collapse the
@@ -230,7 +231,7 @@ const initials = computed(() => {
 
 function setRail(on: boolean) {
   rail.value = on;
-  localStorage.setItem(RAIL_KEY, on ? '1' : '');
+  writeItem(RAIL_KEY, on ? '1' : '');
 }
 
 function onResize() {

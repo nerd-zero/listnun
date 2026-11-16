@@ -45,7 +45,7 @@
           <!-- lists -->
           <PvTabPanel value="0">
             <list-selector :label="$t('subscribers.lists')" :placeholder="$t('subscribers.listsPlaceholder')"
-              :message="$t('subscribers.listsHelp')" v-model="form.lists" :selected="form.lists" :all="lists.results" />
+              :message="$t('subscribers.listsHelp')" v-model="form.lists" :selected="form.lists" :all="allLists" />
             <div class="lm-field-row lm-field-row--preconfirm">
               <div class="lm-field">
                 <small class="lm-help">{{ $t('subscribers.preconfirmHelp') }}</small>
@@ -182,6 +182,12 @@ import CopyText from '../components/CopyText.vue';
 import SubscriberActivity from '../components/SubscriberActivity.vue';
 import { getSubscribers as subscribersApi } from '../api/generated/endpoints/subscribers/subscribers';
 import { getBounces as bouncesApi } from '../api/generated/endpoints/bounces/bounces';
+import type { Subscriber } from '../api/generated/model';
+
+// PUT /api/subscribers/{id} also takes preconfirm_subscriptions
+// (cmd/subscribers.go UpdateSubscriber), but its swag annotation names
+// models.Subscriber as the body, so the generated type lacks it.
+type UpdateSubscriberBody = Subscriber & { preconfirm_subscriptions?: boolean };
 
 const props = withDefaults(defineProps<{
   data?: any;
@@ -197,6 +203,8 @@ const {
 const { getSubscriberBounces } = bouncesApi();
 const { t } = useI18n();
 const { lists, loading } = storeToRefs(useMainStore());
+// The store holds the minimal lists response ({ results }), or [] before it loads.
+const allLists = computed(() => (lists.value as { results?: unknown[] } | null)?.results ?? []);
 
 const focusEl = ref<any>(null);
 const isBounceVisible = ref(false);
@@ -266,7 +274,7 @@ function validateAttribs(str: string) {
     return null;
   }
   if (attribs instanceof Array) {
-    $utils.toast('Attributes should be a map {} and not an array []', 'is-danger', 3000);
+    $utils.toast(t('subscribers.invalidAttribsArray'), 'is-danger', 3000);
     return null;
   }
   return attribs;
@@ -297,14 +305,15 @@ function onUpdateSubscriber() {
     attribs = validateAttribs(form.strAttribs);
     if (!attribs) return;
   }
-  updateSubscriber(form.id, {
+  const body: UpdateSubscriberBody = {
     email: form.email,
     name: form.name,
     status: form.status,
     preconfirm_subscriptions: form.preconfirm,
     attribs,
     lists: form.lists.map((l: any) => l.id),
-  }).then((d: any) => {
+  };
+  updateSubscriber(form.id, body).then((d: any) => {
     emit('finished'); emit('close');
     $utils.toast(t('globals.messages.updated', { name: d.name }));
   });

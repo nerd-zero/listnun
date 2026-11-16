@@ -1,7 +1,7 @@
 <template>
   <div class="visual-editor-wrapper">
     <iframe ref="visualEditorEl" id="visual-editor" class="visual-editor email-builder-container"
-      title="Visual email editor" />
+      :title="$t('templates.visualEditorTitle')" />
 
     <!-- image picker -->
     <media-picker-dialog v-model:visible="isMediaVisible" @select="onMediaSelect" />
@@ -12,7 +12,9 @@
 import {
   ref, onMounted, onUnmounted, watch,
 } from 'vue';
+import { useI18n } from 'vue-i18n';
 import MediaPickerDialog from './MediaPickerDialog.vue';
+import { useGlobal } from '../composables/useGlobal';
 
 const props = withDefaults(defineProps<{
   source?: string;
@@ -21,6 +23,14 @@ const props = withDefaults(defineProps<{
 }>(), { source: '', height: 'auto', dark: false });
 
 const emit = defineEmits(['change']);
+
+const { $utils } = useGlobal();
+const { t } = useI18n();
+
+// How many times (every RESET_POLL_MS) to check that the builder has drawn
+// its container before loading the source into it: about a second.
+const RESET_MAX_TRIES = 10;
+const RESET_POLL_MS = 100;
 
 const visualEditorEl = ref<HTMLIFrameElement | null>(null);
 const isMediaVisible = ref(false);
@@ -70,7 +80,7 @@ function render(source: any) {
     });
   }
   if (!source) return;
-  let n = 10;
+  let n = 0;
   const timer = window.setInterval(() => {
     const container = iframe.contentWindow!.document.getElementById('visual-editor-container');
     if (container && container.hasChildNodes()) {
@@ -79,8 +89,8 @@ function render(source: any) {
       return;
     }
     n += 1;
-    if (n > 10) { window.clearInterval(timer); }
-  }, 100);
+    if (n >= RESET_MAX_TRIES) { window.clearInterval(timer); }
+  }, RESET_POLL_MS);
 }
 
 function onMediaSelect(media: any) {
@@ -121,8 +131,8 @@ onMounted(() => {
       const source = props.source ? JSON.parse(props.source) : null;
       applyTheme();
       render(source);
-    }).catch((error) => {
-      console.error('Failed to load email-builder script:', error);
+    }).catch(() => {
+      $utils.toast(t('templates.visualEditorLoadError'), 'is-danger');
     });
   };
   window.addEventListener('message', onSidebarMount, false);

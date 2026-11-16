@@ -40,25 +40,64 @@ INSERT INTO tenants (slug, name, status, organization_id) VALUES ($1, $2, 'activ
 -- New tenants otherwise get zero settings rows (nothing seeds them -
 -- schema.sql's big INSERT INTO settings block relies on tenant_id's
 -- DEFAULT 1, so it only ever seeds tenant 1). Every other tenant's
--- Core.GetSettings call - Settings page, per-tenant SMTP/media/OIDC
--- resolution, the bulk importer's domain blocklist - failed with
--- "unexpected end of JSON input" (JSON_OBJECT_AGG over zero rows is
--- SQL NULL) until this ran. Copies tenant 1's current settings as the
--- new tenant's starting defaults - requires the BYPASSRLS operator
--- connection since it reads across tenants.
+-- Core.GetSettings call failed with "unexpected end of JSON input" until
+-- this ran. Requires the BYPASSRLS operator connection since it reads
+-- tenant 1's rows.
 --
--- app.root_url is deliberately excluded: it's tenant-1-specific, not a
--- sensible default for anyone else, and operator-set-tenant-root-url
--- sets the new tenant's own correct value right after this runs.
--- branding is tenant 1's own logo, so a new tenant starts without one.
+-- General preferences (sending rate, privacy, opt-in, cleanup, ...) are
+-- copied from tenant 1 as the new tenant's starting point. Anything that
+-- holds credentials or is tenant 1's own identity or code - SMTP and other
+-- messengers, bounce mailboxes and webhook keys, OIDC and captcha secrets,
+-- Scrub, custom CSS/JS, From address, notify addresses, trusted URLs -
+-- starts from schema.sql's install defaults
+-- (keep these in step with it): each tenant sets up its own.
+--
+-- upload.* is still copied: the Operator API has no way to set a
+-- tenant's media storage, so new tenants share tenant 1's (platform) store.
+--
+-- app.root_url is set by operator-set-tenant-root-url right after this,
+-- and replies by the Operator API, so neither is seeded here. branding is
+-- tenant 1's own logo, so a new tenant starts without one.
 --
 -- $1 is cast explicitly: inside a UNION, Postgres resolves an untyped
 -- parameter to TEXT before the INSERT's target type is applied, which
 -- fails preparation (and so startup) with "tenant_id is of type integer".
+WITH defaults(key, value) AS (
+    VALUES
+        ('app.site_name', '"Mailing list"'::JSONB),
+        ('app.favicon_url', '""'::JSONB),
+        ('app.from_email', '"listnun <noreply@listnun.yoursite.com>"'::JSONB),
+        ('app.logo_url', '""'::JSONB),
+        ('app.notify_emails', '[]'::JSONB),
+        ('security.captcha', '{"altcha": {"enabled": false, "complexity": 300000}, "hcaptcha": {"enabled": false, "key": "", "secret": ""}, "turnstile": {"enabled": false, "key": "", "secret": ""}, "login": false}'::JSONB),
+        ('security.oidc', '{"enabled": false, "provider_url": "", "provider_name": "", "client_id": "", "client_secret": "", "auto_create_users": false, "default_user_role_id": null, "default_list_role_id": null}'::JSONB),
+        ('security.trusted_urls', '[]'::JSONB),
+        ('smtp', '[{"enabled":true, "host":"smtp.yoursite.com","port":25,"auth_protocol":"cram","username":"username","password":"password","hello_hostname":"","max_conns":10,"idle_timeout":"15s","wait_timeout":"5s","max_msg_retries":2,"msg_retry_delay":"10ms","tls_type":"STARTTLS","tls_skip_verify":false,"email_headers":[], "from_addresses":[]},
+          {"enabled":false, "host":"smtp.gmail.com","port":465,"auth_protocol":"login","username":"username@gmail.com","password":"password","hello_hostname":"","max_conns":10,"idle_timeout":"15s","wait_timeout":"5s","max_msg_retries":2,"msg_retry_delay":"10ms","tls_type":"TLS","tls_skip_verify":false,"email_headers":[], "from_addresses":[]}]'::JSONB),
+        ('messengers', '[]'::JSONB),
+        ('bounce.enabled', 'false'::JSONB),
+        ('bounce.webhooks_enabled', 'false'::JSONB),
+        ('bounce.actions', '{"soft": {"count": 2, "action": "none"}, "hard": {"count": 1, "action": "blocklist"}, "complaint" : {"count": 1, "action": "blocklist"}}'::JSONB),
+        ('bounce.ses_enabled', 'false'::JSONB),
+        ('bounce.azure', '{"enabled": false, "shared_secret": "", "shared_secret_header": ""}'::JSONB),
+        ('bounce.sendgrid_enabled', 'false'::JSONB),
+        ('bounce.sendgrid_key', '""'::JSONB),
+        ('bounce.postmark', '{"enabled": false, "username": "", "password": ""}'::JSONB),
+        ('bounce.forwardemail', '{"enabled": false, "key": ""}'::JSONB),
+        ('bounce.lettermint', '{"enabled": false, "key": ""}'::JSONB),
+        ('bounce.mailboxes', '[{"enabled":false, "type": "pop", "host":"pop.yoursite.com","port":995,"auth_protocol":"userpass","username":"username","password":"password","return_path": "bounce@listnun.yoursite.com","scan_interval":"15m","tls_enabled":true,"tls_skip_verify":false}]'::JSONB),
+        ('appearance.admin.custom_css', '""'::JSONB),
+        ('appearance.admin.custom_js', '""'::JSONB),
+        ('appearance.public.custom_css', '""'::JSONB),
+        ('appearance.public.custom_js', '""'::JSONB),
+        ('scrub', '{"enabled": false, "url": "", "api_key": "", "integration_id": "", "managed_by_platform": false}'::JSONB),
+        ('branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB)
+)
 INSERT INTO settings (tenant_id, key, value)
-SELECT $1::INT, key, value FROM settings WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'branding')
+SELECT $1::INT, key, value FROM settings
+    WHERE tenant_id = 1 AND key NOT IN ('app.root_url', 'replies') AND key NOT IN (SELECT key FROM defaults)
 UNION ALL
-SELECT $1::INT, 'branding', '{"logo": null, "logo_dark": null, "width": 140, "align": "left", "link_url": ""}'::JSONB
+SELECT $1::INT, key, value FROM defaults
 ON CONFLICT (tenant_id, key) DO NOTHING;
 
 -- name: operator-set-tenant-root-url

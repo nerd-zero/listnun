@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from '@usewaypoint/email-builder';
+import { DEFAULT_LAYOUT_WIDTH } from './documents/blocks/EmailLayout/EmailLayoutPropsSchema';
 import { TEditorConfiguration } from './documents/editor/core';
 import { postProcessForOutlook } from './outlook';
 
@@ -60,13 +61,33 @@ function applyImageEmbeds(html: string, embedURLs: string[]): string {
   return output;
 }
 
+// The upstream renderer always gives the email's outer table this width.
+const RENDERER_LAYOUT_WIDTH = 600;
+
+function layoutWidth(document: TEditorConfiguration, rootBlockId: string): number {
+  const root = document[rootBlockId] as { type?: string; data?: { width?: number | null } } | undefined;
+  return (root?.type === 'EmailLayout' && root.data?.width) || DEFAULT_LAYOUT_WIDTH;
+}
+
+// applyLayoutWidth sets the template's content width on the email's outer
+// table, the first one in the output, which the upstream renderer fixes
+// at 600px.
+export function applyLayoutWidth(html: string, width: number): string {
+  if (width === RENDERER_LAYOUT_WIDTH) {
+    return html;
+  }
+  const outer = new RegExp(`(<table\\b[^>]*?style="[^"]*?)max-width:${RENDERER_LAYOUT_WIDTH}px`);
+  return html.replace(outer, `$1max-width:${width}px`);
+}
+
 export function renderHtmlWithMeta(
   document: TEditorConfiguration,
   options: { rootBlockId: string; outlook?: boolean }
 ): string {
   const embedURLs = collectImageEmbedURLs(document);
-  const html = renderToStaticMarkup(document, options);
-  const rendered = options.outlook ? postProcessForOutlook(html) : html;
+  const width = layoutWidth(document, options.rootBlockId);
+  const html = applyLayoutWidth(renderToStaticMarkup(document, options), width);
+  const rendered = options.outlook ? postProcessForOutlook(html, width) : html;
   const output = applyImageEmbeds(rendered, embedURLs);
   const head = options.outlook ? `${VIEWPORT_META}${MSO_DOCUMENT_SETTINGS}` : VIEWPORT_META;
 

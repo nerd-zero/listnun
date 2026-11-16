@@ -38,6 +38,17 @@ func testCoreForListActivity(t *testing.T, pool *sqlx.DB) *Core {
 		return stmt
 	}
 
+	// Results on the recent campaigns come from queries/campaigns.sql.
+	cqs, err := goyesql.ParseFile("../../queries/campaigns.sql")
+	if err != nil {
+		t.Fatalf("parsing queries/campaigns.sql: %v", err)
+	}
+	engagement, err := pool.Preparex(cqs["get-campaign-engagement"].Query)
+	if err != nil {
+		t.Fatalf("prepare get-campaign-engagement: %v", err)
+	}
+	t.Cleanup(func() { engagement.Close() })
+
 	lang, err := i18n.New([]byte(`{"_.code":"en","_.name":"English"}`))
 	if err != nil {
 		t.Fatalf("building i18n: %v", err)
@@ -49,6 +60,7 @@ func testCoreForListActivity(t *testing.T, pool *sqlx.DB) *Core {
 			GetListsGrowth:         prep("get-lists-growth"),
 			GetListActivity:        prep("get-list-activity"),
 			GetListRecentCampaigns: prep("get-list-recent-campaigns"),
+			GetCampaignEngagement:  engagement,
 			GetOptinPending:        prep("get-optin-pending"),
 			CountOptinPending:      prep("count-optin-pending"),
 			MarkOptinSent:          prep("mark-optin-sent"),

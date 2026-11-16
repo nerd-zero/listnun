@@ -41,6 +41,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useMainStore } from '../store';
 import { useGlobal } from '../composables/useGlobal';
+import { readJSON, writeJSON } from '../safeStorage';
 import 'tinymce';
 import 'tinymce/icons/default';
 import 'tinymce/plugins/anchor';
@@ -126,7 +127,11 @@ function trimLines(str: string, removeEmptyLines: boolean) {
 function beautifyHTML(str: string) {
   let s = trimLines(str.replace(/(<(?!(\/)?a|span)([^>]+)>)/gi, '\n$1\n'), true);
   s = s.replace(/\n+/g, '\n');
-  try { s = html(s).trim(); } catch (error) { console.log('error formatting HTML', error); }
+  try {
+    s = html(s).trim();
+  } catch {
+    // Formatting is cosmetic: on failure, keep the unformatted HTML.
+  }
   return s;
 }
 
@@ -162,19 +167,19 @@ function onEditorDialogOpen(editor: any) {
     if (!isLink && !isImage) { return oldEd.call(ed.windowManager, tpl, r); }
     const { onSubmit } = tpl;
     const checkbox = isLink
-      ? { type: 'checkbox', name: TRACK_LINK, label: 'Track link?' }
+      ? { type: 'checkbox', name: TRACK_LINK, label: t('campaigns.trackLink') }
       : { type: 'checkbox', name: EMBED_IMAGE, label: t('media.embed') };
     const spec = { ...tpl, body: withDialogCheckbox(tpl.body, checkbox) };
     if (isLink) {
       const cleanURL = (data.url.value || '').replace(/@TrackLink$/, '');
       const checked = data.url.value !== cleanURL
-        || (!cleanURL && JSON.parse(localStorage.getItem(TRACK_LINK) || 'false'));
+        || (!cleanURL && readJSON(TRACK_LINK) === true);
       spec.initialData = { ...data, [TRACK_LINK]: checked, url: { ...data.url, value: cleanURL } };
       spec.onSubmit = (api: any) => {
         const d = api.getData();
         const shouldTrack = Boolean(d[TRACK_LINK]);
         const url = (d.url.value || '').replace(/@TrackLink$/, '');
-        localStorage.setItem(TRACK_LINK, JSON.stringify(shouldTrack));
+        writeJSON(TRACK_LINK, shouldTrack);
         if (shouldTrack && /^https?:\/\//i.test(url)) {
           api.setData({ url: { ...d.url, value: `${url}${TRACK_SUFFIX}` } });
         }

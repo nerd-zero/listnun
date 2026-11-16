@@ -94,10 +94,13 @@ build-email-builder: $(FRONTEND_EMAIL_BUILDER_DIST_FINAL)
 run-frontend: $(FRONTEND_EMAIL_BUILDER_DIST_FINAL)
 	export VUE_APP_VERSION="${VERSION}" && cd frontend && $(YARN) dev
 
-# Run Go tests.
+# Run Go tests. The migration tests run last, on their own: they change the
+# shared test database's schema, which deadlocks other packages' tests
+# running alongside them.
 .PHONY: test
 test:
-	go test ./...
+	go test $$(go list ./... | grep -v '/internal/migrations$$')
+	go test ./internal/migrations
 
 # Bundle all static assets including the JS frontend into the ./listnun binary
 # using stuffbin (installed with make deps).

@@ -6,7 +6,9 @@ describe('Bounces', () => {
 
     cy.loginAndVisit('/admin/settings/bounces');
     cy.get('[data-cy=btn-enable-bounce] input[role=switch]').check({ force: true });
-    cy.get('[data-cy=btn-enable-bounce-webhook] input[role=switch]').check({ force: true });
+    // There's no separate webhooks switch: bounce webhooks (which the next
+    // test posts to) are accepted whenever a webhook provider is on.
+    cy.get('[data-cy=btn-enable-bounce-ses] input[role=switch]').check({ force: true });
 
     // The last action Select (complaint bounces): pick the 'delete' option.
     cy.get('[name="bounce.action"]').last().closest('.p-select').click();

@@ -15,6 +15,16 @@ SELECT JSON_OBJECT_AGG(key, value) AS settings FROM (SELECT * FROM settings WHER
 -- tenant has no app.root_url set, which the caller falls back on.
 SELECT value #>> '{}' FROM settings WHERE tenant_id = $1 AND key = 'app.root_url';
 
+-- name: get-tenant-tracking
+-- A tenant's own link/view tracking settings (models.TenantTracking),
+-- read per tenant rather than from the boot-time global config, which is
+-- pinned to tenant 1 (see cmd/init.go's initSettings). Missing keys read
+-- as false, the schema.sql defaults.
+SELECT
+    COALESCE(BOOL_OR((value #>> '{}')::BOOLEAN) FILTER (WHERE key = 'privacy.disable_tracking'), FALSE) AS disable_tracking,
+    COALESCE(BOOL_OR((value #>> '{}')::BOOLEAN) FILTER (WHERE key = 'privacy.individual_tracking'), FALSE) AS individual_tracking
+    FROM settings WHERE tenant_id = $1 AND key IN ('privacy.disable_tracking', 'privacy.individual_tracking');
+
 -- name: update-settings
 UPDATE settings AS s SET value = c.value
     -- For each key in the incoming JSON map, update the row with the key and its value.

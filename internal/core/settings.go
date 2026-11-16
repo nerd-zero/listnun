@@ -43,8 +43,21 @@ func (c *Core) UpdateSettings(ctx context.Context, tenantID int, s models.Settin
 	// it, no matter what the request body contained. This is the whole
 	// sub-object, not field-by-field, since everything is locked together
 	// once platform-managed (see models.Settings.Scrub's doc comment).
-	if cur, err := c.GetSettings(ctx, tenantID); err == nil && cur.Scrub.ManagedByPlatform {
+	//
+	// Platform-managed SMTP servers are locked the same way, and here it
+	// matters most: their credentials work outside listnun, and a save that
+	// changed a server's host while keeping its stored password would send
+	// them to that host. Without the current settings to check, nothing is
+	// saved.
+	cur, err := c.GetSettings(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if cur.Scrub.ManagedByPlatform {
 		s.Scrub = cur.Scrub
+	}
+	if cur.SMTPManaged() {
+		s.SMTP = cur.SMTP
 	}
 
 	// Marshal settings.
@@ -73,10 +86,19 @@ func (c *Core) UpdateSettingsByKey(ctx context.Context, tenantID int, key string
 	// independent write path into the same row UpdateSettings guards --
 	// it must be locked too, or a tenant admin can trivially bypass the
 	// UpdateSettings-only guard by calling this endpoint directly instead.
-	if key == "scrub" {
-		if cur, err := c.GetSettings(ctx, tenantID); err == nil && cur.Scrub.ManagedByPlatform {
+	// The same goes for platform-managed SMTP.
+	if key == "scrub" || key == "smtp" {
+		cur, err := c.GetSettings(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		if key == "scrub" && cur.Scrub.ManagedByPlatform {
 			return echo.NewHTTPError(http.StatusForbidden,
 				c.i18n.T("settings.scrub.managedByPlatform"))
+		}
+		if key == "smtp" && cur.SMTPManaged() {
+			return echo.NewHTTPError(http.StatusForbidden,
+				c.i18n.T("settings.smtp.managedByPlatform"))
 		}
 	}
 

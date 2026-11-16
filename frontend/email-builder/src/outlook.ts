@@ -383,12 +383,30 @@ function transformButtonBlocks(doc: Document) {
   });
 }
 
-export function postProcessForOutlook(html: string) {
+// constrainLayoutWidth wraps the email's outer table in a fixed-width one
+// that only Outlook on Windows reads: it ignores max-width, so the email
+// would otherwise stretch across the whole window.
+function constrainLayoutWidth(doc: Document, width: number) {
+  const outer = doc.querySelector('body > div > table');
+  if (!outer || !outer.parentNode) {
+    return;
+  }
+
+  outer.parentNode.insertBefore(
+    doc.createComment(`[if mso]><table role="presentation" align="center" width="${width}" cellpadding="0" cellspacing="0" border="0" style="${PRESENTATION_TABLE_STYLE}"><tr><td><![endif]`),
+    outer
+  );
+  outer.parentNode.insertBefore(doc.createComment('[if mso]></td></tr></table><![endif]'), outer.nextSibling);
+}
+
+export function postProcessForOutlook(html: string, width: number) {
   if (typeof DOMParser === 'undefined') {
     return html;
   }
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  constrainLayoutWidth(doc, width);
 
   addTableDefaults(doc);
   hardenImages(doc);
