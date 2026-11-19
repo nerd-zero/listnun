@@ -28,7 +28,7 @@ type campArchive struct {
 func (a *App) GetCampaignArchives(c echo.Context) error {
 	// Get archives from the DB.
 	pg := a.pg.NewFromURL(c.Request().URL.Query())
-	camps, total, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), pg.Offset, pg.Limit, false)
+	camps, total, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), a.requestRootURL(c)+"/archive", pg.Offset, pg.Limit, false)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (a *App) GetCampaignArchivesFeed(c echo.Context) error {
 	)
 
 	// Get archives from the DB.
-	camps, _, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), pg.Offset, pg.Limit, showFullContent)
+	camps, _, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), a.requestRootURL(c)+"/archive", pg.Offset, pg.Limit, showFullContent)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (a *App) GetCampaignArchivesFeed(c echo.Context) error {
 func (a *App) CampaignArchivesPage(c echo.Context) error {
 	// Get archives from the DB.
 	pg := a.pg.NewFromURL(c.Request().URL.Query())
-	out, total, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), pg.Offset, pg.Limit, false)
+	out, total, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), a.requestRootURL(c)+"/archive", pg.Offset, pg.Limit, false)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *App) CampaignArchivePage(c echo.Context) error {
 // CampaignArchivePageLatest renders the latest public campaign.
 func (a *App) CampaignArchivePageLatest(c echo.Context) error {
 	// Get the latest campaign from the DB.
-	camps, _, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), 0, 1, true)
+	camps, _, err := a.getCampaignArchives(c.Request().Context(), tenantID(c), a.requestRootURL(c)+"/archive", 0, 1, true)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,10 @@ func (a *App) CampaignArchivePageLatest(c echo.Context) error {
 }
 
 // getCampaignArchives fetches the public campaign archives from the DB.
-func (a *App) getCampaignArchives(ctx context.Context, tenantID int, offset, limit int, renderBody bool) ([]campArchive, int, error) {
+// archiveURL is the requesting workspace's archive address; item links are
+// built on it rather than a.urlCfg.ArchiveURL, which is tenant 1's boot-time
+// address and would point every other workspace's archive at the wrong host.
+func (a *App) getCampaignArchives(ctx context.Context, tenantID int, archiveURL string, offset, limit int, renderBody bool) ([]campArchive, int, error) {
 	pubCamps, total, err := a.core.GetArchivedCampaigns(ctx, tenantID, offset, limit)
 	if err != nil {
 		return []campArchive{}, total, echo.NewHTTPError(http.StatusInternalServerError, a.i18n.T("public.errorFetchingCampaign"))
@@ -218,9 +221,9 @@ func (a *App) getCampaignArchives(ctx context.Context, tenantID int, offset, lim
 
 		// The campaign may have a custom slug.
 		if camp.ArchiveSlug.Valid {
-			archive.URL, _ = url.JoinPath(a.urlCfg.ArchiveURL, camp.ArchiveSlug.String)
+			archive.URL, _ = url.JoinPath(archiveURL, camp.ArchiveSlug.String)
 		} else {
-			archive.URL, _ = url.JoinPath(a.urlCfg.ArchiveURL, camp.UUID)
+			archive.URL, _ = url.JoinPath(archiveURL, camp.UUID)
 		}
 
 		// Render the full template body if requested.
